@@ -1,3 +1,14 @@
 spring:
   application:
     name: expenses-tracker-api
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/expenses_db
+    username: postgres
+    password: postgres
+  flyway:
+    enabled: true
+    url: jdbc:postgresql://localhost:5432/expenses_db
+    user: postgres
+    password: postgres
+    baseline-on-migrate: true
+    locations: classpath:db/migration
