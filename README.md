@@ -19,6 +19,7 @@ A fully reactive expense tracking application built with **Spring Boot 4**, **Ko
 - [API Documentation](#-api-documentation)
   - [Endpoints](#endpoints)
   - [Examples](#examples)
+- [Testing with HTTP Client](#-testing-with-http-client)
 - [Configuration](#️-configuration)
   - [Application Properties](#application-properties)
   - [Environment Variables Guide](#environment-variables-guide)
@@ -520,6 +521,97 @@ curl http://localhost:8080/api/expenses/1
   "message": "Expense with id 999 not found"
 }
 ```
+
+## 🧪 Testing with HTTP Client
+
+The project includes `.http` files for testing API endpoints directly from your IDE (IntelliJ IDEA, VS Code with REST Client extension, etc.).
+
+### Files
+
+- **`expenses-tracker-api.http`** - HTTP requests for all API endpoints
+- **`http-client.env.json`** - Environment configurations (local, docker, prod)
+
+### Usage
+
+#### IntelliJ IDEA / WebStorm
+
+1. Open `expenses-tracker-api.http` file
+2. Select environment from dropdown (local / docker / prod)
+3. Click the green arrow (▶️) next to any request to execute it
+
+#### VS Code
+
+1. Install the **REST Client** extension
+2. Open `expenses-tracker-api.http` file
+3. Click "Send Request" above each request
+
+### Available Environments
+
+```json
+{
+  "local": {
+    "ExpensesApiUrl": "http://localhost:8080"
+  },
+  "docker": {
+    "ExpensesApiUrl": "http://localhost:8080"
+  },
+  "prod": {
+    "ExpensesApiUrl": "https://expenses-api.example.com"
+  }
+}
+```
+
+### Example Requests
+
+**Health Check:**
+```http
+GET {{ExpensesApiUrl}}/actuator/health
+Accept: application/json
+```
+
+**Get All Expenses:**
+```http
+GET {{ExpensesApiUrl}}/api/expenses
+Accept: application/json
+```
+
+**Add New Expense:**
+```http
+POST {{ExpensesApiUrl}}/api/expenses
+Content-Type: application/json
+
+{
+  "description": "Groceries",
+  "amount": 50.00,
+  "category": "Food",
+  "date": "2026-01-19T15:30:00"
+}
+```
+
+### Quick Start
+
+1. **Start the application:**
+```bash
+# Using Docker
+docker-compose up -d
+
+# Or locally
+./gradlew bootRun
+```
+
+2. **Open `expenses-tracker-api.http` in your IDE**
+
+3. **Select environment** (local or docker)
+
+4. **Execute requests** by clicking the play button
+
+### Tips
+
+- All requests use the `{{ExpensesApiUrl}}` variable
+- Switch environments to test different deployments
+- Add your own custom requests
+- Responses are displayed in the IDE
+- Great for quick API testing during development
 
 ## ⚙️ Configuration
 

@@ -1,0 +1,75 @@
+### Health Check - Verify the application is running
+GET {{ExpensesApiUrl}}/actuator/health
+Accept: application/json
+
+###
+
+### Get All Expenses - Returns list of all expenses (reactive endpoint with coroutines)
+GET {{ExpensesApiUrl}}/api/expenses
+Accept: application/json
+
+###
+
+### Get Expense by ID - Returns a specific expense
+GET {{ExpensesApiUrl}}/api/expenses/1
+Accept: application/json
+
+###
+
+### Add Expense - Create a new expense (POST request)
+POST {{ExpensesApiUrl}}/api/expenses
+Content-Type: application/json
+
+{
+  "description": "Groceries",
+  "amount": 50.00,
+  "category": "Food",
+  "date": "2026-01-19T15:30:00"
+}
+
+###
+
+### Add Expense - Example with Transportation category
+POST {{ExpensesApiUrl}}/api/expenses
+Content-Type: application/json
+
+{
+  "description": "Gas",
+  "amount": 40.00,
+  "category": "Transportation",
+  "date": "2026-01-19T16:00:00"
+}
+
+###
+
+### Add Expense - Example with Entertainment category
+POST {{ExpensesApiUrl}}/api/expenses
+Content-Type: application/json
+
+{
+  "description": "Movie tickets",
+  "amount": 25.50,
+  "category": "Entertainment",
+  "date": "2026-01-19T20:00:00"
+}
+
+###
+
+### Add Expense - Example with Utilities category
+POST {{ExpensesApiUrl}}/api/expenses
+Content-Type: application/json
+
+{
+  "description": "Electricity bill",
+  "amount": 120.00,
+  "category": "Utilities",
+  "date": "2026-01-19T10:00:00"
+}
+
+###
+
+### Get Non-Existing Expense - Should return 404
+GET {{ExpensesApiUrl}}/api/expenses/999
+Accept: application/json
+
+###
