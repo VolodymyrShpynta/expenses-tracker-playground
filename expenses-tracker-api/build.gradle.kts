@@ -17,6 +17,7 @@ dependencies {
 	implementation(libs.spring.boot.starter.actuator)
 	implementation(libs.spring.boot.starter.data.r2dbc)
 	implementation(libs.spring.boot.starter.webflux)
+	implementation(libs.spring.boot.starter.jdbc)
 	implementation(libs.reactor.kotlin.extensions)
 	implementation(libs.kotlin.reflect)
 	implementation(libs.kotlinx.coroutines.reactor)
