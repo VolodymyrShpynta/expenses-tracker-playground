@@ -1,0 +1,96 @@
+# .dockerignore
+# Excludes files from Docker build context for faster builds and smaller images
+
+# ============================================
+# Version Control
+# ============================================
+.git
+.gitignore
+.gitattributes
+
+# ============================================
+# Build Tools & Dependencies
+# ============================================
+.gradle
+gradle/
+gradlew
+gradlew.bat
+build.gradle.kts
+settings.gradle.kts
+
+# ============================================
+# IDE & Editors
+# ============================================
+.idea
+.vscode
+.eclipse
+.project
+.classpath
+.settings
+*.iml
+*.ipr
+*.iws
+.DS_Store
+Thumbs.db
+
+# ============================================
+# Build Artifacts (Keep only final JAR)
+# ============================================
+build/
+!build/libs/
+build/libs/*
+!build/libs/*.jar
+
+# Alternative: If you want to be more specific
+# build/classes/
+# build/generated/
+# build/kotlin/
+# build/resources/
+# build/test-results/
+# build/tmp/
+# !build/libs/*.jar
+
+# ============================================
+# Source Code (Not needed in runtime image)
+# ============================================
+src/
+
+# ============================================
+# Tests
+# ============================================
+**/test/
+*.test.*
+
+# ============================================
+# Documentation
+# ============================================
+*.md
+!README.md
+
+# ============================================
+# Docker Files
+# ============================================
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# ============================================
+# Logs & Temporary Files
+# ============================================
+*.log
+*.tmp
+*.swp
+*.swo
+*~
+.cache
+
+# ============================================
+# Environment & Secrets (Security!)
+# ============================================
+.env
+.env.*
+*.key
+*.pem
+*.p12
+secrets/
+
