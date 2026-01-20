@@ -2,9 +2,9 @@ package com.vshpynta.expenses.api.sync
 
 import com.vshpynta.expenses.api.config.TestContainersConfig
 import com.vshpynta.expenses.api.config.WebTestClientConfig
-import com.vshpynta.expenses.api.sync.controller.CreateExpenseRequest
-import com.vshpynta.expenses.api.sync.controller.ExpenseDto
-import com.vshpynta.expenses.api.sync.controller.UpdateExpenseRequest
+import com.vshpynta.expenses.api.controller.CreateExpenseRequest
+import com.vshpynta.expenses.api.controller.ExpenseDto
+import com.vshpynta.expenses.api.controller.UpdateExpenseRequest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -37,7 +37,7 @@ class SyncExpenseControllerTest {
         )
 
         webTestClient.post()
-            .uri("/api/v2/expenses")
+            .uri("/api/expenses")
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(request)
             .exchange()
@@ -63,7 +63,7 @@ class SyncExpenseControllerTest {
         )
 
         webTestClient.post()
-            .uri("/api/v2/expenses")
+            .uri("/api/expenses")
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(request)
             .exchange()
@@ -71,7 +71,7 @@ class SyncExpenseControllerTest {
 
         // Get all expenses
         webTestClient.get()
-            .uri("/api/v2/expenses")
+            .uri("/api/expenses")
             .exchange()
             .expectStatus().isOk
             .expectBody<List<ExpenseDto>>()
@@ -93,7 +93,7 @@ class SyncExpenseControllerTest {
         )
 
         val created = webTestClient.post()
-            .uri("/api/v2/expenses")
+            .uri("/api/expenses")
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(createRequest)
             .exchange()
@@ -109,7 +109,7 @@ class SyncExpenseControllerTest {
         )
 
         webTestClient.put()
-            .uri("/api/v2/expenses/${created.id}")
+            .uri("/api/expenses/${created.id}")
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(updateRequest)
             .exchange()
@@ -134,7 +134,7 @@ class SyncExpenseControllerTest {
         )
 
         val created = webTestClient.post()
-            .uri("/api/v2/expenses")
+            .uri("/api/expenses")
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(createRequest)
             .exchange()
@@ -145,13 +145,13 @@ class SyncExpenseControllerTest {
 
         // Delete expense
         webTestClient.delete()
-            .uri("/api/v2/expenses/${created.id}")
+            .uri("/api/expenses/${created.id}")
             .exchange()
             .expectStatus().isNoContent
 
         // Verify deletion
         webTestClient.get()
-            .uri("/api/v2/expenses/${created.id}")
+            .uri("/api/expenses/${created.id}")
             .exchange()
             .expectStatus().is5xxServerError  // Should throw NoSuchElementException
     }
@@ -167,7 +167,7 @@ class SyncExpenseControllerTest {
         )
 
         webTestClient.post()
-            .uri("/api/v2/expenses")
+            .uri("/api/expenses")
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(request)
             .exchange()
@@ -175,7 +175,7 @@ class SyncExpenseControllerTest {
 
         // Trigger sync
         webTestClient.post()
-            .uri("/api/v2/expenses/sync")
+            .uri("/api/expenses/sync")
             .exchange()
             .expectStatus().isOk
             .expectBody()
@@ -186,7 +186,7 @@ class SyncExpenseControllerTest {
     @Test
     fun `should get device id`() {
         webTestClient.get()
-            .uri("/api/v2/expenses/device-id")
+            .uri("/api/expenses/device-id")
             .exchange()
             .expectStatus().isOk
             .expectBody()
@@ -198,7 +198,7 @@ class SyncExpenseControllerTest {
         val nonExistentId = "00000000-0000-0000-0000-000000000000"
 
         webTestClient.get()
-            .uri("/api/v2/expenses/$nonExistentId")
+            .uri("/api/expenses/$nonExistentId")
             .exchange()
             .expectStatus().is5xxServerError
     }
