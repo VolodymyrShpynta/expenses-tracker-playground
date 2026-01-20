@@ -4,6 +4,7 @@ kotlin = "2.2.21"
 spring-boot = "4.0.1"
 spring-dependency-management = "1.1.7"
 flyway = "11.16.0"
+testcontainers = "1.21.4"
 
 [libraries]
 # Spring Boot
@@ -34,7 +35,9 @@ postgresql = { module = "org.postgresql:postgresql" }
 
 # Test
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
-r2dbc-h2 = { module = "io.r2dbc:r2dbc-h2" }
+spring-boot-testcontainers = { module = "org.springframework.boot:spring-boot-testcontainers" }
+testcontainers-postgresql = { module = "org.testcontainers:postgresql", version.ref = "testcontainers" }
+testcontainers-r2dbc = { module = "org.testcontainers:r2dbc", version.ref = "testcontainers" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

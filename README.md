@@ -1,6 +1,6 @@
 # Expenses Tracker Playground
 
-A fully reactive expense tracking application built with **Spring Boot 4**, **Kotlin Coroutines**, **R2DBC**, and **PostgreSQL**. This project demonstrates modern reactive programming patterns with production-ready configuration management, database migrations, and Docker deployment.
+A fully reactive expense tracking application built with **Spring Boot 4**, **Kotlin Coroutines**, **R2DBC**, and **PostgreSQL**. This project demonstrates modern reactive programming patterns with production-ready configuration management, database migrations, Docker deployment, and **event-based synchronization** for multi-device support.
 
 ## 📑 Table of Contents
 
@@ -8,6 +8,7 @@ A fully reactive expense tracking application built with **Spring Boot 4**, **Ko
 - [Features](#-features)
 - [Technology Stack](#-technology-stack)
 - [Architecture](#-architecture)
+- [Sync Engine](#-sync-engine) 🆕
 - [Getting Started](#-getting-started)
   - [Prerequisites](#prerequisites)
   - [Local Development Setup](#local-development-setup)
@@ -37,12 +38,14 @@ This application showcases a complete reactive stack implementation using the la
 - **Database migrations** with Flyway
 - **Docker containerization** with Docker Compose
 - **Custom environment variables** for configuration
+- **Event-based synchronization** for multi-device support 🆕
 - **Production-ready** setup with health checks and monitoring
 
 ## ✨ Features
 
 - ✅ **Fully Reactive Stack**: Spring WebFlux + Kotlin Coroutines + R2DBC
 - ✅ **REST API**: CRUD operations for expense management
+- ✅ **Event Sourcing Sync Engine**: Conflict-free multi-device synchronization 🆕
 - ✅ **Database Migrations**: Flyway with PostgreSQL (production) and H2 (tests)
 - ✅ **Reactive Testing**: WebTestClient with H2 in-memory database
 - ✅ **Type-Safe Configuration**: Gradle Version Catalog for dependency management
@@ -124,6 +127,53 @@ expenses-tracker-playground/
 ├── build.gradle.kts                   # Root build config
 ├── settings.gradle.kts                # Multi-module setup
 └── README.md                          # This file
+```
+
+## 🔄 Sync Engine
+
+The application now includes a **conflict-free, event-based synchronization engine** that allows multiple devices to share expense data without a central server.
+
+### Key Features
+
+- ✅ **Event Sourcing**: Complete audit trail of all operations
+- ✅ **Conflict-Free**: Automatic last-write-wins resolution
+- ✅ **Idempotent**: Safe to retry operations
+- ✅ **Distributed**: No central server required
+- ✅ **Portable**: Designed for Android (Room + SQLite) migration
+
+### Quick Start
+
+**Create an expense:**
+```bash
+curl -X POST http://localhost:8080/api/v2/expenses \
+  -H "Content-Type: application/json" \
+  -d '{"description":"Coffee","amount":450,"category":"Food","date":"2026-01-20T10:00:00Z"}'
+```
+
+**Trigger sync:**
+```bash
+curl -X POST http://localhost:8080/api/v2/expenses/sync
+```
+
+**Check sync file:**
+```bash
+cat sync-data/sync.json
+```
+
+### Documentation
+
+- 📖 **[SYNC_ENGINE.md](SYNC_ENGINE.md)** - Complete sync engine documentation
+- 🔧 **[SYNC_ENGINE_IMPLEMENTATION.md](SYNC_ENGINE_IMPLEMENTATION.md)** - Implementation details
+- 🎮 **[SYNC_DEMO.md](SYNC_DEMO.md)** - Step-by-step demo scripts
+
+### Architecture
+
+```
+┌─────────────┐       ┌──────────────┐       ┌─────────────┐
+│  Device 1   │       │ Shared File  │       │  Device 2   │
+│  Write Op   ├──────►│  (sync.json) │◄──────┤  Read Ops   │
+│  Apply Op   │       │  Append-Only │       │  Apply Ops  │
+└─────────────┘       └──────────────┘       └─────────────┘
 ```
 
 ## 🚀 Getting Started

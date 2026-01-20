@@ -11,7 +11,7 @@ data class ExpenseRequest(
 )
 
 data class ExpenseResponse(
-    val id: Long,
+    val id: String,  // UUID as string
     val description: String,
     val amount: BigDecimal,
     val category: String,

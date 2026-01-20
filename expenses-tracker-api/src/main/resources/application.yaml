@@ -14,3 +14,10 @@ spring:
       username: ${EXPENSES_TRACKER_FLYWAY_USERNAME:postgres}
       password: ${EXPENSES_TRACKER_FLYWAY_PASSWORD:postgres}
       driver-class-name: org.postgresql.Driver
+
+# Sync configuration
+sync:
+  file:
+    path: ${SYNC_FILE_PATH:./sync-data/sync.json}
+  device:
+    id: ${DEVICE_ID:device-default}

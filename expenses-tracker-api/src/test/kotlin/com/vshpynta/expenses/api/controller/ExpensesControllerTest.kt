@@ -1,5 +1,6 @@
 package com.vshpynta.expenses.api.controller
 
+import com.vshpynta.expenses.api.config.TestContainersConfig
 import com.vshpynta.expenses.api.config.WebTestClientConfig
 import com.vshpynta.expenses.api.dto.ExpenseRequest
 import com.vshpynta.expenses.api.dto.ExpenseResponse
@@ -14,7 +15,7 @@ import java.math.BigDecimal
 import java.time.LocalDateTime
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import(WebTestClientConfig::class)
+@Import(WebTestClientConfig::class, TestContainersConfig::class)
 @ActiveProfiles("test")
 class ExpensesControllerTest {
 
@@ -79,7 +80,7 @@ class ExpensesControllerTest {
             .exchange()
             .expectStatus().isOk
             .expectBody()
-            .jsonPath("$.id").isNumber
+            .jsonPath("$.id").isNotEmpty
             .jsonPath("$.description").isEqualTo("Transport")
             .jsonPath("$.amount").isNumber
             .jsonPath("$.category").isEqualTo("Transportation")

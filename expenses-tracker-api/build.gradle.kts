@@ -30,7 +30,9 @@ dependencies {
 	testImplementation(libs.spring.boot.starter.webflux.test)
 	testImplementation(libs.kotlin.test.junit5)
 	testImplementation(libs.kotlinx.coroutines.test)
-	testImplementation(libs.r2dbc.h2)
+	testImplementation(libs.spring.boot.testcontainers)
+	testImplementation(libs.testcontainers.postgresql)
+	testImplementation(libs.testcontainers.r2dbc)
 	testRuntimeOnly(libs.junit.platform.launcher)
 }
 
