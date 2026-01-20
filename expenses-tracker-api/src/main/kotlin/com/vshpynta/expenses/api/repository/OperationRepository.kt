@@ -1,6 +1,6 @@
-package com.vshpynta.expenses.api.sync.repository
+package com.vshpynta.expenses.api.repository
 
-import com.vshpynta.expenses.api.sync.model.Operation
+import com.vshpynta.expenses.api.model.Operation
 import kotlinx.coroutines.flow.Flow
 import org.springframework.data.r2dbc.repository.Query
 import org.springframework.data.repository.kotlin.CoroutineCrudRepository

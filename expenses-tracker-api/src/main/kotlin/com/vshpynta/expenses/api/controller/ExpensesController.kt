@@ -1,8 +1,8 @@
 package com.vshpynta.expenses.api.controller
 
-import com.vshpynta.expenses.api.sync.model.SyncExpense
-import com.vshpynta.expenses.api.sync.service.ExpenseWriteService
-import com.vshpynta.expenses.api.sync.service.SyncService
+import com.vshpynta.expenses.api.model.SyncExpense
+import com.vshpynta.expenses.api.service.ExpenseWriteService
+import com.vshpynta.expenses.api.service.SyncService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.springframework.http.HttpStatus
@@ -102,36 +102,3 @@ class ExpensesController(
     )
 }
 
-// DTOs
-data class CreateExpenseRequest(
-    val description: String,
-    val amount: Long,  // cents
-    val category: String,
-    val date: String  // ISO 8601
-)
-
-data class UpdateExpenseRequest(
-    val description: String? = null,
-    val amount: Long? = null,
-    val category: String? = null,
-    val date: String? = null
-)
-
-data class ExpenseDto(
-    val id: String,
-    val description: String,
-    val amount: Long,
-    val category: String,
-    val date: String,
-    val updatedAt: Long,
-    val deleted: Boolean
-)
-
-data class SyncResultDto(
-    val deviceId: String,
-    val message: String
-)
-
-data class DeviceIdDto(
-    val deviceId: String
-)

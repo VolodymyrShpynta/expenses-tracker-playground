@@ -1,10 +1,7 @@
-package com.vshpynta.expenses.api.sync
+package com.vshpynta.expenses.api.controller
 
 import com.vshpynta.expenses.api.config.TestContainersConfig
 import com.vshpynta.expenses.api.config.WebTestClientConfig
-import com.vshpynta.expenses.api.controller.CreateExpenseRequest
-import com.vshpynta.expenses.api.controller.ExpenseDto
-import com.vshpynta.expenses.api.controller.UpdateExpenseRequest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -28,7 +25,7 @@ class SyncExpenseControllerTest {
     private lateinit var webTestClient: WebTestClient
 
     @Test
-    fun `should create expense with sync`() {
+    fun `should create expense`() {
         val request = CreateExpenseRequest(
             description = "Coffee",
             amount = 450,  // $4.50 in cents

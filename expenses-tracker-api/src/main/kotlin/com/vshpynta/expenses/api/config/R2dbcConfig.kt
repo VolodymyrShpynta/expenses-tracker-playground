@@ -50,8 +50,7 @@ class R2dbcConfig {
     @ReadingConverter
     class RowToUuidConverter : Converter<Row, UUID> {
         override fun convert(source: Row): UUID {
-            val value = source.get(0)
-            return when (value) {
+            return when (val value = source.get(0)) {
                 is UUID -> value
                 is String -> UUID.fromString(value)
                 else -> throw IllegalArgumentException("Cannot convert $value to UUID")

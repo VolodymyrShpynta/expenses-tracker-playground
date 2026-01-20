@@ -1,4 +1,4 @@
-package com.vshpynta.expenses.api.sync.model
+package com.vshpynta.expenses.api.model
 
 /**
  * Shared sync file format

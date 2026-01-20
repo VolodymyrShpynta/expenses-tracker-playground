@@ -1,13 +1,13 @@
-package com.vshpynta.expenses.api.sync.service
+package com.vshpynta.expenses.api.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.vshpynta.expenses.api.sync.model.ExpensePayload
-import com.vshpynta.expenses.api.sync.model.OpEntry
-import com.vshpynta.expenses.api.sync.model.Operation
-import com.vshpynta.expenses.api.sync.model.OperationType
-import com.vshpynta.expenses.api.sync.model.SyncFile
-import com.vshpynta.expenses.api.sync.repository.ExpenseUpsertRepository
-import com.vshpynta.expenses.api.sync.repository.OperationRepository
+import com.vshpynta.expenses.api.model.ExpensePayload
+import com.vshpynta.expenses.api.model.OpEntry
+import com.vshpynta.expenses.api.model.Operation
+import com.vshpynta.expenses.api.model.OperationType
+import com.vshpynta.expenses.api.model.SyncFile
+import com.vshpynta.expenses.api.repository.ExpenseUpsertRepository
+import com.vshpynta.expenses.api.repository.OperationRepository
 import kotlinx.coroutines.flow.toList
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value

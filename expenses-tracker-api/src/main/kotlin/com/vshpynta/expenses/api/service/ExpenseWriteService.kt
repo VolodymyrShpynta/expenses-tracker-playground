@@ -1,14 +1,15 @@
-package com.vshpynta.expenses.api.sync.service
+package com.vshpynta.expenses.api.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.vshpynta.expenses.api.sync.model.ExpensePayload
-import com.vshpynta.expenses.api.sync.model.OperationType
-import com.vshpynta.expenses.api.sync.model.SyncExpense
-import com.vshpynta.expenses.api.sync.repository.ExpenseUpsertRepository
-import com.vshpynta.expenses.api.sync.repository.SyncExpenseRepository
+import com.vshpynta.expenses.api.model.ExpensePayload
+import com.vshpynta.expenses.api.model.OperationType
+import com.vshpynta.expenses.api.model.SyncExpense
+import com.vshpynta.expenses.api.repository.ExpenseUpsertRepository
+import com.vshpynta.expenses.api.repository.SyncExpenseRepository
 import kotlinx.coroutines.flow.Flow
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
 
 /**
@@ -26,8 +27,9 @@ class ExpenseWriteService(
 
     /**
      * Create a new expense (write with operation generation)
-     * Note: Each database operation is atomic at the DB level
+     * Transactional: Both operation insertion and expense creation succeed or fail together
      */
+    @Transactional
     suspend fun createExpense(
         description: String,
         amount: Long,
@@ -68,7 +70,9 @@ class ExpenseWriteService(
 
     /**
      * Update an existing expense
+     * Transactional: Both operation insertion and expense update succeed or fail together
      */
+    @Transactional
     suspend fun updateExpense(
         id: UUID,
         description: String?,
@@ -111,7 +115,9 @@ class ExpenseWriteService(
 
     /**
      * Delete an expense (soft delete)
+     * Transactional: Both operation insertion and soft delete succeed or fail together
      */
+    @Transactional
     suspend fun deleteExpense(id: UUID): Boolean {
         val existing = syncExpenseRepository.findByIdOrNull(id) ?: return false
 

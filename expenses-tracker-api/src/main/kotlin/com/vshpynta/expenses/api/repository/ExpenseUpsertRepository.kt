@@ -1,6 +1,6 @@
-package com.vshpynta.expenses.api.sync.repository
+package com.vshpynta.expenses.api.repository
 
-import com.vshpynta.expenses.api.sync.model.ExpensePayload
+import com.vshpynta.expenses.api.model.ExpensePayload
 import kotlinx.coroutines.reactive.awaitFirst
 import kotlinx.coroutines.reactive.awaitFirstOrNull
 import org.springframework.r2dbc.core.DatabaseClient

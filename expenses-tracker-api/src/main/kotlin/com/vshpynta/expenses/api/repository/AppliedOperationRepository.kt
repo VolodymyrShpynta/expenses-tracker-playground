@@ -1,4 +1,4 @@
-package com.vshpynta.expenses.api.sync.repository
+package com.vshpynta.expenses.api.repository
 
 import org.springframework.data.r2dbc.repository.Query
 import org.springframework.data.repository.kotlin.CoroutineCrudRepository

@@ -1,4 +1,4 @@
-package com.vshpynta.expenses.api.sync.model
+package com.vshpynta.expenses.api.model
 
 import org.springframework.data.annotation.Id
 import org.springframework.data.relational.core.mapping.Column

@@ -1,12 +1,12 @@
-package com.vshpynta.expenses.api.sync
+package com.vshpynta.expenses.api.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.vshpynta.expenses.api.config.TestContainersConfig
-import com.vshpynta.expenses.api.sync.model.OpEntry
-import com.vshpynta.expenses.api.sync.model.SyncFile
-import com.vshpynta.expenses.api.sync.repository.ExpenseUpsertRepository
-import com.vshpynta.expenses.api.sync.service.ExpenseWriteService
-import com.vshpynta.expenses.api.sync.service.SyncService
+import com.vshpynta.expenses.api.model.OpEntry
+import com.vshpynta.expenses.api.model.SyncFile
+import com.vshpynta.expenses.api.repository.ExpenseUpsertRepository
+import com.vshpynta.expenses.api.service.ExpenseWriteService
+import com.vshpynta.expenses.api.service.SyncService
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.runBlocking
@@ -364,7 +364,7 @@ class SyncServiceTest {
             deviceId = deviceId,
             opType = opType,
             entityId = entityId.toString(),
-            payload = com.vshpynta.expenses.api.sync.model.ExpensePayload(
+            payload = com.vshpynta.expenses.api.model.ExpensePayload(
                 id = entityId,
                 description = description,
                 amount = amount,
