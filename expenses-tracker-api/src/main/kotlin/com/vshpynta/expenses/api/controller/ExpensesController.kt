@@ -1,7 +1,7 @@
 package com.vshpynta.expenses.api.controller
 
 import com.vshpynta.expenses.api.model.SyncExpense
-import com.vshpynta.expenses.api.service.ExpenseWriteService
+import com.vshpynta.expenses.api.service.ExpenseService
 import com.vshpynta.expenses.api.service.SyncService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -23,14 +23,14 @@ import java.util.UUID
 @RestController
 @RequestMapping("/api/expenses")
 class ExpensesController(
-    private val expenseWriteService: ExpenseWriteService,
+    private val expenseService: ExpenseService,
     private val syncService: SyncService
 ) {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     suspend fun createExpense(@RequestBody request: CreateExpenseRequest): ExpenseDto {
-        val expense = expenseWriteService.createExpense(
+        val expense = expenseService.createExpense(
             description = request.description,
             amount = request.amount,
             category = request.category,
@@ -44,7 +44,7 @@ class ExpensesController(
         @PathVariable id: String,
         @RequestBody request: UpdateExpenseRequest
     ): ExpenseDto {
-        val expense = expenseWriteService.updateExpense(
+        val expense = expenseService.updateExpense(
             id = UUID.fromString(id),
             description = request.description,
             amount = request.amount,
@@ -58,7 +58,7 @@ class ExpensesController(
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     suspend fun deleteExpense(@PathVariable id: String) {
-        val deleted = expenseWriteService.deleteExpense(UUID.fromString(id))
+        val deleted = expenseService.deleteExpense(UUID.fromString(id))
         if (!deleted) {
             throw NoSuchElementException("Expense not found: $id")
         }
@@ -66,13 +66,13 @@ class ExpensesController(
 
     @GetMapping
     suspend fun getAllExpenses(): Flow<ExpenseDto> {
-        return expenseWriteService.getAllExpenses()
+        return expenseService.getAllExpenses()
             .map { it.toDto() }
     }
 
     @GetMapping("/{id}")
     suspend fun getExpenseById(@PathVariable id: String): ExpenseDto {
-        val expense = expenseWriteService.getExpenseById(UUID.fromString(id))
+        val expense = expenseService.getExpenseById(UUID.fromString(id))
             ?: throw NoSuchElementException("Expense not found: $id")
         return expense.toDto()
     }

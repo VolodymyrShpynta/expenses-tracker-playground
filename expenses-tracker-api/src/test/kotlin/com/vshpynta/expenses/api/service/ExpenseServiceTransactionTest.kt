@@ -2,7 +2,7 @@ package com.vshpynta.expenses.api.service
 
 import com.vshpynta.expenses.api.config.TestContainersConfig
 import com.vshpynta.expenses.api.model.SyncExpense
-import com.vshpynta.expenses.api.repository.ExpenseUpsertRepository
+import com.vshpynta.expenses.api.repository.ExpenseRepository
 import com.vshpynta.expenses.api.repository.OperationRepository
 import com.vshpynta.expenses.api.repository.SyncExpenseRepository
 import kotlinx.coroutines.flow.toList
@@ -34,10 +34,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean
 @SpringBootTest
 @ActiveProfiles("test")
 @Import(TestContainersConfig::class)
-class ExpenseWriteServiceTransactionTest {
+class ExpenseServiceTransactionTest {
 
     @Autowired
-    private lateinit var expenseWriteService: ExpenseWriteService
+    private lateinit var expenseService: ExpenseService
 
     @Autowired
     private lateinit var syncExpenseRepository: SyncExpenseRepository
@@ -49,7 +49,7 @@ class ExpenseWriteServiceTransactionTest {
     private lateinit var databaseClient: DatabaseClient
 
     @MockitoSpyBean
-    private lateinit var expenseUpsertRepository: ExpenseUpsertRepository
+    private lateinit var expenseRepository: ExpenseRepository
 
     @BeforeEach
     fun setup() {
@@ -84,7 +84,7 @@ class ExpenseWriteServiceTransactionTest {
         val originalExpense = createExpense("Original description", 1000, "Food")
 
         // When: Updating the expense
-        val updatedExpense = expenseWriteService.updateExpense(
+        val updatedExpense = expenseService.updateExpense(
             id = originalExpense.id!!,
             description = "Updated description",
             amount = 2000,
@@ -109,7 +109,7 @@ class ExpenseWriteServiceTransactionTest {
         val existingExpense = createExpense("Expense to delete", 500, "Test")
 
         // When: Deleting the expense
-        val deleteResult = expenseWriteService.deleteExpense(existingExpense.id!!)
+        val deleteResult = expenseService.deleteExpense(existingExpense.id!!)
 
         // Then: Expense should be soft-deleted and delete operation created
         val operations = getAllOperations()
@@ -130,7 +130,7 @@ class ExpenseWriteServiceTransactionTest {
         val expense1 = createExpense("Expense 1", 1000, "Food")
         val expense2 = createExpense("Expense 2", 2000, "Transport")
 
-        expenseWriteService.updateExpense(
+        expenseService.updateExpense(
             id = expense1.id!!,
             description = "Expense 1 Updated",
             amount = 1500,
@@ -138,7 +138,7 @@ class ExpenseWriteServiceTransactionTest {
             date = null
         )
 
-        expenseWriteService.deleteExpense(expense2.id!!)
+        expenseService.deleteExpense(expense2.id!!)
 
         // Then: All operations should be recorded and expenses should reflect final state
         val operations = getAllOperations()
@@ -170,7 +170,7 @@ class ExpenseWriteServiceTransactionTest {
         val expense2 = createExpense("Expense 2", 2000, "Transport")
 
         // When: Updating expense1 successfully, then failing to update expense2
-        val successfulUpdate = expenseWriteService.updateExpense(
+        val successfulUpdate = expenseService.updateExpense(
             id = expense1.id!!,
             description = "Successfully updated",
             amount = 1500,
@@ -181,7 +181,7 @@ class ExpenseWriteServiceTransactionTest {
         // Attempt to update expense2 with invalid data (should fail and rollback)
         assertThatThrownBy {
             runBlocking {
-                expenseWriteService.updateExpense(
+                expenseService.updateExpense(
                     id = expense2.id!!,
                     description = "a".repeat(10000), // Exceeds database column limit
                     amount = 2500,
@@ -240,12 +240,12 @@ class ExpenseWriteServiceTransactionTest {
         // Configure spy to simulate failure in upsertExpense (second operation)
         doAnswer {
             throw RuntimeException("Simulated failure in upsertExpense - testing rollback")
-        }.`when`(expenseUpsertRepository).upsertExpense(any<SyncExpense>())
+        }.`when`(expenseRepository).upsertExpense(any<SyncExpense>())
 
         // When: Attempting to create an expense (will fail at upsert stage)
         assertThatThrownBy {
             runBlocking {
-                expenseWriteService.createExpense(
+                expenseService.createExpense(
                     description = "Test expense",
                     amount = 1000,
                     category = "Food",
@@ -276,7 +276,7 @@ class ExpenseWriteServiceTransactionTest {
         description: String,
         amount: Long,
         category: String
-    ) = expenseWriteService.createExpense(
+    ) = expenseService.createExpense(
         description = description,
         amount = amount,
         category = category,

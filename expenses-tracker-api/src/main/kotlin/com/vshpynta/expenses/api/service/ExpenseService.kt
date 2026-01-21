@@ -5,10 +5,12 @@ import com.vshpynta.expenses.api.model.ExpensePayload
 import com.vshpynta.expenses.api.model.Operation
 import com.vshpynta.expenses.api.model.OperationType
 import com.vshpynta.expenses.api.model.SyncExpense
-import com.vshpynta.expenses.api.repository.ExpenseUpsertRepository
-import com.vshpynta.expenses.api.repository.OperationUpsertRepository
+import com.vshpynta.expenses.api.repository.ExpenseRepository
+import com.vshpynta.expenses.api.repository.OperationRepository
 import com.vshpynta.expenses.api.repository.SyncExpenseRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -19,14 +21,14 @@ import java.util.UUID
  * Each write operation creates an Op that can be synced
  */
 @Service
-class ExpenseWriteService(
+class ExpenseService(
     private val syncExpenseRepository: SyncExpenseRepository,
-    private val upsertRepository: ExpenseUpsertRepository,
-    private val operationRepository: OperationUpsertRepository,
+    private val expenseRepository: ExpenseRepository,
+    private val operationRepository: OperationRepository,
     private val syncService: SyncService,
     private val objectMapper: ObjectMapper
 ) {
-    private val logger = LoggerFactory.getLogger(ExpenseWriteService::class.java)
+    private val logger = LoggerFactory.getLogger(ExpenseService::class.java)
 
     /**
      * Create a new expense (write with operation generation)
@@ -38,7 +40,7 @@ class ExpenseWriteService(
         amount: Long,
         category: String,
         date: String
-    ): SyncExpense {
+    ): SyncExpense = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
         val expenseId = UUID.randomUUID()
         val opId = UUID.randomUUID()
@@ -73,7 +75,7 @@ class ExpenseWriteService(
         logger.info("Saved operation: ${savedOperation.opId}")
 
         // 2. Apply effect to expenses table (UPSERT)
-        upsertRepository.upsertExpense(
+        expenseRepository.upsertExpense(
             SyncExpense(
                 id = payload.id,
                 description = payload.description,
@@ -87,7 +89,7 @@ class ExpenseWriteService(
 
         logger.info("Created expense: $expenseId with op: $opId")
 
-        return syncExpenseRepository.findByIdOrNull(expenseId)!!
+        syncExpenseRepository.findByIdOrNull(expenseId)!!
     }
 
     /**
@@ -101,8 +103,8 @@ class ExpenseWriteService(
         amount: Long?,
         category: String?,
         date: String?
-    ): SyncExpense? {
-        val existing = syncExpenseRepository.findByIdOrNull(id) ?: return null
+    ): SyncExpense? = withContext(Dispatchers.IO) {
+        val existing = syncExpenseRepository.findByIdOrNull(id) ?: return@withContext null
 
         val now = System.currentTimeMillis()
         val opId = UUID.randomUUID()
@@ -131,7 +133,7 @@ class ExpenseWriteService(
         )
 
         // 2. Apply effect
-        upsertRepository.upsertExpense(
+        expenseRepository.upsertExpense(
             SyncExpense(
                 id = payload.id,
                 description = payload.description,
@@ -145,7 +147,7 @@ class ExpenseWriteService(
 
         logger.info("Updated expense: $id with op: $opId")
 
-        return syncExpenseRepository.findByIdOrNull(id)
+        syncExpenseRepository.findByIdOrNull(id)
     }
 
     /**
@@ -153,8 +155,8 @@ class ExpenseWriteService(
      * Transactional: Both operation insertion and soft delete succeed or fail together
      */
     @Transactional
-    suspend fun deleteExpense(id: UUID): Boolean {
-        val existing = syncExpenseRepository.findByIdOrNull(id) ?: return false
+    suspend fun deleteExpense(id: UUID): Boolean = withContext(Dispatchers.IO) {
+        val existing = syncExpenseRepository.findByIdOrNull(id) ?: return@withContext false
 
         val now = System.currentTimeMillis()
         val opId = UUID.randomUUID()
@@ -183,25 +185,25 @@ class ExpenseWriteService(
         )
 
         // 2. Apply soft delete
-        upsertRepository.softDeleteExpense(id, now)
+        expenseRepository.softDeleteExpense(id, now)
 
         logger.info("Deleted expense: $id with op: $opId")
 
-        return true
+        true
     }
 
     /**
      * Get all active (non-deleted) expenses
      */
-    suspend fun getAllExpenses(): Flow<SyncExpense> {
-        return syncExpenseRepository.findAllActive()
+    suspend fun getAllExpenses(): Flow<SyncExpense> = withContext(Dispatchers.IO) {
+        syncExpenseRepository.findAllActive()
     }
 
     /**
      * Get expense by ID
      */
-    suspend fun getExpenseById(id: UUID): SyncExpense? {
+    suspend fun getExpenseById(id: UUID): SyncExpense? = withContext(Dispatchers.IO) {
         val expense = syncExpenseRepository.findByIdOrNull(id)
-        return if (expense?.deleted == true) null else expense
+        if (expense?.deleted == true) null else expense
     }
 }

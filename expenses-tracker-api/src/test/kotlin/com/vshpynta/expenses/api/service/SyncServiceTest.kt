@@ -4,9 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.vshpynta.expenses.api.config.TestContainersConfig
 import com.vshpynta.expenses.api.model.OpEntry
 import com.vshpynta.expenses.api.model.SyncFile
-import com.vshpynta.expenses.api.repository.ExpenseUpsertRepository
-import com.vshpynta.expenses.api.service.ExpenseWriteService
-import com.vshpynta.expenses.api.service.SyncService
+import com.vshpynta.expenses.api.repository.ExpenseRepository
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.runBlocking
@@ -36,10 +34,10 @@ class SyncServiceTest {
     private lateinit var syncService: SyncService
 
     @Autowired
-    private lateinit var expenseWriteService: ExpenseWriteService
+    private lateinit var expenseService: ExpenseService
 
     @Autowired
-    private lateinit var upsertRepository: ExpenseUpsertRepository
+    private lateinit var upsertRepository: ExpenseRepository
 
     @Autowired
     private lateinit var objectMapper: ObjectMapper
@@ -73,7 +71,7 @@ class SyncServiceTest {
     @Test
     fun `should handle duplicate operations idempotently`() = runBlocking {
         // Given: Create an expense
-        val expense = expenseWriteService.createExpense(
+        val expense = expenseService.createExpense(
             description = "Test Expense",
             amount = 10000,
             category = "Food",
@@ -82,10 +80,10 @@ class SyncServiceTest {
 
         // When: Sync twice (should apply ops only once)
         syncService.performFullSync()
-        val firstSyncExpenses = expenseWriteService.getAllExpenses().toList()
+        val firstSyncExpenses = expenseService.getAllExpenses().toList()
 
         syncService.performFullSync()
-        val secondSyncExpenses = expenseWriteService.getAllExpenses().toList()
+        val secondSyncExpenses = expenseService.getAllExpenses().toList()
 
         // Then: Should have same number of expenses (idempotent)
         assertEquals(firstSyncExpenses.size, secondSyncExpenses.size)
@@ -127,7 +125,7 @@ class SyncServiceTest {
         assertEquals(2, appliedCount)
 
         // And the final result should reflect the later update (7500 from UPDATE)
-        val expense = expenseWriteService.getExpenseById(expenseId)
+        val expense = expenseService.getExpenseById(expenseId)
         assertNotNull(expense)
         assertEquals(7500L, expense!!.amount)
     }
@@ -167,7 +165,7 @@ class SyncServiceTest {
         syncService.applyRemoteOpsTransactionally(remoteOps)
 
         // Then: Device 2's update should win (later timestamp)
-        val expense = expenseWriteService.getExpenseById(expenseId)
+        val expense = expenseService.getExpenseById(expenseId)
         assertNotNull(expense)
         assertEquals(2000L, expense!!.amount)
         assertEquals("Device 2 version", expense.description)
@@ -212,7 +210,7 @@ class SyncServiceTest {
         syncService.applyRemoteOpsTransactionally(remoteOps)
 
         // Then: Expense should be soft-deleted
-        val expense = expenseWriteService.getExpenseById(expenseId)
+        val expense = expenseService.getExpenseById(expenseId)
         assertNull(expense)  // Deleted expenses are not returned
     }
 
@@ -262,7 +260,7 @@ class SyncServiceTest {
         syncService.applyRemoteOpsTransactionally(remoteOps)
 
         // Then: All three expenses should exist
-        val allExpenses = expenseWriteService.getAllExpenses().toList()
+        val allExpenses = expenseService.getAllExpenses().toList()
         assertEquals(3, allExpenses.size)
 
         val descriptions = allExpenses.map { it.description }.toSet()
@@ -342,7 +340,7 @@ class SyncServiceTest {
         assertEquals(0, secondApply)
 
         // And both expenses should exist
-        val allExpenses = expenseWriteService.getAllExpenses().toList()
+        val allExpenses = expenseService.getAllExpenses().toList()
         assertEquals(2, allExpenses.size)
     }
 
