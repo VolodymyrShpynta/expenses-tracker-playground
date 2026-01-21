@@ -1,7 +1,7 @@
 package com.vshpynta.expenses.api.service
 
 import com.vshpynta.expenses.api.config.TestContainersConfig
-import com.vshpynta.expenses.api.model.ExpensePayload
+import com.vshpynta.expenses.api.model.SyncExpense
 import com.vshpynta.expenses.api.repository.ExpenseUpsertRepository
 import com.vshpynta.expenses.api.repository.OperationRepository
 import com.vshpynta.expenses.api.repository.SyncExpenseRepository
@@ -240,7 +240,7 @@ class ExpenseWriteServiceTransactionTest {
         // Configure spy to simulate failure in upsertExpense (second operation)
         doAnswer {
             throw RuntimeException("Simulated failure in upsertExpense - testing rollback")
-        }.`when`(expenseUpsertRepository).upsertExpense(any<ExpensePayload>())
+        }.`when`(expenseUpsertRepository).upsertExpense(any<SyncExpense>())
 
         // When: Attempting to create an expense (will fail at upsert stage)
         assertThatThrownBy {

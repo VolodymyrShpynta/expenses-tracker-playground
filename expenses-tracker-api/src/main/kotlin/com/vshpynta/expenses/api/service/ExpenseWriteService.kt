@@ -2,9 +2,11 @@ package com.vshpynta.expenses.api.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.vshpynta.expenses.api.model.ExpensePayload
+import com.vshpynta.expenses.api.model.Operation
 import com.vshpynta.expenses.api.model.OperationType
 import com.vshpynta.expenses.api.model.SyncExpense
 import com.vshpynta.expenses.api.repository.ExpenseUpsertRepository
+import com.vshpynta.expenses.api.repository.OperationUpsertRepository
 import com.vshpynta.expenses.api.repository.SyncExpenseRepository
 import kotlinx.coroutines.flow.Flow
 import org.slf4j.LoggerFactory
@@ -20,6 +22,7 @@ import java.util.UUID
 class ExpenseWriteService(
     private val syncExpenseRepository: SyncExpenseRepository,
     private val upsertRepository: ExpenseUpsertRepository,
+    private val operationRepository: OperationUpsertRepository,
     private val syncService: SyncService,
     private val objectMapper: ObjectMapper
 ) {
@@ -51,17 +54,36 @@ class ExpenseWriteService(
         )
 
         // 1. Insert operation into operations table
-        upsertRepository.insertOperation(
-            opId = opId,
-            ts = now,
-            deviceId = syncService.getDeviceId(),
-            opType = OperationType.CREATE.name,
-            entityId = expenseId,
-            payload = objectMapper.writeValueAsString(payload)
-        )
+        val savedOperation = try {
+            operationRepository.save(
+                Operation(
+                    opId = opId,
+                    ts = now,
+                    deviceId = syncService.getDeviceId(),
+                    operationType = OperationType.CREATE,
+                    entityId = expenseId,
+                    payload = objectMapper.writeValueAsString(payload),
+                    committed = false
+                )
+            )
+        } catch (e: Exception) {
+            logger.error("Failed to save operation", e)
+            throw e
+        }
+        logger.info("Saved operation: ${savedOperation.opId}")
 
         // 2. Apply effect to expenses table (UPSERT)
-        upsertRepository.upsertExpense(payload)
+        upsertRepository.upsertExpense(
+            SyncExpense(
+                id = payload.id,
+                description = payload.description,
+                amount = payload.amount ?: 0L,
+                category = payload.category,
+                date = payload.date,
+                updatedAt = payload.updatedAt,
+                deleted = payload.deleted ?: false
+            )
+        )
 
         logger.info("Created expense: $expenseId with op: $opId")
 
@@ -96,17 +118,30 @@ class ExpenseWriteService(
         )
 
         // 1. Insert operation
-        upsertRepository.insertOperation(
-            opId = opId,
-            ts = now,
-            deviceId = syncService.getDeviceId(),
-            opType = OperationType.UPDATE.name,
-            entityId = id,
-            payload = objectMapper.writeValueAsString(payload)
+        operationRepository.save(
+            Operation(
+                opId = opId,
+                ts = now,
+                deviceId = syncService.getDeviceId(),
+                operationType = OperationType.UPDATE,
+                entityId = id,
+                payload = objectMapper.writeValueAsString(payload),
+                committed = false
+            )
         )
 
         // 2. Apply effect
-        upsertRepository.upsertExpense(payload)
+        upsertRepository.upsertExpense(
+            SyncExpense(
+                id = payload.id,
+                description = payload.description,
+                amount = payload.amount ?: 0L,
+                category = payload.category,
+                date = payload.date,
+                updatedAt = payload.updatedAt,
+                deleted = payload.deleted ?: false
+            )
+        )
 
         logger.info("Updated expense: $id with op: $opId")
 
@@ -135,13 +170,16 @@ class ExpenseWriteService(
         )
 
         // 1. Insert operation
-        upsertRepository.insertOperation(
-            opId = opId,
-            ts = now,
-            deviceId = syncService.getDeviceId(),
-            opType = OperationType.DELETE.name,
-            entityId = id,
-            payload = objectMapper.writeValueAsString(payload)
+        operationRepository.save(
+            Operation(
+                opId = opId,
+                ts = now,
+                deviceId = syncService.getDeviceId(),
+                operationType = OperationType.DELETE,
+                entityId = id,
+                payload = objectMapper.writeValueAsString(payload),
+                committed = false
+            )
         )
 
         // 2. Apply soft delete

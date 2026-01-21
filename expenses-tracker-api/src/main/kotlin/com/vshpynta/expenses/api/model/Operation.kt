@@ -1,12 +1,14 @@
 package com.vshpynta.expenses.api.model
 
 import org.springframework.data.annotation.Id
+import org.springframework.data.domain.Persistable
 import org.springframework.data.relational.core.mapping.Column
 import org.springframework.data.relational.core.mapping.Table
-import java.util.*
+import java.util.UUID
 
 /**
  * Operation log entry for event sourcing
+ * Implements Persistable to handle UUID-based IDs correctly with R2DBC
  */
 @Table("operations")
 data class Operation(
@@ -31,4 +33,10 @@ data class Operation(
 
     @Column("committed")
     val committed: Boolean = false
-)
+) : Persistable<UUID> {
+
+    override fun getId(): UUID = opId
+
+    // Always return true since we always INSERT new operations (never UPDATE)
+    override fun isNew(): Boolean = true
+}

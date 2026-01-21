@@ -5,10 +5,11 @@ import com.vshpynta.expenses.api.model.ExpensePayload
 import com.vshpynta.expenses.api.model.OpEntry
 import com.vshpynta.expenses.api.model.Operation
 import com.vshpynta.expenses.api.model.OperationType
+import com.vshpynta.expenses.api.model.SyncExpense
 import com.vshpynta.expenses.api.model.SyncFile
+import com.vshpynta.expenses.api.repository.AppliedOperationRepository
 import com.vshpynta.expenses.api.repository.ExpenseUpsertRepository
-import com.vshpynta.expenses.api.repository.OperationRepository
-import kotlinx.coroutines.flow.toList
+import com.vshpynta.expenses.api.repository.OperationUpsertRepository
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
@@ -21,8 +22,9 @@ import java.util.UUID
  */
 @Service
 class SyncService(
-    private val operationRepository: OperationRepository,
-    private val upsertRepository: ExpenseUpsertRepository,
+    private val operationUpsertRepository: OperationUpsertRepository,
+    private val expenseUpsertRepository: ExpenseUpsertRepository,
+    private val appliedOperationRepository: AppliedOperationRepository,
     private val objectMapper: ObjectMapper,
     @Value("\${sync.file.path:./sync-data/sync.json}") private val syncFilePath: String,
     @Value("\${sync.device.id:device-default}") private val deviceId: String
@@ -33,7 +35,7 @@ class SyncService(
      * Collect all uncommitted local operations
      */
     suspend fun collectLocalOperations(): List<Operation> {
-        return operationRepository.findUncommittedOperations().toList()
+        return operationUpsertRepository.findUncommittedOperations(deviceId)
     }
 
     /**
@@ -122,19 +124,29 @@ class SyncService(
                 val opId = UUID.fromString(opEntry.opId)
 
                 // Skip if already applied (idempotency)
-                if (upsertRepository.isOperationApplied(opId)) {
-                    logger.debug("Skipping already applied operation: $opId")
+                if (appliedOperationRepository.hasBeenApplied(opId)) {
+                    logger.debug("Skipping already applied operation: {}", opId)
                     continue
                 }
 
                 // Apply operation based on type
                 when (OperationType.valueOf(opEntry.opType)) {
                     OperationType.CREATE, OperationType.UPDATE -> {
-                        upsertRepository.upsertExpense(opEntry.payload)
+                        expenseUpsertRepository.upsertExpense(
+                            SyncExpense(
+                                id = opEntry.payload.id,
+                                description = opEntry.payload.description,
+                                amount = opEntry.payload.amount ?: 0L,
+                                category = opEntry.payload.category,
+                                date = opEntry.payload.date,
+                                updatedAt = opEntry.payload.updatedAt,
+                                deleted = opEntry.payload.deleted ?: false
+                            )
+                        )
                     }
 
                     OperationType.DELETE -> {
-                        upsertRepository.softDeleteExpense(
+                        expenseUpsertRepository.softDeleteExpense(
                             id = UUID.fromString(opEntry.entityId),
                             updatedAt = opEntry.payload.updatedAt
                         )
@@ -142,15 +154,15 @@ class SyncService(
                 }
 
                 // Mark as applied
-                upsertRepository.markOperationAsApplied(opId)
+                appliedOperationRepository.markAsApplied(opId)
 
                 // If this operation came from our device, mark it as committed
                 if (opEntry.deviceId == deviceId) {
-                    upsertRepository.markOperationsAsCommitted(deviceId, listOf(opId))
+                    operationUpsertRepository.markOperationsAsCommitted(deviceId, listOf(opId))
                 }
 
                 appliedCount++
-                logger.debug("Applied operation: $opId (type=${opEntry.opType}, entity=${opEntry.entityId})")
+                logger.debug("Applied operation: {} (type={}, entity={})", opId, opEntry.opType, opEntry.entityId)
 
             } catch (e: Exception) {
                 logger.error("Failed to apply op: ${opEntry.opId}", e)
