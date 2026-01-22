@@ -1,4 +1,4 @@
-package com.vshpynta.expenses.api.controller
+package com.vshpynta.expenses.api.controller.dto
 
 /**
  * Request to create a new expense

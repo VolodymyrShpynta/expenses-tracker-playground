@@ -1,5 +1,10 @@
 package com.vshpynta.expenses.api.controller
 
+import com.vshpynta.expenses.api.controller.dto.CreateExpenseRequest
+import com.vshpynta.expenses.api.controller.dto.DeviceIdDto
+import com.vshpynta.expenses.api.controller.dto.ExpenseDto
+import com.vshpynta.expenses.api.controller.dto.SyncResultDto
+import com.vshpynta.expenses.api.controller.dto.UpdateExpenseRequest
 import com.vshpynta.expenses.api.model.SyncExpense
 import com.vshpynta.expenses.api.service.ExpenseService
 import com.vshpynta.expenses.api.service.SyncService

@@ -2,6 +2,9 @@ package com.vshpynta.expenses.api.controller
 
 import com.vshpynta.expenses.api.config.TestContainersConfig
 import com.vshpynta.expenses.api.config.WebTestClientConfig
+import com.vshpynta.expenses.api.controller.dto.CreateExpenseRequest
+import com.vshpynta.expenses.api.controller.dto.ExpenseDto
+import com.vshpynta.expenses.api.controller.dto.UpdateExpenseRequest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
