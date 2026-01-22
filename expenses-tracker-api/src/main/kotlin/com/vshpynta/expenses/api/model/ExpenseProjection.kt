@@ -6,10 +6,12 @@ import org.springframework.data.relational.core.mapping.Table
 import java.util.UUID
 
 /**
- * Expense entity for sync operations (UUID-based)
+ * Expense projection (materialized view) for query optimization
+ * Represents the current state of an expense, rebuilt from events
+ * This is the read model in CQRS architecture
  */
-@Table("expenses")
-data class SyncExpense(
+@Table("expense_projections")
+data class ExpenseProjection(
     @Id
     @Column("id")
     val id: UUID = UUID.randomUUID(),

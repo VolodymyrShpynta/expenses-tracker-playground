@@ -1,8 +1,11 @@
-# Expenses Tracker with Event-Based Sync Engine
+# Expenses Tracker with Event Sourcing & CQRS
 
 A fully reactive expense tracking application with **conflict-free, idempotent multi-device synchronization** built with
-**Spring Boot 4**, **Kotlin Coroutines**, **R2DBC**, and **PostgreSQL**. This project implements an event sourcing-based
-sync engine designed for eventual consistency across multiple devices without a central server authority.
+**Spring Boot 4**, **Kotlin Coroutines**, **R2DBC**, and **PostgreSQL**. This project implements a complete **Event
+Sourcing**
+and **CQRS** architecture with an optimized sync engine designed for eventual consistency across multiple devices
+without
+a central server authority.
 
 ## 📑 Table of Contents
 
@@ -12,15 +15,21 @@ sync engine designed for eventual consistency across multiple devices without a 
 - [Sync Engine Architecture](#-sync-engine-architecture)
     - [Design Principles](#design-principles)
     - [Event Sourcing Model](#event-sourcing-model)
+    - [CQRS Architecture](#cqrs-architecture)
     - [Database Schema](#database-schema)
     - [Conflict Resolution](#conflict-resolution)
     - [Sync Workflow](#sync-workflow)
     - [Idempotency Guarantees](#idempotency-guarantees)
+- [Why This Architecture?](#-why-this-architecture)
+    - [Event Sourcing Benefits](#event-sourcing-benefits)
+    - [CQRS Benefits](#cqrs-benefits)
+    - [Efficient Synchronization](#efficient-synchronization)
+    - [Clear Domain Model](#clear-domain-model)
+    - [Multi-Device Support](#multi-device-support)
 - [Technical Decisions](#-technical-decisions)
     - [Why Event Sourcing](#why-event-sourcing)
     - [Why Timestamp-Only Conflict Resolution](#why-timestamp-only-conflict-resolution)
-    - [Why No Delete Priority](#why-no-delete-priority)
-    - [Why Separate SyncOperationExecutor](#why-separate-syncoperationexecutor)
+    - [Why Separate ExpenseEventProjector](#why-separate-expenseeventprojector)
     - [Why PostgreSQL for Tests](#why-postgresql-for-tests)
 - [Getting Started](#-getting-started)
 - [API Documentation](#-api-documentation)
@@ -56,14 +65,22 @@ cloud storage like Dropbox, Google Drive, etc.). The sync engine is designed to 
 
 ## ✨ Key Features
 
-### Sync Engine
+### Event Sourcing & CQRS Architecture
 
-- ✅ **Event Sourcing** - All changes captured as immutable operations
-- ✅ **Last-Write-Wins** - Timestamp-based conflict resolution
-- ✅ **Idempotent Operations** - Duplicate operations safely ignored
-- ✅ **Out-of-Order Handling** - Operations applied correctly regardless of arrival order
-- ✅ **Soft Delete** - Deleted expenses preserved for sync
-- ✅ **Transactional Execution** - Atomic multi-step operations
+- ✅ **Event Store** - All changes captured as immutable events in `expense_events` table (source of truth)
+- ✅ **Projections** - Materialized view in `expense_projections` table for fast queries (read model)
+- ✅ **CQRS Pattern** - Separate command service (writes) and query service (reads) for optimal performance
+- ✅ **Complete Audit Trail** - Every change is permanently recorded as an event
+- ✅ **Domain-Specific Naming** - Clear, business-focused terminology throughout the codebase
+
+### Efficient Sync Engine
+
+- ✅ **Network Optimized** - Single file download per sync cycle (minimal bandwidth usage)
+- ✅ **Last-Write-Wins** - Simple, deterministic timestamp-based conflict resolution
+- ✅ **Idempotent Operations** - Duplicate events safely ignored via `processed_events` table
+- ✅ **Out-of-Order Handling** - Events applied correctly regardless of arrival order
+- ✅ **Soft Delete** - Deleted expenses preserved for synchronization
+- ✅ **Transactional Execution** - All-or-nothing operations ensure data consistency
 - ✅ **Comprehensive Testing** - 50+ tests covering all sync scenarios
 
 ### Technology
@@ -112,99 +129,143 @@ cloud storage like Dropbox, Google Drive, etc.). The sync engine is designed to 
 
 ### Design Principles
 
-1. **Event Sourcing** - All changes are events in an append-only log
-2. **Idempotency** - Operations can be applied multiple times safely
-3. **Eventual Consistency** - All devices converge to same state
-4. **No Central Server** - Peer-to-peer sync via shared file
-5. **Portable SQL** - Simple queries for Android/SQLite migration
-6. **Transaction Atomicity** - All steps succeed or all fail together
+The sync engine is built on these core principles:
+
+1. **Event Sourcing** - All changes are immutable events in an append-only log
+2. **CQRS** - Command Query Responsibility Segregation (separate read/write models)
+3. **Idempotency** - Events can be processed multiple times safely without side effects
+4. **Eventual Consistency** - All devices converge to the same state over time
+5. **Decentralized** - No central server required - peer-to-peer sync via shared file
+6. **Portable SQL** - Simple queries designed for easy Android/SQLite migration
+7. **Transaction Atomicity** - All operations succeed together or fail together
+8. **Network Efficiency** - Minimized data transfer with smart sync algorithm
 
 ### Event Sourcing Model
 
-Every expense modification (create, update, delete) generates an **operation** (event):
+Every expense modification (create, update, delete) generates an **event**:
 
 ```kotlin
-data class Operation(
-    val opId: UUID,              // Unique operation identifier
-    val ts: Long,                // Timestamp (milliseconds since epoch)
-    val deviceId: String,        // Device that created the operation
-    val operationType: OperationType,  // CREATE, UPDATE, DELETE
-    val entityId: UUID,          // The expense being modified
+data class ExpenseEvent(
+    val eventId: UUID,           // Unique event identifier
+    val timestamp: Long,         // When the event occurred (milliseconds since epoch)
+    val deviceId: String,        // Device that created the event
+    val eventType: EventType,    // CREATED, UPDATED, DELETED
+    val expenseId: UUID,         // The expense this event is about
     val payload: String,         // Complete expense state (JSON)
-    val committed: Boolean = false  // Synced to file?
-)
+    val committed: Boolean = false  // Has been synced to file?
+) : Persistable<UUID>
 ```
 
-**Key insight:** Operations are immutable. Once created, they never change.
+**Key insights:**
+
+- Events are **immutable** - once created, they never change
+- `eventId` identifies the event itself (unique per event)
+- `expenseId` identifies which expense the event modifies (same across all events for one expense)
+- Events form an **append-only log** - the source of truth
+
+### CQRS Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    CQRS Pattern                             │
+└─────────────────────────────────────────────────────────────┘
+
+Write Side (Commands):
+  User Action → ExpenseCommandService
+                    ↓
+             Creates ExpenseEvent
+                    ↓
+          Saves to expense_events table
+                    ↓
+          Projects to expense_projections table
+                    ↓
+              Updates Read Model
+
+Read Side (Queries):
+  User Query → ExpenseQueryService
+                    ↓
+       Reads from expense_projections table
+                    ↓
+           Returns current state
+```
 
 ### Database Schema
 
-The sync engine uses three tables working together:
+The sync engine uses **three tables** working together:
 
-#### **Table: `expenses`** (Materialized View)
+#### **Table: `expense_projections`** (Read Model / Materialized View)
 
-Current state of all expenses:
+Current state of all expenses (optimized for queries):
 
 ```sql
-CREATE TABLE expenses
+CREATE TABLE expense_projections
 (
-    id          TEXT PRIMARY KEY,
-    description TEXT    NOT NULL,
+    id          VARCHAR(36) PRIMARY KEY,
+    description VARCHAR(500),
     amount      BIGINT  NOT NULL,
-    category    TEXT    NOT NULL,
-    date        TEXT    NOT NULL,
+    category    VARCHAR(100),
+    date        VARCHAR(50),
     updated_at  BIGINT  NOT NULL,
     deleted     BOOLEAN NOT NULL DEFAULT FALSE
 );
+
+CREATE INDEX idx_expense_projections_updated_at ON expense_projections (updated_at);
+CREATE INDEX idx_expense_projections_deleted ON expense_projections (deleted);
+CREATE INDEX idx_expense_projections_category ON expense_projections (category);
 ```
 
-#### **Table: `operations`** (Event Log)
+#### **Table: `expense_events`** (Event Store / Source of Truth)
 
-All modifications ever made:
+Immutable append-only log of all modifications:
 
 ```sql
-CREATE TABLE operations
+CREATE TABLE expense_events
 (
-    op_id          TEXT PRIMARY KEY,
-    ts             BIGINT  NOT NULL,
-    device_id      TEXT    NOT NULL,
-    operation_type TEXT    NOT NULL, -- CREATE, UPDATE, DELETE
-    entity_id      TEXT    NOT NULL,
-    payload        TEXT    NOT NULL, -- JSON
-    committed      BOOLEAN NOT NULL DEFAULT FALSE
+    event_id   VARCHAR(36) PRIMARY KEY,
+    timestamp  BIGINT       NOT NULL,
+    device_id  VARCHAR(255) NOT NULL,
+    event_type VARCHAR(20)  NOT NULL CHECK (event_type IN ('CREATED', 'UPDATED', 'DELETED')),
+    expense_id VARCHAR(36)  NOT NULL,
+    payload    TEXT         NOT NULL, -- JSON
+    committed  BOOLEAN      NOT NULL DEFAULT FALSE
 );
 
-CREATE INDEX idx_operations_uncommitted
-    ON operations (device_id, committed) WHERE committed = false;
+CREATE INDEX idx_expense_events_committed ON expense_events (committed);
+CREATE INDEX idx_expense_events_device_id ON expense_events (device_id);
+CREATE INDEX idx_expense_events_timestamp ON expense_events (timestamp);
+CREATE INDEX idx_expense_events_expense_id ON expense_events (expense_id);
 ```
 
-#### **Table: `applied_operations`** (Idempotency Registry)
+#### **Table: `processed_events`** (Idempotency Registry)
 
-Tracks which operations have been applied:
+Tracks which events have been processed to prevent duplicates:
 
 ```sql
-CREATE TABLE applied_operations
+CREATE TABLE processed_events
 (
-    op_id TEXT PRIMARY KEY
+    event_id VARCHAR(36) PRIMARY KEY
 );
+
+CREATE INDEX idx_processed_events_event_id ON processed_events (event_id);
 ```
 
 **Why three tables?**
 
-- `expenses` - Fast queries for current state (materialized view)
-- `operations` - Audit trail + sync source (event log)
-- `applied_operations` - Prevents duplicate application (idempotency registry)
+- `expense_projections` - Fast queries for current state (read model)
+- `expense_events` - Complete audit trail + sync source (event store)
+- `processed_events` - Prevents duplicate event processing (idempotency)
 
 ### Conflict Resolution
 
 **Strategy: Last-Write-Wins (LWW)**
 
-The operation with the **highest timestamp** wins. Simple, deterministic, and consistent.
+The event with the **highest timestamp** wins. Simple, deterministic, and consistent across all devices.
 
-#### **UPSERT Implementation**
+#### **Projection Update Implementation**
 
 ```sql
-INSERT INTO expenses (id, description, amount, category, date, updated_at, deleted)
+-- projectFromEvent() - Idempotent upsert with conflict resolution
+INSERT INTO expense_projections (id, description, amount, category, date, updated_at, deleted)
 VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO
 UPDATE SET
     description = EXCLUDED.description,
@@ -213,33 +274,33 @@ UPDATE SET
     date = EXCLUDED.date,
     updated_at = EXCLUDED.updated_at,
     deleted = EXCLUDED.deleted
-WHERE EXCLUDED.updated_at > expenses.updated_at;
+WHERE EXCLUDED.updated_at > expense_projections.updated_at;
 ```
 
 **How it works:**
 
 - ✅ Update **only if** new timestamp > old timestamp
-- ✅ Older operations are **rejected** (returns 0 rows affected)
-- ✅ Same operation twice is **idempotent** (no effect on second try)
-- ✅ Works for CREATE, UPDATE, and DELETE (soft delete sets `deleted=true`)
-- ✅ No special delete priority - **All operations follow same timestamp rule**
+- ✅ Older events are **rejected** (returns 0 rows affected)
+- ✅ Same event twice is **idempotent** (no effect on second try)
+- ✅ Works for CREATED, UPDATED, and DELETED (soft delete sets `deleted=true`)
+- ✅ No special delete priority - **All events follow same timestamp rule**
 
 **Example scenarios:**
 
-| Existing State                   | Operation                                   | Result                       |
-|----------------------------------|---------------------------------------------|------------------------------|
-| `updated_at=1000`                | Update with `updatedAt=2000`                | ✅ Updated (newer wins)       |
-| `updated_at=2000`                | Update with `updatedAt=1000`                | ❌ Rejected (older loses)     |
-| `updated_at=1000`                | Update with `updatedAt=1000`                | ❌ Rejected (equal timestamp) |
-| `updated_at=2000, deleted=false` | Delete with `updatedAt=3000`                | ✅ Deleted (newer wins)       |
-| `updated_at=2000, deleted=false` | Delete with `updatedAt=1000`                | ❌ Rejected (older loses)     |
-| `updated_at=2000, deleted=true`  | Update with `updatedAt=3000, deleted=false` | ✅ Resurrected (newer wins)   |
+| Existing State                   | Event                                        | Result                       |
+|----------------------------------|----------------------------------------------|------------------------------|
+| `updated_at=1000`                | UPDATED with `timestamp=2000`                | ✅ Updated (newer wins)       |
+| `updated_at=2000`                | UPDATED with `timestamp=1000`                | ❌ Rejected (older loses)     |
+| `updated_at=1000`                | UPDATED with `timestamp=1000`                | ❌ Rejected (equal timestamp) |
+| `updated_at=2000, deleted=false` | DELETED with `timestamp=3000`                | ✅ Deleted (newer wins)       |
+| `updated_at=2000, deleted=false` | DELETED with `timestamp=1000`                | ❌ Rejected (older loses)     |
+| `updated_at=2000, deleted=true`  | UPDATED with `timestamp=3000, deleted=false` | ✅ Resurrected (newer wins)   |
 
 ### Sync Workflow
 
 #### **Phase 1: Local Write (User Action)**
 
-When a user creates/updates/deletes an expense:
+When a user creates/updates/deletes an expense (Command Side):
 
 ```kotlin
 @Transactional
@@ -248,10 +309,12 @@ suspend fun createExpense(
     amount: Long,
     category: String,
     date: String
-): ExpenseResponse {
-    val now = System.currentTimeMillis()
-    val expense = SyncExpense(
-        id = UUID.randomUUID(),
+): ExpenseProjection {
+    val now = clock.millis()
+    val expenseId = UUID.randomUUID()
+
+    val payload = ExpensePayload(
+        id = expenseId,
         description = description,
         amount = amount,
         category = category,
@@ -261,42 +324,136 @@ suspend fun createExpense(
     )
 
     // BEGIN TRANSACTION
-    // 1. Insert into operations table (event log)
-    val operation = Operation(
-        opId = UUID.randomUUID(),
-        ts = now,
+    // 1. Create and save immutable event to event store
+    val event = ExpenseEvent(
+        eventId = UUID.randomUUID(),
+        timestamp = now,
         deviceId = deviceId,
-        operationType = OperationType.CREATE,
-        entityId = expense.id,
-        payload = objectMapper.writeValueAsString(expense.toPayload()),
+        eventType = EventType.CREATED,
+        expenseId = expenseId,
+        payload = objectMapper.writeValueAsString(payload),
         committed = false
     )
-    operationRepository.save(operation)
+    eventRepository.save(event)
 
-    // 2. Upsert into expenses table (if timestamp > existing)
-    expenseRepository.upsertExpense(expense)
+    // 2. Project event to read model (if timestamp > existing)
+    val projection = ExpenseProjection(
+        id = expenseId,
+        description = description,
+        amount = amount,
+        category = category,
+        date = date,
+        updatedAt = now,
+        deleted = false
+    )
+    projectionRepository.projectFromEvent(projection)
     // COMMIT TRANSACTION
 
-    return expense.toResponse()
+    return projection
 }
 ```
 
-**Atomic guarantee:** Both tables updated together or not at all.
+**Atomic guarantee:** Both event store and projection updated together or not at all.
 
-**Why create operation first?**
+**Why save event first?**
 
-- If upsert fails, entire transaction rolls back
-- No orphan operations without corresponding expense changes
+- If projection fails, entire transaction rolls back
+- No orphan events without corresponding projection changes
+- Maintains consistency between event store and read model
 
-#### **Phase 2: Collect Local Operations**
+#### **Phase 2: Efficient Sync Cycle**
 
-Gather uncommitted operations from this device:
+The sync algorithm is designed for minimal network usage while maintaining consistency:
 
 ```kotlin
-suspend fun collectLocalOperations(): List<Operation> = withContext(Dispatchers.IO) {
-    operationRepository.findUncommittedOperations(deviceId).toList()
+suspend fun performFullSync() {
+    // 1. Download: Read remote events from sync file
+    val remoteEvents = readRemoteOps()
+
+    // 2. Process: Apply remote events from all devices
+    applyRemoteOperations(remoteEvents)
+
+    // 3. Collect: Get local uncommitted events
+    val localEvents = collectLocalEvents()
+
+    // 4. Upload: Append local events to file
+    if (localEvents.isNotEmpty()) {
+        appendEventsToFile(localEvents)
+    }
 }
 ```
+
+**How it works:**
+
+1. **Download Once** - Fetch the sync file containing all events from all devices
+2. **Process First** - Apply remote events to update local read model
+3. **Collect Local** - Gather events created on this device that haven't been synced yet
+4. **Upload** - Append new local events to the shared sync file
+
+**Why this order:**
+
+- Minimizes network traffic - only one download per sync cycle
+- Local events don't need immediate commit - they'll be processed by all devices (including this one) in the next sync
+- Maintains eventual consistency across all devices
+- Idempotency ensures correctness even if sync is interrupted
+
+**Deferred Commit Pattern:**
+Local events are marked as `committed=true` during the **next** sync cycle when this device reads them back from the
+shared file. This is safe because:
+
+- Events are already persisted in local database (won't be lost)
+- Events are written to sync file (other devices can see them immediately)
+- The slight delay doesn't affect consistency
+- Reduces network operations significantly
+
+#### **Phase 3: Event Processing with Idempotency**
+
+```kotlin
+@Transactional
+suspend fun projectIfNotProcessed(
+    eventEntry: EventEntry,
+    currentDeviceId: String
+): Boolean {
+    val eventId = UUID.fromString(eventEntry.eventId)
+
+    // Check if already processed (idempotency)
+    if (processedEventRepository.hasBeenProcessed(eventId)) {
+        return false  // Skip - already done
+    }
+
+    // BEGIN TRANSACTION
+    // 1. Project event to read model
+    when (EventType.valueOf(eventEntry.eventType)) {
+        EventType.CREATED, EventType.UPDATED -> {
+            val projection = eventEntry.payload.toProjection()
+            projectionRepository.projectFromEvent(projection)
+        }
+        EventType.DELETED -> {
+            projectionRepository.markAsDeleted(
+                id = UUID.fromString(eventEntry.expenseId),
+                updatedAt = eventEntry.payload.updatedAt
+            )
+        }
+    }
+
+    // 2. Mark event as processed (prevents re-processing)
+    processedEventRepository.markAsProcessed(eventId)
+
+    // 3. If from current device, mark as committed
+    if (eventEntry.deviceId == currentDeviceId) {
+        eventRepository.markEventsAsCommitted(currentDeviceId, listOf(eventId))
+    }
+    // COMMIT TRANSACTION
+
+    return true
+}
+```
+
+**Transaction atomicity ensures:**
+
+- Either all 3 steps succeed, or all fail together
+- No partial state
+- Perfect consistency
 
 **Query:**
 
@@ -499,52 +656,52 @@ class SyncOperationExecutor {
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                         Device A                              │
-│                                                               │
-│  ┌─────────────┐      ┌──────────────────┐                  │
-│  │ Controller  │─────►│ ExpenseService   │                  │
-│  └─────────────┘      └────────┬─────────┘                  │
-│                                 │                             │
-│                                 ▼                             │
+│                         Device A                             │
+│                                                              │
+│  ┌─────────────┐      ┌──────────────────┐                   │
+│  │ Controller  │─────►│ ExpenseService   │                   │
+│  └─────────────┘      └────────┬─────────┘                   │
+│                                │                             │
+│                                ▼                             │
 │                    ┌────────────────────────┐                │
 │                    │  ExpenseWriteService   │                │
 │                    │  (@Transactional)      │                │
 │                    └──────────┬─────────────┘                │
-│                               │                               │
+│                               │                              │
 │               ┌───────────────┴────────────────┐             │
-│               ▼                                 ▼             │
-│    ┌─────────────────────┐        ┌──────────────────────┐  │
-│    │ OperationRepository │        │ ExpenseRepository    │  │
-│    │ (operations table)  │        │ (expenses table)     │  │
-│    └─────────────────────┘        └──────────────────────┘  │
-│                                                               │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │              SyncService                            │    │
-│  │  • collectLocalOperations()                         │    │
-│  │  • appendOperationsToFile()  ───► sync.json        │    │
-│  │  • readRemoteOps()           ◄─── sync.json        │    │
-│  │  • applyRemoteOperations()                          │    │
-│  └──────────────────┬──────────────────────────────────┘    │
+│               ▼                                ▼             │
+│    ┌─────────────────────┐        ┌──────────────────────┐   │
+│    │ OperationRepository │        │ ExpenseRepository    │   │
+│    │ (operations table)  │        │ (expenses table)     │   │
+│    └─────────────────────┘        └──────────────────────┘   │
+│                                                              │
+│  ┌─────────────────────────────────────────────────────┐     │
+│  │              SyncService                            │     │
+│  │  • collectLocalOperations()                         │     │
+│  │  • appendOperationsToFile()  ───► sync.json         │     │
+│  │  • readRemoteOps()           ◄─── sync.json         │     │
+│  │  • applyRemoteOperations()                          │     │
+│  └──────────────────┬──────────────────────────────────┘     │
 │                     │                                        │
 │                     ▼                                        │
-│  ┌───────────────────────────────────────────────────┐     │
-│  │    SyncOperationExecutor (@Transactional)        │     │
-│  │    • executeIfNotApplied()                        │     │
-│  └────────────────┬──────────────────────────────────┘     │
-│                   │                                         │
-│      ┌────────────┴────────────┬───────────────────┐       │
-│      ▼                          ▼                   ▼       │
-│ ┌──────────┐  ┌────────────────────┐  ┌───────────────┐   │
-│ │ Expense  │  │ Applied Operations │  │  Operation    │   │
-│ │Repository│  │ Repository         │  │  Repository   │   │
-│ └──────────┘  └────────────────────┘  └───────────────┘   │
-└───────────────────────────────────────────────────────────┘
+│  ┌───────────────────────────────────────────────────┐       │
+│  │    SyncOperationExecutor (@Transactional)         │       │
+│  │    • executeIfNotApplied()                        │       │
+│  └────────────────┬──────────────────────────────────┘       │
+│                   │                                          │
+│      ┌────────────┴────────────┬───────────────────┐         │
+│      ▼                         ▼                   ▼         │
+│ ┌──────────┐  ┌────────────────────┐  ┌───────────────┐      │
+│ │ Expense  │  │ Applied Operations │  │  Operation    │      │
+│ │Repository│  │ Repository         │  │  Repository   │      │
+│ └──────────┘  └────────────────────┘  └───────────────┘      │
+└──────────────────────────────────────────────────────────────┘
 
                          ↕ sync.json ↕
 
 ┌───────────────────────────────────────────────────────────────┐
-│                         Device B                               │
-│                     (Same architecture)                        │
+│                         Device B                              │
+│                     (Same architecture)                       │
 └───────────────────────────────────────────────────────────────┘
 ```
 
@@ -625,99 +782,343 @@ Attempt 2: Apply op-123 → Skipped (already in applied_operations)
 
 ---
 
+## 🎨 Why This Architecture?
+
+### Event Sourcing Benefits
+
+**Complete History & Audit Trail**
+
+Every change to every expense is permanently recorded:
+
+```sql
+-- See complete history of an expense
+SELECT event_id, timestamp, event_type, device_id
+FROM expense_events
+WHERE expense_id = 'c4f3d7e9-8b2a-4e6c-9d1f-5a8b3c7e2f0d'
+ORDER BY timestamp;
+```
+
+Example output:
+
+```
+2026-01-15 10:00:00 | CREATED  | device-A | {amount: 1000, desc: "Coffee"}
+2026-01-16 14:30:00 | UPDATED  | device-B | {amount: 1500, desc: "Coffee + Lunch"}
+2026-01-17 09:15:00 | DELETED  | device-A | {deleted: true}
+```
+
+**Benefits:**
+
+- Know exactly who changed what and when
+- Debug synchronization issues easily
+- Compliance and auditing requirements met
+- Can answer "why is this expense $1500?" by looking at history
+
+**Time Travel & Recovery**
+
+Since events are immutable, you can:
+
+- Rebuild state at any point in time
+- Recover from data corruption
+- Undo changes by replaying events
+- Analyze trends over time
+
+**Never Lose Data**
+
+Events are **never deleted** - only appended:
+
+- Deleted expenses are marked as deleted but events remain
+- Can "undelete" by creating new event with newer timestamp
+- Accidental changes can be tracked and reverted
+- Complete forensic trail for troubleshooting
+
+### CQRS Benefits
+
+**Optimized Reads (Query Side)**
+
+The `expense_projections` table is optimized for fast queries:
+
+```kotlin
+// Simple, fast query - no joins needed
+suspend fun getAllExpenses(): Flow<ExpenseProjection> {
+    return projectionRepository.findAll()
+}
+
+// Direct index access
+suspend fun getExpensesByCategory(category: String): Flow<ExpenseProjection> {
+    return projectionRepository.findByCategory(category)
+}
+```
+
+**Benefits:**
+
+- No complex joins
+- Direct index usage
+- Fast response times
+- Can add specialized projections for different query patterns
+
+**Optimized Writes (Command Side)**
+
+The `expense_events` table is optimized for fast writes:
+
+```kotlin
+// Simple append - no updates, no conflicts
+suspend fun createExpense(...): ExpenseProjection {
+    val event = ExpenseEvent(...)
+    eventRepository.save(event)  // Fast INSERT
+    ...
+}
+```
+
+**Benefits:**
+
+- Append-only operations are extremely fast
+- No update contention
+- No complex WHERE clauses
+- Natural fit for distributed systems
+
+**Independent Scaling**
+
+- Read model can be scaled separately from write model
+- Can have multiple read models for different purposes
+- Event store remains single source of truth
+
+### Efficient Synchronization
+
+**Minimal Network Usage**
+
+The sync algorithm minimizes data transfer:
+
+- Single download per sync cycle (fetch shared file once)
+- Only uncommitted events are uploaded
+- Events are small JSON payloads (~1KB each)
+- Incremental sync - not full state transfer
+
+**Bandwidth Example:**
+
+```
+Sync with 10 new local events + 5 remote events:
+- Download: ~5KB (remote events)
+- Upload: ~10KB (local events appended)
+- Total: ~15KB per sync
+```
+
+Compare to full state sync:
+
+```
+Full state sync with 100 expenses:
+- Download: ~100KB (all expenses)
+- Upload: ~100KB (all expenses)
+- Total: ~200KB per sync
+```
+
+**Idempotency = Safe Retries**
+
+Network issues? No problem:
+
+- Sync interrupted? Just retry - idempotency ensures correctness
+- Same event processed twice? Safely skipped via `processed_events` table
+- File uploaded twice? Idempotency prevents duplicates
+- No risk of data corruption from retries
+
+**Conflict Resolution Made Simple**
+
+Last-write-wins based on timestamp:
+
+- Clear rule: newest timestamp wins
+- Applies to all operations (create, update, delete)
+- Deterministic - all devices agree on final state
+- No complex merge logic needed
+
+**Example:**
+
+```
+Device A (timestamp: 1000): Sets amount to $50
+Device B (timestamp: 2000): Sets amount to $75
+
+Result on all devices: $75 (timestamp 2000 > 1000)
+```
+
+### Clear Domain Model
+
+**Self-Documenting Code**
+
+The codebase uses business domain language:
+
+```kotlin
+// ✅ Clear business meaning
+event.expenseId          // Which expense this event is about
+event.eventType          // CREATED, UPDATED, or DELETED
+eventRepository          // Where events are stored
+projectionRepository     // Where current state is stored
+ExpenseCommandService    // Service for write operations
+ExpenseQueryService      // Service for read operations
+```
+
+**No Technical Jargon Required:**
+
+- No need to understand "aggregate root" - just "expense"
+- No need to understand "entity ID" - just "expenseId"
+- No need to understand "operation" vs "event" distinction
+- Clear separation: events (what happened) vs projections (current state)
+
+**Consistency Throughout:**
+
+- All classes prefixed with domain term ("Expense")
+- Database tables named after their purpose
+- Method names describe business actions
+- Comments explain "why" not just "what"
+
+### Multi-Device Support
+
+**Decentralized Architecture**
+
+No central server needed:
+
+- Devices sync via shared file (Dropbox, Google Drive, etc.)
+- Works offline - sync when connection available
+- No server maintenance or costs
+- Natural fit for small teams (2-5 people)
+
+**Eventual Consistency**
+
+All devices eventually see the same data:
+
+- Each device processes all events in same order (sorted by timestamp)
+- Last-write-wins ensures deterministic conflict resolution
+- No coordination required between devices
+- Scales to reasonable number of devices
+
+**Device Isolation**
+
+Each device maintains its own:
+
+- Event store (`expense_events` table)
+- Read model (`expense_projections` table)
+- Processed events registry (`processed_events` table)
+- Works completely independently until sync
+
+---
+
 ## 💡 Technical Decisions
 
 ### Why Event Sourcing?
+
+Event Sourcing captures all changes as immutable events rather than updating a single "current state" record.
 
 **Benefits:**
 
 1. ✅ **Complete Audit Trail** - Every change recorded with timestamp and device
 2. ✅ **Time Travel** - Can rebuild state at any point in time
 3. ✅ **Debugging** - Easy to see what happened and when
-4. ✅ **Conflict Resolution** - Timestamp on each operation enables last-write-wins
-5. ✅ **Eventual Consistency** - All devices converge by applying same operations
+4. ✅ **Conflict Resolution** - Timestamp on each event enables last-write-wins
+5. ✅ **Eventual Consistency** - All devices converge by applying same events in same order
 
 **Trade-offs:**
 
-- ❌ More storage (operations + expenses tables)
-- ❌ More complexity (two tables to maintain)
-- ✅ **Worth it** for reliable multi-device sync
+- More storage required (events table + projections table)
+- More complexity (maintaining two tables instead of one)
+- Worth it for reliable multi-device synchronization with audit trail
 
 ### Why Timestamp-Only Conflict Resolution?
 
-**Original consideration:** Delete operations with special priority
+The system uses a single, simple rule for conflict resolution: **the event with the newest timestamp wins**.
 
-**Decision:** Use timestamp-only for all operations
+**The Rule:**
 
-**Rationale:**
+```sql
+-- Update projection only if the event is newer
+WHERE EXCLUDED.updated_at > expense_projections.updated_at
+```
 
-1. **Simplicity** - One rule for all operations (CREATE, UPDATE, DELETE)
-2. **Consistency** - No special cases to remember
+This applies uniformly to all event types:
+
+- **CREATED** events
+- **UPDATED** events
+- **DELETED** events (soft delete - sets deleted flag)
+
+**Why this approach:**
+
+1. **Simplicity** - One rule for all operations, no special cases
+2. **Consistency** - All event types treated the same way
 3. **Predictability** - Newest timestamp always wins
-4. **True Last-Write-Wins** - User's most recent action honored
+4. **Intuitive** - User's most recent action is honored
 
-**Scenario analysis:**
+**Example Scenario:**
 
 ```
 Timeline:
-t=1000: Create expense
-t=1500: Delete expense (network delays this)
-t=2000: Update expense
+t=1000: Device A creates expense "Coffee" ($5)
+t=1500: Device B deletes the expense
+t=2000: Device A updates to "Coffee + Lunch" ($12)
 
-Without delete priority: Update wins (t=2000 > t=1500) ✅ Correct!
-With delete priority: Delete wins (special rule) ❌ Wrong - user updated AFTER deleting
+Result: Expense exists with $12 (update at t=2000 is newest)
+Reason: User's latest action (update) is honored, not the older delete
 ```
 
-**Conclusion:** Timestamp-only is simpler and more correct.
+**Why not special priority for DELETE?**
 
-### Why No Delete Priority?
+Giving deletes special priority (e.g., delete always wins regardless of timestamp) creates counterintuitive behavior:
 
-**What we removed:**
+- Older delete would override newer update
+- Inconsistent with how creates and updates work
+- Doesn't actually solve clock skew (affects all operations equally)
 
-```sql
--- Before: Delete overrides even with older timestamp
-WHERE EXCLUDED.updated_at > expenses.updated_at OR EXCLUDED.deleted = true
+The timestamp-only approach is simpler and more predictable.
+
+### Why Separate ExpenseEventProjector?
+
+The `ExpenseEventProjector` class is separate from `ExpenseEventSyncService` to ensure transactions work correctly.
+
+**The Problem:** Spring's `@Transactional` uses proxies. When you call a transactional method from within the same
+class, it bypasses the proxy and disables transactions.
+
+**Without separation (doesn't work):**
+
+```kotlin
+class ExpenseEventSyncService {
+    @Transactional
+    suspend fun projectIfNotProcessed(event: EventEntry) {
+        // Process event atomically
+    }
+
+    suspend fun applyAll(events: List<EventEntry>) {
+        events.forEach { projectIfNotProcessed(it) }  // ❌ Direct call bypasses proxy!
+        // Transactions don't work!
+    }
+}
 ```
 
-**Why removed:**
+**With separation (works correctly):**
 
-- Creates counterintuitive behavior (older delete overrides newer update)
-- Inconsistent (special rule just for deletes)
-- Doesn't solve real problem (clock skew affects all operations, not just deletes)
+```kotlin
+class ExpenseEventSyncService(
+    private val eventProjector: ExpenseEventProjector  // Injected dependency
+) {
+    suspend fun applyAll(events: List<EventEntry>) {
+        events.forEach {
+            eventProjector.projectIfNotProcessed(it, deviceId)  // ✅ Goes through proxy!
+        }
+    }
+}
 
-**Current approach:**
-
-```sql
--- After: Consistent rule for all operations
-WHERE EXCLUDED.updated_at > expenses.updated_at
+@Component
+class ExpenseEventProjector(...) {
+    @Transactional
+    suspend fun projectIfNotProcessed(event: EventEntry, deviceId: String) {
+        // This transaction works correctly
+        projectionRepository.projectFromEvent(...)
+        processedEventRepository.markAsProcessed(...)
+        eventRepository.markEventsAsCommitted(...)
+    }
+}
 ```
 
 **Benefits:**
 
-- ✅ All operations treated equally
-- ✅ Intuitive (newest always wins)
-- ✅ Simpler code
-- ✅ Easier to explain
-- ✅ Portable to Android/SQLite
-
-### Why Separate SyncOperationExecutor?
-
-**Problem:** Spring's `@Transactional` uses proxies
-
-**Original attempt:**
-
-```kotlin
-class SyncService {
-    @Transactional
-    suspend fun applyOperation(op: OpEntry) {
-        ...
-    }
-
-    suspend fun applyAll(ops: List<OpEntry>) {
-        ops.forEach { applyOperation(it) }  // ❌ Direct call bypasses proxy!
-    }
-}
-```
+- ✅ Transactions work correctly (all-or-nothing guarantee)
+- ✅ Rollback works on any failure
+- ✅ Clean separation of concerns
+- ✅ Testable components
 
 **Why it doesn't work:**
 

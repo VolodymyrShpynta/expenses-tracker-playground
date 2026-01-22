@@ -1,8 +1,12 @@
--- Migration V1: Create all tables for expenses tracker with sync support
+-- Migration V1: Create all tables for expenses tracker with event sourcing architecture
 -- Uses portable SQL syntax (no PostgreSQL-specific types like UUID or JSONB)
+-- Tables and columns use event sourcing terminology from the start
 
--- Create expenses table (UUID stored as VARCHAR for portability)
-CREATE TABLE expenses (
+-- =====================================================
+-- Table 1: expense_projections (Read Model / Materialized View)
+-- =====================================================
+-- Purpose: Query-optimized current state of expenses, rebuilt from events
+CREATE TABLE expense_projections (
     id VARCHAR(36) PRIMARY KEY,
     description VARCHAR(500),
     amount BIGINT NOT NULL,
@@ -12,31 +16,38 @@ CREATE TABLE expenses (
     deleted BOOLEAN NOT NULL DEFAULT false
 );
 
--- Create indexes for expenses
-CREATE INDEX idx_expenses_updated_at ON expenses(updated_at);
-CREATE INDEX idx_expenses_deleted ON expenses(deleted);
-CREATE INDEX idx_expenses_category ON expenses(category);
+-- Indexes for expense_projections
+CREATE INDEX idx_expense_projections_updated_at ON expense_projections(updated_at);
+CREATE INDEX idx_expense_projections_deleted ON expense_projections(deleted);
+CREATE INDEX idx_expense_projections_category ON expense_projections(category);
 
--- Operations log table
-CREATE TABLE operations (
-    op_id VARCHAR(36) PRIMARY KEY,
-    ts BIGINT NOT NULL,
+-- =====================================================
+-- Table 2: expense_events (Event Store / Source of Truth)
+-- =====================================================
+-- Purpose: Immutable append-only event log of all expense modifications
+CREATE TABLE expense_events (
+    event_id VARCHAR(36) PRIMARY KEY,
+    timestamp BIGINT NOT NULL,
     device_id VARCHAR(255) NOT NULL,
-    op_type VARCHAR(20) NOT NULL CHECK (op_type IN ('CREATE', 'UPDATE', 'DELETE')),
-    entity_id VARCHAR(36) NOT NULL,
+    event_type VARCHAR(20) NOT NULL CHECK (event_type IN ('CREATED', 'UPDATED', 'DELETED')),
+    expense_id VARCHAR(36) NOT NULL,
     payload TEXT NOT NULL,
     committed BOOLEAN NOT NULL DEFAULT false
 );
 
--- Indexes for operations table
-CREATE INDEX idx_operations_committed ON operations(committed);
-CREATE INDEX idx_operations_device_id ON operations(device_id);
-CREATE INDEX idx_operations_ts ON operations(ts);
+-- Indexes for expense_events
+CREATE INDEX idx_expense_events_committed ON expense_events(committed);
+CREATE INDEX idx_expense_events_device_id ON expense_events(device_id);
+CREATE INDEX idx_expense_events_timestamp ON expense_events(timestamp);
+CREATE INDEX idx_expense_events_expense_id ON expense_events(expense_id);
 
--- Applied operations registry (prevents duplicate application)
-CREATE TABLE applied_operations (
-    op_id VARCHAR(36) PRIMARY KEY
+-- =====================================================
+-- Table 3: processed_events (Idempotency Registry)
+-- =====================================================
+-- Purpose: Tracks which events have been processed to prevent duplicate application
+CREATE TABLE processed_events (
+    event_id VARCHAR(36) PRIMARY KEY
 );
 
--- Create index for fast lookup
-CREATE INDEX idx_applied_operations_op_id ON applied_operations(op_id);
+-- Index for fast lookup
+CREATE INDEX idx_processed_events_event_id ON processed_events(event_id);

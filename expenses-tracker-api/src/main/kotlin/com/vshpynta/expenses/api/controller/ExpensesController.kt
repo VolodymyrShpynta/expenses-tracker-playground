@@ -5,9 +5,10 @@ import com.vshpynta.expenses.api.controller.dto.DeviceIdDto
 import com.vshpynta.expenses.api.controller.dto.ExpenseDto
 import com.vshpynta.expenses.api.controller.dto.SyncResultDto
 import com.vshpynta.expenses.api.controller.dto.UpdateExpenseRequest
-import com.vshpynta.expenses.api.model.SyncExpense
-import com.vshpynta.expenses.api.service.ExpenseService
-import com.vshpynta.expenses.api.service.SyncService
+import com.vshpynta.expenses.api.model.ExpenseProjection
+import com.vshpynta.expenses.api.service.ExpenseCommandService
+import com.vshpynta.expenses.api.service.ExpenseQueryService
+import com.vshpynta.expenses.api.service.ExpenseEventSyncService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.springframework.http.HttpStatus
@@ -23,19 +24,21 @@ import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
 
 /**
- * REST controller for sync-enabled expense operations
+ * REST controller for expense operations (CQRS pattern)
+ * Uses separate command and query services
  */
 @RestController
 @RequestMapping("/api/expenses")
 class ExpensesController(
-    private val expenseService: ExpenseService,
-    private val syncService: SyncService
+    private val commandService: ExpenseCommandService,
+    private val queryService: ExpenseQueryService,
+    private val expenseEventSyncService: ExpenseEventSyncService
 ) {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     suspend fun createExpense(@RequestBody request: CreateExpenseRequest): ExpenseDto {
-        val expense = expenseService.createExpense(
+        val expense = commandService.createExpense(
             description = request.description,
             amount = request.amount,
             category = request.category,
@@ -49,7 +52,7 @@ class ExpensesController(
         @PathVariable id: String,
         @RequestBody request: UpdateExpenseRequest
     ): ExpenseDto {
-        val expense = expenseService.updateExpense(
+        val expense = commandService.updateExpense(
             id = UUID.fromString(id),
             description = request.description,
             amount = request.amount,
@@ -63,7 +66,7 @@ class ExpensesController(
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     suspend fun deleteExpense(@PathVariable id: String) {
-        val deleted = expenseService.deleteExpense(UUID.fromString(id))
+        val deleted = commandService.deleteExpense(UUID.fromString(id))
         if (!deleted) {
             throw NoSuchElementException("Expense not found: $id")
         }
@@ -71,32 +74,32 @@ class ExpensesController(
 
     @GetMapping
     suspend fun getAllExpenses(): Flow<ExpenseDto> {
-        return expenseService.getAllExpenses()
+        return queryService.getAllExpenses()
             .map { it.toDto() }
     }
 
     @GetMapping("/{id}")
     suspend fun getExpenseById(@PathVariable id: String): ExpenseDto {
-        val expense = expenseService.getExpenseById(UUID.fromString(id))
+        val expense = queryService.getExpenseById(UUID.fromString(id))
             ?: throw NoSuchElementException("Expense not found: $id")
         return expense.toDto()
     }
 
     @PostMapping("/sync")
     suspend fun triggerSync(): SyncResultDto {
-        syncService.performFullSync()
+        expenseEventSyncService.performFullSync()
         return SyncResultDto(
-            deviceId = syncService.getDeviceId(),
+            deviceId = expenseEventSyncService.getDeviceId(),
             message = "Sync completed successfully"
         )
     }
 
     @GetMapping("/device-id")
     suspend fun getDeviceId(): DeviceIdDto {
-        return DeviceIdDto(deviceId = syncService.getDeviceId())
+        return DeviceIdDto(deviceId = expenseEventSyncService.getDeviceId())
     }
 
-    private fun SyncExpense.toDto() = ExpenseDto(
+    private fun ExpenseProjection.toDto() = ExpenseDto(
         id = id.toString(),
         description = description ?: "",
         amount = amount,

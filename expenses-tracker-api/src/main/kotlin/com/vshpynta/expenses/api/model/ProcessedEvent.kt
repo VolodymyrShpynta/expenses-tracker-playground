@@ -6,12 +6,12 @@ import org.springframework.data.relational.core.mapping.Table
 import java.util.UUID
 
 /**
- * Entity for applied_operations table
- * Tracks which operations have already been applied to ensure idempotency
+ * Entity for processed_events table (event idempotency registry)
+ * Tracks which events have already been processed to ensure idempotency
  */
-@Table("applied_operations")
-data class AppliedOperation(
+@Table("processed_events")
+data class ProcessedEvent(
     @Id
-    @Column("op_id")
-    val opId: UUID
+    @Column("event_id")
+    val eventId: UUID
 )

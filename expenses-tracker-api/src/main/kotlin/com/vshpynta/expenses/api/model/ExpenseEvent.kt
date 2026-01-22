@@ -7,26 +7,27 @@ import org.springframework.data.relational.core.mapping.Table
 import java.util.UUID
 
 /**
- * Operation log entry for event sourcing
+ * Expense event for event sourcing architecture
+ * Represents an immutable fact that happened to an expense (created, updated, deleted)
  * Implements Persistable to handle UUID-based IDs correctly with R2DBC
  */
-@Table("operations")
-data class Operation(
+@Table("expense_events")
+data class ExpenseEvent(
     @Id
-    @Column("op_id")
-    val opId: UUID = UUID.randomUUID(),
+    @Column("event_id")
+    val eventId: UUID = UUID.randomUUID(),
 
-    @Column("ts")
-    val ts: Long,
+    @Column("timestamp")
+    val timestamp: Long,
 
     @Column("device_id")
     val deviceId: String,
 
-    @Column("op_type")
-    val operationType: OperationType,
+    @Column("event_type")
+    val eventType: EventType,
 
-    @Column("entity_id")
-    val entityId: UUID,
+    @Column("expense_id")
+    val expenseId: UUID,
 
     @Column("payload")
     val payload: String,  // JSON as String
@@ -35,8 +36,8 @@ data class Operation(
     val committed: Boolean = false
 ) : Persistable<UUID> {
 
-    override fun getId(): UUID = opId
+    override fun getId(): UUID = eventId
 
-    // Always return true since we always INSERT new operations (never UPDATE)
+    // Always return true since we always INSERT new events (never UPDATE)
     override fun isNew(): Boolean = true
 }
