@@ -1,6 +1,7 @@
 package com.vshpynta.expenses.api.repository
 
 import com.vshpynta.expenses.api.model.SyncExpense
+import kotlinx.coroutines.flow.Flow
 import org.springframework.data.r2dbc.repository.Modifying
 import org.springframework.data.r2dbc.repository.Query
 import org.springframework.data.repository.kotlin.CoroutineCrudRepository
@@ -8,11 +9,24 @@ import org.springframework.stereotype.Repository
 import java.util.UUID
 
 /**
- * Repository for idempotent UPSERT operations on expenses
- * Uses Spring Data R2DBC with custom queries for database portability
+ * Repository for expense operations. It contains idempotent upsert and soft delete methods
+ * with last-write-wins conflict resolution based on timestamps.
+ * Uses Spring Data R2DBC with custom queries for database portability.
  */
 @Repository
 interface ExpenseRepository : CoroutineCrudRepository<SyncExpense, UUID> {
+
+    /**
+     * Find expense by ID (returns null if not found)
+     */
+    @Query("SELECT * FROM expenses WHERE id = :id")
+    suspend fun findByIdOrNull(id: UUID): SyncExpense?
+
+    /**
+     * Find all active (non-deleted) expenses
+     */
+    @Query("SELECT * FROM expenses WHERE deleted = false")
+    suspend fun findAllActive(): Flow<SyncExpense>
 
     /**
      * Idempotent UPSERT for expense with last-write-wins conflict resolution

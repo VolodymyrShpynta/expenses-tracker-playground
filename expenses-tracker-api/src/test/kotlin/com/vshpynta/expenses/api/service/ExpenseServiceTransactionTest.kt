@@ -4,7 +4,6 @@ import com.vshpynta.expenses.api.config.TestContainersConfig
 import com.vshpynta.expenses.api.model.SyncExpense
 import com.vshpynta.expenses.api.repository.ExpenseRepository
 import com.vshpynta.expenses.api.repository.OperationRepository
-import com.vshpynta.expenses.api.repository.SyncExpenseRepository
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.runBlocking
@@ -25,7 +24,7 @@ import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean
 
 /**
- * Tests for transaction atomicity in ExpenseWriteService
+ * Tests for transaction atomicity in ExpenseService
  * Verifies that operations and expense changes are committed or rolled back together
  *
  * Note: Cannot use @Transactional for test cleanup because R2DBC is reactive
@@ -38,9 +37,6 @@ class ExpenseServiceTransactionTest {
 
     @Autowired
     private lateinit var expenseService: ExpenseService
-
-    @Autowired
-    private lateinit var syncExpenseRepository: SyncExpenseRepository
 
     @Autowired
     private lateinit var operationRepository: OperationRepository
@@ -285,7 +281,7 @@ class ExpenseServiceTransactionTest {
 
     private suspend fun getAllOperations() = operationRepository.findAll().toList()
 
-    private suspend fun getAllExpenses() = syncExpenseRepository.findAll().toList()
+    private suspend fun getAllExpenses() = expenseRepository.findAll().toList()
 
-    private suspend fun getExpenseById(id: java.util.UUID) = syncExpenseRepository.findByIdOrNull(id)
+    private suspend fun getExpenseById(id: java.util.UUID) = expenseRepository.findByIdOrNull(id)
 }

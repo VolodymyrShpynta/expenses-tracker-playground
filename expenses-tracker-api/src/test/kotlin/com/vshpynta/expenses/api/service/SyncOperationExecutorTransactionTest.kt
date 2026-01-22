@@ -7,7 +7,6 @@ import com.vshpynta.expenses.api.model.SyncExpense
 import com.vshpynta.expenses.api.repository.AppliedOperationRepository
 import com.vshpynta.expenses.api.repository.ExpenseRepository
 import com.vshpynta.expenses.api.repository.OperationRepository
-import com.vshpynta.expenses.api.repository.SyncExpenseRepository
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.runBlocking
@@ -50,9 +49,6 @@ class SyncOperationExecutorTransactionTest {
     @Autowired
     private lateinit var syncOperationExecutor: SyncOperationExecutor
 
-    @Autowired
-    private lateinit var syncExpenseRepository: SyncExpenseRepository
-
     @MockitoSpyBean
     private lateinit var operationRepository: OperationRepository
 
@@ -94,7 +90,7 @@ class SyncOperationExecutorTransactionTest {
         assertTrue(result, "Operation should be executed successfully")
 
         // Verify expense was created
-        val expense = syncExpenseRepository.findByIdOrNull(opEntry.payload.id)
+        val expense = expenseRepository.findByIdOrNull(opEntry.payload.id)
         assertNotNull(expense, "Expense should be created")
         assertEquals(5000L, expense?.amount, "Expense amount should match")
 
@@ -113,7 +109,7 @@ class SyncOperationExecutorTransactionTest {
             amount = 5000
         )
 
-        val initialExpenseCount = syncExpenseRepository.findAll().toList().size
+        val initialExpenseCount = expenseRepository.findAll().toList().size
         val initialAppliedOpsCount = getAllAppliedOperations().size
 
         // Configure spy to fail when upserting expense
@@ -130,7 +126,7 @@ class SyncOperationExecutorTransactionTest {
             .hasMessageContaining("Simulated upsert failure")
 
         // Then: Nothing should be committed (entire transaction rolled back)
-        val expensesAfter = syncExpenseRepository.findAll().toList()
+        val expensesAfter = expenseRepository.findAll().toList()
         val appliedOpsAfter = getAllAppliedOperations()
 
         assertEquals(
@@ -158,7 +154,7 @@ class SyncOperationExecutorTransactionTest {
             amount = 5000
         )
 
-        val initialExpenseCount = syncExpenseRepository.findAll().toList().size
+        val initialExpenseCount = expenseRepository.findAll().toList().size
 
         // Configure spy to fail when marking as applied
         doAnswer {
@@ -174,7 +170,7 @@ class SyncOperationExecutorTransactionTest {
             .hasMessageContaining("Simulated markAsApplied failure")
 
         // Then: Entire transaction should be rolled back
-        val expensesAfter = syncExpenseRepository.findAll().toList()
+        val expensesAfter = expenseRepository.findAll().toList()
 
         assertEquals(
             initialExpenseCount, expensesAfter.size,
@@ -183,7 +179,7 @@ class SyncOperationExecutorTransactionTest {
         )
 
         // Verify expense was NOT created (rollback worked)
-        val expense = syncExpenseRepository.findByIdOrNull(opEntry.payload.id)
+        val expense = expenseRepository.findByIdOrNull(opEntry.payload.id)
         assertNull(expense, "Expense should NOT exist - entire transaction rolled back")
     }
 
@@ -198,7 +194,7 @@ class SyncOperationExecutorTransactionTest {
             amount = 5000
         )
 
-        val initialExpenseCount = syncExpenseRepository.findAll().toList().size
+        val initialExpenseCount = expenseRepository.findAll().toList().size
         val initialAppliedOpsCount = getAllAppliedOperations().size
 
         // Configure spy to fail when marking as committed
@@ -215,7 +211,7 @@ class SyncOperationExecutorTransactionTest {
             .hasMessageContaining("Simulated markAsCommitted failure")
 
         // Then: Entire transaction should be rolled back
-        val expensesAfter = syncExpenseRepository.findAll().toList()
+        val expensesAfter = expenseRepository.findAll().toList()
         val appliedOpsAfter = getAllAppliedOperations()
 
         assertEquals(
@@ -228,7 +224,7 @@ class SyncOperationExecutorTransactionTest {
         )
 
         // Verify nothing was persisted
-        val expense = syncExpenseRepository.findByIdOrNull(opEntry.payload.id)
+        val expense = expenseRepository.findByIdOrNull(opEntry.payload.id)
         assertNull(expense, "Expense should NOT exist - entire transaction rolled back")
 
         val wasApplied = appliedOperationRepository.hasBeenApplied(UUID.fromString(opEntry.opId))
@@ -249,7 +245,7 @@ class SyncOperationExecutorTransactionTest {
         val firstResult = syncOperationExecutor.executeIfNotApplied(opEntry, deviceId)
         assertTrue(firstResult, "First execution should succeed")
 
-        val expenseAfterFirst = syncExpenseRepository.findByIdOrNull(opEntry.payload.id)
+        val expenseAfterFirst = expenseRepository.findByIdOrNull(opEntry.payload.id)
         assertNotNull(expenseAfterFirst, "Expense should exist after first execution")
         val firstUpdatedAt = expenseAfterFirst!!.updatedAt
 
@@ -259,7 +255,7 @@ class SyncOperationExecutorTransactionTest {
         // Then: Should be skipped, no modifications
         assertFalse(secondResult, "Second execution should return false (already applied)")
 
-        val expenseAfterSecond = syncExpenseRepository.findByIdOrNull(opEntry.payload.id)
+        val expenseAfterSecond = expenseRepository.findByIdOrNull(opEntry.payload.id)
         assertNotNull(expenseAfterSecond, "Expense should still exist")
         assertEquals(
             firstUpdatedAt, expenseAfterSecond!!.updatedAt,
@@ -292,7 +288,7 @@ class SyncOperationExecutorTransactionTest {
         // Then: All steps should complete atomically
         assertTrue(deleteResult, "Delete operation should succeed")
 
-        val expense = syncExpenseRepository.findByIdOrNull(expenseId)
+        val expense = expenseRepository.findByIdOrNull(expenseId)
         assertNotNull(expense, "Expense should still exist (soft delete)")
         assertTrue(expense!!.deleted, "Expense should be marked as deleted")
 
@@ -326,7 +322,7 @@ class SyncOperationExecutorTransactionTest {
         // Then: All steps should complete atomically
         assertTrue(updateResult, "Update operation should succeed")
 
-        val expense = syncExpenseRepository.findByIdOrNull(expenseId)
+        val expense = expenseRepository.findByIdOrNull(expenseId)
         assertNotNull(expense, "Expense should exist")
         assertEquals(2000L, expense!!.amount, "Amount should be updated")
         assertEquals("Updated", expense.description, "Description should be updated")
@@ -373,10 +369,10 @@ class SyncOperationExecutorTransactionTest {
         assertTrue(result2, "Second operation should succeed")
 
         // Verify: First operation rolled back, second committed
-        val expense1 = syncExpenseRepository.findByIdOrNull(op1.payload.id)
+        val expense1 = expenseRepository.findByIdOrNull(op1.payload.id)
         assertNull(expense1, "First expense should NOT exist (transaction rolled back)")
 
-        val expense2 = syncExpenseRepository.findByIdOrNull(op2.payload.id)
+        val expense2 = expenseRepository.findByIdOrNull(op2.payload.id)
         assertNotNull(expense2, "Second expense should exist (transaction committed)")
         assertEquals(2000L, expense2?.amount)
 

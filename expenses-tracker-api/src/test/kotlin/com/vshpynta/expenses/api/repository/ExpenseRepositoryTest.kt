@@ -34,9 +34,6 @@ class ExpenseRepositoryTest {
     private lateinit var expenseRepository: ExpenseRepository
 
     @Autowired
-    private lateinit var syncExpenseRepository: SyncExpenseRepository
-
-    @Autowired
     private lateinit var databaseClient: DatabaseClient
 
     @BeforeEach
@@ -66,7 +63,7 @@ class ExpenseRepositoryTest {
         // Then: Expense should be inserted
         assertEquals(1, result, "Should return 1 (one row affected)")
 
-        val saved = syncExpenseRepository.findByIdOrNull(expense.id)
+        val saved = expenseRepository.findByIdOrNull(expense.id)
         assertNotNull(saved, "Expense should be saved")
         assertEquals(expense.id, saved?.id)
         assertEquals("New expense", saved?.description)
@@ -98,7 +95,7 @@ class ExpenseRepositoryTest {
         // Then: Expense should be updated
         assertEquals(1, result, "Should return 1 (one row affected)")
 
-        val saved = syncExpenseRepository.findByIdOrNull(expenseId)
+        val saved = expenseRepository.findByIdOrNull(expenseId)
         assertNotNull(saved)
         assertEquals("Updated", saved?.description, "Description should be updated")
         assertEquals(2000L, saved?.amount, "Amount should be updated")
@@ -129,7 +126,7 @@ class ExpenseRepositoryTest {
         // Then: Expense should NOT be updated (last-write-wins)
         assertEquals(0, result, "Should return 0 (no rows affected - WHERE clause not satisfied)")
 
-        val saved = syncExpenseRepository.findByIdOrNull(expenseId)
+        val saved = expenseRepository.findByIdOrNull(expenseId)
         assertNotNull(saved)
         assertEquals("Newer version", saved?.description, "Description should remain unchanged")
         assertEquals(2000L, saved?.amount, "Amount should remain unchanged")
@@ -160,7 +157,7 @@ class ExpenseRepositoryTest {
         // Then: Should NOT update (WHERE clause requires EXCLUDED.updated_at > expenses.updated_at)
         assertEquals(0, result, "Should return 0 (equal timestamp doesn't satisfy WHERE clause)")
 
-        val saved = syncExpenseRepository.findByIdOrNull(expenseId)
+        val saved = expenseRepository.findByIdOrNull(expenseId)
         assertEquals("First write", saved?.description, "Original value should remain")
         assertEquals(1000L, saved?.amount)
     }
@@ -181,7 +178,7 @@ class ExpenseRepositoryTest {
         expenseRepository.upsertExpense(expense3)
 
         // Then: Final version should be the latest
-        val saved = syncExpenseRepository.findByIdOrNull(expenseId)
+        val saved = expenseRepository.findByIdOrNull(expenseId)
         assertNotNull(saved)
         assertEquals("Version 3", saved?.description)
         assertEquals(3000L, saved?.amount)
@@ -207,7 +204,7 @@ class ExpenseRepositoryTest {
         assertEquals(0, result1, "Op 1 should be rejected (older)")
         assertEquals(1, result3, "Op 3 should be applied (newer)")
 
-        val saved = syncExpenseRepository.findByIdOrNull(expenseId)
+        val saved = expenseRepository.findByIdOrNull(expenseId)
         assertEquals("Op 3", saved?.description, "Should have the latest version")
         assertEquals(3000L, saved?.updatedAt)
     }
@@ -230,7 +227,7 @@ class ExpenseRepositoryTest {
         assertEquals(1, result1, "First upsert should insert")
         assertEquals(0, result2, "Second upsert should have no effect (same timestamp)")
 
-        val saved = syncExpenseRepository.findByIdOrNull(expense.id)
+        val saved = expenseRepository.findByIdOrNull(expense.id)
         assertNotNull(saved)
         assertEquals("Test", saved?.description)
         assertEquals(1000L, saved?.amount)
@@ -264,7 +261,7 @@ class ExpenseRepositoryTest {
         // Then: Should be updated (deleted flag overrides)
         assertEquals(1, result, "Should update to deleted")
 
-        val saved = syncExpenseRepository.findByIdOrNull(expenseId)
+        val saved = expenseRepository.findByIdOrNull(expenseId)
         assertNotNull(saved)
         assertTrue(saved!!.deleted, "Should be marked as deleted")
         assertEquals(2000L, saved.updatedAt)
@@ -296,7 +293,7 @@ class ExpenseRepositoryTest {
         // Then: Should NOT be updated (older timestamp, consistent last-write-wins)
         assertEquals(0, result, "Should not update with older timestamp (last-write-wins)")
 
-        val saved = syncExpenseRepository.findByIdOrNull(expenseId)
+        val saved = expenseRepository.findByIdOrNull(expenseId)
         assertNotNull(saved)
         assertFalse(saved!!.deleted, "Should remain active (newer timestamp wins)")
         assertEquals(2000L, saved.updatedAt)
@@ -328,7 +325,7 @@ class ExpenseRepositoryTest {
         // Then: Should NOT update (older timestamp, not a delete)
         assertEquals(0, result, "Should not resurrect with older timestamp")
 
-        val saved = syncExpenseRepository.findByIdOrNull(expenseId)
+        val saved = expenseRepository.findByIdOrNull(expenseId)
         assertTrue(saved!!.deleted, "Should remain deleted")
         assertEquals("Deleted", saved.description)
         assertEquals(2000L, saved.updatedAt)
@@ -360,7 +357,7 @@ class ExpenseRepositoryTest {
         // Then: Should update (newer timestamp wins)
         assertEquals(1, result, "Should allow resurrection with newer timestamp")
 
-        val saved = syncExpenseRepository.findByIdOrNull(expenseId)
+        val saved = expenseRepository.findByIdOrNull(expenseId)
         assertFalse(saved!!.deleted, "Should be active again")
         assertEquals("Resurrected", saved.description)
         assertEquals(2000L, saved.updatedAt)
@@ -387,7 +384,7 @@ class ExpenseRepositoryTest {
         // Then: Should be marked as deleted
         assertEquals(1, result, "Should return 1 (one row affected)")
 
-        val saved = syncExpenseRepository.findByIdOrNull(expenseId)
+        val saved = expenseRepository.findByIdOrNull(expenseId)
         assertNotNull(saved)
         assertTrue(saved!!.deleted, "Should be marked as deleted")
         assertEquals(2000L, saved.updatedAt, "Timestamp should be updated")
@@ -412,7 +409,7 @@ class ExpenseRepositoryTest {
         // Then: Delete should be rejected (last-write-wins: newer timestamp wins)
         assertEquals(0, result, "Should NOT delete with older timestamp")
 
-        val saved = syncExpenseRepository.findByIdOrNull(expenseId)
+        val saved = expenseRepository.findByIdOrNull(expenseId)
         assertNotNull(saved)
         assertFalse(saved!!.deleted, "Should remain active")
         assertEquals(2000L, saved.updatedAt, "Timestamp should remain unchanged")
@@ -437,7 +434,7 @@ class ExpenseRepositoryTest {
         // Then: Should NOT update (already deleted AND older timestamp)
         assertEquals(0, result, "Should return 0 (already deleted with newer timestamp)")
 
-        val saved = syncExpenseRepository.findByIdOrNull(expenseId)
+        val saved = expenseRepository.findByIdOrNull(expenseId)
         assertNotNull(saved)
         assertTrue(saved!!.deleted, "Should remain deleted")
         assertEquals(2000L, saved.updatedAt, "Timestamp should remain unchanged")
@@ -464,7 +461,7 @@ class ExpenseRepositoryTest {
         assertEquals(1, result1, "First delete should succeed")
         assertEquals(0, result2, "Second delete should have no effect (already deleted)")
 
-        val saved = syncExpenseRepository.findByIdOrNull(expenseId)
+        val saved = expenseRepository.findByIdOrNull(expenseId)
         assertTrue(saved!!.deleted)
         assertEquals(2000L, saved.updatedAt)
     }
@@ -500,7 +497,7 @@ class ExpenseRepositoryTest {
         // Then: Should update timestamp (WHERE clause: updated_at < :updatedAt)
         assertEquals(1, result, "Should update timestamp even if already deleted")
 
-        val saved = syncExpenseRepository.findByIdOrNull(expenseId)
+        val saved = expenseRepository.findByIdOrNull(expenseId)
         assertTrue(saved!!.deleted)
         assertEquals(2000L, saved.updatedAt, "Timestamp should be updated")
     }
@@ -525,7 +522,7 @@ class ExpenseRepositoryTest {
         // Then: Latest timestamp wins
         assertEquals(0, result2, "Device 2 update should be rejected (older than Device 3)")
 
-        val saved = syncExpenseRepository.findByIdOrNull(expenseId)
+        val saved = expenseRepository.findByIdOrNull(expenseId)
         assertEquals("Device 3", saved?.description, "Latest update should win")
         assertEquals(3000L, saved?.updatedAt)
     }
@@ -547,7 +544,7 @@ class ExpenseRepositoryTest {
         expenseRepository.upsertExpense(expense)
 
         // Then: All fields should be saved correctly
-        val saved = syncExpenseRepository.findByIdOrNull(expense.id)
+        val saved = expenseRepository.findByIdOrNull(expense.id)
         assertNotNull(saved)
         assertEquals("Test Expense", saved?.description)
         assertEquals(12345L, saved?.amount)

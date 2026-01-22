@@ -16,54 +16,54 @@ Accept: application/json
 
 ###
 
-### Add Expense - Create a new expense (POST request)
+### Create Expense - Create a new expense (amount in cents)
 POST {{ExpensesApiUrl}}/api/expenses
 Content-Type: application/json
 
 {
   "description": "Groceries",
-  "amount": 50.00,
+  "amount": 5000,
   "category": "Food",
-  "date": "2026-01-19T15:30:00"
+  "date": "2026-01-19T15:30:00Z"
 }
 
 ###
 
-### Add Expense - Example with Transportation category
+### Create Expense - Example with Transportation category
 POST {{ExpensesApiUrl}}/api/expenses
 Content-Type: application/json
 
 {
   "description": "Gas",
-  "amount": 40.00,
+  "amount": 4000,
   "category": "Transportation",
-  "date": "2026-01-19T16:00:00"
+  "date": "2026-01-19T16:00:00Z"
 }
 
 ###
 
-### Add Expense - Example with Entertainment category
+### Create Expense - Example with Entertainment category
 POST {{ExpensesApiUrl}}/api/expenses
 Content-Type: application/json
 
 {
   "description": "Movie tickets",
-  "amount": 25.50,
+  "amount": 2550,
   "category": "Entertainment",
-  "date": "2026-01-19T20:00:00"
+  "date": "2026-01-19T20:00:00Z"
 }
 
 ###
 
-### Add Expense - Example with Utilities category
+### Create Expense - Example with Utilities category
 POST {{ExpensesApiUrl}}/api/expenses
 Content-Type: application/json
 
 {
   "description": "Electricity bill",
-  "amount": 120.00,
+  "amount": 12000,
   "category": "Utilities",
-  "date": "2026-01-19T10:00:00"
+  "date": "2026-01-19T10:00:00Z"
 }
 
 ###
@@ -73,3 +73,45 @@ GET {{ExpensesApiUrl}}/api/expenses/999
 Accept: application/json
 
 ###
+
+### Update Expense - Update an existing expense (all fields optional)
+PUT {{ExpensesApiUrl}}/api/expenses/1
+Content-Type: application/json
+
+{
+  "description": "Updated Groceries",
+  "amount": 6000,
+  "category": "Food",
+  "date": "2026-01-19T15:30:00Z"
+}
+
+###
+
+### Update Expense - Partial update (only amount)
+PUT {{ExpensesApiUrl}}/api/expenses/1
+Content-Type: application/json
+
+{
+  "amount": 7500
+}
+
+###
+
+### Delete Expense - Soft delete an expense
+DELETE {{ExpensesApiUrl}}/api/expenses/1
+Accept: application/json
+
+###
+
+### Trigger Sync - Manually trigger sync operation
+POST {{ExpensesApiUrl}}/api/expenses/sync
+Accept: application/json
+
+###
+
+### Get Device ID - Returns the current device ID
+GET {{ExpensesApiUrl}}/api/expenses/device-id
+Accept: application/json
+
+###
+
