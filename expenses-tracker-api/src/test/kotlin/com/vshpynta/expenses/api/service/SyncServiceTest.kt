@@ -119,7 +119,7 @@ class SyncServiceTest {
 
         // When: Apply ops (should sort by timestamp and apply CREATE first, then UPDATE)
         val remoteOps = syncService.readRemoteOps()
-        val appliedCount = syncService.applyRemoteOpsTransactionally(remoteOps)
+        val appliedCount = syncService.applyRemoteOperations(remoteOps)
 
         // Then: Both ops should be applied
         assertEquals(2, appliedCount)
@@ -162,7 +162,7 @@ class SyncServiceTest {
 
         // When: Apply ops
         val remoteOps = syncService.readRemoteOps()
-        syncService.applyRemoteOpsTransactionally(remoteOps)
+        syncService.applyRemoteOperations(remoteOps)
 
         // Then: Device 2's update should win (later timestamp)
         val expense = expenseService.getExpenseById(expenseId)
@@ -207,7 +207,7 @@ class SyncServiceTest {
 
         // When: Apply ops
         val remoteOps = syncService.readRemoteOps()
-        syncService.applyRemoteOpsTransactionally(remoteOps)
+        syncService.applyRemoteOperations(remoteOps)
 
         // Then: Expense should be soft-deleted
         val expense = expenseService.getExpenseById(expenseId)
@@ -257,7 +257,7 @@ class SyncServiceTest {
 
         // When: Apply ops
         val remoteOps = syncService.readRemoteOps()
-        syncService.applyRemoteOpsTransactionally(remoteOps)
+        syncService.applyRemoteOperations(remoteOps)
 
         // Then: All three expenses should exist
         val allExpenses = expenseService.getAllExpenses().toList()
@@ -332,8 +332,8 @@ class SyncServiceTest {
 
         // When: Apply ops twice (simulating retry)
         val remoteOps = syncService.readRemoteOps()
-        val firstApply = syncService.applyRemoteOpsTransactionally(remoteOps)
-        val secondApply = syncService.applyRemoteOpsTransactionally(remoteOps)
+        val firstApply = syncService.applyRemoteOperations(remoteOps)
+        val secondApply = syncService.applyRemoteOperations(remoteOps)
 
         // Then: First sync should apply both, second should apply none (idempotent)
         assertEquals(2, firstApply)
