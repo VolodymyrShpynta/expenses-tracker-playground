@@ -28,7 +28,6 @@ CREATE INDEX idx_expense_projections_category ON expense_projections(category);
 CREATE TABLE expense_events (
     event_id VARCHAR(36) PRIMARY KEY,
     timestamp BIGINT NOT NULL,
-    device_id VARCHAR(255) NOT NULL,
     event_type VARCHAR(20) NOT NULL CHECK (event_type IN ('CREATED', 'UPDATED', 'DELETED')),
     expense_id VARCHAR(36) NOT NULL,
     payload TEXT NOT NULL,
@@ -37,7 +36,6 @@ CREATE TABLE expense_events (
 
 -- Indexes for expense_events
 CREATE INDEX idx_expense_events_committed ON expense_events(committed);
-CREATE INDEX idx_expense_events_device_id ON expense_events(device_id);
 CREATE INDEX idx_expense_events_timestamp ON expense_events(timestamp);
 CREATE INDEX idx_expense_events_expense_id ON expense_events(expense_id);
 

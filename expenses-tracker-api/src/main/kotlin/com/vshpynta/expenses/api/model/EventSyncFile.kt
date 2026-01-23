@@ -19,7 +19,6 @@ data class Snapshot(
 data class EventEntry(
     val eventId: String,  // UUID as string
     val timestamp: Long,
-    val deviceId: String,
     val eventType: String,
     val expenseId: String,  // UUID as string
     val payload: ExpensePayload

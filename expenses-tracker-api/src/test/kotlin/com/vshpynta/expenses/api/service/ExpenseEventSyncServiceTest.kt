@@ -48,6 +48,9 @@ class ExpenseEventSyncServiceTest {
     @Autowired
     private lateinit var databaseClient: org.springframework.r2dbc.core.DatabaseClient
 
+    @Autowired
+    private lateinit var processedEventsCache: ProcessedEventsCache
+
     // Use the sync file path from application-test.yaml
     private val testSyncFilePath = "./build/test-sync-data/sync.json"
 
@@ -59,6 +62,9 @@ class ExpenseEventSyncServiceTest {
             databaseClient.sql("DELETE FROM expense_events").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM expense_projections").fetch().rowsUpdated().awaitSingle()
         }
+
+        // Reset cache to clear state from previous tests
+        processedEventsCache.reset()
 
         // Clean up sync file before each test
         File(testSyncFilePath).delete()
@@ -120,14 +126,10 @@ class ExpenseEventSyncServiceTest {
         val syncFile = EventSyncFile(events = listOf(updateEvent, createEvent))
         writeSyncFile(syncFile)
 
-        // When: Apply events (should sort by timestamp and apply CREATE first, then UPDATE)
-        val remoteOps = expenseEventSyncService.readRemoteOps()
-        val appliedCount = expenseEventSyncService.applyRemoteOperations(remoteOps)
+        // When: Perform sync (should sort by timestamp and apply CREATE first, then UPDATE)
+        expenseEventSyncService.performFullSync()
 
-        // Then: Both events should be applied
-        assertEquals(2, appliedCount)
-
-        // And the final result should reflect the later update (7500 from UPDATE)
+        // Then: The final result should reflect the later update (7500 from UPDATE)
         val expense = queryService.getExpenseById(expenseId)
         assertNotNull(expense)
         assertEquals(7500L, expense!!.amount)
@@ -143,7 +145,6 @@ class ExpenseEventSyncServiceTest {
             eventId = UUID.randomUUID(),
             timestamp = now,
             expenseId = expenseId,
-            deviceId = "device-1",
             eventType = "CREATED",
             amount = 1000,
             description = "Device 1 version"
@@ -153,7 +154,6 @@ class ExpenseEventSyncServiceTest {
             eventId = UUID.randomUUID(),
             timestamp = now + 1000,  // Later timestamp wins
             expenseId = expenseId,
-            deviceId = "device-2",
             eventType = "UPDATED",
             amount = 2000,
             description = "Device 2 version"
@@ -163,9 +163,8 @@ class ExpenseEventSyncServiceTest {
         val syncFile = EventSyncFile(events = listOf(device1Event, device2Event))
         writeSyncFile(syncFile)
 
-        // When: Apply events
-        val remoteOps = expenseEventSyncService.readRemoteOps()
-        expenseEventSyncService.applyRemoteOperations(remoteOps)
+        // When: Perform sync
+        expenseEventSyncService.performFullSync()
 
         // Then: Device 2's update should win (later timestamp)
         val expense = queryService.getExpenseById(expenseId)
@@ -208,9 +207,8 @@ class ExpenseEventSyncServiceTest {
         val syncFile = EventSyncFile(events = listOf(createEvent, updateEvent, deleteEvent))
         writeSyncFile(syncFile)
 
-        // When: Apply events
-        val remoteOps = expenseEventSyncService.readRemoteOps()
-        expenseEventSyncService.applyRemoteOperations(remoteOps)
+        // When: Perform sync
+        expenseEventSyncService.performFullSync()
 
         // Then: Expense should be soft-deleted
         val expense = queryService.getExpenseById(expenseId)
@@ -229,7 +227,6 @@ class ExpenseEventSyncServiceTest {
             eventId = UUID.randomUUID(),
             timestamp = now,
             expenseId = expense1Id,
-            deviceId = "device-1",
             eventType = "CREATED",
             amount = 1000,
             description = "Device 1 expense"
@@ -239,7 +236,6 @@ class ExpenseEventSyncServiceTest {
             eventId = UUID.randomUUID(),
             timestamp = now + 100,
             expenseId = expense2Id,
-            deviceId = "device-2",
             eventType = "CREATED",
             amount = 2000,
             description = "Device 2 expense"
@@ -249,7 +245,6 @@ class ExpenseEventSyncServiceTest {
             eventId = UUID.randomUUID(),
             timestamp = now + 200,
             expenseId = expense3Id,
-            deviceId = "device-3",
             eventType = "CREATED",
             amount = 3000,
             description = "Device 3 expense"
@@ -258,9 +253,8 @@ class ExpenseEventSyncServiceTest {
         val syncFile = EventSyncFile(events = listOf(device1Event, device2Event, device3Event))
         writeSyncFile(syncFile)
 
-        // When: Apply events
-        val remoteOps = expenseEventSyncService.readRemoteOps()
-        expenseEventSyncService.applyRemoteOperations(remoteOps)
+        // When: Perform sync
+        expenseEventSyncService.performFullSync()
 
         // Then: All three expenses should exist
         val allExpenses = queryService.getAllExpenses().toList()
@@ -277,34 +271,46 @@ class ExpenseEventSyncServiceTest {
         val expenseId = UUID.randomUUID()
         val now = System.currentTimeMillis()
 
-        // Given: Two events with same timestamp (should sort by device_id then event_id)
-        val event1 = createTestEventEntry(
-            eventId = UUID.fromString("00000000-0000-0000-0000-000000000001"),
-            timestamp = now,
+        // Given: First create the expense, then two updates with same event timestamp but different updatedAt
+        // Create event first (earlier timestamp)
+        val createEvent = createTestEventEntry(
+            eventId = UUID.randomUUID(),
+            timestamp = now - 2000,  // Earlier timestamp
             expenseId = expenseId,
-            deviceId = "device-a",
             eventType = "CREATED",
-            amount = 1000
+            amount = 500
+        )
+
+        // Two updates with same event timestamp (should sort by eventId: lower UUID first)
+        // Use deterministic UUIDs to avoid flaky tests: event1's UUID < event2's UUID
+        val event1 = createTestEventEntry(
+            eventId = UUID.fromString("00000000-0000-0000-0000-000000000001"),  // Smaller UUID - processed first
+            timestamp = now,  // Same event timestamp
+            expenseId = expenseId,
+            eventType = "UPDATED",
+            amount = 1000,
+            updatedAt = now  // Earlier updatedAt in payload
         )
 
         val event2 = createTestEventEntry(
-            eventId = UUID.fromString("00000000-0000-0000-0000-000000000002"),
-            timestamp = now,  // Same timestamp
+            eventId = UUID.fromString("00000000-0000-0000-0000-000000000002"),  // Larger UUID - processed second
+            timestamp = now,  // Same event timestamp
             expenseId = expenseId,
-            deviceId = "device-b",
             eventType = "UPDATED",
-            amount = 2000
+            amount = 2000,
+            updatedAt = now + 100  // Later updatedAt in payload - should win!
         )
 
-        val syncFile = EventSyncFile(events = listOf(event2, event1))  // Wrong order
+        val syncFile = EventSyncFile(events = listOf(event2, event1, createEvent))  // Wrong order
         writeSyncFile(syncFile)
 
-        // When: Read and sort events
-        val remoteOps = expenseEventSyncService.readRemoteOps()
+        // When: Perform sync (should sort deterministically by event timestamp, then eventId)
+        expenseEventSyncService.performFullSync()
 
-        // Then: Should be sorted deterministically
-        assertEquals("device-a", remoteOps[0].deviceId)
-        assertEquals("device-b", remoteOps[1].deviceId)
+        // Then: event2 should win due to later updatedAt timestamp in payload (last-write-wins)
+        val expense = queryService.getExpenseById(expenseId)
+        assertNotNull(expense)
+        assertEquals(2000L, expense!!.amount)  // event2 wins with last-write-wins
     }
 
     @Test
@@ -333,18 +339,17 @@ class ExpenseEventSyncServiceTest {
         val syncFile = EventSyncFile(events = listOf(event1, event2))
         writeSyncFile(syncFile)
 
-        // When: Apply events twice (simulating retry)
-        val remoteOps = expenseEventSyncService.readRemoteOps()
-        val firstApply = expenseEventSyncService.applyRemoteOperations(remoteOps)
-        val secondApply = expenseEventSyncService.applyRemoteOperations(remoteOps)
+        // When: Perform sync twice (simulating retry)
+        expenseEventSyncService.performFullSync()
+        val firstSyncExpenses = queryService.getAllExpenses().toList()
 
-        // Then: First sync should apply both, second should apply none (idempotent)
-        assertEquals(2, firstApply)
-        assertEquals(0, secondApply)
+        expenseEventSyncService.performFullSync()
+        val secondSyncExpenses = queryService.getAllExpenses().toList()
 
-        // And both expenses should exist
-        val allExpenses = queryService.getAllExpenses().toList()
-        assertEquals(2, allExpenses.size)
+        // Then: Both syncs should result in same state (idempotent)
+        assertEquals(2, firstSyncExpenses.size)
+        assertEquals(2, secondSyncExpenses.size)
+        assertEquals(firstSyncExpenses.size, secondSyncExpenses.size)
     }
 
     // Helper methods
@@ -353,16 +358,15 @@ class ExpenseEventSyncServiceTest {
         eventId: UUID,
         timestamp: Long,
         expenseId: UUID,
-        deviceId: String = "test-device",
         eventType: String,
         amount: Long,
         description: String = "Test expense",
-        deleted: Boolean = false
+        deleted: Boolean = false,
+        updatedAt: Long? = null  // Optional: defaults to timestamp if not provided
     ): EventEntry {
         return EventEntry(
             eventId = eventId.toString(),
             timestamp = timestamp,
-            deviceId = deviceId,
             eventType = eventType,
             expenseId = expenseId.toString(),
             payload = com.vshpynta.expenses.api.model.ExpensePayload(
@@ -371,7 +375,7 @@ class ExpenseEventSyncServiceTest {
                 amount = amount,
                 category = "Test",
                 date = "2026-01-20T10:00:00Z",
-                updatedAt = timestamp,
+                updatedAt = updatedAt ?: timestamp,  // Use provided updatedAt or default to timestamp
                 deleted = deleted
             )
         )

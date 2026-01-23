@@ -1,18 +1,18 @@
 package com.vshpynta.expenses.api.service
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.vshpynta.expenses.api.model.EventType
 import com.vshpynta.expenses.api.model.ExpenseEvent
 import com.vshpynta.expenses.api.model.ExpensePayload
 import com.vshpynta.expenses.api.model.ExpenseProjection
 import com.vshpynta.expenses.api.repository.ExpenseEventRepository
 import com.vshpynta.expenses.api.repository.ExpenseProjectionRepository
+import com.vshpynta.expenses.api.util.JsonOperations
+import com.vshpynta.expenses.api.util.TimeProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.Clock
 import java.util.UUID
 
 /**
@@ -24,9 +24,8 @@ import java.util.UUID
 class ExpenseCommandService(
     private val projectionRepository: ExpenseProjectionRepository,
     private val eventRepository: ExpenseEventRepository,
-    private val expenseEventSyncService: ExpenseEventSyncService,
-    private val objectMapper: ObjectMapper,
-    private val clock: Clock = Clock.systemUTC()
+    private val jsonOperations: JsonOperations,
+    private val timeProvider: TimeProvider
 ) {
 
     companion object {
@@ -45,7 +44,7 @@ class ExpenseCommandService(
         date: String
     ): ExpenseProjection = withContext(Dispatchers.IO) {
         val expenseId = UUID.randomUUID()
-        val now = clock.millis()
+        val now = timeProvider.currentTimeMillis()
 
         val payload = ExpensePayload(
             id = expenseId,
@@ -82,7 +81,7 @@ class ExpenseCommandService(
         date: String?
     ): ExpenseProjection? = withContext(Dispatchers.IO) {
         val existing = projectionRepository.findByIdOrNull(id) ?: return@withContext null
-        val now = clock.millis()
+        val now = timeProvider.currentTimeMillis()
 
         val payload = ExpensePayload(
             id = id,
@@ -112,7 +111,7 @@ class ExpenseCommandService(
     @Transactional
     suspend fun deleteExpense(id: UUID): Boolean = withContext(Dispatchers.IO) {
         val existing = projectionRepository.findByIdOrNull(id) ?: return@withContext false
-        val now = clock.millis()
+        val now = timeProvider.currentTimeMillis()
 
         val payload = ExpensePayload(
             id = id,
@@ -145,11 +144,10 @@ class ExpenseCommandService(
     ): ExpenseEvent {
         val event = ExpenseEvent(
             eventId = UUID.randomUUID(),
-            timestamp = clock.millis(), // now in millis
-            deviceId = expenseEventSyncService.getDeviceId(),
+            timestamp = timeProvider.currentTimeMillis(),
             eventType = eventType,
             expenseId = expenseId,
-            payload = objectMapper.writeValueAsString(payload),
+            payload = jsonOperations.toJson(payload),
             committed = false
         )
 

@@ -179,18 +179,7 @@ class SyncExpenseControllerTest {
             .exchange()
             .expectStatus().isOk
             .expectBody()
-            .jsonPath("$.deviceId").exists()
             .jsonPath("$.message").isEqualTo("Sync completed successfully")
-    }
-
-    @Test
-    fun `should get device id`() {
-        webTestClient.get()
-            .uri("/api/expenses/device-id")
-            .exchange()
-            .expectStatus().isOk
-            .expectBody()
-            .jsonPath("$.deviceId").exists()
     }
 
     @Test

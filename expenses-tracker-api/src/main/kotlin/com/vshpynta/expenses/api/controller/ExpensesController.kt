@@ -1,14 +1,13 @@
 package com.vshpynta.expenses.api.controller
 
 import com.vshpynta.expenses.api.controller.dto.CreateExpenseRequest
-import com.vshpynta.expenses.api.controller.dto.DeviceIdDto
 import com.vshpynta.expenses.api.controller.dto.ExpenseDto
 import com.vshpynta.expenses.api.controller.dto.SyncResultDto
 import com.vshpynta.expenses.api.controller.dto.UpdateExpenseRequest
 import com.vshpynta.expenses.api.model.ExpenseProjection
 import com.vshpynta.expenses.api.service.ExpenseCommandService
-import com.vshpynta.expenses.api.service.ExpenseQueryService
 import com.vshpynta.expenses.api.service.ExpenseEventSyncService
+import com.vshpynta.expenses.api.service.ExpenseQueryService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.springframework.http.HttpStatus
@@ -89,14 +88,8 @@ class ExpensesController(
     suspend fun triggerSync(): SyncResultDto {
         expenseEventSyncService.performFullSync()
         return SyncResultDto(
-            deviceId = expenseEventSyncService.getDeviceId(),
             message = "Sync completed successfully"
         )
-    }
-
-    @GetMapping("/device-id")
-    suspend fun getDeviceId(): DeviceIdDto {
-        return DeviceIdDto(deviceId = expenseEventSyncService.getDeviceId())
     }
 
     private fun ExpenseProjection.toDto() = ExpenseDto(

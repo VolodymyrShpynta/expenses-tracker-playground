@@ -17,21 +17,18 @@ import java.util.UUID
 interface ExpenseEventRepository : CoroutineCrudRepository<ExpenseEvent, UUID> {
 
     /**
-     * Find uncommitted events for a device
+     * Find uncommitted events
      * Returns Flow for efficient reactive streaming
+     * Ordered by timestamp for chronological processing
      */
-    @Query("SELECT * FROM expense_events WHERE device_id = :deviceId AND committed = false ORDER BY timestamp, event_id")
-    suspend fun findUncommittedEvents(deviceId: String): Flow<ExpenseEvent>
+    @Query("SELECT * FROM expense_events WHERE committed = false ORDER BY timestamp")
+    suspend fun findUncommittedEvents(): Flow<ExpenseEvent>
 
     /**
-     * Mark events as committed for a device
+     * Mark events as committed by their event IDs
+     * event_id is unique (PRIMARY KEY)
      */
     @Modifying
-    @Query(
-        """
-        UPDATE expense_events SET committed = true
-        WHERE device_id = :deviceId AND event_id IN (:eventIds)
-    """
-    )
-    suspend fun markEventsAsCommitted(deviceId: String, eventIds: List<UUID>): Int
+    @Query("UPDATE expense_events SET committed = true WHERE event_id IN (:eventIds)")
+    suspend fun markEventsAsCommitted(eventIds: List<UUID>): Int
 }

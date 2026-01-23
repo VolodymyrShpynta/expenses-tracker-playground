@@ -1,12 +1,12 @@
 package com.vshpynta.expenses.api.service
 
 import com.vshpynta.expenses.api.config.TestContainersConfig
-import com.vshpynta.expenses.api.model.ExpensePayload
 import com.vshpynta.expenses.api.model.EventEntry
+import com.vshpynta.expenses.api.model.ExpensePayload
 import com.vshpynta.expenses.api.model.ExpenseProjection
-import com.vshpynta.expenses.api.repository.ProcessedEventRepository
-import com.vshpynta.expenses.api.repository.ExpenseProjectionRepository
 import com.vshpynta.expenses.api.repository.ExpenseEventRepository
+import com.vshpynta.expenses.api.repository.ExpenseProjectionRepository
+import com.vshpynta.expenses.api.repository.ProcessedEventRepository
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.runBlocking
@@ -22,7 +22,6 @@ import org.mockito.Mockito
 import org.mockito.Mockito.doAnswer
 import org.mockito.kotlin.any
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.r2dbc.core.DatabaseClient
@@ -32,10 +31,10 @@ import java.time.Instant
 import java.util.UUID
 
 /**
- * Tests for transaction atomicity in ExpenseEventProjector
- * Verifies that all database operations in projectIfNotProcessed are atomic:
+ * Tests for transaction atomicity in ExpenseSyncProjector
+ * Verifies that all database operations in projectEvent are atomic:
  * - Check if processed
- * - Project event (upsert/delete expense projection)
+ * - Project expense changes to materialized view
  * - Mark as processed
  * - Mark as committed
  *
@@ -44,10 +43,10 @@ import java.util.UUID
 @SpringBootTest
 @ActiveProfiles("test")
 @Import(TestContainersConfig::class)
-class ExpenseEventProjectorTransactionTest {
+class ExpenseSyncProjectorTransactionTest {
 
     @Autowired
-    private lateinit var expenseEventProjector: ExpenseEventProjector
+    private lateinit var expenseSyncProjector: ExpenseSyncProjector
 
     @MockitoSpyBean
     private lateinit var eventRepository: ExpenseEventRepository
@@ -61,8 +60,8 @@ class ExpenseEventProjectorTransactionTest {
     @MockitoSpyBean
     private lateinit var projectionRepository: ExpenseProjectionRepository
 
-    @Value("\${sync.device.id:device-test}")
-    private lateinit var deviceId: String
+    @Autowired
+    private lateinit var processedEventsCache: ProcessedEventsCache
 
     @BeforeEach
     fun setup() {
@@ -71,6 +70,9 @@ class ExpenseEventProjectorTransactionTest {
             databaseClient.sql("DELETE FROM expense_events").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM expense_projections").fetch().rowsUpdated().awaitSingle()
         }
+
+        // Reset cache to clear state from previous tests
+        processedEventsCache.reset()
     }
 
     @Test
@@ -84,7 +86,7 @@ class ExpenseEventProjectorTransactionTest {
         )
 
         // When: Projecting the event
-        val result = expenseEventProjector.projectIfNotProcessed(eventEntry, deviceId)
+        val result = expenseSyncProjector.projectEvent(eventEntry)
 
         // Then: All steps should be completed
         assertTrue(result, "Event should be projected successfully")
@@ -120,7 +122,7 @@ class ExpenseEventProjectorTransactionTest {
         // When: Attempting to project event (should fail at projection)
         assertThatThrownBy {
             runBlocking {
-                expenseEventProjector.projectIfNotProcessed(eventEntry, deviceId)
+                expenseSyncProjector.projectEvent(eventEntry)
             }
         }.isInstanceOf(RuntimeException::class.java)
             .hasMessageContaining("Simulated projection failure")
@@ -164,7 +166,7 @@ class ExpenseEventProjectorTransactionTest {
         // When: Attempting to project event (should fail at markAsProcessed)
         assertThatThrownBy {
             runBlocking {
-                expenseEventProjector.projectIfNotProcessed(eventEntry, deviceId)
+                expenseSyncProjector.projectEvent(eventEntry)
             }
         }.isInstanceOf(RuntimeException::class.java)
             .hasMessageContaining("Simulated markAsProcessed failure")
@@ -189,7 +191,6 @@ class ExpenseEventProjectorTransactionTest {
         val eventEntry = createTestEventEntry(
             eventId = UUID.randomUUID(),
             expenseId = UUID.randomUUID(),
-            deviceId = deviceId,  // Same as current device
             eventType = "CREATED",
             amount = 5000
         )
@@ -200,12 +201,12 @@ class ExpenseEventProjectorTransactionTest {
         // Configure spy to fail when marking as committed
         doAnswer {
             throw RuntimeException("Simulated markAsCommitted failure - testing rollback")
-        }.`when`(eventRepository).markEventsAsCommitted(any(), any())
+        }.`when`(eventRepository).markEventsAsCommitted(any())
 
         // When: Attempting to project event (should fail at markAsCommitted)
         assertThatThrownBy {
             runBlocking {
-                expenseEventProjector.projectIfNotProcessed(eventEntry, deviceId)
+                expenseSyncProjector.projectEvent(eventEntry)
             }
         }.isInstanceOf(RuntimeException::class.java)
             .hasMessageContaining("Simulated markAsCommitted failure")
@@ -242,7 +243,7 @@ class ExpenseEventProjectorTransactionTest {
         )
 
         // First execution - should succeed
-        val firstResult = expenseEventProjector.projectIfNotProcessed(eventEntry, deviceId)
+        val firstResult = expenseSyncProjector.projectEvent(eventEntry)
         assertTrue(firstResult, "First execution should succeed")
 
         val projectionAfterFirst = projectionRepository.findByIdOrNull(eventEntry.payload.id)
@@ -250,7 +251,7 @@ class ExpenseEventProjectorTransactionTest {
         val firstUpdatedAt = projectionAfterFirst!!.updatedAt
 
         // When: Projecting the same event again (idempotency check)
-        val secondResult = expenseEventProjector.projectIfNotProcessed(eventEntry, deviceId)
+        val secondResult = expenseSyncProjector.projectEvent(eventEntry)
 
         // Then: Should be skipped, no modifications
         assertFalse(secondResult, "Second execution should return false (already processed)")
@@ -273,7 +274,7 @@ class ExpenseEventProjectorTransactionTest {
             eventType = "CREATED",
             amount = 5000
         )
-        expenseEventProjector.projectIfNotProcessed(createEvent, deviceId)
+        expenseSyncProjector.projectEvent(createEvent)
 
         // When: Deleting the expense
         val deleteEvent = createTestEventEntry(
@@ -283,7 +284,7 @@ class ExpenseEventProjectorTransactionTest {
             amount = 5000,
             deleted = true
         )
-        val deleteResult = expenseEventProjector.projectIfNotProcessed(deleteEvent, deviceId)
+        val deleteResult = expenseSyncProjector.projectEvent(deleteEvent)
 
         // Then: All steps should complete atomically
         assertTrue(deleteResult, "Delete event should be projected successfully")
@@ -307,7 +308,7 @@ class ExpenseEventProjectorTransactionTest {
             amount = 1000,
             description = "Original"
         )
-        expenseEventProjector.projectIfNotProcessed(createEvent, deviceId)
+        expenseSyncProjector.projectEvent(createEvent)
 
         // When: Updating the expense
         val updateEvent = createTestEventEntry(
@@ -317,7 +318,7 @@ class ExpenseEventProjectorTransactionTest {
             amount = 2000,
             description = "Updated"
         )
-        val updateResult = expenseEventProjector.projectIfNotProcessed(updateEvent, deviceId)
+        val updateResult = expenseSyncProjector.projectEvent(updateEvent)
 
         // Then: All steps should complete atomically
         assertTrue(updateResult, "Update event should be projected successfully")
@@ -356,7 +357,7 @@ class ExpenseEventProjectorTransactionTest {
         // When: Executing first event (fails)
         assertThatThrownBy {
             runBlocking {
-                expenseEventProjector.projectIfNotProcessed(event1, deviceId)
+                expenseSyncProjector.projectEvent(event1)
             }
         }.isInstanceOf(RuntimeException::class.java)
             .hasMessageContaining("First event projection fails")
@@ -365,7 +366,7 @@ class ExpenseEventProjectorTransactionTest {
         Mockito.reset(projectionRepository)
 
         // Then: Executing second event (succeeds with real implementation)
-        val result2 = expenseEventProjector.projectIfNotProcessed(event2, deviceId)
+        val result2 = expenseSyncProjector.projectEvent(event2)
         assertTrue(result2, "Second event should be projected successfully")
 
         // Verify: First event rolled back, second committed
@@ -393,14 +394,12 @@ class ExpenseEventProjectorTransactionTest {
         amount: Long,
         description: String = "Test expense",
         category: String = "Test",
-        deviceId: String = "device-test",
         deleted: Boolean = false
     ): EventEntry {
         val now = System.currentTimeMillis()
         return EventEntry(
             eventId = eventId.toString(),
             timestamp = now,
-            deviceId = deviceId,
             eventType = eventType,
             expenseId = expenseId.toString(),
             payload = ExpensePayload(

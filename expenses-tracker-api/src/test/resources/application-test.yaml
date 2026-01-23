@@ -9,5 +9,5 @@ spring:
 sync:
   file:
     path: ./build/test-sync-data/sync.json
-  device:
-    id: test-device
+    compression:
+      enabled: false  # Disable compression in tests for simplicity

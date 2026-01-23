@@ -20,9 +20,6 @@ data class ExpenseEvent(
     @Column("timestamp")
     val timestamp: Long,
 
-    @Column("device_id")
-    val deviceId: String,
-
     @Column("event_type")
     val eventType: EventType,
 

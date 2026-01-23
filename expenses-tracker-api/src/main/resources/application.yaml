@@ -19,5 +19,5 @@ spring:
 sync:
   file:
     path: ${SYNC_FILE_PATH:./sync-data/sync.json}
-  device:
-    id: ${DEVICE_ID:device-default}
+    compression:
+      enabled: ${SYNC_FILE_COMPRESSION_ENABLED:true}

@@ -37,13 +37,5 @@ data class ExpenseDto(
  * Sync result response
  */
 data class SyncResultDto(
-    val deviceId: String,
     val message: String
-)
-
-/**
- * Device ID response
- */
-data class DeviceIdDto(
-    val deviceId: String
 )
