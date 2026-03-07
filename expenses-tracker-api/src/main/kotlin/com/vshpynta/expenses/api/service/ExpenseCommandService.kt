@@ -6,10 +6,9 @@ import com.vshpynta.expenses.api.model.ExpensePayload
 import com.vshpynta.expenses.api.model.ExpenseProjection
 import com.vshpynta.expenses.api.repository.ExpenseEventRepository
 import com.vshpynta.expenses.api.repository.ExpenseProjectionRepository
+import com.vshpynta.expenses.api.service.ExpenseMapper.toProjection
 import com.vshpynta.expenses.api.util.JsonOperations
 import com.vshpynta.expenses.api.util.TimeProvider
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -42,7 +41,7 @@ class ExpenseCommandService(
         amount: Long,
         category: String,
         date: String
-    ): ExpenseProjection = withContext(Dispatchers.IO) {
+    ): ExpenseProjection {
         val expenseId = UUID.randomUUID()
         val now = timeProvider.currentTimeMillis()
 
@@ -62,9 +61,9 @@ class ExpenseCommandService(
         // 2. Project event to read model (UPSERT)
         projectionRepository.projectFromEvent(payload.toProjection())
 
-        logger.info("Created expense: $expenseId")
+        logger.info("Created expense: {}", expenseId)
 
-        projectionRepository.findByIdOrNull(expenseId)
+        return projectionRepository.findByIdOrNull(expenseId)
             ?: error("Failed to retrieve created expense projection: $expenseId")
     }
 
@@ -79,8 +78,8 @@ class ExpenseCommandService(
         amount: Long?,
         category: String?,
         date: String?
-    ): ExpenseProjection? = withContext(Dispatchers.IO) {
-        val existing = projectionRepository.findByIdOrNull(id) ?: return@withContext null
+    ): ExpenseProjection? {
+        val existing = projectionRepository.findByIdOrNull(id) ?: return null
         val now = timeProvider.currentTimeMillis()
 
         val payload = ExpensePayload(
@@ -99,9 +98,9 @@ class ExpenseCommandService(
         // 2. Project to read model
         projectionRepository.projectFromEvent(payload.toProjection())
 
-        logger.info("Updated expense: $id")
+        logger.info("Updated expense: {}", id)
 
-        projectionRepository.findByIdOrNull(id)
+        return projectionRepository.findByIdOrNull(id)
     }
 
     /**
@@ -109,8 +108,8 @@ class ExpenseCommandService(
      * Transactional: Both event persistence and projection update succeed or fail together
      */
     @Transactional
-    suspend fun deleteExpense(id: UUID): Boolean = withContext(Dispatchers.IO) {
-        val existing = projectionRepository.findByIdOrNull(id) ?: return@withContext false
+    suspend fun deleteExpense(id: UUID): Boolean {
+        val existing = projectionRepository.findByIdOrNull(id) ?: return false
         val now = timeProvider.currentTimeMillis()
 
         val payload = ExpensePayload(
@@ -129,9 +128,9 @@ class ExpenseCommandService(
         // 2. Mark projection as deleted
         projectionRepository.markAsDeleted(id, now)
 
-        logger.info("Deleted expense: $id")
+        logger.info("Deleted expense: {}", id)
 
-        true
+        return true
     }
 
     /**
@@ -160,16 +159,4 @@ class ExpenseCommandService(
         }.getOrThrow()
     }
 
-    /**
-     * Helper method to convert payload to ExpenseProjection entity
-     */
-    private fun ExpensePayload.toProjection() = ExpenseProjection(
-        id = id,
-        description = description,
-        amount = amount ?: 0L,
-        category = category,
-        date = date,
-        updatedAt = updatedAt,
-        deleted = deleted ?: false
-    )
 }

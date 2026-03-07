@@ -1,12 +1,19 @@
 package com.vshpynta.expenses.api.controller.dto
 
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Positive
+
 /**
  * Request to create a new expense
  */
 data class CreateExpenseRequest(
+    @field:NotBlank(message = "Description is required")
     val description: String,
+    @field:Positive(message = "Amount must be positive")
     val amount: Long,  // cents
+    @field:NotBlank(message = "Category is required")
     val category: String,
+    @field:NotBlank(message = "Date is required")
     val date: String  // ISO 8601
 )
 

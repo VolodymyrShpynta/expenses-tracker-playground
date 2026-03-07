@@ -1,0 +1,258 @@
+---
+applyTo: "expenses-tracker-api/**"
+---
+
+# Backend Module — Kotlin + Spring Boot 4 Reactive Stack
+
+These rules apply when working on files under `expenses-tracker-api/`.
+
+---
+
+## Backend Stack
+
+- **Language**: Kotlin 2.2+
+- **Framework**: Spring Boot 4.0+ (Spring Framework 7)
+- **Web**: Spring WebFlux (reactive, non-blocking)
+- **Data**: Spring Data R2DBC (reactive) + PostgreSQL
+- **Migrations**: Flyway (via JDBC datasource — R2DBC is not supported by Flyway)
+- **Serialization**: Jackson with Kotlin module
+- **Build**: Gradle Kotlin DSL with version catalog (`gradle/libs.versions.toml`)
+- **Testing**: JUnit 5, Testcontainers, Mockito-Kotlin, kotlinx-coroutines-test, AssertJ, WebTestClient
+- **Java**: 24+
+
+---
+
+## Gradle & Version Catalog — Required Practices
+
+### Always use the TOML version catalog
+
+All dependency declarations **must** use `libs.versions.toml` aliases — never hard-code `group:artifact:version` in `build.gradle.kts`.
+
+```kotlin
+// ✅ Good
+implementation(libs.spring.boot.starter.webflux)
+
+// ❌ Never
+implementation("org.springframework.boot:spring-boot-starter-webflux:4.0.1")
+```
+
+### Version catalog structure
+
+- **`[versions]`** — centralize all version numbers. Reference with `version.ref`.
+- **`[libraries]`** — declare every dependency. Omit `version` when managed by Spring's dependency management plugin.
+- **`[plugins]`** — declare all Gradle plugins with `version.ref`.
+
+### Gradle conventions
+
+- Use `alias(libs.plugins.xxx)` for plugins — never raw plugin IDs with inline versions.
+- Root `build.gradle.kts` applies shared plugins with `apply false` and configures `allprojects` (group, version, repositories).
+- Each module's `build.gradle.kts` applies only the plugins it needs.
+- Use `java.toolchain` to set the JDK version from the catalog: `languageVersion.set(JavaLanguageVersion.of(libs.versions.java.get().toInt()))`.
+
+---
+
+## Spring Boot 4 / Spring Framework 7 — Required Practices
+
+### Reactive stack — WebFlux + R2DBC
+
+This project uses the **fully reactive** stack. Do **not** mix in Spring MVC (spring-boot-starter-web) or blocking JPA.
+
+- Controllers return `Flow<T>` (Kotlin coroutines) or `Flux<T>` / `Mono<T>` (Reactor).
+- Repository layer extends `CoroutineCrudRepository` (reactive, coroutines-first).
+- Service methods are `suspend` functions or return `Flow<T>`.
+- Bridge Reactor ↔ Coroutines using `awaitFirst()`, `awaitFirstOrNull()`, `asFlow()` from `kotlinx-coroutines-reactor`.
+
+### Coroutines-first controller style
+
+Prefer Kotlin coroutines over raw Reactor types in controllers and services:
+
+```kotlin
+// ✅ Preferred — coroutines
+@GetMapping("/{id}")
+suspend fun getById(@PathVariable id: String): ResponseEntity<ExpenseDto> { ... }
+
+@GetMapping
+fun getAll(): Flow<ExpenseDto> { ... }
+
+// ⚠️ Acceptable if needed — Reactor
+@GetMapping
+fun getAll(): Flux<ExpenseDto> { ... }
+```
+
+### Non-blocking everywhere
+
+- Never call blocking APIs (JDBC, `Thread.sleep`, blocking I/O) inside reactive pipelines.
+- **Do NOT** use `withContext(Dispatchers.IO)` for R2DBC or Spring Data reactive operations — they are already non-blocking. R2DBC sends a query and suspends the coroutine without holding a thread, so wrapping in `Dispatchers.IO` only wastes a thread from the IO pool that sits idle during execution. Note: `@Transactional` context propagation works correctly either way (via `ReactorContext` bridging), but the extra dispatcher switch is unnecessary overhead.
+- Only use `Dispatchers.IO` for truly blocking calls (e.g., file I/O, JDBC).
+- Flyway is the one exception — it uses a separate **JDBC** `DataSource` bean (`flywayDataSource`), configured independently from the R2DBC datasource.
+
+### Spring annotations
+
+- Use `@RestController` + `@RequestMapping` for controllers.
+- Use `@Service`, `@Repository`, `@Component`, `@Configuration` appropriately.
+- Use `@Valid` on `@RequestBody` parameters to trigger Bean Validation.
+- Use `@Transactional` for transactional service methods (Spring's R2DBC-aware `@Transactional`).
+- Use `@ConfigurationProperties` with `data class` for type-safe configuration binding.
+- Use `@EnableConfigurationProperties(...)` in `@Configuration` classes.
+
+### Constructor injection (only)
+
+Spring Boot 4 / Kotlin: always use **constructor injection** — never `@Autowired` fields.
+
+```kotlin
+// ✅ Good — primary constructor injection
+@Service
+class ExpenseCommandService(
+    private val projectionRepository: ExpenseProjectionRepository,
+    private val eventRepository: ExpenseEventRepository,
+    private val timeProvider: TimeProvider
+)
+
+// ❌ Never
+@Service
+class ExpenseCommandService {
+    @Autowired lateinit var projectionRepository: ExpenseProjectionRepository
+}
+```
+
+### Application configuration
+
+- Use `application.yaml` (not `.properties`) for configuration — prefer the `.yaml` extension (officially recommended by the YAML spec).
+- Externalize secrets via environment variables with `${ENV_VAR:default}` syntax.
+- Use separate profiles for test (`application-test.yaml`).
+
+---
+
+## Kotlin Best Practices — Required Practices
+
+### Idiomatic Kotlin
+
+- **Data classes** for DTOs, entities, and value objects. Leverage `copy()` for immutable updates.
+- **val over var** — prefer immutable references. Use `var` only when mutation is truly needed.
+- **Null safety** — use Kotlin's null type system (`?`, `?.`, `?:`, `!!` sparingly). Avoid `!!` — prefer `requireNotNull()`, `checkNotNull()`, or `?: throw`.
+- **Expression body** — use single-expression function syntax for short functions:
+  ```kotlin
+  fun now(): LocalDateTime = LocalDateTime.now()
+  ```
+- **when expressions** — prefer `when` over `if-else` chains for multi-branch logic.
+- **String templates** — use `"Hello, $name"` instead of concatenation.
+- **Scope functions** — use `let`, `apply`, `also`, `run`, `with` appropriately. Don't nest them deeply.
+- **Extension functions** — use for cross-cutting utility logic (e.g., DTO mapping).
+- **Sealed classes/interfaces** — prefer over enums when variants carry data.
+- **Named arguments** — use when calling functions with many parameters or boolean flags.
+- **Default parameter values** — prefer over overloading.
+- **Destructuring declarations** — use for data classes and pairs where it improves clarity.
+
+### Kotlin + Spring conventions
+
+- Use `kotlin-spring` plugin (open classes for Spring proxying).
+- Use `-Xjsr305=strict` for proper nullability from Java annotations.
+- Use `-Xannotation-default-target=param-property` so annotations on `data class` constructor parameters apply to both the parameter and the backing property. This means `@field:` use-site target is typically not needed for Bean Validation, but **prefer explicit `@field:`** for clarity and portability:
+  ```kotlin
+  data class CreateRequest(
+      @field:NotBlank(message = "Name is required")
+      val name: String
+  )
+  ```
+
+### Object declarations for stateless utilities
+
+Use `object` for stateless mapper/utility classes containing extension functions:
+
+```kotlin
+object ExpenseMapper {
+    fun ExpenseProjection.toDto(): ExpenseDto { ... }
+}
+```
+
+### Coroutines
+
+- Use `suspend` for one-shot async operations.
+- Use `Flow<T>` for streaming / multi-value async operations.
+- Use `runTest` from `kotlinx-coroutines-test` in tests.
+- Avoid `runBlocking` in production code.
+
+---
+
+## Backend Architecture & Project Structure
+
+```
+expenses-tracker-api/src/main/kotlin/com/vshpynta/expenses/api/
+├── ExpensesTrackerApiApplication.kt   # @SpringBootApplication entry point
+├── config/                            # @Configuration classes (Flyway, R2DBC, Jackson, etc.)
+├── controller/                        # @RestController — thin, delegates to service
+│   ├── dto/                           # Request/Response data classes
+│   └── GlobalExceptionHandler.kt      # @RestControllerAdvice — maps exceptions to HTTP statuses
+├── model/                             # Domain entities (@Table data classes) and value types
+├── repository/                        # CoroutineCrudRepository interfaces
+├── service/                           # Business logic (suspend / Flow)
+│   ├── ExpenseMapper.kt               # Shared mapping object (DRY — single source of truth)
+│   └── sync/                          # File-based sync logic
+└── util/                              # Cross-cutting utilities (TimeProvider, etc.)
+```
+
+### Layer responsibilities
+
+- **Controller** — HTTP concerns only: routing, request validation (`@Valid`), response mapping, status codes. Keep thin — no business logic.
+- **Service** — business logic, orchestration, transactions. Returns domain entities.
+- **Repository** — data access. Extend `CoroutineCrudRepository`. Add custom query methods with `@Query` as needed.
+- **DTO** — input/output shapes inside `controller/dto/`. Use `data class` with Bean Validation annotations (`@field:NotBlank`, `@field:NotNull`).
+- **Model** — domain entities mapped to database tables. Use `@Table`, `@Id`.
+- **Config** — Spring `@Configuration` and `@ConfigurationProperties` classes.
+
+### Event Sourcing & CQRS
+
+This project uses event sourcing with CQRS:
+- **Write side** — `ExpenseCommandService` creates events and projects them to the read model.
+- **Read side** — `ExpenseQueryService` reads from projections.
+- **Conflict resolution** — last-write-wins based on timestamps (idempotent UPSERT with `updated_at` comparison).
+- Events are immutable once created. Entities implement `Persistable<UUID>` for correct R2DBC insert behavior.
+
+### Testability
+
+- **TimeProvider class** — inject time instead of calling `System.currentTimeMillis()` directly. This enables deterministic tests.
+- **Constructor injection** — all dependencies injected via constructors for easy mocking.
+
+---
+
+## Backend Testing Conventions
+
+### Unit tests (service, mapper, DTO)
+
+- Use `@ExtendWith(MockitoExtension::class)` + `@Mock` + `mockito-kotlin`.
+- Use `runTest` from `kotlinx-coroutines-test`.
+- Use AssertJ assertions (`assertThat(...).isEqualTo(...)`, `assertThat(...).isTrue()`, `assertThatThrownBy { ... }`).
+- Test names: backtick descriptive names — `` `findById should return null when not found` ``.
+- Follow Given / When / Then structure with comments.
+
+### Integration tests (controller, repository)
+
+- Use `@SpringBootTest(webEnvironment = RANDOM_PORT)` for controller/HTTP tests that need a running server.
+- Use `@SpringBootTest` (default) for service/repository integration tests that don't need a web server.
+- Use `Testcontainers` for PostgreSQL (`@Import(TestContainersConfig::class)`).
+- Use `WebTestClient` for HTTP assertions (configure via `WebTestClientConfig`).
+- Use `@ActiveProfiles("test")` with `application-test.yaml`.
+
+### Coroutines in tests
+
+- Prefer `runTest` for test bodies (properly handles virtual time and structured concurrency).
+- `runBlocking` is acceptable in `@BeforeEach` / `@AfterEach` for setup/teardown, or when bridging into synchronous test APIs (e.g., AssertJ's `assertThatThrownBy` expects a `ThrowingCallable`).
+- Avoid `runBlocking` in production code.
+
+### Database migrations
+
+- Flyway migrations in `src/main/resources/db/migration/`.
+- Follow naming: `V{version}__{description}.sql` (double underscore).
+
+---
+
+## Backend Error Handling
+
+- Use a `@RestControllerAdvice` (`GlobalExceptionHandler`) to centralize exception-to-HTTP-status mapping.
+- Use standard or custom exception classes (e.g., `NoSuchElementException`) with descriptive messages.
+- Controllers throw domain exceptions — the global handler maps them to HTTP status codes:
+  - `NoSuchElementException` → 404 Not Found
+  - `WebExchangeBindException` (validation) → 400 Bad Request
+  - `IllegalArgumentException` → 400 Bad Request
+- Return structured error responses (`mapOf("error" to message)`).
+- Use `ResponseEntity` in the exception handler to control status codes explicitly.

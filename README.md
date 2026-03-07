@@ -47,6 +47,7 @@ consistency across multiple devices without a central server.
 - [Android Migration Path](#-android-migration-path)
 - [Performance Optimization: Batch Processing](#-performance-optimization-batch-processing-recommended)
 - [Troubleshooting](#-troubleshooting)
+- [Copilot Instructions](#-copilot-instructions)
 - [References](#-references)
 
 ---
@@ -2947,6 +2948,21 @@ docker exec expenses-db psql -U postgres -d expenses_db -c "SELECT 1;"
 
 ---
 
+## 🤖 Copilot Instructions
+
+This project includes **GitHub Copilot instruction files** that provide AI coding assistants with project-specific
+context, conventions, and architectural rules. They live in the `.github/` directory:
+
+| File                                                        | Scope                     | Description                                                                                                                                                  |
+|-------------------------------------------------------------|---------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `.github/copilot-instructions.md`                           | Entire workspace          | Project overview, clean code principles (SOLID, DRY, KISS, YAGNI), general coding rules                                                                      |
+| `.github/instructions/expenses-tracker-api.instructions.md` | `expenses-tracker-api/**` | Backend-specific rules: Kotlin/Spring Boot conventions, reactive stack patterns, CQRS/event sourcing guidance, testing conventions (AssertJ, Testcontainers) |
+
+These files are automatically picked up by Copilot when editing matching files, ensuring AI suggestions follow the
+project's architecture, naming conventions, and best practices.
+
+---
+
 ## 📚 References
 
 ### Documentation
@@ -2968,7 +2984,7 @@ docker exec expenses-db psql -U postgres -d expenses_db -c "SELECT 1;"
 **Built with ❤️ using Spring Boot 4, Kotlin, R2DBC, and PostgreSQL**
 
 **Version:** 0.0.1-SNAPSHOT  
-**Last Updated:** January 2026  
+**Last Updated:** March 2026  
 **Project Status:** Active Development
 
 ### Tech Stack Versions

@@ -4,10 +4,7 @@ import com.vshpynta.expenses.api.config.TestContainersConfig
 import com.vshpynta.expenses.api.model.ExpenseProjection
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -48,7 +45,7 @@ class ExpenseProjectionRepositoryTest {
     // ========== UPSERT Tests ==========
 
     @Test
-    fun `projectFromEvent should insert new expense when not exists`() = runBlocking {
+    fun `projectFromEvent should insert new expense when not exists`(): Unit = runBlocking {
         // Given: A new expense
         val expense = createExpense(
             id = UUID.randomUUID(),
@@ -61,18 +58,18 @@ class ExpenseProjectionRepositoryTest {
         val result = projectionRepository.projectFromEvent(expense)
 
         // Then: Expense should be inserted
-        assertEquals(1, result, "Should return 1 (one row affected)")
+        assertThat(result).describedAs("Should return 1 (one row affected)").isEqualTo(1)
 
         val saved = projectionRepository.findByIdOrNull(expense.id)
-        assertNotNull(saved, "Expense should be saved")
-        assertEquals(expense.id, saved?.id)
-        assertEquals("New expense", saved?.description)
-        assertEquals(5000L, saved?.amount)
-        assertEquals(1000L, saved?.updatedAt)
+        assertThat(saved).describedAs("Expense should be saved").isNotNull()
+        assertThat(saved?.id).isEqualTo(expense.id)
+        assertThat(saved?.description).isEqualTo("New expense")
+        assertThat(saved?.amount).isEqualTo(5000L)
+        assertThat(saved?.updatedAt).isEqualTo(1000L)
     }
 
     @Test
-    fun `projectFromEvent should update existing expense with newer timestamp`() = runBlocking {
+    fun `projectFromEvent should update existing expense with newer timestamp`(): Unit = runBlocking {
         // Given: An existing expense
         val expenseId = UUID.randomUUID()
         val originalExpense = createExpense(
@@ -93,48 +90,50 @@ class ExpenseProjectionRepositoryTest {
         val result = projectionRepository.projectFromEvent(updatedExpense)
 
         // Then: Expense should be updated
-        assertEquals(1, result, "Should return 1 (one row affected)")
+        assertThat(result).describedAs("Should return 1 (one row affected)").isEqualTo(1)
 
         val saved = projectionRepository.findByIdOrNull(expenseId)
-        assertNotNull(saved)
-        assertEquals("Updated", saved?.description, "Description should be updated")
-        assertEquals(2000L, saved?.amount, "Amount should be updated")
-        assertEquals(2000L, saved?.updatedAt, "Timestamp should be updated")
+        assertThat(saved).isNotNull()
+        assertThat(saved?.description).describedAs("Description should be updated").isEqualTo("Updated")
+        assertThat(saved?.amount).describedAs("Amount should be updated").isEqualTo(2000L)
+        assertThat(saved?.updatedAt).describedAs("Timestamp should be updated").isEqualTo(2000L)
     }
 
     @Test
-    fun `projectFromEvent should NOT update existing expense with older timestamp (last-write-wins)`() = runBlocking {
-        // Given: An existing expense with newer timestamp
-        val expenseId = UUID.randomUUID()
-        val newerExpense = createExpense(
-            id = expenseId,
-            description = "Newer version",
-            amount = 2000L,
-            updatedAt = 2000L
-        )
-        projectionRepository.projectFromEvent(newerExpense)
+    fun `projectFromEvent should NOT update existing expense with older timestamp (last-write-wins)`(): Unit =
+        runBlocking {
+            // Given: An existing expense with newer timestamp
+            val expenseId = UUID.randomUUID()
+            val newerExpense = createExpense(
+                id = expenseId,
+                description = "Newer version",
+                amount = 2000L,
+                updatedAt = 2000L
+            )
+            projectionRepository.projectFromEvent(newerExpense)
 
-        // When: Attempting to upsert with older timestamp (out-of-order operation)
-        val olderExpense = createExpense(
-            id = expenseId,
-            description = "Older version",
-            amount = 1000L,
-            updatedAt = 1000L  // Older timestamp - should be rejected
-        )
-        val result = projectionRepository.projectFromEvent(olderExpense)
+            // When: Attempting to upsert with older timestamp (out-of-order operation)
+            val olderExpense = createExpense(
+                id = expenseId,
+                description = "Older version",
+                amount = 1000L,
+                updatedAt = 1000L  // Older timestamp - should be rejected
+            )
+            val result = projectionRepository.projectFromEvent(olderExpense)
 
-        // Then: Expense should NOT be updated (last-write-wins)
-        assertEquals(0, result, "Should return 0 (no rows affected - WHERE clause not satisfied)")
+            // Then: Expense should NOT be updated (last-write-wins)
+            assertThat(result).describedAs("Should return 0 (no rows affected - WHERE clause not satisfied)")
+                .isEqualTo(0)
 
-        val saved = projectionRepository.findByIdOrNull(expenseId)
-        assertNotNull(saved)
-        assertEquals("Newer version", saved?.description, "Description should remain unchanged")
-        assertEquals(2000L, saved?.amount, "Amount should remain unchanged")
-        assertEquals(2000L, saved?.updatedAt, "Timestamp should remain unchanged")
-    }
+            val saved = projectionRepository.findByIdOrNull(expenseId)
+            assertThat(saved).isNotNull()
+            assertThat(saved?.description).describedAs("Description should remain unchanged").isEqualTo("Newer version")
+            assertThat(saved?.amount).describedAs("Amount should remain unchanged").isEqualTo(2000L)
+            assertThat(saved?.updatedAt).describedAs("Timestamp should remain unchanged").isEqualTo(2000L)
+        }
 
     @Test
-    fun `projectFromEvent should update when timestamps are equal (edge case)`() = runBlocking {
+    fun `projectFromEvent should update when timestamps are equal (edge case)`(): Unit = runBlocking {
         // Given: An existing expense
         val expenseId = UUID.randomUUID()
         val expense1 = createExpense(
@@ -155,15 +154,15 @@ class ExpenseProjectionRepositoryTest {
         val result = projectionRepository.projectFromEvent(expense2)
 
         // Then: Should NOT update (WHERE clause requires EXCLUDED.updated_at > expenses.updated_at)
-        assertEquals(0, result, "Should return 0 (equal timestamp doesn't satisfy WHERE clause)")
+        assertThat(result).describedAs("Should return 0 (equal timestamp doesn't satisfy WHERE clause)").isEqualTo(0)
 
         val saved = projectionRepository.findByIdOrNull(expenseId)
-        assertEquals("First write", saved?.description, "Original value should remain")
-        assertEquals(1000L, saved?.amount)
+        assertThat(saved?.description).describedAs("Original value should remain").isEqualTo("First write")
+        assertThat(saved?.amount).isEqualTo(1000L)
     }
 
     @Test
-    fun `projectFromEvent should handle multiple updates with increasing timestamps`() = runBlocking {
+    fun `projectFromEvent should handle multiple updates with increasing timestamps`(): Unit = runBlocking {
         // Given: An expense ID
         val expenseId = UUID.randomUUID()
 
@@ -179,14 +178,14 @@ class ExpenseProjectionRepositoryTest {
 
         // Then: Final version should be the latest
         val saved = projectionRepository.findByIdOrNull(expenseId)
-        assertNotNull(saved)
-        assertEquals("Version 3", saved?.description)
-        assertEquals(3000L, saved?.amount)
-        assertEquals(3000L, saved?.updatedAt)
+        assertThat(saved).isNotNull()
+        assertThat(saved?.description).isEqualTo("Version 3")
+        assertThat(saved?.amount).isEqualTo(3000L)
+        assertThat(saved?.updatedAt).isEqualTo(3000L)
     }
 
     @Test
-    fun `projectFromEvent should handle out-of-order operations correctly`() = runBlocking {
+    fun `projectFromEvent should handle out-of-order operations correctly`(): Unit = runBlocking {
         // Given: Operations arriving out of order
         val expenseId = UUID.randomUUID()
 
@@ -201,16 +200,16 @@ class ExpenseProjectionRepositoryTest {
         val result3 = projectionRepository.projectFromEvent(op3)
 
         // Then: Only newer operations should be applied
-        assertEquals(0, result1, "Op 1 should be rejected (older)")
-        assertEquals(1, result3, "Op 3 should be applied (newer)")
+        assertThat(result1).describedAs("Op 1 should be rejected (older)").isEqualTo(0)
+        assertThat(result3).describedAs("Op 3 should be applied (newer)").isEqualTo(1)
 
         val saved = projectionRepository.findByIdOrNull(expenseId)
-        assertEquals("Op 3", saved?.description, "Should have the latest version")
-        assertEquals(3000L, saved?.updatedAt)
+        assertThat(saved?.description).describedAs("Should have the latest version").isEqualTo("Op 3")
+        assertThat(saved?.updatedAt).isEqualTo(3000L)
     }
 
     @Test
-    fun `projectFromEvent should be idempotent - same operation twice has no effect`() = runBlocking {
+    fun `projectFromEvent should be idempotent - same operation twice has no effect`(): Unit = runBlocking {
         // Given: An expense
         val expense = createExpense(
             id = UUID.randomUUID(),
@@ -224,19 +223,19 @@ class ExpenseProjectionRepositoryTest {
         val result2 = projectionRepository.projectFromEvent(expense)
 
         // Then: First succeeds, second has no effect
-        assertEquals(1, result1, "First upsert should insert")
-        assertEquals(0, result2, "Second upsert should have no effect (same timestamp)")
+        assertThat(result1).describedAs("First upsert should insert").isEqualTo(1)
+        assertThat(result2).describedAs("Second upsert should have no effect (same timestamp)").isEqualTo(0)
 
         val saved = projectionRepository.findByIdOrNull(expense.id)
-        assertNotNull(saved)
-        assertEquals("Test", saved?.description)
-        assertEquals(1000L, saved?.amount)
+        assertThat(saved).isNotNull()
+        assertThat(saved?.description).isEqualTo("Test")
+        assertThat(saved?.amount).isEqualTo(1000L)
     }
 
     // ========== DELETE Override Tests ==========
 
     @Test
-    fun `projectFromEvent with deleted=true should override older non-deleted expense`() = runBlocking {
+    fun `projectFromEvent with deleted=true should override older non-deleted expense`(): Unit = runBlocking {
         // Given: An existing non-deleted expense
         val expenseId = UUID.randomUUID()
         val expense = createExpense(
@@ -259,16 +258,16 @@ class ExpenseProjectionRepositoryTest {
         val result = projectionRepository.projectFromEvent(deletedExpense)
 
         // Then: Should be updated (deleted flag overrides)
-        assertEquals(1, result, "Should update to deleted")
+        assertThat(result).describedAs("Should update to deleted").isEqualTo(1)
 
         val saved = projectionRepository.findByIdOrNull(expenseId)
-        assertNotNull(saved)
-        assertTrue(saved!!.deleted, "Should be marked as deleted")
-        assertEquals(2000L, saved.updatedAt)
+        assertThat(saved).isNotNull()
+        assertThat(saved!!.deleted).describedAs("Should be marked as deleted").isTrue()
+        assertThat(saved.updatedAt).isEqualTo(2000L)
     }
 
     @Test
-    fun `projectFromEvent with deleted=true should NOT override with older timestamp`() = runBlocking {
+    fun `projectFromEvent with deleted=true should NOT override with older timestamp`(): Unit = runBlocking {
         // Given: An existing expense with newer timestamp
         val expenseId = UUID.randomUUID()
         val expense = createExpense(
@@ -291,16 +290,16 @@ class ExpenseProjectionRepositoryTest {
         val result = projectionRepository.projectFromEvent(deletedExpense)
 
         // Then: Should NOT be updated (older timestamp, consistent last-write-wins)
-        assertEquals(0, result, "Should not update with older timestamp (last-write-wins)")
+        assertThat(result).describedAs("Should not update with older timestamp (last-write-wins)").isEqualTo(0)
 
         val saved = projectionRepository.findByIdOrNull(expenseId)
-        assertNotNull(saved)
-        assertFalse(saved!!.deleted, "Should remain active (newer timestamp wins)")
-        assertEquals(2000L, saved.updatedAt)
+        assertThat(saved).isNotNull()
+        assertThat(saved!!.deleted).describedAs("Should remain active (newer timestamp wins)").isFalse()
+        assertThat(saved.updatedAt).isEqualTo(2000L)
     }
 
     @Test
-    fun `projectFromEvent should NOT resurrect deleted expense with older update`() = runBlocking {
+    fun `projectFromEvent should NOT resurrect deleted expense with older update`(): Unit = runBlocking {
         // Given: An expense that was deleted
         val expenseId = UUID.randomUUID()
         val deletedExpense = createExpense(
@@ -323,16 +322,16 @@ class ExpenseProjectionRepositoryTest {
         val result = projectionRepository.projectFromEvent(updateExpense)
 
         // Then: Should NOT update (older timestamp, not a delete)
-        assertEquals(0, result, "Should not resurrect with older timestamp")
+        assertThat(result).describedAs("Should not resurrect with older timestamp").isEqualTo(0)
 
         val saved = projectionRepository.findByIdOrNull(expenseId)
-        assertTrue(saved!!.deleted, "Should remain deleted")
-        assertEquals("Deleted", saved.description)
-        assertEquals(2000L, saved.updatedAt)
+        assertThat(saved!!.deleted).describedAs("Should remain deleted").isTrue()
+        assertThat(saved.description).isEqualTo("Deleted")
+        assertThat(saved.updatedAt).isEqualTo(2000L)
     }
 
     @Test
-    fun `projectFromEvent should allow resurrection with newer timestamp`() = runBlocking {
+    fun `projectFromEvent should allow resurrection with newer timestamp`(): Unit = runBlocking {
         // Given: An expense that was deleted
         val expenseId = UUID.randomUUID()
         val deletedExpense = createExpense(
@@ -355,18 +354,18 @@ class ExpenseProjectionRepositoryTest {
         val result = projectionRepository.projectFromEvent(resurrectedExpense)
 
         // Then: Should update (newer timestamp wins)
-        assertEquals(1, result, "Should allow resurrection with newer timestamp")
+        assertThat(result).describedAs("Should allow resurrection with newer timestamp").isEqualTo(1)
 
         val saved = projectionRepository.findByIdOrNull(expenseId)
-        assertFalse(saved!!.deleted, "Should be active again")
-        assertEquals("Resurrected", saved.description)
-        assertEquals(2000L, saved.updatedAt)
+        assertThat(saved!!.deleted).describedAs("Should be active again").isFalse()
+        assertThat(saved.description).isEqualTo("Resurrected")
+        assertThat(saved.updatedAt).isEqualTo(2000L)
     }
 
     // ========== Soft Delete Tests ==========
 
     @Test
-    fun `markAsDeleted should mark expense as deleted`() = runBlocking {
+    fun `markAsDeleted should mark expense as deleted`(): Unit = runBlocking {
         // Given: An existing expense
         val expenseId = UUID.randomUUID()
         val expense = createExpense(
@@ -382,16 +381,16 @@ class ExpenseProjectionRepositoryTest {
         val result = projectionRepository.markAsDeleted(expenseId, 2000L)
 
         // Then: Should be marked as deleted
-        assertEquals(1, result, "Should return 1 (one row affected)")
+        assertThat(result).describedAs("Should return 1 (one row affected)").isEqualTo(1)
 
         val saved = projectionRepository.findByIdOrNull(expenseId)
-        assertNotNull(saved)
-        assertTrue(saved!!.deleted, "Should be marked as deleted")
-        assertEquals(2000L, saved.updatedAt, "Timestamp should be updated")
+        assertThat(saved).isNotNull()
+        assertThat(saved!!.deleted).describedAs("Should be marked as deleted").isTrue()
+        assertThat(saved.updatedAt).describedAs("Timestamp should be updated").isEqualTo(2000L)
     }
 
     @Test
-    fun `markAsDeleted should NOT delete with older timestamp (last-write-wins)`() = runBlocking {
+    fun `markAsDeleted should NOT delete with older timestamp (last-write-wins)`(): Unit = runBlocking {
         // Given: An existing non-deleted expense with newer timestamp
         val expenseId = UUID.randomUUID()
         val expense = createExpense(
@@ -407,16 +406,16 @@ class ExpenseProjectionRepositoryTest {
         val result = projectionRepository.markAsDeleted(expenseId, 1000L)
 
         // Then: Delete should be rejected (last-write-wins: newer timestamp wins)
-        assertEquals(0, result, "Should NOT delete with older timestamp")
+        assertThat(result).describedAs("Should NOT delete with older timestamp").isEqualTo(0)
 
         val saved = projectionRepository.findByIdOrNull(expenseId)
-        assertNotNull(saved)
-        assertFalse(saved!!.deleted, "Should remain active")
-        assertEquals(2000L, saved.updatedAt, "Timestamp should remain unchanged")
+        assertThat(saved).isNotNull()
+        assertThat(saved!!.deleted).describedAs("Should remain active").isFalse()
+        assertThat(saved.updatedAt).describedAs("Timestamp should remain unchanged").isEqualTo(2000L)
     }
 
     @Test
-    fun `markAsDeleted should NOT override already-deleted expense with older timestamp`() = runBlocking {
+    fun `markAsDeleted should NOT override already-deleted expense with older timestamp`(): Unit = runBlocking {
         // Given: An already-deleted expense with newer timestamp
         val expenseId = UUID.randomUUID()
         val expense = createExpense(
@@ -432,16 +431,16 @@ class ExpenseProjectionRepositoryTest {
         val result = projectionRepository.markAsDeleted(expenseId, 1000L)
 
         // Then: Should NOT update (already deleted AND older timestamp)
-        assertEquals(0, result, "Should return 0 (already deleted with newer timestamp)")
+        assertThat(result).describedAs("Should return 0 (already deleted with newer timestamp)").isEqualTo(0)
 
         val saved = projectionRepository.findByIdOrNull(expenseId)
-        assertNotNull(saved)
-        assertTrue(saved!!.deleted, "Should remain deleted")
-        assertEquals(2000L, saved.updatedAt, "Timestamp should remain unchanged")
+        assertThat(saved).isNotNull()
+        assertThat(saved!!.deleted).describedAs("Should remain deleted").isTrue()
+        assertThat(saved.updatedAt).describedAs("Timestamp should remain unchanged").isEqualTo(2000L)
     }
 
     @Test
-    fun `markAsDeleted should be idempotent`() = runBlocking {
+    fun `markAsDeleted should be idempotent`(): Unit = runBlocking {
         // Given: An existing expense
         val expenseId = UUID.randomUUID()
         val expense = createExpense(
@@ -458,16 +457,16 @@ class ExpenseProjectionRepositoryTest {
         val result2 = projectionRepository.markAsDeleted(expenseId, 2000L)
 
         // Then: First succeeds, second has no effect
-        assertEquals(1, result1, "First delete should succeed")
-        assertEquals(0, result2, "Second delete should have no effect (already deleted)")
+        assertThat(result1).describedAs("First delete should succeed").isEqualTo(1)
+        assertThat(result2).describedAs("Second delete should have no effect (already deleted)").isEqualTo(0)
 
         val saved = projectionRepository.findByIdOrNull(expenseId)
-        assertTrue(saved!!.deleted)
-        assertEquals(2000L, saved.updatedAt)
+        assertThat(saved!!.deleted).isTrue()
+        assertThat(saved.updatedAt).isEqualTo(2000L)
     }
 
     @Test
-    fun `markAsDeleted should work on non-existent expense`() = runBlocking {
+    fun `markAsDeleted should work on non-existent expense`(): Unit = runBlocking {
         // Given: No expense exists
         val nonExistentId = UUID.randomUUID()
 
@@ -475,11 +474,11 @@ class ExpenseProjectionRepositoryTest {
         val result = projectionRepository.markAsDeleted(nonExistentId, 1000L)
 
         // Then: Should return 0 (no rows affected)
-        assertEquals(0, result, "Should return 0 for non-existent expense")
+        assertThat(result).describedAs("Should return 0 for non-existent expense").isEqualTo(0)
     }
 
     @Test
-    fun `markAsDeleted should update already deleted expense with newer timestamp`() = runBlocking {
+    fun `markAsDeleted should update already deleted expense with newer timestamp`(): Unit = runBlocking {
         // Given: An already deleted expense
         val expenseId = UUID.randomUUID()
         val expense = createExpense(
@@ -495,17 +494,17 @@ class ExpenseProjectionRepositoryTest {
         val result = projectionRepository.markAsDeleted(expenseId, 2000L)
 
         // Then: Should update timestamp (WHERE clause: updated_at < :updatedAt)
-        assertEquals(1, result, "Should update timestamp even if already deleted")
+        assertThat(result).describedAs("Should update timestamp even if already deleted").isEqualTo(1)
 
         val saved = projectionRepository.findByIdOrNull(expenseId)
-        assertTrue(saved!!.deleted)
-        assertEquals(2000L, saved.updatedAt, "Timestamp should be updated")
+        assertThat(saved!!.deleted).isTrue()
+        assertThat(saved.updatedAt).describedAs("Timestamp should be updated").isEqualTo(2000L)
     }
 
     // ========== Concurrent Operations Tests ==========
 
     @Test
-    fun `projectFromEvent should handle concurrent updates from multiple devices`() = runBlocking {
+    fun `projectFromEvent should handle concurrent updates from multiple devices`(): Unit = runBlocking {
         // Given: Operations from 3 devices with different timestamps
         val expenseId = UUID.randomUUID()
 
@@ -520,15 +519,15 @@ class ExpenseProjectionRepositoryTest {
         val result2 = projectionRepository.projectFromEvent(device2)
 
         // Then: Latest timestamp wins
-        assertEquals(0, result2, "Device 2 update should be rejected (older than Device 3)")
+        assertThat(result2).describedAs("Device 2 update should be rejected (older than Device 3)").isEqualTo(0)
 
         val saved = projectionRepository.findByIdOrNull(expenseId)
-        assertEquals("Device 3", saved?.description, "Latest update should win")
-        assertEquals(3000L, saved?.updatedAt)
+        assertThat(saved?.description).describedAs("Latest update should win").isEqualTo("Device 3")
+        assertThat(saved?.updatedAt).isEqualTo(3000L)
     }
 
     @Test
-    fun `should handle all expense fields correctly`() = runBlocking {
+    fun `should handle all expense fields correctly`(): Unit = runBlocking {
         // Given: An expense with all fields set
         val expense = ExpenseProjection(
             id = UUID.randomUUID(),
@@ -545,13 +544,13 @@ class ExpenseProjectionRepositoryTest {
 
         // Then: All fields should be saved correctly
         val saved = projectionRepository.findByIdOrNull(expense.id)
-        assertNotNull(saved)
-        assertEquals("Test Expense", saved?.description)
-        assertEquals(12345L, saved?.amount)
-        assertEquals("Food", saved?.category)
-        assertEquals("2026-01-20T10:00:00Z", saved?.date)
-        assertEquals(1000L, saved?.updatedAt)
-        assertFalse(saved!!.deleted)
+        assertThat(saved).isNotNull()
+        assertThat(saved?.description).isEqualTo("Test Expense")
+        assertThat(saved?.amount).isEqualTo(12345L)
+        assertThat(saved?.category).isEqualTo("Food")
+        assertThat(saved?.date).isEqualTo("2026-01-20T10:00:00Z")
+        assertThat(saved?.updatedAt).isEqualTo(1000L)
+        assertThat(saved!!.deleted).isFalse()
     }
 
     // ========== Helper Functions ==========

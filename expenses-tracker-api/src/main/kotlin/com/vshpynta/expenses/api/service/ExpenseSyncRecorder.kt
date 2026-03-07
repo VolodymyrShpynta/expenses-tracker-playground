@@ -2,12 +2,10 @@ package com.vshpynta.expenses.api.service
 
 import com.vshpynta.expenses.api.model.EventEntry
 import com.vshpynta.expenses.api.model.EventType
-import com.vshpynta.expenses.api.model.ExpenseProjection
 import com.vshpynta.expenses.api.repository.ExpenseEventRepository
 import com.vshpynta.expenses.api.repository.ExpenseProjectionRepository
 import com.vshpynta.expenses.api.repository.ProcessedEventRepository
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.vshpynta.expenses.api.service.ExpenseMapper.toProjection
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -57,7 +55,7 @@ class ExpenseSyncRecorder(
     suspend fun projectAndCommitEvent(
         eventEntry: EventEntry,
         eventId: UUID
-    ): Boolean = withContext(Dispatchers.IO) {
+    ): Boolean {
         // Apply the expense modification
         projectExpenseFromEvent(eventEntry)
 
@@ -68,7 +66,7 @@ class ExpenseSyncRecorder(
         eventRepository.markEventsAsCommitted(listOf(eventId))
 
         // Return true to indicate success
-        true
+        return true
     }
 
     /**
@@ -86,17 +84,4 @@ class ExpenseSyncRecorder(
                 )
         }
     }
-
-    /**
-     * Converts sync event entry to expense projection
-     */
-    private fun EventEntry.toProjection() = ExpenseProjection(
-        id = payload.id,
-        description = payload.description,
-        amount = payload.amount ?: 0L,
-        category = payload.category,
-        date = payload.date,
-        updatedAt = payload.updatedAt,
-        deleted = payload.deleted ?: false
-    )
 }

@@ -5,8 +5,7 @@ import com.vshpynta.expenses.api.config.WebTestClientConfig
 import com.vshpynta.expenses.api.controller.dto.CreateExpenseRequest
 import com.vshpynta.expenses.api.controller.dto.ExpenseDto
 import com.vshpynta.expenses.api.controller.dto.UpdateExpenseRequest
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -45,10 +44,10 @@ class SyncExpenseControllerTest {
             .expectBody<ExpenseDto>()
             .consumeWith { response ->
                 val expense = response.responseBody!!
-                assertEquals("Coffee", expense.description)
-                assertEquals(450L, expense.amount)
-                assertEquals("Food", expense.category)
-                assertEquals(false, expense.deleted)
+                assertThat(expense.description).isEqualTo("Coffee")
+                assertThat(expense.amount).isEqualTo(450L)
+                assertThat(expense.category).isEqualTo("Food")
+                assertThat(expense.deleted).isFalse()
             }
     }
 
@@ -77,8 +76,8 @@ class SyncExpenseControllerTest {
             .expectBody<List<ExpenseDto>>()
             .consumeWith { response ->
                 val expenses = response.responseBody!!
-                assertTrue(expenses.isNotEmpty())
-                assertTrue(expenses.any { it.description == "Lunch" })
+                assertThat(expenses).isNotEmpty()
+                assertThat(expenses).anyMatch { it.description == "Lunch" }
             }
     }
 
@@ -117,9 +116,9 @@ class SyncExpenseControllerTest {
             .expectBody<ExpenseDto>()
             .consumeWith { response ->
                 val updated = response.responseBody!!
-                assertEquals("Updated", updated.description)
-                assertEquals(2000L, updated.amount)
-                assertTrue(updated.updatedAt > created.updatedAt)
+                assertThat(updated.description).isEqualTo("Updated")
+                assertThat(updated.amount).isEqualTo(2000L)
+                assertThat(updated.updatedAt).isGreaterThan(created.updatedAt)
             }
     }
 
@@ -153,7 +152,7 @@ class SyncExpenseControllerTest {
         webTestClient.get()
             .uri("/api/expenses/${created.id}")
             .exchange()
-            .expectStatus().is5xxServerError  // Should throw NoSuchElementException
+            .expectStatus().isNotFound
     }
 
     @Test
@@ -189,6 +188,6 @@ class SyncExpenseControllerTest {
         webTestClient.get()
             .uri("/api/expenses/$nonExistentId")
             .exchange()
-            .expectStatus().is5xxServerError
+            .expectStatus().isNotFound
     }
 }

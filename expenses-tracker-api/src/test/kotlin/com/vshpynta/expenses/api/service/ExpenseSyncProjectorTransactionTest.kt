@@ -10,12 +10,9 @@ import com.vshpynta.expenses.api.repository.ProcessedEventRepository
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
+import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito
@@ -27,7 +24,6 @@ import org.springframework.context.annotation.Import
 import org.springframework.r2dbc.core.DatabaseClient
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean
-import java.time.Instant
 import java.util.UUID
 
 /**
@@ -73,10 +69,13 @@ class ExpenseSyncProjectorTransactionTest {
 
         // Reset cache to clear state from previous tests
         processedEventsCache.reset()
+
+        // Reset timestamp counter for deterministic tests
+        timestampCounter = DEFAULT_TIMESTAMP
     }
 
     @Test
-    fun `should execute all steps atomically - success case`() = runBlocking {
+    fun `should execute all steps atomically - success case`(): Unit = runTest {
         // Given: A valid event entry
         val eventEntry = createTestEventEntry(
             eventId = UUID.randomUUID(),
@@ -89,20 +88,20 @@ class ExpenseSyncProjectorTransactionTest {
         val result = expenseSyncProjector.projectEvent(eventEntry)
 
         // Then: All steps should be completed
-        assertTrue(result, "Event should be projected successfully")
+        assertThat(result).describedAs("Event should be projected successfully").isTrue()
 
         // Verify expense projection was created
         val projection = projectionRepository.findByIdOrNull(eventEntry.payload.id)
-        assertNotNull(projection, "Expense projection should be created")
-        assertEquals(5000L, projection?.amount, "Expense amount should match")
+        assertThat(projection).describedAs("Expense projection should be created").isNotNull()
+        assertThat(projection?.amount).describedAs("Expense amount should match").isEqualTo(5000L)
 
         // Verify event was marked as processed
         val wasProcessed = processedEventRepository.hasBeenProcessed(UUID.fromString(eventEntry.eventId))
-        assertTrue(wasProcessed, "Event should be marked as processed")
+        assertThat(wasProcessed).describedAs("Event should be marked as processed").isTrue()
     }
 
     @Test
-    fun `should rollback all steps when expense projection fails`() = runBlocking {
+    fun `should rollback all steps when expense projection fails`(): Unit = runTest {
         // Given: A valid event and spy configured to fail on projection
         val eventEntry = createTestEventEntry(
             eventId = UUID.randomUUID(),
@@ -131,23 +130,24 @@ class ExpenseSyncProjectorTransactionTest {
         val projectionsAfter = projectionRepository.findAll().toList()
         val processedEventsAfter = getAllProcessedEvents()
 
-        assertEquals(
-            initialProjectionCount, projectionsAfter.size,
-            "NO projections should be created - projection failed as expected"
-        )
-        assertEquals(
-            initialProcessedEventsCount, processedEventsAfter.size,
-            "NO processed events should be recorded - proves atomicity! " +
-                    "If this fails, the transaction is not atomic!"
-        )
+        assertThat(projectionsAfter)
+            .describedAs("NO projections should be created - projection failed as expected")
+            .hasSize(initialProjectionCount)
+        assertThat(processedEventsAfter)
+            .describedAs(
+                "NO processed events should be recorded - proves atomicity! " +
+                        "If this fails, the transaction is not atomic!"
+            )
+            .hasSize(initialProcessedEventsCount)
 
         // Double-check: Event should NOT be marked as processed
         val wasProcessed = processedEventRepository.hasBeenProcessed(UUID.fromString(eventEntry.eventId))
-        assertFalse(wasProcessed, "Event should NOT be marked as processed when transaction rolls back")
+        assertThat(wasProcessed).describedAs("Event should NOT be marked as processed when transaction rolls back")
+            .isFalse()
     }
 
     @Test
-    fun `should rollback all steps when marking as processed fails`() = runBlocking {
+    fun `should rollback all steps when marking as processed fails`(): Unit = runTest {
         // Given: A valid event and spy configured to fail when marking as processed
         val eventEntry = createTestEventEntry(
             eventId = UUID.randomUUID(),
@@ -174,19 +174,20 @@ class ExpenseSyncProjectorTransactionTest {
         // Then: Entire transaction should be rolled back
         val projectionsAfter = projectionRepository.findAll().toList()
 
-        assertEquals(
-            initialProjectionCount, projectionsAfter.size,
-            "NO projections should be created - proves projection was rolled back when markAsProcessed failed! " +
-                    "If this fails, @Transactional is not working!"
-        )
+        assertThat(projectionsAfter)
+            .describedAs(
+                "NO projections should be created - proves projection was rolled back when markAsProcessed failed! " +
+                        "If this fails, @Transactional is not working!"
+            )
+            .hasSize(initialProjectionCount)
 
         // Verify projection was NOT created (rollback worked)
         val projection = projectionRepository.findByIdOrNull(eventEntry.payload.id)
-        assertNull(projection, "Projection should NOT exist - entire transaction rolled back")
+        assertThat(projection).describedAs("Projection should NOT exist - entire transaction rolled back").isNull()
     }
 
     @Test
-    fun `should rollback all steps when marking as committed fails`() = runBlocking {
+    fun `should rollback all steps when marking as committed fails`(): Unit = runTest {
         // Given: A valid event from our device, spy configured to fail on markAsCommitted
         val eventEntry = createTestEventEntry(
             eventId = UUID.randomUUID(),
@@ -215,25 +216,23 @@ class ExpenseSyncProjectorTransactionTest {
         val projectionsAfter = projectionRepository.findAll().toList()
         val processedEventsAfter = getAllProcessedEvents()
 
-        assertEquals(
-            initialProjectionCount, projectionsAfter.size,
-            "NO projections should be created - proves atomicity across all steps!"
-        )
-        assertEquals(
-            initialProcessedEventsCount, processedEventsAfter.size,
-            "NO processed events should be recorded - proves atomicity!"
-        )
+        assertThat(projectionsAfter)
+            .describedAs("NO projections should be created - proves atomicity across all steps!")
+            .hasSize(initialProjectionCount)
+        assertThat(processedEventsAfter)
+            .describedAs("NO processed events should be recorded - proves atomicity!")
+            .hasSize(initialProcessedEventsCount)
 
         // Verify nothing was persisted
         val projection = projectionRepository.findByIdOrNull(eventEntry.payload.id)
-        assertNull(projection, "Projection should NOT exist - entire transaction rolled back")
+        assertThat(projection).describedAs("Projection should NOT exist - entire transaction rolled back").isNull()
 
         val wasProcessed = processedEventRepository.hasBeenProcessed(UUID.fromString(eventEntry.eventId))
-        assertFalse(wasProcessed, "Event should NOT be marked as processed")
+        assertThat(wasProcessed).describedAs("Event should NOT be marked as processed").isFalse()
     }
 
     @Test
-    fun `should skip already processed events without modifying data`() = runBlocking {
+    fun `should skip already processed events without modifying data`(): Unit = runTest {
         // Given: An event that was already processed
         val eventEntry = createTestEventEntry(
             eventId = UUID.randomUUID(),
@@ -244,28 +243,27 @@ class ExpenseSyncProjectorTransactionTest {
 
         // First execution - should succeed
         val firstResult = expenseSyncProjector.projectEvent(eventEntry)
-        assertTrue(firstResult, "First execution should succeed")
+        assertThat(firstResult).describedAs("First execution should succeed").isTrue()
 
         val projectionAfterFirst = projectionRepository.findByIdOrNull(eventEntry.payload.id)
-        assertNotNull(projectionAfterFirst, "Projection should exist after first execution")
+        assertThat(projectionAfterFirst).describedAs("Projection should exist after first execution").isNotNull()
         val firstUpdatedAt = projectionAfterFirst!!.updatedAt
 
         // When: Projecting the same event again (idempotency check)
         val secondResult = expenseSyncProjector.projectEvent(eventEntry)
 
         // Then: Should be skipped, no modifications
-        assertFalse(secondResult, "Second execution should return false (already processed)")
+        assertThat(secondResult).describedAs("Second execution should return false (already processed)").isFalse()
 
         val projectionAfterSecond = projectionRepository.findByIdOrNull(eventEntry.payload.id)
-        assertNotNull(projectionAfterSecond, "Projection should still exist")
-        assertEquals(
-            firstUpdatedAt, projectionAfterSecond!!.updatedAt,
-            "Projection should NOT be modified on second execution (idempotency)"
-        )
+        assertThat(projectionAfterSecond).describedAs("Projection should still exist").isNotNull()
+        assertThat(projectionAfterSecond!!.updatedAt)
+            .describedAs("Projection should NOT be modified on second execution (idempotency)")
+            .isEqualTo(firstUpdatedAt)
     }
 
     @Test
-    fun `should handle DELETED event atomically`() = runBlocking {
+    fun `should handle DELETED event atomically`(): Unit = runTest {
         // Given: An existing expense
         val expenseId = UUID.randomUUID()
         val createEvent = createTestEventEntry(
@@ -287,18 +285,18 @@ class ExpenseSyncProjectorTransactionTest {
         val deleteResult = expenseSyncProjector.projectEvent(deleteEvent)
 
         // Then: All steps should complete atomically
-        assertTrue(deleteResult, "Delete event should be projected successfully")
+        assertThat(deleteResult).describedAs("Delete event should be projected successfully").isTrue()
 
         val projection = projectionRepository.findByIdOrNull(expenseId)
-        assertNotNull(projection, "Projection should still exist (soft delete)")
-        assertTrue(projection!!.deleted, "Projection should be marked as deleted")
+        assertThat(projection).describedAs("Projection should still exist (soft delete)").isNotNull()
+        assertThat(projection!!.deleted).describedAs("Projection should be marked as deleted").isTrue()
 
         val wasProcessed = processedEventRepository.hasBeenProcessed(UUID.fromString(deleteEvent.eventId))
-        assertTrue(wasProcessed, "Delete event should be marked as processed")
+        assertThat(wasProcessed).describedAs("Delete event should be marked as processed").isTrue()
     }
 
     @Test
-    fun `should handle UPDATED event atomically`() = runBlocking {
+    fun `should handle UPDATED event atomically`(): Unit = runTest {
         // Given: An existing expense
         val expenseId = UUID.randomUUID()
         val createEvent = createTestEventEntry(
@@ -321,19 +319,19 @@ class ExpenseSyncProjectorTransactionTest {
         val updateResult = expenseSyncProjector.projectEvent(updateEvent)
 
         // Then: All steps should complete atomically
-        assertTrue(updateResult, "Update event should be projected successfully")
+        assertThat(updateResult).describedAs("Update event should be projected successfully").isTrue()
 
         val projection = projectionRepository.findByIdOrNull(expenseId)
-        assertNotNull(projection, "Projection should exist")
-        assertEquals(2000L, projection!!.amount, "Amount should be updated")
-        assertEquals("Updated", projection.description, "Description should be updated")
+        assertThat(projection).describedAs("Projection should exist").isNotNull()
+        assertThat(projection!!.amount).describedAs("Amount should be updated").isEqualTo(2000L)
+        assertThat(projection.description).describedAs("Description should be updated").isEqualTo("Updated")
 
         val wasProcessed = processedEventRepository.hasBeenProcessed(UUID.fromString(updateEvent.eventId))
-        assertTrue(wasProcessed, "Update event should be marked as processed")
+        assertThat(wasProcessed).describedAs("Update event should be marked as processed").isTrue()
     }
 
     @Test
-    fun `failed events should not affect subsequent successful events`() = runBlocking {
+    fun `failed events should not affect subsequent successful events`(): Unit = runTest {
         // Given: Two events, first will fail, second will succeed
         val event1 = createTestEventEntry(
             eventId = UUID.randomUUID(),
@@ -367,25 +365,32 @@ class ExpenseSyncProjectorTransactionTest {
 
         // Then: Executing second event (succeeds with real implementation)
         val result2 = expenseSyncProjector.projectEvent(event2)
-        assertTrue(result2, "Second event should be projected successfully")
+        assertThat(result2).describedAs("Second event should be projected successfully").isTrue()
 
         // Verify: First event rolled back, second committed
         val projection1 = projectionRepository.findByIdOrNull(event1.payload.id)
-        assertNull(projection1, "First projection should NOT exist (transaction rolled back)")
+        assertThat(projection1).describedAs("First projection should NOT exist (transaction rolled back)").isNull()
 
         val projection2 = projectionRepository.findByIdOrNull(event2.payload.id)
-        assertNotNull(projection2, "Second projection should exist (transaction committed)")
-        assertEquals(2000L, projection2?.amount)
+        assertThat(projection2).describedAs("Second projection should exist (transaction committed)").isNotNull()
+        assertThat(projection2?.amount).isEqualTo(2000L)
 
         // Verify processed events
         val wasProcessed1 = processedEventRepository.hasBeenProcessed(UUID.fromString(event1.eventId))
-        assertFalse(wasProcessed1, "First event should NOT be marked as processed")
+        assertThat(wasProcessed1).describedAs("First event should NOT be marked as processed").isFalse()
 
         val wasProcessed2 = processedEventRepository.hasBeenProcessed(UUID.fromString(event2.eventId))
-        assertTrue(wasProcessed2, "Second event should be marked as processed")
+        assertThat(wasProcessed2).describedAs("Second event should be marked as processed").isTrue()
     }
 
     // ========== Helper Functions ==========
+
+    private companion object {
+        private const val DEFAULT_TIMESTAMP = 1_700_000_000_000L
+        private const val DEFAULT_DATE = "2026-01-20T10:00:00Z"
+    }
+
+    private var timestampCounter = DEFAULT_TIMESTAMP
 
     private fun createTestEventEntry(
         eventId: UUID,
@@ -396,10 +401,10 @@ class ExpenseSyncProjectorTransactionTest {
         category: String = "Test",
         deleted: Boolean = false
     ): EventEntry {
-        val now = System.currentTimeMillis()
+        val timestamp = timestampCounter++
         return EventEntry(
             eventId = eventId.toString(),
-            timestamp = now,
+            timestamp = timestamp,
             eventType = eventType,
             expenseId = expenseId.toString(),
             payload = ExpensePayload(
@@ -407,8 +412,8 @@ class ExpenseSyncProjectorTransactionTest {
                 description = description,
                 amount = amount,
                 category = category,
-                date = Instant.now().toString(),
-                updatedAt = now,
+                date = DEFAULT_DATE,
+                updatedAt = timestamp,
                 deleted = deleted
             )
         )

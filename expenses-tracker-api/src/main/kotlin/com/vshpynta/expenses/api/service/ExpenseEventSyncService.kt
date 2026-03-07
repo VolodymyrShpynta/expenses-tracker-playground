@@ -3,9 +3,7 @@ package com.vshpynta.expenses.api.service
 import com.vshpynta.expenses.api.repository.ExpenseEventRepository
 import com.vshpynta.expenses.api.service.sync.RemoteEventProcessor
 import com.vshpynta.expenses.api.service.sync.SyncFileManager
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 
@@ -73,7 +71,6 @@ class ExpenseEventSyncService(
         }
     }
 
-    private suspend fun collectLocalEvents() = withContext(Dispatchers.IO) {
+    private suspend fun collectLocalEvents() =
         eventRepository.findUncommittedEvents().toList()
-    }
 }

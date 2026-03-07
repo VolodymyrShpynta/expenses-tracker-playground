@@ -2,9 +2,7 @@ package com.vshpynta.expenses.api.service
 
 import com.vshpynta.expenses.api.model.ExpenseProjection
 import com.vshpynta.expenses.api.repository.ExpenseProjectionRepository
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.util.UUID
@@ -26,26 +24,26 @@ class ExpenseQueryService(
     /**
      * Get all active (non-deleted) expense projections
      */
-    suspend fun getAllExpenses(): Flow<ExpenseProjection> = withContext(Dispatchers.IO) {
+    suspend fun getAllExpenses(): Flow<ExpenseProjection> {
         logger.debug("Querying all active expense projections")
-        projectionRepository.findAllActive()
+        return projectionRepository.findAllActive()
     }
 
     /**
      * Get expense projection by ID
      * Returns null if not found or if deleted
      */
-    suspend fun getExpenseById(id: UUID): ExpenseProjection? = withContext(Dispatchers.IO) {
+    suspend fun getExpenseById(id: UUID): ExpenseProjection? {
         logger.debug("Querying expense projection by id: {}", id)
-        projectionRepository.findByIdOrNull(id)
+        return projectionRepository.findByIdOrNull(id)
             ?.takeUnless { it.deleted }
     }
 
     /**
      * Check if expense exists and is active
      */
-    suspend fun exists(id: UUID): Boolean = withContext(Dispatchers.IO) {
-        projectionRepository.findByIdOrNull(id)
+    suspend fun exists(id: UUID): Boolean {
+        return projectionRepository.findByIdOrNull(id)
             ?.let { !it.deleted }
             ?: false
     }

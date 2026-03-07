@@ -2,10 +2,7 @@ package com.vshpynta.expenses.api.service.sync
 
 import com.vshpynta.expenses.api.model.EventEntry
 import com.vshpynta.expenses.api.service.ExpenseSyncProjector
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 
 /**
@@ -44,7 +41,7 @@ class RemoteEventProcessor(
         return remoteEvents.size
     }
 
-    private suspend fun projectRemoteEvents(remoteEvents: List<EventEntry>): Int = withContext(Dispatchers.IO) {
+    private suspend fun projectRemoteEvents(remoteEvents: List<EventEntry>): Int =
         remoteEvents.count {
             runCatching {
                 eventSyncProjector.projectEvent(it)
@@ -52,5 +49,4 @@ class RemoteEventProcessor(
                 logger.error("Failed to project event: ${it.eventId}", e)
             }.getOrDefault(false)
         }
-    }
 }

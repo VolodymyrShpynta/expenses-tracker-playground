@@ -8,6 +8,7 @@ import com.vshpynta.expenses.api.model.ExpenseProjection
 import com.vshpynta.expenses.api.service.ExpenseCommandService
 import com.vshpynta.expenses.api.service.ExpenseEventSyncService
 import com.vshpynta.expenses.api.service.ExpenseQueryService
+import jakarta.validation.Valid
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.springframework.http.HttpStatus
@@ -36,7 +37,7 @@ class ExpensesController(
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    suspend fun createExpense(@RequestBody request: CreateExpenseRequest): ExpenseDto {
+    suspend fun createExpense(@Valid @RequestBody request: CreateExpenseRequest): ExpenseDto {
         val expense = commandService.createExpense(
             description = request.description,
             amount = request.amount,
@@ -49,7 +50,7 @@ class ExpensesController(
     @PutMapping("/{id}")
     suspend fun updateExpense(
         @PathVariable id: String,
-        @RequestBody request: UpdateExpenseRequest
+        @Valid @RequestBody request: UpdateExpenseRequest
     ): ExpenseDto {
         val expense = commandService.updateExpense(
             id = UUID.fromString(id),

@@ -2,8 +2,6 @@ package com.vshpynta.expenses.api.service
 
 import com.vshpynta.expenses.api.model.EventEntry
 import com.vshpynta.expenses.api.repository.ProcessedEventRepository
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.util.UUID
@@ -46,21 +44,21 @@ class ExpenseSyncProjector(
      * @param eventEntry The expense event to project
      * @return true if event was projected, false if already processed
      */
-    suspend fun projectEvent(eventEntry: EventEntry): Boolean = withContext(Dispatchers.IO) {
+    suspend fun projectEvent(eventEntry: EventEntry): Boolean {
         val eventId = UUID.fromString(eventEntry.eventId)
 
         // Fast in-memory cache check (100% accurate)
         if (processedEventsCache.contains(eventId)) {
-            logger.debug("Event already projected (cache hit): ${eventEntry.eventId}")
-            return@withContext false
+            logger.debug("Event already projected (cache hit): {}", eventEntry.eventId)
+            return false
         }
 
         // Not in cache - double-check DB (safety net for cache misses)
         if (processedEventRepository.hasBeenProcessed(eventId)) {
             // Event was processed but not in cache (shouldn't happen, but defensive)
-            logger.warn("Event processed in DB but not in cache: ${eventEntry.eventId}")
+            logger.warn("Event processed in DB but not in cache: {}", eventEntry.eventId)
             processedEventsCache.add(eventId)  // Safe to add - it's in DB
-            return@withContext false
+            return false
         }
 
         // Event definitely not processed - project and commit in transaction
@@ -73,6 +71,6 @@ class ExpenseSyncProjector(
             logger.debug("Projected event: {} (type={}, expense={})", eventId, eventEntry.eventType, eventEntry.expenseId)
         }
 
-        success
+        return success
     }
 }

@@ -8,11 +8,8 @@ import com.vshpynta.expenses.api.repository.ExpenseProjectionRepository
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.runBlocking
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -78,7 +75,7 @@ class ExpenseEventSyncServiceTest {
     }
 
     @Test
-    fun `should handle duplicate operations idempotently`() = runBlocking {
+    fun `should handle duplicate operations idempotently`(): Unit = runBlocking {
         // Given: Create an expense
         val expense = commandService.createExpense(
             description = "Test Expense",
@@ -95,13 +92,13 @@ class ExpenseEventSyncServiceTest {
         val secondSyncExpenses = queryService.getAllExpenses().toList()
 
         // Then: Should have same number of expenses (idempotent)
-        assertEquals(firstSyncExpenses.size, secondSyncExpenses.size)
-        assertEquals(1, secondSyncExpenses.size)
-        assertEquals(expense.id, secondSyncExpenses[0].id)
+        assertThat(firstSyncExpenses).hasSameSizeAs(secondSyncExpenses)
+        assertThat(secondSyncExpenses).hasSize(1)
+        assertThat(secondSyncExpenses[0].id).isEqualTo(expense.id)
     }
 
     @Test
-    fun `should apply out-of-order operations correctly`() = runBlocking {
+    fun `should apply out-of-order operations correctly`(): Unit = runBlocking {
         val expenseId = UUID.randomUUID()
         val now = System.currentTimeMillis()
 
@@ -131,12 +128,12 @@ class ExpenseEventSyncServiceTest {
 
         // Then: The final result should reflect the later update (7500 from UPDATE)
         val expense = queryService.getExpenseById(expenseId)
-        assertNotNull(expense)
-        assertEquals(7500L, expense!!.amount)
+        assertThat(expense).isNotNull()
+        assertThat(expense!!.amount).isEqualTo(7500L)
     }
 
     @Test
-    fun `should handle concurrent device writes with last-write-wins`() = runBlocking {
+    fun `should handle concurrent device writes with last-write-wins`(): Unit = runBlocking {
         val expenseId = UUID.randomUUID()
         val now = System.currentTimeMillis()
 
@@ -168,13 +165,13 @@ class ExpenseEventSyncServiceTest {
 
         // Then: Device 2's update should win (later timestamp)
         val expense = queryService.getExpenseById(expenseId)
-        assertNotNull(expense)
-        assertEquals(2000L, expense!!.amount)
-        assertEquals("Device 2 version", expense.description)
+        assertThat(expense).isNotNull()
+        assertThat(expense!!.amount).isEqualTo(2000L)
+        assertThat(expense.description).isEqualTo("Device 2 version")
     }
 
     @Test
-    fun `should handle delete operation overriding updates`() = runBlocking {
+    fun `should handle delete operation overriding updates`(): Unit = runBlocking {
         val expenseId = UUID.randomUUID()
         val now = System.currentTimeMillis()
 
@@ -212,11 +209,11 @@ class ExpenseEventSyncServiceTest {
 
         // Then: Expense should be soft-deleted
         val expense = queryService.getExpenseById(expenseId)
-        assertNull(expense)  // Deleted expenses are not returned
+        assertThat(expense).isNull()  // Deleted expenses are not returned
     }
 
     @Test
-    fun `should handle multiple concurrent devices writing different expenses`() = runBlocking {
+    fun `should handle multiple concurrent devices writing different expenses`(): Unit = runBlocking {
         val expense1Id = UUID.randomUUID()
         val expense2Id = UUID.randomUUID()
         val expense3Id = UUID.randomUUID()
@@ -258,16 +255,14 @@ class ExpenseEventSyncServiceTest {
 
         // Then: All three expenses should exist
         val allExpenses = queryService.getAllExpenses().toList()
-        assertEquals(3, allExpenses.size)
+        assertThat(allExpenses).hasSize(3)
 
-        val descriptions = allExpenses.map { it.description }.toSet()
-        assertTrue(descriptions.contains("Device 1 expense"))
-        assertTrue(descriptions.contains("Device 2 expense"))
-        assertTrue(descriptions.contains("Device 3 expense"))
+        val descriptions = allExpenses.map { it.description }
+        assertThat(descriptions).contains("Device 1 expense", "Device 2 expense", "Device 3 expense")
     }
 
     @Test
-    fun `should maintain deterministic order with same timestamp`() = runBlocking {
+    fun `should maintain deterministic order with same timestamp`(): Unit = runBlocking {
         val expenseId = UUID.randomUUID()
         val now = System.currentTimeMillis()
 
@@ -309,12 +304,12 @@ class ExpenseEventSyncServiceTest {
 
         // Then: event2 should win due to later updatedAt timestamp in payload (last-write-wins)
         val expense = queryService.getExpenseById(expenseId)
-        assertNotNull(expense)
-        assertEquals(2000L, expense!!.amount)  // event2 wins with last-write-wins
+        assertThat(expense).isNotNull()
+        assertThat(expense!!.amount).isEqualTo(2000L)  // event2 wins with last-write-wins
     }
 
     @Test
-    fun `should be retry-safe after partial failure`() = runBlocking {
+    fun `should be retry-safe after partial failure`(): Unit = runBlocking {
         val expense1Id = UUID.randomUUID()
         val expense2Id = UUID.randomUUID()
         val now = System.currentTimeMillis()
@@ -347,9 +342,9 @@ class ExpenseEventSyncServiceTest {
         val secondSyncExpenses = queryService.getAllExpenses().toList()
 
         // Then: Both syncs should result in same state (idempotent)
-        assertEquals(2, firstSyncExpenses.size)
-        assertEquals(2, secondSyncExpenses.size)
-        assertEquals(firstSyncExpenses.size, secondSyncExpenses.size)
+        assertThat(firstSyncExpenses).hasSize(2)
+        assertThat(secondSyncExpenses).hasSize(2)
+        assertThat(firstSyncExpenses).hasSameSizeAs(secondSyncExpenses)
     }
 
     // Helper methods

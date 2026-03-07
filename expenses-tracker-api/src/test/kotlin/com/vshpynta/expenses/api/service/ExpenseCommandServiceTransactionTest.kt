@@ -2,16 +2,13 @@ package com.vshpynta.expenses.api.service
 
 import com.vshpynta.expenses.api.config.TestContainersConfig
 import com.vshpynta.expenses.api.model.ExpenseProjection
-import com.vshpynta.expenses.api.repository.ExpenseProjectionRepository
 import com.vshpynta.expenses.api.repository.ExpenseEventRepository
+import com.vshpynta.expenses.api.repository.ExpenseProjectionRepository
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.runBlocking
+import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.doAnswer
@@ -58,7 +55,7 @@ class ExpenseCommandServiceTransactionTest {
     }
 
     @Test
-    fun `should create both operation and expense atomically`() = runBlocking {
+    fun `should create both operation and expense atomically`(): Unit = runBlocking {
         // Given: Clean database (done in @BeforeEach)
 
         // When: Creating an expense
@@ -68,14 +65,16 @@ class ExpenseCommandServiceTransactionTest {
         val events = getAllEvents()
         val projections = getAllProjections()
 
-        assertEquals(1, events.size, "Exactly one event should be created")
-        assertEquals(1, projections.size, "Exactly one projection should be created")
-        assertEquals(createdExpense.id, events[0].expenseId, "Event should reference the created expense")
-        assertFalse(projections[0].deleted, "Newly created projection should not be marked as deleted")
+        assertThat(events).describedAs("Exactly one event should be created").hasSize(1)
+        assertThat(projections).describedAs("Exactly one projection should be created").hasSize(1)
+        assertThat(events[0].expenseId).describedAs("Event should reference the created expense")
+            .isEqualTo(createdExpense.id)
+        assertThat(projections[0].deleted).describedAs("Newly created projection should not be marked as deleted")
+            .isFalse()
     }
 
     @Test
-    fun `should update both operation and expense atomically`() = runBlocking {
+    fun `should update both operation and expense atomically`(): Unit = runBlocking {
         // Given: An existing expense
         val originalExpense = createExpense("Original description", 1000, "Food")
 
@@ -92,15 +91,17 @@ class ExpenseCommandServiceTransactionTest {
         val events = getAllEvents()
         val projectionFromDb = getProjectionById(originalExpense.id)
 
-        assertEquals(2, events.size, "Should have 2 events (CREATED + UPDATED)")
-        assertNotNull(updatedExpense, "Update should return the updated expense")
-        assertEquals("Updated description", projectionFromDb?.description, "Projection description should be updated")
-        assertEquals(2000L, projectionFromDb?.amount, "Projection amount should be updated")
-        assertTrue(projectionFromDb!!.updatedAt > originalExpense.updatedAt, "Updated timestamp should be newer")
+        assertThat(events).describedAs("Should have 2 events (CREATED + UPDATED)").hasSize(2)
+        assertThat(updatedExpense).describedAs("Update should return the updated expense").isNotNull()
+        assertThat(projectionFromDb?.description).describedAs("Projection description should be updated")
+            .isEqualTo("Updated description")
+        assertThat(projectionFromDb?.amount).describedAs("Projection amount should be updated").isEqualTo(2000L)
+        assertThat(projectionFromDb!!.updatedAt).describedAs("Updated timestamp should be newer")
+            .isGreaterThan(originalExpense.updatedAt)
     }
 
     @Test
-    fun `should soft-delete expense projection and create event atomically`() = runBlocking {
+    fun `should soft-delete expense projection and create event atomically`(): Unit = runBlocking {
         // Given: An existing expense
         val existingExpense = createExpense("Expense to delete", 500, "Test")
 
@@ -111,15 +112,15 @@ class ExpenseCommandServiceTransactionTest {
         val events = getAllEvents()
         val projectionFromDb = getProjectionById(existingExpense.id)
 
-        assertTrue(deleteResult, "Delete should return true")
-        assertEquals(2, events.size, "Should have 2 events (CREATED + DELETED)")
-        assertEquals("DELETED", events.last().eventType.name, "Last event should be DELETED type")
-        assertNotNull(projectionFromDb, "Projection should still exist in database (soft delete)")
-        assertTrue(projectionFromDb!!.deleted, "Projection should be marked as deleted")
+        assertThat(deleteResult).describedAs("Delete should return true").isTrue()
+        assertThat(events).describedAs("Should have 2 events (CREATED + DELETED)").hasSize(2)
+        assertThat(events.last().eventType.name).describedAs("Last event should be DELETED type").isEqualTo("DELETED")
+        assertThat(projectionFromDb).describedAs("Projection should still exist in database (soft delete)").isNotNull()
+        assertThat(projectionFromDb!!.deleted).describedAs("Projection should be marked as deleted").isTrue()
     }
 
     @Test
-    fun `should maintain data consistency across multiple events`() = runBlocking {
+    fun `should maintain data consistency across multiple events`(): Unit = runBlocking {
         // Given: Clean database (done in @BeforeEach)
 
         // When: Performing a series of operations: create 2, update 1, delete 1
@@ -141,26 +142,26 @@ class ExpenseCommandServiceTransactionTest {
         val projections = getAllProjections()
 
         // Verify event count and types
-        assertEquals(4, events.size, "Should have 4 events total")
+        assertThat(events).describedAs("Should have 4 events total").hasSize(4)
         val eventTypes = events.map { it.eventType.name }.sorted()
-        assertEquals(listOf("CREATED", "CREATED", "DELETED", "UPDATED"), eventTypes)
+        assertThat(eventTypes).isEqualTo(listOf("CREATED", "CREATED", "DELETED", "UPDATED"))
 
         // Verify projections exist and have correct state
-        assertEquals(2, projections.size, "Both projections should exist in database")
+        assertThat(projections).describedAs("Both projections should exist in database").hasSize(2)
 
         val projection1Final = projections.find { it.id == expense1.id }
-        assertNotNull(projection1Final, "Projection 1 should exist")
-        assertEquals("Expense 1 Updated", projection1Final?.description)
-        assertEquals(1500L, projection1Final?.amount)
-        assertFalse(projection1Final!!.deleted, "Projection 1 should not be deleted")
+        assertThat(projection1Final).describedAs("Projection 1 should exist").isNotNull()
+        assertThat(projection1Final?.description).isEqualTo("Expense 1 Updated")
+        assertThat(projection1Final?.amount).isEqualTo(1500L)
+        assertThat(projection1Final!!.deleted).describedAs("Projection 1 should not be deleted").isFalse()
 
         val projection2Final = projections.find { it.id == expense2.id }
-        assertNotNull(projection2Final, "Projection 2 should exist")
-        assertTrue(projection2Final!!.deleted, "Projection 2 should be soft-deleted")
+        assertThat(projection2Final).describedAs("Projection 2 should exist").isNotNull()
+        assertThat(projection2Final!!.deleted).describedAs("Projection 2 should be soft-deleted").isTrue()
     }
 
     @Test
-    fun `failed transaction should not affect successful transactions`() = runBlocking {
+    fun `failed transaction should not affect successful transactions`(): Unit = runBlocking {
         // Given: Two existing expenses
         val expense1 = createExpense("Expense 1", 1000, "Food")
         val expense2 = createExpense("Expense 2", 2000, "Transport")
@@ -193,42 +194,36 @@ class ExpenseCommandServiceTransactionTest {
         val projection2AfterFailedUpdate = getProjectionById(expense2.id)
 
         // Verify first transaction committed successfully
-        assertNotNull(successfulUpdate, "First update should succeed")
-        assertEquals(
-            "Successfully updated", projection1AfterUpdate?.description,
-            "First update should be persisted"
-        )
-        assertEquals(
-            1500L, projection1AfterUpdate?.amount,
-            "First update amount should be persisted"
-        )
+        assertThat(successfulUpdate).describedAs("First update should succeed").isNotNull()
+        assertThat(projection1AfterUpdate?.description)
+            .describedAs("First update should be persisted")
+            .isEqualTo("Successfully updated")
+        assertThat(projection1AfterUpdate?.amount)
+            .describedAs("First update amount should be persisted")
+            .isEqualTo(1500L)
 
         // Verify second transaction rolled back completely
-        assertEquals(
-            "Expense 2", projection2AfterFailedUpdate?.description,
-            "Second update should be rolled back - original description preserved"
-        )
-        assertEquals(
-            2000L, projection2AfterFailedUpdate?.amount,
-            "Second update should be rolled back - original amount preserved"
-        )
+        assertThat(projection2AfterFailedUpdate?.description)
+            .describedAs("Second update should be rolled back - original description preserved")
+            .isEqualTo("Expense 2")
+        assertThat(projection2AfterFailedUpdate?.amount)
+            .describedAs("Second update should be rolled back - original amount preserved")
+            .isEqualTo(2000L)
 
         // Verify event count: 2 creates + 1 successful update = 3
         // (failed update event should NOT exist in database)
-        assertEquals(
-            3, events.size,
-            "Should have only 3 events (failed update event rolled back)"
-        )
+        assertThat(events)
+            .describedAs("Should have only 3 events (failed update event rolled back)")
+            .hasSize(3)
 
         val updateEvents = events.filter { it.eventType.name == "UPDATED" }
-        assertEquals(
-            1, updateEvents.size,
-            "Only successful update event should exist"
-        )
+        assertThat(updateEvents)
+            .describedAs("Only successful update event should exist")
+            .hasSize(1)
     }
 
     @Test
-    fun `should rollback both event and projection when projection fails`() = runBlocking {
+    fun `should rollback both event and projection when projection fails`(): Unit = runBlocking {
         // Given: Clean database and spy configured to fail on projection
         val initialEventCount = getAllEvents().size
         val initialProjectionCount = getAllProjections().size
@@ -255,15 +250,15 @@ class ExpenseCommandServiceTransactionTest {
         val eventsAfter = getAllEvents()
         val projectionsAfter = getAllProjections()
 
-        assertEquals(
-            initialEventCount, eventsAfter.size,
-            "NO events should exist - proves appendEvent was rolled back when projectFromEvent failed. " +
-                    "If this fails, @Transactional is not working!"
-        )
-        assertEquals(
-            initialProjectionCount, projectionsAfter.size,
-            "NO projections should exist - projectFromEvent failed as expected"
-        )
+        assertThat(eventsAfter)
+            .describedAs(
+                "NO events should exist - proves appendEvent was rolled back when projectFromEvent failed. " +
+                        "If this fails, @Transactional is not working!"
+            )
+            .hasSize(initialEventCount)
+        assertThat(projectionsAfter)
+            .describedAs("NO projections should exist - projectFromEvent failed as expected")
+            .hasSize(initialProjectionCount)
     }
 
     // ========== Helper Functions ==========
