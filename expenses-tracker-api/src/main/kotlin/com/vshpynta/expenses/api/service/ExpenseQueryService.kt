@@ -24,7 +24,7 @@ class ExpenseQueryService(
     /**
      * Get all active (non-deleted) expense projections
      */
-    suspend fun getAllExpenses(): Flow<ExpenseProjection> {
+    fun getAllExpenses(): Flow<ExpenseProjection> {
         logger.debug("Querying all active expense projections")
         return projectionRepository.findAllActive()
     }

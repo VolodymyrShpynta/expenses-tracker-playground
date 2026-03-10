@@ -5,6 +5,11 @@ spring:
     url: ${EXPENSES_TRACKER_R2DBC_URL:r2dbc:postgresql://localhost:5432/expenses_db}
     username: ${EXPENSES_TRACKER_R2DBC_USERNAME:postgres}
     password: ${EXPENSES_TRACKER_R2DBC_PASSWORD:postgres}
+    pool:
+      initial-size: 5
+      max-size: 20
+      max-idle-time: 30m
+      validation-query: SELECT 1
   flyway:
     enabled: true
     locations: classpath:db/migration

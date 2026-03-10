@@ -4,9 +4,9 @@ import com.vshpynta.expenses.api.controller.dto.CreateExpenseRequest
 import com.vshpynta.expenses.api.controller.dto.ExpenseDto
 import com.vshpynta.expenses.api.controller.dto.SyncResultDto
 import com.vshpynta.expenses.api.controller.dto.UpdateExpenseRequest
-import com.vshpynta.expenses.api.model.ExpenseProjection
 import com.vshpynta.expenses.api.service.ExpenseCommandService
 import com.vshpynta.expenses.api.service.ExpenseEventSyncService
+import com.vshpynta.expenses.api.service.ExpenseMapper.toDto
 import com.vshpynta.expenses.api.service.ExpenseQueryService
 import jakarta.validation.Valid
 import kotlinx.coroutines.flow.Flow
@@ -73,7 +73,7 @@ class ExpensesController(
     }
 
     @GetMapping
-    suspend fun getAllExpenses(): Flow<ExpenseDto> {
+    fun getAllExpenses(): Flow<ExpenseDto> {
         return queryService.getAllExpenses()
             .map { it.toDto() }
     }
@@ -92,15 +92,5 @@ class ExpensesController(
             message = "Sync completed successfully"
         )
     }
-
-    private fun ExpenseProjection.toDto() = ExpenseDto(
-        id = id.toString(),
-        description = description ?: "",
-        amount = amount,
-        category = category ?: "",
-        date = date ?: "",
-        updatedAt = updatedAt,
-        deleted = deleted
-    )
 }
 

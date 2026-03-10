@@ -1,6 +1,7 @@
 package com.vshpynta.expenses.api.controller
 
 import org.slf4j.LoggerFactory
+import org.springframework.dao.DataAccessException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -43,5 +44,21 @@ class GlobalExceptionHandler {
         return ResponseEntity
             .status(HttpStatus.BAD_REQUEST)
             .body(mapOf("error" to (ex.message ?: "Bad request")))
+    }
+
+    @ExceptionHandler(DataAccessException::class)
+    fun handleDataAccessException(ex: DataAccessException): ResponseEntity<Map<String, String>> {
+        logger.error("Database error occurred", ex)
+        return ResponseEntity
+            .status(HttpStatus.SERVICE_UNAVAILABLE)
+            .body(mapOf("error" to "A database error occurred"))
+    }
+
+    @ExceptionHandler(Exception::class)
+    fun handleGenericException(ex: Exception): ResponseEntity<Map<String, String>> {
+        logger.error("Unexpected error occurred", ex)
+        return ResponseEntity
+            .status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(mapOf("error" to "An unexpected error occurred"))
     }
 }

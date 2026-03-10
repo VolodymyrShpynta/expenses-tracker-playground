@@ -7,7 +7,7 @@ consistency across multiple devices without a central server.
 
 ## 🌟 What Makes This Project Special?
 
-- ✨ **Modern Stack**: Spring Boot 4, Kotlin 2.2.21, Java 24, PostgreSQL 16
+- ✨ **Modern Stack**: Spring Boot 4, Kotlin 2.3.10, Java 21 LTS, PostgreSQL 17
 - 🏗️ **Event Sourcing & CQRS**: Proper event-driven architecture with separate read/write models
 - 🔄 **Multi-Device Sync**: Decentralized synchronization via shared file (Dropbox, Google Drive)
 - 🛡️ **Battle-Tested**: Comprehensive test suite with Testcontainers and real PostgreSQL
@@ -48,6 +48,7 @@ consistency across multiple devices without a central server.
 - [Performance Optimization: Batch Processing](#-performance-optimization-batch-processing-recommended)
 - [Troubleshooting](#-troubleshooting)
 - [Copilot Instructions](#-copilot-instructions)
+- [CI/CD](#-cicd)
 - [References](#-references)
 
 ---
@@ -110,8 +111,8 @@ cloud storage like Dropbox, Google Drive, etc.). The sync engine is designed to 
 ### Core Framework
 
 - **Spring Boot 4.0.1** - Latest with enhanced reactive support
-- **Kotlin 2.2.21** - Modern JVM language with coroutines
-- **Java 24** - Virtual threads support
+- **Kotlin 2.3.10** - Modern JVM language with coroutines
+- **Java 21** - Long-term support (LTS) release
 
 ### Reactive Stack
 
@@ -122,14 +123,14 @@ cloud storage like Dropbox, Google Drive, etc.). The sync engine is designed to 
 
 ### Database & Migrations
 
-- **PostgreSQL 16** - Production database
+- **PostgreSQL 17** - Production database
 - **Flyway** - Database migrations (JDBC-based)
 - **R2DBC** - Runtime reactive queries
 - **Testcontainers** - Real PostgreSQL for integration tests
 
 ### Build & Testing
 
-- **Gradle 9.2.1+** with Kotlin DSL
+- **Gradle 9.4.0** with Kotlin DSL
 - **JUnit 5** - Test framework
 - **Mockito with @MockitoSpyBean** - Mocking framework
 - **AssertJ** - Fluent assertions
@@ -1362,6 +1363,11 @@ spring:
     url: ${EXPENSES_TRACKER_R2DBC_URL:r2dbc:postgresql://localhost:5432/expenses_db}
     username: ${EXPENSES_TRACKER_R2DBC_USERNAME:postgres}
     password: ${EXPENSES_TRACKER_R2DBC_PASSWORD:postgres}
+    pool:
+      initial-size: 5
+      max-size: 20
+      max-idle-time: 30m
+      validation-query: SELECT 1
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -1381,7 +1387,7 @@ sync:
 ```yaml
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_DB: expenses_db
       POSTGRES_USER: postgres
@@ -1406,9 +1412,9 @@ services:
 
 ### Prerequisites
 
-- **Java 24** (or compatible JDK)
+- **Java 21** (or compatible JDK)
 - **Docker & Docker Compose**
-- **Gradle 9.2.1+** (or use included wrapper)
+- **Gradle 9.4.0** (or use included wrapper)
 
 ### Quick Start
 
@@ -2946,6 +2952,30 @@ docker ps | grep postgres
 docker exec expenses-db psql -U postgres -d expenses_db -c "SELECT 1;"
 ```
 
+**PostgreSQL major version upgrade (e.g. 16 → 17):**
+
+If the container keeps restarting with `database files are incompatible with server`, the existing
+Docker volume was initialized by the previous PostgreSQL version. PostgreSQL does not support
+in-place major version data directory upgrades. Delete the volume and let the new version
+re-initialize:
+
+```bash
+docker compose down -v      # stops containers AND removes volumes
+docker compose up -d postgres
+```
+
+> ⚠️ This deletes all data in the local database. For a playground project this is fine —
+> Flyway will recreate the schema on the next application start.
+
+---
+
+## 🔄 CI/CD
+
+The project includes a GitHub Actions workflow (`.github/workflows/ci.yml`) that runs on every push to `main` and on all pull requests:
+
+1. **Build & Test** — Sets up JDK 21 with Gradle caching, then runs `./gradlew build` (includes all tests with Testcontainers)
+2. **Docker Image** — On `main` branch pushes only, builds the Docker image to validate the Dockerfile (no push — this is a playground project)
+
 ---
 
 ## 🤖 Copilot Instructions
@@ -2990,9 +3020,9 @@ project's architecture, naming conventions, and best practices.
 ### Tech Stack Versions
 
 - Spring Boot: 4.0.1
-- Kotlin: 2.2.21
-- Java: 24
-- PostgreSQL: 16-alpine
+- Kotlin: 2.3.10
+- Java: 21 (LTS)
+- PostgreSQL: 17-alpine
 - Flyway: 11.16.0
 - Testcontainers: 1.21.4
-- Gradle: 9.2.1+
+- Gradle: 9.4.0

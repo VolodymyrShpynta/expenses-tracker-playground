@@ -1,5 +1,6 @@
 package com.vshpynta.expenses.api.service
 
+import com.vshpynta.expenses.api.controller.dto.ExpenseDto
 import com.vshpynta.expenses.api.model.EventEntry
 import com.vshpynta.expenses.api.model.ExpensePayload
 import com.vshpynta.expenses.api.model.ExpenseProjection
@@ -30,4 +31,17 @@ object ExpenseMapper {
      * Converts EventEntry to ExpenseProjection using the embedded payload
      */
     fun EventEntry.toProjection() = payload.toProjection()
+
+    /**
+     * Converts ExpenseProjection to ExpenseDto for the presentation layer
+     */
+    fun ExpenseProjection.toDto() = ExpenseDto(
+        id = id.toString(),
+        description = description ?: "",
+        amount = amount,
+        category = category ?: "",
+        date = date ?: "",
+        updatedAt = updatedAt,
+        deleted = deleted
+    )
 }

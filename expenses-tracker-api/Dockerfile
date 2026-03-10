@@ -1,21 +1,34 @@
-FROM amazoncorretto:24.0.2-alpine3.22
+FROM amazoncorretto:21-alpine AS builder
+
+WORKDIR /app
+
+COPY build/libs/expenses-tracker-api-0.0.1-SNAPSHOT.jar app.jar
+
+RUN java -Djarmode=layertools -jar app.jar extract
+
+FROM amazoncorretto:21-alpine
 
 LABEL authors="Volodymyr Shpynta"
 LABEL module="expenses-tracker-api"
 LABEL description="Reactive expense tracking API with Spring WebFlux and R2DBC"
 
-# Create app directory
-RUN mkdir /app
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-# Copy the executable JAR
-COPY build/libs/expenses-tracker-api-0.0.1-SNAPSHOT.jar /app/expenses-tracker-api.jar
+WORKDIR /app
 
-# Expose port 8080
+COPY --from=builder /app/dependencies/ ./
+COPY --from=builder /app/spring-boot-loader/ ./
+COPY --from=builder /app/snapshot-dependencies/ ./
+COPY --from=builder /app/application/ ./
+
+RUN chown -R appuser:appgroup /app
+
+USER appuser
+
 EXPOSE 8080
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
 
 # Run the application
-CMD ["java", "-jar", "/app/expenses-tracker-api.jar"]
+ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]

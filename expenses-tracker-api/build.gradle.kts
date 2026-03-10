@@ -29,7 +29,6 @@ dependencies {
     runtimeOnly(libs.r2dbc.postgresql)
     runtimeOnly(libs.postgresql)
     testImplementation(libs.spring.boot.starter.test)
-    testImplementation(libs.spring.boot.starter.webflux.test)
     testImplementation(libs.kotlin.test.junit5)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.spring.boot.testcontainers)

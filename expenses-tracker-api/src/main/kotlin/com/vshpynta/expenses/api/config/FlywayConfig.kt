@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration
 import javax.sql.DataSource
 
 @Configuration
-@EnableConfigurationProperties(FlywayConfigProperties::class)
+@EnableConfigurationProperties(FlywayMigrationProperties::class)
 class FlywayConfig {
 
     @Bean
@@ -21,7 +21,7 @@ class FlywayConfig {
     @Bean(initMethod = "migrate")
     fun flyway(
         flywayDataSource: DataSource,
-        flywayProperties: FlywayConfigProperties
+        flywayProperties: FlywayMigrationProperties
     ): Flyway {
         return Flyway.configure()
             .dataSource(flywayDataSource)
@@ -31,9 +31,16 @@ class FlywayConfig {
     }
 }
 
+/**
+ * Minimal Flyway migration properties bound to `spring.flyway.*`.
+ *
+ * Spring Boot 4 moved FlywayProperties into a separate autoconfigure module
+ * (`spring-boot-flyway`) that is not on the classpath because this project
+ * uses a custom JDBC datasource for Flyway while the app runs on R2DBC.
+ * Only the settings actually used by [FlywayConfig] are declared here.
+ */
 @ConfigurationProperties(prefix = "spring.flyway")
-data class FlywayConfigProperties(
-    var enabled: Boolean = true,
-    var locations: List<String> = listOf("classpath:db/migration"),
-    var baselineOnMigrate: Boolean = false
+data class FlywayMigrationProperties(
+    val locations: List<String> = listOf("classpath:db/migration"),
+    val baselineOnMigrate: Boolean = false
 )

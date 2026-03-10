@@ -27,7 +27,7 @@ interface ExpenseProjectionRepository : CoroutineCrudRepository<ExpenseProjectio
      * Find all active (non-deleted) expense projections
      */
     @Query("SELECT * FROM expense_projections WHERE deleted = false")
-    suspend fun findAllActive(): Flow<ExpenseProjection>
+    fun findAllActive(): Flow<ExpenseProjection>
 
     /**
      * Project expense from event with last-write-wins conflict resolution
