@@ -26,7 +26,8 @@ These rules apply when working on files under `expenses-tracker-api/`.
 
 ### Always use the TOML version catalog
 
-All dependency declarations **must** use `libs.versions.toml` aliases — never hard-code `group:artifact:version` in `build.gradle.kts`.
+All dependency declarations **must** use `libs.versions.toml` aliases — never hard-code `group:artifact:version` in
+`build.gradle.kts`.
 
 ```kotlin
 // ✅ Good
@@ -44,7 +45,9 @@ implementation("org.springframework.boot:spring-boot-starter-webflux:4.0.1")
 
 ### Dependency management — plugin vs native BOM
 
-This project uses the `io.spring.dependency-management` Gradle plugin to import Spring's BOM. That is correct and fully supported. Be aware that Gradle's **native BOM support** (`platform()`) is an equally valid modern alternative and is increasingly preferred in the Gradle ecosystem:
+This project uses the `io.spring.dependency-management` Gradle plugin to import Spring's BOM. That is correct and fully
+supported. Be aware that Gradle's **native BOM support** (`platform()`) is an equally valid modern alternative and is
+increasingly preferred in the Gradle ecosystem:
 
 ```kotlin
 // ✅ Native Gradle BOM (alternative — no plugin needed)
@@ -60,9 +63,11 @@ Do not mix both approaches in the same module.
 ### Gradle conventions
 
 - Use `alias(libs.plugins.xxx)` for plugins — never raw plugin IDs with inline versions.
-- Root `build.gradle.kts` applies shared plugins with `apply false` and configures `allprojects` (group, version, repositories).
+- Root `build.gradle.kts` applies shared plugins with `apply false` and configures `allprojects` (group, version,
+  repositories).
 - Each module's `build.gradle.kts` applies only the plugins it needs.
-- Use `java.toolchain` to set the JDK version from the catalog: `languageVersion.set(JavaLanguageVersion.of(libs.versions.java.get().toInt()))`.
+- Use `java.toolchain` to set the JDK version from the catalog:
+  `languageVersion.set(JavaLanguageVersion.of(libs.versions.java.get().toInt()))`.
 
 ---
 
@@ -84,14 +89,20 @@ Prefer Kotlin coroutines over raw Reactor types in controllers and services:
 ```kotlin
 // ✅ Preferred — coroutines
 @GetMapping("/{id}")
-suspend fun getById(@PathVariable id: String): ResponseEntity<ExpenseDto> { ... }
+suspend fun getById(@PathVariable id: String): ResponseEntity<ExpenseDto> {
+    ...
+}
 
 @GetMapping
-fun getAll(): Flow<ExpenseDto> { ... }
+fun getAll(): Flow<ExpenseDto> {
+    ...
+}
 
 // ⚠️ Acceptable if needed — Reactor
 @GetMapping
-fun getAll(): Flux<ExpenseDto> { ... }
+fun getAll(): Flux<ExpenseDto> {
+    ...
+}
 ```
 
 > ⚠️ **Never declare a function `suspend` if it returns `Flow<T>`.**
@@ -110,9 +121,13 @@ fun getAll(): Flux<ExpenseDto> { ... }
 ### Non-blocking everywhere
 
 - Never call blocking APIs (JDBC, `Thread.sleep`, blocking I/O) inside reactive pipelines.
-- **Do NOT** use `withContext(Dispatchers.IO)` for R2DBC or Spring Data reactive operations — they are already non-blocking. R2DBC sends a query and suspends the coroutine without holding a thread, so wrapping in `Dispatchers.IO` only wastes a thread from the IO pool that sits idle during execution. Note: `@Transactional` context propagation works correctly either way (via `ReactorContext` bridging), but the extra dispatcher switch is unnecessary overhead.
+- **Do NOT** use `withContext(Dispatchers.IO)` for R2DBC or Spring Data reactive operations — they are already
+  non-blocking. R2DBC sends a query and suspends the coroutine without holding a thread, so wrapping in `Dispatchers.IO`
+  only wastes a thread from the IO pool that sits idle during execution. Note: `@Transactional` context propagation
+  works correctly either way (via `ReactorContext` bridging), but the extra dispatcher switch is unnecessary overhead.
 - Only use `Dispatchers.IO` for truly blocking calls (e.g., file I/O, JDBC).
-- Flyway is the one exception — it uses a separate **JDBC** `DataSource` bean (`flywayDataSource`), configured independently from the R2DBC datasource.
+- Flyway is the one exception — it uses a separate **JDBC** `DataSource` bean (`flywayDataSource`), configured
+  independently from the R2DBC datasource.
 
 ### Spring annotations
 
@@ -145,25 +160,31 @@ class ExpenseCommandService(
 // ❌ Never
 @Service
 class ExpenseCommandService {
-    @Autowired lateinit var projectionRepository: ExpenseProjectionRepository
+    @Autowired
+    lateinit var projectionRepository: ExpenseProjectionRepository
 }
 ```
 
 ### Jackson configuration
 
-Spring Boot 4 ships with **Jackson 3.x** (`tools.jackson` group) for HTTP codec serialization — a separate ecosystem from Jackson 2.x (`com.fasterxml.jackson`).
+Spring Boot 4 ships with **Jackson 3.x** (`tools.jackson` group) for HTTP codec serialization — a separate ecosystem
+from Jackson 2.x (`com.fasterxml.jackson`).
 
 #### For HTTP / WebFlux codecs
 
-- Jackson 3.x handles Kotlin data class serialization natively — no `KotlinModule` registration is needed for HTTP responses.
-- Configure serialization behaviour via `spring.jackson.*` YAML — Spring Boot 4 applies these to the Jackson 3.x mapper automatically:
+- Jackson 3.x handles Kotlin data class serialization natively — no `KotlinModule` registration is needed for HTTP
+  responses.
+- Configure serialization behaviour via `spring.jackson.*` YAML — Spring Boot 4 applies these to the Jackson 3.x mapper
+  automatically:
   ```yaml
   spring:
     jackson:
       default-property-inclusion: non_null
   ```
-- `Jackson2ObjectMapperBuilderCustomizer` **does not exist** in Spring Boot 4 — it was part of the old Jackson 2.x autoconfigure layer. Do not use it.
-- Do **not** define a `@Primary ObjectMapper` bean to customise HTTP serialization — it is a Jackson 2.x type and will not be picked up by WebFlux's Jackson 3.x codec chain.
+- `Jackson2ObjectMapperBuilderCustomizer` **does not exist** in Spring Boot 4 — it was part of the old Jackson 2.x
+  autoconfigure layer. Do not use it.
+- Do **not** define a `@Primary ObjectMapper` bean to customise HTTP serialization — it is a Jackson 2.x type and will
+  not be picked up by WebFlux's Jackson 3.x codec chain.
 
 > ⚠️ Jackson 3.x renamed some `SerializationFeature` constants from Jackson 2.x.
 > For example, `spring.jackson.serialization.write-dates-as-timestamps` does **not** work in
@@ -172,7 +193,9 @@ Spring Boot 4 ships with **Jackson 3.x** (`tools.jackson` group) for HTTP codec 
 
 #### For non-HTTP Jackson 2.x usage
 
-Spring Boot 4 no longer auto-registers a `com.fasterxml.jackson.databind.ObjectMapper` bean. If a component injects one directly (e.g. a utility class for file/internal serialization), register it explicitly — intentionally **without `@Primary`** so it does not interfere with WebFlux codecs:
+Spring Boot 4 no longer auto-registers a `com.fasterxml.jackson.databind.ObjectMapper` bean. If a component injects one
+directly (e.g. a utility class for file/internal serialization), register it explicitly — intentionally *
+*without `@Primary`** so it does not interfere with WebFlux codecs:
 
 ```kotlin
 // ✅ Correct — explicit Jackson 2.x bean for non-HTTP use, not @Primary
@@ -180,15 +203,18 @@ Spring Boot 4 no longer auto-registers a `com.fasterxml.jackson.databind.ObjectM
 fun jackson2ObjectMapper(): ObjectMapper = ObjectMapper().registerKotlinModule()
 
 // ❌ Wrong — @Primary would conflict with WebFlux's Jackson 3.x codec chain
-@Bean @Primary
+@Bean
+@Primary
 fun objectMapper(): ObjectMapper = ObjectMapper().registerKotlinModule()
 ```
 
-Use `registerKotlinModule()` (idiomatic extension function) — not `KotlinModule.Builder().build()` or `KotlinModule()` directly. The builder is only warranted for advanced custom configuration.
+Use `registerKotlinModule()` (idiomatic extension function) — not `KotlinModule.Builder().build()` or `KotlinModule()`
+directly. The builder is only warranted for advanced custom configuration.
 
 ### Application configuration
 
-- Use `application.yaml` (not `.properties`) for configuration — prefer the `.yaml` extension (officially recommended by the YAML spec).
+- Use `application.yaml` (not `.properties`) for configuration — prefer the `.yaml` extension (officially recommended by
+  the YAML spec).
 - Externalize secrets via environment variables with `${ENV_VAR:default}` syntax.
 - Use separate profiles for test (`application-test.yaml`).
 - Always configure the R2DBC connection pool explicitly — never rely on defaults:
@@ -210,7 +236,8 @@ Use `registerKotlinModule()` (idiomatic extension function) — not `KotlinModul
 
 - **Data classes** for DTOs, entities, and value objects. Leverage `copy()` for immutable updates.
 - **val over var** — prefer immutable references. Use `var` only when mutation is truly needed.
-- **Null safety** — use Kotlin's null type system (`?`, `?.`, `?:`, `!!` sparingly). Avoid `!!` — prefer `requireNotNull()`, `checkNotNull()`, or `?: throw`.
+- **Null safety** — use Kotlin's null type system (`?`, `?.`, `?:`, `!!` sparingly). Avoid `!!` — prefer
+  `requireNotNull()`, `checkNotNull()`, or `?: throw`.
 - **Expression body** — use single-expression function syntax for short functions:
   ```kotlin
   fun now(): LocalDateTime = LocalDateTime.now()
@@ -228,7 +255,9 @@ Use `registerKotlinModule()` (idiomatic extension function) — not `KotlinModul
 
 - Use `kotlin-spring` plugin (open classes for Spring proxying).
 - Use `-Xjsr305=strict` for proper nullability from Java annotations.
-- Use `-Xannotation-default-target=param-property` so annotations on `data class` constructor parameters apply to both the parameter and the backing property. This means `@field:` use-site target is typically not needed for Bean Validation, but **prefer explicit `@field:`** for clarity and portability:
+- Use `-Xannotation-default-target=param-property` so annotations on `data class` constructor parameters apply to both
+  the parameter and the backing property. This means `@field:` use-site target is typically not needed for Bean
+  Validation, but **prefer explicit `@field:`** for clarity and portability:
   ```kotlin
   data class CreateRequest(
       @field:NotBlank(message = "Name is required")
@@ -242,7 +271,9 @@ Use `object` for stateless mapper/utility classes containing extension functions
 
 ```kotlin
 object ExpenseMapper {
-    fun ExpenseProjection.toDto(): ExpenseDto { ... }
+    fun ExpenseProjection.toDto(): ExpenseDto {
+        ...
+    }
 }
 ```
 
@@ -274,16 +305,20 @@ expenses-tracker-api/src/main/kotlin/com/vshpynta/expenses/api/
 
 ### Layer responsibilities
 
-- **Controller** — HTTP concerns only: routing, request validation (`@Valid`), response mapping, status codes. Keep thin — no business logic. **All entity→DTO mapping must go through `ExpenseMapper` — never define mapping functions inside a controller.**
+- **Controller** — HTTP concerns only: routing, request validation (`@Valid`), response mapping, status codes. Keep
+  thin — no business logic. **All entity→DTO mapping must go through `ExpenseMapper` — never define mapping functions
+  inside a controller.**
 - **Service** — business logic, orchestration, transactions. Returns domain entities.
 - **Repository** — data access. Extend `CoroutineCrudRepository`. Add custom query methods with `@Query` as needed.
-- **DTO** — input/output shapes inside `controller/dto/`. Use `data class` with Bean Validation annotations (`@field:NotBlank`, `@field:NotNull`).
+- **DTO** — input/output shapes inside `controller/dto/`. Use `data class` with Bean Validation annotations (
+  `@field:NotBlank`, `@field:NotNull`).
 - **Model** — domain entities mapped to database tables. Use `@Table`, `@Id`.
 - **Config** — Spring `@Configuration` and `@ConfigurationProperties` classes.
 
 ### Event Sourcing & CQRS
 
 This project uses event sourcing with CQRS:
+
 - **Write side** — `ExpenseCommandService` creates events and projects them to the read model.
 - **Read side** — `ExpenseQueryService` reads from projections.
 - **Conflict resolution** — last-write-wins based on timestamps (idempotent UPSERT with `updated_at` comparison).
@@ -291,47 +326,13 @@ This project uses event sourcing with CQRS:
 
 ### Testability
 
-- **TimeProvider class** — inject time instead of calling `System.currentTimeMillis()` directly. This enables deterministic tests.
+- **TimeProvider class** — inject time instead of calling `System.currentTimeMillis()` directly. This enables
+  deterministic tests.
 - **Constructor injection** — all dependencies injected via constructors for easy mocking.
 
 ---
 
-## Backend Testing Conventions
-
-### Unit tests (service, mapper, DTO)
-
-- Use `@ExtendWith(MockitoExtension::class)` + `@Mock` + `mockito-kotlin`.
-- Use `runTest` from `kotlinx-coroutines-test`.
-- Use AssertJ assertions (`assertThat(...).isEqualTo(...)`, `assertThat(...).isTrue()`, `assertThatThrownBy { ... }`).
-- Test names: backtick descriptive names — `` `findById should return null when not found` ``.
-- Follow Given / When / Then structure with comments.
-
-### Integration tests (controller, repository)
-
-- Use `@SpringBootTest(webEnvironment = RANDOM_PORT)` for controller/HTTP tests that need a running server.
-- Use `@SpringBootTest` (default) for service/repository integration tests that don't need a web server.
-- Use `Testcontainers` for PostgreSQL with **`@ServiceConnection`** — this is the modern Spring Boot 4 way. Mark the container `@Bean` (or `@Container` field) with `@ServiceConnection` and Spring will automatically wire all connection properties (R2DBC URL, JDBC URL, credentials) without any `@DynamicPropertySource` or manual property overrides.
-  ```kotlin
-  @TestConfiguration(proxyBeanMethods = false)
-  class TestContainersConfig {
-      @Bean
-      @ServiceConnection  // ← auto-wires spring.r2dbc.* and spring.datasource.*
-      fun postgresContainer(): PostgreSQLContainer<*> =
-          PostgreSQLContainer(DockerImageName.parse("postgres:17-alpine"))
-              .withDatabaseName("test_db")
-  }
-  ```
-  Import it in tests with `@Import(TestContainersConfig::class)`.
-- Use `WebTestClient` for HTTP assertions (configure via `WebTestClientConfig`).
-- Use `@ActiveProfiles("test")` with `application-test.yaml`.
-
-### Coroutines in tests
-
-- Prefer `runTest` for test bodies (properly handles virtual time and structured concurrency).
-- `runBlocking` is acceptable in `@BeforeEach` / `@AfterEach` for setup/teardown, or when bridging into synchronous test APIs (e.g., AssertJ's `assertThatThrownBy` expects a `ThrowingCallable`).
-- Avoid `runBlocking` in production code.
-
-### Database migrations
+## Database Migrations
 
 - Flyway migrations in `src/main/resources/db/migration/`.
 - Follow naming: `V{version}__{description}.sql` (double underscore).
@@ -357,7 +358,8 @@ This project uses event sourcing with CQRS:
   // ❌ Never — allocates string regardless of log level
   logger.info("Creating expense: description=$description, amount=$amount")
   ```
-- Use appropriate log levels: `TRACE`/`DEBUG` for diagnostic detail, `INFO` for normal operations, `WARN` for recoverable issues, `ERROR` for failures that need attention.
+- Use appropriate log levels: `TRACE`/`DEBUG` for diagnostic detail, `INFO` for normal operations, `WARN` for
+  recoverable issues, `ERROR` for failures that need attention.
 - **Never log sensitive data** — no passwords, tokens, full card numbers, or PII.
 - In `@RestControllerAdvice` handlers: log expected domain errors at `DEBUG`, unexpected errors at `ERROR`.
 
@@ -368,11 +370,12 @@ This project uses event sourcing with CQRS:
 - Use a `@RestControllerAdvice` (`GlobalExceptionHandler`) to centralize exception-to-HTTP-status mapping.
 - Use standard or custom exception classes (e.g., `NoSuchElementException`) with descriptive messages.
 - Controllers throw domain exceptions — the global handler maps them to HTTP status codes:
-  - `NoSuchElementException` → 404 Not Found
-  - `WebExchangeBindException` (validation) → 400 Bad Request
-  - `IllegalArgumentException` → 400 Bad Request
-  - `DataAccessException` → 503 Service Unavailable (log at ERROR level)
-  - `Exception` (catch-all, **must be defined last**) → 500 Internal Server Error (log at ERROR level, never expose internal details to the client)
+    - `NoSuchElementException` → 404 Not Found
+    - `WebExchangeBindException` (validation) → 400 Bad Request
+    - `IllegalArgumentException` → 400 Bad Request
+    - `DataAccessException` → 503 Service Unavailable (log at ERROR level)
+    - `Exception` (catch-all, **must be defined last**) → 500 Internal Server Error (log at ERROR level, never expose
+      internal details to the client)
 - Return structured error responses (`mapOf("error" to message)`).
 - Use `ResponseEntity` in the exception handler to control status codes explicitly.
 
@@ -380,11 +383,15 @@ This project uses event sourcing with CQRS:
 
 ## Containerisation — Dockerfile
 
-- **Base image**: always use a **Java 21 LTS** image (e.g., `amazoncorretto:21-alpine`). Never use a non-LTS Java release (e.g., 24) — it goes EOL after 6 months.
-- **Multi-stage layered build**: use Spring Boot's `jarmode=layertools` to extract layers in a builder stage, then copy each layer in the final stage. This maximises Docker layer cache reuse and keeps the final image small.
+- **Base image**: always use a **Java 21 LTS** image (e.g., `amazoncorretto:21-alpine`). Never use a non-LTS Java
+  release (e.g., 24) — it goes EOL after 6 months.
+- **Multi-stage layered build**: use Spring Boot's `jarmode=layertools` to extract layers in a builder stage, then copy
+  each layer in the final stage. This maximises Docker layer cache reuse and keeps the final image small.
 - **`WORKDIR`** — always use `WORKDIR /app` to set the working directory. Never use `RUN mkdir`.
-- **Non-root user** — always create and switch to a non-root user before the `ENTRYPOINT`. Running as root inside a container is a security risk.
-- **`ENTRYPOINT`** over `CMD` — use `ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]` with a layered build. Avoid `CMD ["java", "-jar", "app.jar"]` as it bypasses layers.
+- **Non-root user** — always create and switch to a non-root user before the `ENTRYPOINT`. Running as root inside a
+  container is a security risk.
+- **`ENTRYPOINT`** over `CMD` — use `ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]` with a
+  layered build. Avoid `CMD ["java", "-jar", "app.jar"]` as it bypasses layers.
 
 ```dockerfile
 # ✅ Good — multi-stage layered build, non-root, LTS Java

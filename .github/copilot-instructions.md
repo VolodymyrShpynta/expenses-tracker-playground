@@ -1,5 +1,9 @@
 # Copilot Instructions — Expenses Tracker
 
+> **Maintainer note:** Architecture sections here overlap with `AGENTS.md` in the repo root
+> (which Claude Code and Codex CLI read). When updating architecture or conventions, update
+> both places to avoid drift. Path-scoped rules live in `.github/instructions/`.
+
 These instructions apply to every Copilot session in this workspace.
 Backend-specific rules live in path-specific instruction files
 under `.github/instructions/` and are merged automatically when editing matching files.
@@ -8,10 +12,11 @@ under `.github/instructions/` and are merged automatically when editing matching
 
 ## Project Overview
 
-**Expenses Tracker** is a backend expense tracking application with event sourcing and CQRS.
+**Expenses Tracker** is a full-stack expense tracking application with event sourcing and CQRS.
 
 - **Monorepo** managed by Gradle with a version catalog (`gradle/libs.versions.toml`)
 - **Backend** — Kotlin + Spring Boot 4 (WebFlux / R2DBC reactive stack)
+- **Frontend** — React 19 + TypeScript + MUI v7 + Vite (in `expenses-tracker-frontend/`)
 - **Database** — PostgreSQL (R2DBC for app, JDBC for Flyway migrations)
 - **Testing** — JUnit 5 / Testcontainers (backend)
 
@@ -25,118 +30,108 @@ under `.github/instructions/` and are merged automatically when editing matching
 ./gradlew :expenses-tracker-api:build
 ./gradlew :expenses-tracker-api:bootRun
 
-# Run all tests
+# Frontend (from expenses-tracker-frontend/)
+npm run dev      # Vite dev server
+npm run build    # Production build
+npm run lint     # ESLint
+
+# Run all tests (requires Docker for Testcontainers)
 ./gradlew test
 ```
 
 ---
 
-## Clean Code Principles (All Modules)
+## Architecture & Runtime Flows
 
-### SOLID Principles
+Understanding these flows is critical before modifying any service code.
 
-- **Single Responsibility (SRP)** — each class, component, or utility should have one reason to change. If something handles HTTP concerns + data fetching + validation, split it.
-- **Open/Closed (OCP)** — design for extension, not modification. Prefer interfaces/abstractions.
-- **Liskov Substitution (LSP)** — subtypes must be substitutable for their base types.
-- **Interface Segregation (ISP)** — keep interfaces small and focused. No client should depend on methods it does not use.
-- **Dependency Inversion (DIP)** — depend on abstractions, not concretions. Use constructor injection.
+### CQRS + Event Sourcing (three tables)
 
-### DRY — Don't Repeat Yourself
+| Table                 | Role                                      | Key detail                                                                                 |
+|-----------------------|-------------------------------------------|--------------------------------------------------------------------------------------------|
+| `expense_events`      | Append-only event store (source of truth) | Events are immutable; `committed` flag tracks sync state                                   |
+| `expense_projections` | Materialized read model                   | UPSERT with last-write-wins (`WHERE EXCLUDED.updated_at > expense_projections.updated_at`) |
+| `processed_events`    | Idempotency registry                      | Prevents duplicate event processing during sync                                            |
 
-- Every piece of knowledge should have a single, unambiguous representation.
-- Extract shared logic into reusable functions, components, or utility classes.
-- Avoid copy-pasting code blocks — find the common abstraction.
+Schema defined in `expenses-tracker-api/src/main/resources/db/migration/V1__Create_expenses_tables.sql`.
 
-### KISS — Keep It Simple
+### Write path (local commands)
 
-- Prefer the simplest solution that works.
-- Don't add abstractions until complexity demands it.
-- Extract complex boolean expressions into well-named variables or helpers.
+```
+HTTP → ExpensesController → ExpenseCommandService (@Transactional)
+         ├─ append event to expense_events
+         └─ project to expense_projections (UPSERT)
+```
 
-### YAGNI — You Aren't Gonna Need It
+Both writes happen atomically. Never break this transactional boundary.
 
-- Don't add features, parameters, or abstractions until they are actually needed.
-- Avoid speculative generality — build for today's requirements.
+### Read path (queries)
 
-### Boy Scout Rule
+```
+HTTP → ExpensesController → ExpenseQueryService → expense_projections (WHERE deleted = false)
+```
 
-- Always leave the code cleaner than you found it.
-- When touching existing code: improve naming, remove dead code, fix minor issues.
-- Keep refactoring separate from feature changes when possible.
+Reads only touch the projection table. Soft-deleted rows are hidden.
 
-### Meaningful Names
+### Sync path (file-based multi-device sync)
 
-- Use **descriptive, pronounceable, searchable** names.
-- Avoid single-letter variables except in short lambdas.
-- Use **consistent vocabulary** — pick one word per concept (e.g., always `find`, not sometimes `get` and sometimes `retrieve`).
-- Add meaningful context when needed (`expenseCount`, not just `count`).
+```
+ExpenseEventSyncService.performFullSync()
+  1. SyncFileManager.hasFileChanged() — checksum-based skip
+  2. SyncFileManager.readEvents() → RemoteEventProcessor.processRemoteEvents()
+       └─ for each event: ExpenseSyncProjector → ExpenseSyncRecorder (@Transactional)
+  3. Collect local uncommitted events → SyncFileManager.appendEvents()
+  4. Cache file checksum for next cycle
+```
 
-### Small Functions
+**Critical invariant:** `ExpenseSyncProjector` (cache + DB idempotency checks) and
+`ExpenseSyncRecorder` (`@Transactional` DB writes) are separate `@Component` classes.
+This separation avoids Spring's self-invocation proxy bypass. **Do not merge them.**
 
-- Keep functions/methods to **10–20 lines** where possible.
-- Each function should operate at a **single level of abstraction**.
-- Limit parameters — ideally **0–2**; use a data class / options object for more.
-- Avoid flag/boolean arguments that change behaviour — split into two functions.
+### Conflict resolution
 
-### Comments
+- **Last-write-wins by timestamp** — applies uniformly to CREATED, UPDATED, DELETED events.
+- Soft deletes (`deleted=true`) can be superseded by a newer non-deleted update (resurrection).
+- Equal timestamps are rejected (strict `>`, not `>=`).
 
-- Write **self-documenting code** — comments should explain **why**, not **what**.
-- **Good**: legal notices, complex algorithm explanations, TODO with context, non-obvious decisions.
-- **Bad**: redundant comments that repeat the code, commented-out code (use version control), misleading or outdated comments.
+### Non-obvious conventions
 
-### Error Handling
+- UUIDs stored as `VARCHAR(36)` for portability; R2DBC converters wired in `R2dbcConfig`.
+- Event payload is JSON text in `expense_events.payload`; mapped via `JsonOperations` and `ExpenseMapper`.
+- Sync file: optionally gzip-compressed, checksum-cached (`SyncFileManager`, `FileOperations`); default path
+  `./sync-data/sync.json` (+ `.gz`).
+- Flyway runs on a separate JDBC datasource (`spring.flyway.datasource.*`), not R2DBC.
+- Jackson 2.x `ObjectMapper` bean is intentionally **not** `@Primary` — WebFlux uses Jackson 3.x.
 
-- Prefer **throwing exceptions** over returning null or silent failures.
-- Provide meaningful context in error messages.
-- Handle errors at the appropriate boundary.
+### Environment variables
 
-### Low Cyclomatic Complexity
+- `EXPENSES_TRACKER_R2DBC_URL`, `EXPENSES_TRACKER_R2DBC_USERNAME`, `EXPENSES_TRACKER_R2DBC_PASSWORD`
+- `EXPENSES_TRACKER_FLYWAY_JDBC_URL`, `EXPENSES_TRACKER_FLYWAY_USERNAME`, `EXPENSES_TRACKER_FLYWAY_PASSWORD`
+- `SYNC_FILE_PATH`, `SYNC_FILE_COMPRESSION_ENABLED`
 
-- Use **guard clauses / early returns** to reduce nesting.
-- Extract complex conditions into well-named helper functions.
-- Aim for **no more than 2 levels of indentation** inside a function body.
-- Avoid nested loops — extract into helpers or use functional operations.
+### Key files to read before editing
 
-### Separation of Concerns
-
-- **Presentation** — controllers
-- **Business logic** — services
-- **Data access** — repositories
-- **Mapping / transformation** — dedicated mappers or utility functions
-- **Configuration** — separate config classes / constants files
-
-### Test Pyramid
-
-- Favour **unit tests** (fast, many) over integration tests (moderate) over E2E tests (few).
-- Each test should follow **Arrange → Act → Assert** (Given / When / Then).
-- Test behaviour, not implementation details.
-- Use meaningful test names that describe the scenario and expected outcome.
-
-### Design Patterns
-
-- Choose patterns based on the problem, not the other way around.
-- Don't over-engineer with patterns when simple solutions suffice.
-- Common applicable patterns: Factory, Strategy, Repository, Builder, Observer.
-
-### Dependency Management
-
-- Only include dependencies you actually need.
-- Regularly review and remove unused packages.
-- Use **dependency injection** to promote loose coupling and testability.
-
-### Logging
-
-- Use appropriate log levels (TRACE/DEBUG/INFO/WARN/ERROR).
-- Use structured logging with named parameters — not string interpolation.
-- **Never log** sensitive data (passwords, tokens, PII).
-- Include correlation context (IDs) in log messages.
+- **Command/query:** `ExpenseCommandService`, `ExpenseQueryService`, `ExpensesController`
+- **Sync:** `ExpenseEventSyncService`, `SyncFileManager`, `RemoteEventProcessor`, `ExpenseSyncProjector`,
+  `ExpenseSyncRecorder`
+- **Correctness tests:** `ExpenseProjectionRepositoryTest`, `ExpenseSyncProjectorTransactionTest`,
+  `ExpenseEventSyncServiceTest`, `ExpenseCommandServiceTransactionTest`
 
 ---
 
-## General Coding Rules
+## Coding Style (project-specific emphasis)
 
-- Always check for compile/lint errors after edits.
-- Prefer reading enough context before editing — don't guess file structure.
-- When multiple independent edits are needed, batch them where possible.
-- Keep files focused — extract when a class has too many responsibilities.
+These are not generic principles — they highlight areas where this codebase has specific expectations
+that differ from defaults or are frequently violated.
 
+- **Separation of concerns is enforced by package**: controllers (HTTP only, no logic) → services (business logic,
+  `@Transactional`) → repositories (data access, `@Query`). All entity↔DTO mapping goes through `ExpenseMapper`.
+- **Constructor injection only** — never `@Autowired` fields. Kotlin primary constructors make this natural.
+- **Consistent vocabulary**: use `find` (not `get`/`retrieve`), `project` (not `apply`/`save`) for event→projection,
+  `append` (not `add`/`insert`) for event store writes.
+- **Logging**: declare in `companion object` with `LoggerFactory.getLogger(...)`. Use SLF4J placeholders (
+  `logger.info("Created: {}", id)`), never string interpolation. Never log PII.
+- **Comments explain "why", not "what"** — self-documenting code is the goal. Add comments for non-obvious architectural
+  decisions (e.g., why Projector and Recorder are separate classes).
+- **Small functions (10–20 lines)**, guard clauses over nested `if`, max 2 levels of indentation.
+- **Always check for errors after edits.** Prefer reading enough context before editing — don't guess file structure.
