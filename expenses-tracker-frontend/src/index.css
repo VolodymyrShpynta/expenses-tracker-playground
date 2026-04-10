@@ -1,0 +1,12 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  font-family: 'Roboto', sans-serif;
+}
+
+/* Prevent body scroll — layout handles scroll internally */
+body {
+  overflow: hidden;
+}

@@ -7,6 +7,7 @@ flyway = "11.16.0"
 testcontainers = "1.21.4"
 mockito-kotlin = "6.2.1"
 commons-codec = "1.20.0"
+node-gradle = "7.1.0"
 
 [libraries]
 # Spring Boot
@@ -50,3 +51,4 @@ kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
 spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
+node = { id = "com.github.node-gradle.node", version.ref = "node-gradle" }

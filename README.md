@@ -1,13 +1,16 @@
 # Expenses Tracker with Event Sourcing & CQRS
 
 A production-ready, fully reactive expense tracking application with **conflict-free, idempotent multi-device
-synchronization** built with **Spring Boot 4**, **Kotlin Coroutines**, **R2DBC**, and **PostgreSQL**. This project
-implements a complete **Event Sourcing** and **CQRS** architecture with an optimized sync engine designed for eventual
+synchronization** built with **Spring Boot 4**, **Kotlin Coroutines**, **R2DBC**, and **PostgreSQL**. The project
+includes a **React 19 + TypeScript + MUI v7** frontend for managing expenses via a responsive web UI.
+It implements a complete **Event Sourcing** and **CQRS** architecture with an optimized sync engine designed for
+eventual
 consistency across multiple devices without a central server.
 
 ## 🌟 What Makes This Project Special?
 
 - ✨ **Modern Stack**: Spring Boot 4, Kotlin 2.3.10, Java 21 LTS, PostgreSQL 17
+- 🎨 **React Frontend**: React 19, TypeScript, MUI v7, Vite — responsive for mobile & desktop
 - 🏗️ **Event Sourcing & CQRS**: Proper event-driven architecture with separate read/write models
 - 🔄 **Multi-Device Sync**: Decentralized synchronization via shared file (Dropbox, Google Drive)
 - 🛡️ **Battle-Tested**: Comprehensive test suite with Testcontainers and real PostgreSQL
@@ -42,6 +45,10 @@ consistency across multiple devices without a central server.
     - [Why PostgreSQL for Tests](#why-postgresql-for-tests)
 - [Configuration](#-configuration)
 - [Getting Started](#-getting-started)
+    - [Running the Backend](#running-the-backend)
+    - [Running the Frontend](#running-the-frontend)
+    - [Running Both (Full Stack)](#running-both-full-stack)
+- [Frontend](#-frontend)
 - [API Documentation](#-api-documentation)
 - [Testing](#-testing)
 - [Android Migration Path](#-android-migration-path)
@@ -99,6 +106,7 @@ cloud storage like Dropbox, Google Drive, etc.). The sync engine is designed to 
 ### Technology
 
 - ✅ **Fully Reactive Stack** - Spring WebFlux + Kotlin Coroutines + R2DBC
+- ✅ **React Frontend** - React 19 + TypeScript + MUI v7, responsive for mobile & desktop
 - ✅ **REST API** - CRUD operations for expense management
 - ✅ **Database Migrations** - Flyway with PostgreSQL
 - ✅ **Testcontainers** - Real PostgreSQL for integration tests
@@ -136,25 +144,37 @@ cloud storage like Dropbox, Google Drive, etc.). The sync engine is designed to 
 - **AssertJ** - Fluent assertions
 - **Docker Compose** - Container orchestration
 
+### Frontend
+
+- **React 19** - UI library
+- **TypeScript** - Type-safe JavaScript (strict mode)
+- **MUI (Material UI) v7** - Component library
+- **Vite 8** - Build tool and dev server
+- **React Router DOM v7** - Client-side routing
+- **@mui/x-charts** - Charting (donut/pie charts for category breakdown)
+
 ---
 
 ## 📁 Project Structure
 
 ```
 expenses-tracker-playground/
-├── expenses-tracker-api/          # Main application module
+├── expenses-tracker-api/          # Backend application module
 │   ├── src/
 │   │   ├── main/
 │   │   │   ├── kotlin/com/vshpynta/expenses/api/
 │   │   │   │   ├── config/            # Configuration classes
 │   │   │   │   ├── controller/        # REST API endpoints
 │   │   │   │   │   ├── dto/          # Data Transfer Objects
-│   │   │   │   │   └── ExpensesController.kt
+│   │   │   │   │   │   └── ExpenseDtos.kt
+│   │   │   │   │   ├── ExpensesController.kt
+│   │   │   │   │   └── GlobalExceptionHandler.kt
 │   │   │   │   ├── model/            # Domain models
 │   │   │   │   │   ├── ExpenseEvent.kt         # Event store model
 │   │   │   │   │   ├── ExpenseProjection.kt    # Read model
 │   │   │   │   │   ├── EventType.kt            # Event types enum
-│   │   │   │   │   ├── EventEntry.kt           # Sync event entry
+│   │   │   │   │   ├── EventSyncFile.kt        # Sync file format + EventEntry
+│   │   │   │   │   ├── ExpensePayload.kt       # JSON payload model
 │   │   │   │   │   └── ProcessedEvent.kt       # Idempotency tracking
 │   │   │   │   ├── repository/       # Data access layer
 │   │   │   │   │   ├── ExpenseEventRepository.kt      # Event store
@@ -164,9 +184,14 @@ expenses-tracker-playground/
 │   │   │   │   │   ├── ExpenseCommandService.kt       # CQRS write side
 │   │   │   │   │   ├── ExpenseQueryService.kt         # CQRS read side
 │   │   │   │   │   ├── ExpenseEventSyncService.kt     # Sync orchestration
-│   │   │   │   │   ├── EventProjector.kt              # Event projection
+│   │   │   │   │   ├── ExpenseMapper.kt               # Entity ↔ DTO mapping
+│   │   │   │   │   ├── ExpenseSyncProjector.kt        # Idempotency + cache layer
 │   │   │   │   │   ├── ExpenseSyncRecorder.kt         # Transactional recorder
+│   │   │   │   │   ├── ProcessedEventsCache.kt        # In-memory cache
 │   │   │   │   │   └── sync/                          # Sync subsystem
+│   │   │   │   │       ├── FileOperations.kt          # File I/O utilities
+│   │   │   │   │       ├── RemoteEventProcessor.kt    # Remote event processing
+│   │   │   │   │       └── SyncFileManager.kt         # Sync file read/write
 │   │   │   │   ├── util/             # Utilities
 │   │   │   │   └── ExpensesTrackerApiApplication.kt
 │   │   │   └── resources/
@@ -182,11 +207,45 @@ expenses-tracker-playground/
 │   │           └── application-test.yaml
 │   ├── build.gradle.kts
 │   └── Dockerfile
+├── expenses-tracker-frontend/     # Frontend React application
+│   ├── src/
+│   │   ├── main.tsx               # Entry point (StrictMode, BrowserRouter)
+│   │   ├── App.tsx                # Layout shell + Routes + ThemeProvider
+│   │   ├── theme.ts               # MUI dark/light theme with toggle
+│   │   ├── api/                   # Typed fetch wrappers for REST API
+│   │   │   └── expenses.ts
+│   │   ├── components/            # Shared reusable components
+│   │   │   ├── Layout.tsx         # Responsive shell (sidebar + bottom nav)
+│   │   │   ├── CategoryCard.tsx   # Category summary card with icon
+│   │   │   ├── CategoryDonutChart.tsx  # Donut chart (MUI X Charts)
+│   │   │   ├── ColorModeToggle.tsx     # Dark/light toggle button
+│   │   │   └── DateRangeSelector.tsx   # Date range navigator
+│   │   ├── hooks/                 # Custom React hooks
+│   │   │   ├── useExpenses.ts     # Fetch expenses with loading/error
+│   │   │   └── useCategorySummary.ts  # Derive category totals
+│   │   ├── pages/                 # Page-level components (one per route)
+│   │   │   ├── CategoriesPage.tsx # Main screen: categories + donut chart
+│   │   │   ├── TransactionsPage.tsx   # Transaction list
+│   │   │   ├── AddExpensePage.tsx     # Create expense form
+│   │   │   └── OverviewPage.tsx       # Overview (placeholder)
+│   │   ├── types/                 # TypeScript interfaces
+│   │   │   └── expense.ts         # Expense, CategorySummary, etc.
+│   │   └── utils/                 # Pure utility functions
+│   │       ├── format.ts          # Currency formatting (cents → display)
+│   │       └── categoryConfig.ts  # Category → icon/color mapping
+│   ├── build.gradle.kts           # Gradle build (npm install + build via node plugin)
+│   ├── Dockerfile                 # Multi-stage build (Node → nginx)
+│   ├── nginx.conf                 # nginx config (static files + /api proxy)
+│   ├── .dockerignore
+│   ├── package.json
+│   ├── vite.config.ts             # Vite + /api proxy to backend
+│   ├── tsconfig.json
+│   └── index.html
 ├── gradle/
 │   ├── libs.versions.toml           # Centralized dependency versions
 │   └── wrapper/
 ├── build.gradle.kts                  # Root build configuration
-├── settings.gradle.kts               # Multi-module configuration
+├── settings.gradle.kts               # Multi-module configuration (api + frontend)
 ├── docker-compose.yml                # Container orchestration
 ├── expenses-tracker-api.http         # HTTP request examples
 └── README.md
@@ -748,9 +807,9 @@ The sync system uses a well-designed component hierarchy:
 
 **Design notes:**
 
-- `ops` array is append-only (never delete or modify)
-- `snapshot` reserved for future optimization (full state snapshots)
-- Operations contain complete expense state (not deltas)
+- `events` array is append-only (never delete or modify)
+- `snapshot` is an optional field for full state snapshots (defined in `EventSyncFile.kt`)
+- Events contain complete expense state (not deltas)
 - JSON format for human readability and debugging
 
 ### Component Diagram
@@ -760,7 +819,7 @@ The sync system uses a well-designed component hierarchy:
 │                         Device A                                  │
 │                                                                   │
 │  ┌─────────────┐      ┌──────────────────┐                        │
-│  │ Controller  │─────►│ ExpenseService   │                        │
+│  │ Controller  │─────►│ Command / Query  │                        │
 │  └─────────────┘      └────────┬─────────┘                        │
 │                                │                                  │
 │                                ▼                                  │
@@ -779,23 +838,23 @@ The sync system uses a well-designed component hierarchy:
 │  ┌─────────────────────────────────────────────────────┐          │
 │  │         ExpenseEventSyncService                     │          │
 │  │  • collectLocalEvents()                             │          │
-│  │  • appendEventsToFile()      ───► sync.json         │          │
-│  │  • readRemoteEvents()        ◄─── sync.json         │          │
-│  │  • applyRemoteEvents()                              │          │
+│  │  • SyncFileManager.appendEvents()  ───► sync.json   │          │
+│  │  • SyncFileManager.readEvents()    ◄─── sync.json   │          │
+│  │  • RemoteEventProcessor.processRemoteEvents()       │          │
 │  └──────────────────┬──────────────────────────────────┘          │
 │                     │                                             │
 │                     ▼                                             │
 │  ┌───────────────────────────────────────────────────┐            │
-│  │    SyncOperationExecutor (@Transactional)         │            │
-│  │    • executeIfNotApplied()                        │            │
+│  │    ExpenseSyncProjector (Idempotency + Cache)     │            │
+│  │    └─► ExpenseSyncRecorder (@Transactional)       │            │
 │  └────────────────┬──────────────────────────────────┘            │
 │                   │                                               │
 │      ┌────────────┴──────────┬────────────────┐                   │
 │      ▼                       ▼                ▼                   │
-│ ┌──────────┐  ┌────────────────────┐  ┌───────────────┐           │
-│ │ Expense  │  │ Applied Operations │  │  Operation    │           │
-│ │Repository│  │ Repository         │  │  Repository   │           │
-│ └──────────┘  └────────────────────┘  └───────────────┘           │
+│ ┌──────────────┐  ┌───────────────────┐  ┌─────────────────┐      │
+│ │  Projection  │  │ ProcessedEvent    │  │  ExpenseEvent   │      │
+│ │  Repository  │  │ Repository        │  │  Repository     │      │
+│ └──────────────┘  └───────────────────┘  └─────────────────┘      │
 └───────────────────────────────────────────────────────────────────┘
 
                          ↕ sync.json ↕
@@ -812,8 +871,8 @@ The sync system uses a well-designed component hierarchy:
 
 ```
 BEGIN TRANSACTION
-    INSERT INTO operations (op_id, ts, device_id, ...)
-    INSERT INTO expenses (...) ON CONFLICT DO UPDATE WHERE ...
+    INSERT INTO expense_events (event_id, timestamp, event_type, expense_id, payload, committed)
+    INSERT INTO expense_projections (...) ON CONFLICT DO UPDATE WHERE EXCLUDED.updated_at > ...
 COMMIT
 ```
 
@@ -823,7 +882,7 @@ COMMIT
 BEGIN TRANSACTION
     SELECT FROM processed_events WHERE event_id = ?
     (if not processed):
-        INSERT INTO expense_projections (...) ON CONFLICT DO UPDATE WHERE ...
+        INSERT INTO expense_projections (...) ON CONFLICT DO UPDATE WHERE EXCLUDED.updated_at > ...
         INSERT INTO processed_events (event_id)
         UPDATE expense_events SET committed = true WHERE event_id = ?
 COMMIT
@@ -841,17 +900,17 @@ COMMIT
 
 **Q: What if we apply the same operation twice?**
 
-**A:** Prevented by `applied_operations` table:
+**A:** Prevented by `processed_events` table:
 
 ```kotlin
 // First application
-if (!appliedOperationRepository.hasBeenApplied(opId)) {
+if (!processedEventRepository.hasBeenProcessed(eventId)) {
     // Apply operation
-    appliedOperationRepository.markAsApplied(opId)
+    processedEventRepository.markAsProcessed(eventId)
 }  // Returns true
 
 // Second application (duplicate)
-if (!appliedOperationRepository.hasBeenApplied(opId)) {
+if (!processedEventRepository.hasBeenProcessed(eventId)) {
     // Skipped!
 }  // Returns false
 ```
@@ -864,7 +923,7 @@ if (!appliedOperationRepository.hasBeenApplied(opId)) {
 
 ```sql
 ON CONFLICT (id) DO
-UPDATE SET...WHERE EXCLUDED.updated_at > expenses.updated_at
+UPDATE SET...WHERE EXCLUDED.updated_at > expense_projections.updated_at
 ```
 
 If timestamp not newer → no update (returns 0 rows).
@@ -873,12 +932,12 @@ If timestamp not newer → no update (returns 0 rows).
 
 **Q: What if network failure causes operation retry?**
 
-**A:** Same mechanism - operation ID already in `applied_operations`:
+**A:** Same mechanism - event ID already in `processed_events`:
 
 ```
-Attempt 1: Apply op-123 → Success, inserted into applied_operations
+Attempt 1: Apply event-123 → Success, inserted into processed_events
 Network error during response
-Attempt 2: Apply op-123 → Skipped (already in applied_operations)
+Attempt 2: Apply event-123 → Skipped (already in processed_events)
 ```
 
 ---
@@ -893,7 +952,7 @@ Every change to every expense is permanently recorded:
 
 ```sql
 -- See complete history of an expense
-SELECT event_id, timestamp, event_type, device_id
+SELECT event_id, timestamp, event_type, payload
 FROM expense_events
 WHERE expense_id = 'c4f3d7e9-8b2a-4e6c-9d1f-5a8b3c7e2f0d'
 ORDER BY timestamp;
@@ -1265,40 +1324,6 @@ class ExpenseSyncRecorder(
 - ✅ Clean separation of concerns
 - ✅ Testable components
 
-**Why it doesn't work:**
-
-- Self-invocation bypasses Spring proxy
-- `@Transactional` annotation ignored
-- No transaction started!
-
-**Solution:** Separate component
-
-```kotlin
-@Component
-class SyncOperationExecutor {
-    @Transactional
-    suspend fun executeIfNotApplied(op: OpEntry) {
-        ...
-    }
-}
-
-class SyncService(
-    private val syncOperationExecutor: SyncOperationExecutor  // Injected proxy!
-) {
-    suspend fun applyAll(ops: List<OpEntry>) {
-        ops.forEach {
-            syncOperationExecutor.executeIfNotApplied(it)  // ✅ Goes through proxy!
-        }
-    }
-}
-```
-
-**Benefits:**
-
-- ✅ Transactions work correctly
-- ✅ Separation of concerns
-- ✅ Testable with mocks
-
 ### Why PostgreSQL for Tests?
 
 **Original approach:** H2 with PostgreSQL compatibility mode
@@ -1328,7 +1353,7 @@ class SyncService(
 
 ---
 
-## ⚙️ Configuration
+## ⚙ Configuration
 
 ### Environment Variables
 
@@ -1372,6 +1397,11 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
+    datasource:
+      jdbc-url: ${EXPENSES_TRACKER_FLYWAY_JDBC_URL:jdbc:postgresql://localhost:5432/expenses_db}
+      username: ${EXPENSES_TRACKER_FLYWAY_USERNAME:postgres}
+      password: ${EXPENSES_TRACKER_FLYWAY_PASSWORD:postgres}
+      driver-class-name: org.postgresql.Driver
 
 sync:
   file:
@@ -1404,6 +1434,14 @@ services:
       EXPENSES_TRACKER_R2DBC_URL: r2dbc:postgresql://postgres:5432/expenses_db
     ports:
       - "8080:8080"
+
+  expenses-frontend:
+    build: ./expenses-tracker-frontend
+    depends_on:
+      expenses-api:
+        condition: service_healthy
+    ports:
+      - "3000:80"
 ```
 
 ---
@@ -1415,20 +1453,103 @@ services:
 - **Java 21** (or compatible JDK)
 - **Docker & Docker Compose**
 - **Gradle 9.4.0** (or use included wrapper)
+- **Node.js 22+** and **npm** (required — the Gradle build includes the frontend via the node plugin)
 
 ### Quick Start
 
-#### 1. Clone & Build
+#### Clone & Build
 
 ```bash
 git clone <your-repo-url>
 cd expenses-tracker-playground
+
+# Build everything (backend + frontend)
 ./gradlew build
 ```
 
-#### 2. Start with Docker Compose
+> **Note:** `./gradlew build` builds both the backend API and the frontend (via the
+> `com.github.node-gradle.node` Gradle plugin). Node.js and npm must be installed on
+> the system. To build modules individually:
+>
+> ```bash
+> ./gradlew :expenses-tracker-api:build       # Backend only
+> ./gradlew :expenses-tracker-frontend:build   # Frontend only
+> ```
 
-##### Configuration Overview
+#### Running the Backend
+
+##### Start PostgreSQL (required)
+
+```bash
+docker compose up -d postgres
+```
+
+##### Run the API server
+
+```bash
+./gradlew :expenses-tracker-api:bootRun
+```
+
+The backend API starts on **http://localhost:8080**.
+
+#### Running the Frontend
+
+In a separate terminal:
+
+```bash
+cd expenses-tracker-frontend
+npm run dev
+```
+
+The frontend dev server starts on **http://localhost:3000** and proxies API requests to the backend at `localhost:8080`.
+
+Open **http://localhost:3000** in your browser.
+
+#### Running Both (Full Stack)
+
+The recommended local development workflow:
+
+**Terminal 1 — Database:**
+
+```bash
+docker compose up -d postgres
+```
+
+**Terminal 2 — Backend API:**
+
+```bash
+./gradlew :expenses-tracker-api:bootRun
+```
+
+**Terminal 3 — Frontend:**
+
+```bash
+cd expenses-tracker-frontend
+npm run dev
+```
+
+Open **http://localhost:3000** to use the application.
+
+> **Tip:** The Vite dev server (`npm run dev`) automatically proxies `/api/*` requests to the
+> backend at `localhost:8080`, so no CORS configuration is needed during development.
+
+#### Production Build (Frontend)
+
+```bash
+# Via Gradle (recommended — same as CI)
+./gradlew :expenses-tracker-frontend:build
+
+# Or via npm directly
+cd expenses-tracker-frontend
+npm run build    # TypeScript check + Vite production build
+npm run preview  # Preview the production build locally
+```
+
+The production bundle is output to `expenses-tracker-frontend/dist/`.
+
+### Docker Compose (Alternative)
+
+#### Configuration Overview
 
 The project is **pre-configured for two scenarios**:
 
@@ -1440,13 +1561,13 @@ The project is **pre-configured for two scenarios**:
 
 **Scenario 2: Full Docker Compose (Uses .env file)**
 
-- Both PostgreSQL and application in Docker
-- `docker-compose.yml` uses `postgres` service name
+- PostgreSQL, backend API, and frontend all in Docker
+- `docker-compose.yml` uses `postgres` service name for inter-container networking
 - Copy `.env.example` to `.env` if you want to customize
 
 ##### Using Docker Compose (Recommended)
 
-**Start all services (database + application):**
+**Start all services (database + backend + frontend):**
 
 ```bash
 docker compose up -d --build
@@ -1455,8 +1576,11 @@ docker compose up -d --build
 - `-d` runs containers in detached mode (background)
 - `--build` rebuilds images if Dockerfile or code changed
 - Starts PostgreSQL database on port 5432
-- Starts the application on port 8080
+- Starts the backend API on port 8080
+- Starts the frontend (nginx) on port 3000
 - **Note:** Works without .env file (uses defaults from docker-compose.yml)
+
+Open **http://localhost:3000** in your browser.
 
 **View logs:**
 
@@ -1466,6 +1590,7 @@ docker compose logs -f
 
 # Specific service
 docker compose logs -f expenses-api
+docker compose logs -f expenses-frontend
 docker compose logs -f postgres
 
 # Last 100 lines
@@ -1668,8 +1793,14 @@ docker compose rm
 **Rebuild and restart:**
 
 ```bash
-# Rebuild after code changes
+# Rebuild after backend code changes
 ./gradlew :expenses-tracker-api:bootJar
+docker compose up -d --build expenses-api
+
+# Rebuild after frontend code changes
+docker compose up -d --build expenses-frontend
+
+# Rebuild everything
 docker compose up -d --build
 
 # Force rebuild (no cache)
@@ -1718,8 +1849,10 @@ docker compose stop postgres
 **2. Full Stack in Docker:**
 
 ```bash
-# Start everything
-docker compose up -d
+# Start everything (postgres + api + frontend)
+docker compose up -d --build
+
+# Open http://localhost:3000 in your browser
 
 # View all logs
 docker compose logs -f
@@ -1731,14 +1864,18 @@ docker compose down
 **3. Rebuild After Code Changes:**
 
 ```bash
-# Build new JAR
+# Rebuild and restart only the backend
 ./gradlew :expenses-tracker-api:bootJar
-
-# Rebuild and restart only the app
 docker compose up -d --build expenses-api
 
+# Rebuild and restart only the frontend
+docker compose up -d --build expenses-frontend
+
+# Rebuild everything
+docker compose up -d --build
+
 # View logs to verify
-docker compose logs -f expenses-api
+docker compose logs -f expenses-api expenses-frontend
 ```
 
 **4. Database Inspection:**
@@ -1773,12 +1910,10 @@ docker compose up -d
 docker compose ps
 ```
 
-```
-
-
 ##### Troubleshooting Docker Compose
 
 **Port already in use:**
+
 ```bash
 # Find process using port 8080 (Linux/Mac)
 lsof -i :8080
@@ -1875,11 +2010,9 @@ You can customize the application with environment variables:
 
 ```yaml
 environment:
-  - SPRING_R2DBC_URL=r2dbc:postgresql://expenses-db:5432/expenses_db
-  - SPRING_R2DBC_USERNAME=postgres
-  - SPRING_R2DBC_PASSWORD=postgres
-  - SPRING_R2DBC_POOL_INITIAL_SIZE=10
-  - SPRING_R2DBC_POOL_MAX_SIZE=20
+  - EXPENSES_TRACKER_R2DBC_URL=r2dbc:postgresql://postgres:5432/expenses_db
+  - EXPENSES_TRACKER_R2DBC_USERNAME=postgres
+  - EXPENSES_TRACKER_R2DBC_PASSWORD=postgres
   - SYNC_FILE_PATH=/app/sync-data/sync.json
   - LOGGING_LEVEL_ROOT=INFO
   - LOGGING_LEVEL_COM_VSHPYNTA=DEBUG
@@ -2077,9 +2210,11 @@ POSTGRES_PASSWORD=mysecret docker compose up -d
 $env:POSTGRES_PASSWORD="mysecret"; docker compose up -d
 ```
 
-The application starts on `http://localhost:8080`
+The backend API starts on `http://localhost:8080` and the frontend on `http://localhost:3000`.
 
-#### 3. Create an Expense
+### Quick API Test
+
+**Create an Expense:**
 
 ```bash
 curl -X POST http://localhost:8080/api/expenses \
@@ -2092,17 +2227,64 @@ curl -X POST http://localhost:8080/api/expenses \
   }'
 ```
 
-#### 4. Trigger Sync
+**Trigger Sync:**
 
 ```bash
 curl -X POST http://localhost:8080/api/expenses/sync
 ```
 
-#### 5. Check Sync File
+**Check Sync File:**
 
 ```bash
 cat sync-data/sync.json
 ```
+
+---
+
+## 🎨 Frontend
+
+The frontend is a **React 19 + TypeScript + MUI v7** single-page application that consumes the backend REST API.
+
+### Features
+
+- **Dark / Light theme** — persisted in `localStorage`, toggle via the sun/moon icon in the app bar
+- **Responsive layout** — bottom navigation + hamburger menu on mobile; permanent sidebar on desktop
+- **Categories screen** — category grid with colored icons, amounts, and a donut chart of total expenses
+- **Transactions screen** — chronological list of all expenses with category chips
+- **Add Expense** — form with category selector, amount (dollars, converted to cents), and date picker
+- **Floating Action Button** — quick access to add expense from any screen
+
+### Architecture
+
+```
+expenses-tracker-frontend/src/
+├── main.tsx            # Entry (StrictMode, BrowserRouter)
+├── App.tsx             # Routes + ThemeProvider + ColorMode context
+├── theme.ts            # MUI dark/light theme (ColorModeToggleContext)
+├── api/                # Typed fetch wrappers (all REST endpoints)
+├── components/         # Shared UI: Layout, CategoryCard, DonutChart, …
+├── hooks/              # useExpenses, useCategorySummary
+├── pages/              # CategoriesPage, TransactionsPage, AddExpensePage, …
+├── types/              # Expense interfaces (mirrors backend DTOs)
+└── utils/              # formatCurrency, categoryConfig (icon/color map)
+```
+
+### Commands
+
+```bash
+cd expenses-tracker-frontend
+
+npm run dev      # Vite dev server on port 3000 (proxies /api → localhost:8080)
+npm run build    # TypeScript + Vite production build → dist/
+npm run lint     # ESLint
+npm run preview  # Preview production build locally
+```
+
+### API Proxy
+
+During development, Vite proxies all `/api/*` requests to `http://localhost:8080` (configured in `vite.config.ts`).
+No CORS setup is needed. In Docker Compose production mode, the frontend is served by nginx which proxies `/api/*`
+to the `expenses-api` container (configured in `nginx.conf`).
 
 ---
 
@@ -2296,7 +2478,7 @@ curl -X POST "$API_URL/api/expenses" \
     - Last-write-wins conflict resolution
     - Sync file compression and decompression
 
-4. **Controller Integration Tests** - `ExpensesControllerTest`
+4. **Controller Integration Tests** - `SyncExpenseControllerTest`
     - Full API endpoint integration
     - Request/response validation
     - CRUD operations end-to-end testing
@@ -2343,18 +2525,18 @@ The project uses **Testcontainers** with real PostgreSQL for integration testing
 
 ```yaml
 spring:
-  r2dbc:
-    url: # Set by Testcontainers dynamically
+  # Testcontainers will automatically configure both R2DBC and JDBC via @ServiceConnection
+  # This requires Docker to be running!
   flyway:
     enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
 
 sync:
   file:
     path: ./build/test-sync-data/sync.json
     compression:
-      enabled: true
-  device:
-    id: device-test
+      enabled: false  # Disable compression in tests for simplicity
 ```
 
 ### Key Test Scenarios
@@ -2935,7 +3117,7 @@ docker logs expenses-api | Select-String -Pattern "sync" -CaseSensitive:$false
 
 **Verify @Transactional working:**
 
-- Check `EventProjector` and `ExpenseSyncRecorder` are separate components
+- Check `ExpenseSyncProjector` and `ExpenseSyncRecorder` are separate components
 - Verify injection (not `this.method()` calls)
 - Look for rollback in logs
 - Ensure R2DBC connection pooling is configured correctly
@@ -2971,10 +3153,13 @@ docker compose up -d postgres
 
 ## 🔄 CI/CD
 
-The project includes a GitHub Actions workflow (`.github/workflows/ci.yml`) that runs on every push to `main` and on all pull requests:
+The project includes a GitHub Actions workflow (`.github/workflows/ci.yml`) that runs on every push to `main` and on all
+pull requests:
 
-1. **Build & Test** — Sets up JDK 21 with Gradle caching, then runs `./gradlew build` (includes all tests with Testcontainers)
-2. **Docker Image** — On `main` branch pushes only, builds the Docker image to validate the Dockerfile (no push — this is a playground project)
+1. **Build & Test** — Sets up JDK 21 and Node.js with Gradle caching, then runs `./gradlew build` (includes backend
+   tests with Testcontainers and the frontend build via the Gradle node plugin)
+2. **Docker Images** — On `main` branch pushes only, builds Docker images for both the backend API and the frontend to
+   validate the Dockerfiles (no push — this is a playground project)
 
 ---
 
@@ -2983,10 +3168,12 @@ The project includes a GitHub Actions workflow (`.github/workflows/ci.yml`) that
 This project includes **GitHub Copilot instruction files** that provide AI coding assistants with project-specific
 context, conventions, and architectural rules. They live in the `.github/` directory:
 
-| File                                                        | Scope                     | Description                                                                                                                                                  |
-|-------------------------------------------------------------|---------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `.github/copilot-instructions.md`                           | Entire workspace          | Project overview, clean code principles (SOLID, DRY, KISS, YAGNI), general coding rules                                                                      |
-| `.github/instructions/expenses-tracker-api.instructions.md` | `expenses-tracker-api/**` | Backend-specific rules: Kotlin/Spring Boot conventions, reactive stack patterns, CQRS/event sourcing guidance, testing conventions (AssertJ, Testcontainers) |
+| File                                                             | Scope                          | Description                                                                                                                                                  |
+|------------------------------------------------------------------|--------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `.github/copilot-instructions.md`                                | Entire workspace               | Project overview, clean code principles (SOLID, DRY, KISS, YAGNI), general coding rules                                                                      |
+| `.github/instructions/expenses-tracker-api.instructions.md`      | `expenses-tracker-api/**`      | Backend-specific rules: Kotlin/Spring Boot conventions, reactive stack patterns, CQRS/event sourcing guidance, testing conventions (AssertJ, Testcontainers) |
+| `.github/instructions/expenses-tracker-frontend.instructions.md` | `expenses-tracker-frontend/**` | Frontend-specific rules: React 19 + TypeScript conventions, MUI v7 practices (slotProps, sx), component/hook patterns, form validation with Zod              |
+| `.github/instructions/test-conventions.instructions.md`          | Test files                     | Testing conventions: naming, structure, assertions, Testcontainers usage                                                                                     |
 
 These files are automatically picked up by Copilot when editing matching files, ensuring AI suggestions follow the
 project's architecture, naming conventions, and best practices.
@@ -3002,6 +3189,9 @@ project's architecture, naming conventions, and best practices.
 - [R2DBC](https://r2dbc.io/)
 - [Spring Data R2DBC](https://docs.spring.io/spring-data/r2dbc/reference/)
 - [Testcontainers](https://www.testcontainers.org/)
+- [React](https://react.dev/)
+- [MUI (Material UI)](https://mui.com/)
+- [Vite](https://vite.dev/)
 
 ### Key Learnings
 
@@ -3011,10 +3201,10 @@ project's architecture, naming conventions, and best practices.
 
 ---
 
-**Built with ❤️ using Spring Boot 4, Kotlin, R2DBC, and PostgreSQL**
+**Built with ❤️ using Spring Boot 4, Kotlin, R2DBC, PostgreSQL, React 19, TypeScript & MUI v7**
 
 **Version:** 0.0.1-SNAPSHOT  
-**Last Updated:** March 2026  
+**Last Updated:** April 2026  
 **Project Status:** Active Development
 
 ### Tech Stack Versions
@@ -3026,3 +3216,7 @@ project's architecture, naming conventions, and best practices.
 - Flyway: 11.16.0
 - Testcontainers: 1.21.4
 - Gradle: 9.4.0
+- React: 19.2
+- TypeScript: 5.9
+- MUI: 7.3
+- Vite: 8.0

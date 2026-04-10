@@ -19,12 +19,19 @@ jobs:
           distribution: corretto
           java-version: '21'
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build with Gradle
         run: ./gradlew build
 
-      - name: Build Docker image
+      - name: Build Docker images
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: docker build -t expenses-tracker-api ./expenses-tracker-api
+        run: |
+          docker build -t expenses-tracker-api ./expenses-tracker-api
+          docker build -t expenses-tracker-frontend ./expenses-tracker-frontend
