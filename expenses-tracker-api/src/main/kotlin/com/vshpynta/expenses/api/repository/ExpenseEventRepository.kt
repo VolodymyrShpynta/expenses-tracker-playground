@@ -22,7 +22,7 @@ interface ExpenseEventRepository : CoroutineCrudRepository<ExpenseEvent, UUID> {
      * Ordered by timestamp for chronological processing
      */
     @Query("SELECT * FROM expense_events WHERE committed = false ORDER BY timestamp")
-    suspend fun findUncommittedEvents(): Flow<ExpenseEvent>
+    fun findUncommittedEvents(): Flow<ExpenseEvent>
 
     /**
      * Mark events as committed by their event IDs

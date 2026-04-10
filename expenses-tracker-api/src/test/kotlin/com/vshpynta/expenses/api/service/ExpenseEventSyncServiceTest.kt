@@ -86,10 +86,10 @@ class ExpenseEventSyncServiceTest {
 
         // When: Sync twice (should apply events only once)
         expenseEventSyncService.performFullSync()
-        val firstSyncExpenses = queryService.getAllExpenses().toList()
+        val firstSyncExpenses = queryService.findAllExpenses().toList()
 
         expenseEventSyncService.performFullSync()
-        val secondSyncExpenses = queryService.getAllExpenses().toList()
+        val secondSyncExpenses = queryService.findAllExpenses().toList()
 
         // Then: Should have same number of expenses (idempotent)
         assertThat(firstSyncExpenses).hasSameSizeAs(secondSyncExpenses)
@@ -127,7 +127,7 @@ class ExpenseEventSyncServiceTest {
         expenseEventSyncService.performFullSync()
 
         // Then: The final result should reflect the later update (7500 from UPDATE)
-        val expense = queryService.getExpenseById(expenseId)
+        val expense = queryService.findExpenseById(expenseId)
         assertThat(expense).isNotNull()
         assertThat(expense!!.amount).isEqualTo(7500L)
     }
@@ -164,7 +164,7 @@ class ExpenseEventSyncServiceTest {
         expenseEventSyncService.performFullSync()
 
         // Then: Device 2's update should win (later timestamp)
-        val expense = queryService.getExpenseById(expenseId)
+        val expense = queryService.findExpenseById(expenseId)
         assertThat(expense).isNotNull()
         assertThat(expense!!.amount).isEqualTo(2000L)
         assertThat(expense.description).isEqualTo("Device 2 version")
@@ -208,7 +208,7 @@ class ExpenseEventSyncServiceTest {
         expenseEventSyncService.performFullSync()
 
         // Then: Expense should be soft-deleted
-        val expense = queryService.getExpenseById(expenseId)
+        val expense = queryService.findExpenseById(expenseId)
         assertThat(expense).isNull()  // Deleted expenses are not returned
     }
 
@@ -254,7 +254,7 @@ class ExpenseEventSyncServiceTest {
         expenseEventSyncService.performFullSync()
 
         // Then: All three expenses should exist
-        val allExpenses = queryService.getAllExpenses().toList()
+        val allExpenses = queryService.findAllExpenses().toList()
         assertThat(allExpenses).hasSize(3)
 
         val descriptions = allExpenses.map { it.description }
@@ -303,7 +303,7 @@ class ExpenseEventSyncServiceTest {
         expenseEventSyncService.performFullSync()
 
         // Then: event2 should win due to later updatedAt timestamp in payload (last-write-wins)
-        val expense = queryService.getExpenseById(expenseId)
+        val expense = queryService.findExpenseById(expenseId)
         assertThat(expense).isNotNull()
         assertThat(expense!!.amount).isEqualTo(2000L)  // event2 wins with last-write-wins
     }
@@ -336,10 +336,10 @@ class ExpenseEventSyncServiceTest {
 
         // When: Perform sync twice (simulating retry)
         expenseEventSyncService.performFullSync()
-        val firstSyncExpenses = queryService.getAllExpenses().toList()
+        val firstSyncExpenses = queryService.findAllExpenses().toList()
 
         expenseEventSyncService.performFullSync()
-        val secondSyncExpenses = queryService.getAllExpenses().toList()
+        val secondSyncExpenses = queryService.findAllExpenses().toList()
 
         // Then: Both syncs should result in same state (idempotent)
         assertThat(firstSyncExpenses).hasSize(2)

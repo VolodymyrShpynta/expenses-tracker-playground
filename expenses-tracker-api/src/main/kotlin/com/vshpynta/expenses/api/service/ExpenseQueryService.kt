@@ -22,18 +22,18 @@ class ExpenseQueryService(
     }
 
     /**
-     * Get all active (non-deleted) expense projections
+     * Find all active (non-deleted) expense projections
      */
-    fun getAllExpenses(): Flow<ExpenseProjection> {
+    fun findAllExpenses(): Flow<ExpenseProjection> {
         logger.debug("Querying all active expense projections")
         return projectionRepository.findAllActive()
     }
 
     /**
-     * Get expense projection by ID
+     * Find expense projection by ID
      * Returns null if not found or if deleted
      */
-    suspend fun getExpenseById(id: UUID): ExpenseProjection? {
+    suspend fun findExpenseById(id: UUID): ExpenseProjection? {
         logger.debug("Querying expense projection by id: {}", id)
         return projectionRepository.findByIdOrNull(id)
             ?.takeUnless { it.deleted }

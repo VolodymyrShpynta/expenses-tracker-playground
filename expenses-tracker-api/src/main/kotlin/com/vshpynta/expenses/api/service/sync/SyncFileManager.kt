@@ -89,7 +89,7 @@ class SyncFileManager(
     private fun sortEventsIfNotEmpty(events: List<EventEntry>): List<EventEntry> =
         events
             .takeIf { it.isNotEmpty() }
-            ?.also { logger.debug("Read ${it.size} events from sync file") }
+            ?.also { logger.debug("Read {} events from sync file", it.size) }
             ?.let { sortEventsDeterministically(it) }
             ?: run {
                 logger.debug("No events in sync file")

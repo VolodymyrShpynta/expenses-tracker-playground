@@ -55,9 +55,9 @@ class ExpenseEventSyncService(
                 collectLocalEvents()
                     .takeIf { it.isNotEmpty() }
                     ?.also { events ->
-                        logger.info("Uploading ${events.size} local uncommitted events")
+                        logger.info("Uploading {} local uncommitted events", events.size)
                         syncFileManager.appendEvents(file, events)
-                        logger.info("Successfully uploaded ${events.size} local events")
+                        logger.info("Successfully uploaded {} local events", events.size)
                     }
 
                 // Cache checksum for next sync

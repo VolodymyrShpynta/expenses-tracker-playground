@@ -2,6 +2,7 @@ package com.vshpynta.expenses.api.service
 
 import com.vshpynta.expenses.api.repository.ProcessedEventRepository
 import com.vshpynta.expenses.api.util.ConcurrentCache
+import com.vshpynta.expenses.api.util.TimeProvider
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
@@ -23,7 +24,8 @@ import java.util.UUID
  */
 @Component
 class ProcessedEventsCache(
-    private val processedEventRepository: ProcessedEventRepository
+    private val processedEventRepository: ProcessedEventRepository,
+    private val timeProvider: TimeProvider
 ) {
 
     companion object {
@@ -61,17 +63,19 @@ class ProcessedEventsCache(
     fun loadFromDatabase() {
         try {
             logger.info("Loading processed event IDs from database...")
-            val startTime = System.currentTimeMillis()
+            val startTime = timeProvider.currentTimeMillis()
 
+            // runBlocking is justified here: @EventListener runs from a non-coroutine context at startup
             runBlocking {
                 val ids = processedEventRepository.findAllEventIds().toList()
                 cache.addAll(ids)
 
-                val duration = System.currentTimeMillis() - startTime
+                val duration = timeProvider.currentTimeMillis() - startTime
                 val stats = getStats()
 
                 logger.info(
-                    "Loaded ${ids.size} processed event IDs in ${duration}ms, memory: ${stats.memoryBytes / 1024} KB"
+                    "Loaded {} processed event IDs in {}ms, memory: {} KB",
+                    ids.size, duration, stats.memoryBytes / 1024
                 )
             }
         } catch (e: Exception) {

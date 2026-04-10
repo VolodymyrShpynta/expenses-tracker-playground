@@ -153,9 +153,9 @@ class ExpenseCommandService(
         return runCatching {
             eventRepository.save(event)
         }.onSuccess {
-            logger.info("Appended event: ${it.eventId} (type: $eventType, expense: $expenseId)")
+            logger.info("Appended event: {} (type: {}, expense: {})", it.eventId, eventType, expenseId)
         }.onFailure {
-            logger.error("Failed to append event for expense: $expenseId", it)
+            logger.error("Failed to append event for expense: {}", expenseId, it)
         }.getOrThrow()
     }
 

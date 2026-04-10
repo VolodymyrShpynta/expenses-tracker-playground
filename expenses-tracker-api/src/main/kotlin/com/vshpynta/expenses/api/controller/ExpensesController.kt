@@ -74,13 +74,13 @@ class ExpensesController(
 
     @GetMapping
     fun getAllExpenses(): Flow<ExpenseDto> {
-        return queryService.getAllExpenses()
+        return queryService.findAllExpenses()
             .map { it.toDto() }
     }
 
     @GetMapping("/{id}")
     suspend fun getExpenseById(@PathVariable id: String): ExpenseDto {
-        val expense = queryService.getExpenseById(UUID.fromString(id))
+        val expense = queryService.findExpenseById(UUID.fromString(id))
             ?: throw NoSuchElementException("Expense not found: $id")
         return expense.toDto()
     }

@@ -30,11 +30,11 @@ class RemoteEventProcessor(
      */
     suspend fun processRemoteEvents(remoteEvents: List<EventEntry>): Int {
         remoteEvents
-            .also { logger.info("Processing ${it.size} remote events") }
+            .also { logger.info("Processing {} remote events", it.size) }
             .takeIf { it.isNotEmpty() }
             ?.let { projectRemoteEvents(it) }
             ?.also { processed ->
-                logger.info("Processed $processed out of ${remoteEvents.size} remote events")
+                logger.info("Processed {} out of {} remote events", processed, remoteEvents.size)
             }
             ?: return 0
 
@@ -46,7 +46,7 @@ class RemoteEventProcessor(
             runCatching {
                 eventSyncProjector.projectEvent(it)
             }.onFailure { e ->
-                logger.error("Failed to project event: ${it.eventId}", e)
+                logger.error("Failed to project event: {}", it.eventId, e)
             }.getOrDefault(false)
         }
 }
