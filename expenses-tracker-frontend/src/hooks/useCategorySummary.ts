@@ -15,10 +15,14 @@ export function useCategorySummary(
   dateRange?: DateRange,
 ): { categories: CategorySummary[]; grandTotal: number } {
   return useMemo(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
     const filtered = dateRange
       ? expenses.filter((e) => {
           const d = new Date(e.date);
-          return d >= dateRange.from && d <= dateRange.to;
+          const effectiveTo = dateRange.to > today ? today : dateRange.to;
+          return d >= dateRange.from && d <= effectiveTo;
         })
       : expenses;
 

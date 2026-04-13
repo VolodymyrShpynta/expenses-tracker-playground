@@ -9,12 +9,18 @@ import { useExpenses } from '../hooks/useExpenses.ts';
 import { useCategorySummary } from '../hooks/useCategorySummary.ts';
 import { CategoryCard } from '../components/CategoryCard.tsx';
 import { CategoryDonutChart } from '../components/CategoryDonutChart.tsx';
-import { DateRangeSelector, defaultDateRange } from '../components/DateRangeSelector.tsx';
+import { DateRangeSelector } from '../components/DateRangeSelector.tsx';
 import { formatAmount } from '../utils/format.ts';
 
 export default function CategoriesPage() {
   const { expenses, loading, error } = useExpenses();
-  const [dateRange, setDateRange] = useState(defaultDateRange);
+  const [dateRange, setDateRange] = useState(() => {
+    const now = new Date();
+    return {
+      from: new Date(now.getFullYear(), 0, 1),
+      to: new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999),
+    };
+  });
   const { categories, grandTotal } = useCategorySummary(expenses, dateRange);
 
   if (loading) {
@@ -38,7 +44,7 @@ export default function CategoriesPage() {
       {/* Total header */}
       <Box sx={{ textAlign: 'center', mb: 1 }}>
         <Typography variant="body2" color="text.secondary">
-          All accounts
+          Total spending
         </Typography>
         <Typography variant="h4" fontWeight={700}>
           {formatAmount(grandTotal)}
