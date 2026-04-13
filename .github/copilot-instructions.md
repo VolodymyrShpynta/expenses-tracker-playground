@@ -16,7 +16,7 @@ under `.github/instructions/` and are merged automatically when editing matching
 
 - **Monorepo** managed by Gradle with a version catalog (`gradle/libs.versions.toml`)
 - **Backend** — Kotlin + Spring Boot 4 (WebFlux / R2DBC reactive stack)
-- **Frontend** — React 19 + TypeScript + MUI v7 + Vite (in `expenses-tracker-frontend/`)
+- **Frontend** — React 19 + TypeScript + MUI v7 + TanStack Query + Vite (in `expenses-tracker-frontend/`)
 - **Database** — PostgreSQL (R2DBC for app, JDBC for Flyway migrations)
 - **Testing** — JUnit 5 / Testcontainers (backend)
 

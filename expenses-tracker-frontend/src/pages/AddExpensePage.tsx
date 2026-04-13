@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { type SubmitEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -7,7 +7,7 @@ import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Alert from '@mui/material/Alert';
-import { createExpense } from '../api/expenses.ts';
+import { useCreateExpense } from '../hooks/useExpenseMutations.ts';
 
 const CATEGORIES = [
   'Food',
@@ -35,43 +35,41 @@ const CATEGORIES = [
 
 export default function AddExpensePage() {
   const navigate = useNavigate();
+  const createExpense = useCreateExpense();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 16));
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError(null);
+    setValidationError(null);
 
     if (!description || !amount || !category || !date) {
-      setError('All fields are required.');
+      setValidationError('All fields are required.');
       return;
     }
 
     const cents = Math.round(parseFloat(amount) * 100);
     if (isNaN(cents) || cents <= 0) {
-      setError('Amount must be a positive number.');
+      setValidationError('Amount must be a positive number.');
       return;
     }
 
-    setSaving(true);
-    try {
-      await createExpense({
+    createExpense.mutate(
+      {
         description,
         amount: cents,
         category,
         date: new Date(date).toISOString(),
-      });
-      void navigate('/');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create expense');
-    } finally {
-      setSaving(false);
-    }
+      },
+      { onSuccess: () => void navigate('/') },
+    );
   };
+
+  const error = validationError
+    ?? (createExpense.error instanceof Error ? createExpense.error.message : null);
 
   return (
     <Box sx={{ py: 2, maxWidth: 480, mx: 'auto' }}>
@@ -80,7 +78,7 @@ export default function AddExpensePage() {
       </Typography>
 
       <Paper sx={{ p: 2 }}>
-        <form onSubmit={(e) => void handleSubmit(e)}>
+        <form onSubmit={handleSubmit}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {error && <Alert severity="error">{error}</Alert>}
 
@@ -136,8 +134,8 @@ export default function AddExpensePage() {
               <Button variant="outlined" onClick={() => void navigate(-1)}>
                 Cancel
               </Button>
-              <Button variant="contained" type="submit" disabled={saving}>
-                {saving ? 'Saving…' : 'Save'}
+              <Button variant="contained" type="submit" disabled={createExpense.isPending}>
+                {createExpense.isPending ? 'Saving…' : 'Save'}
               </Button>
             </Box>
           </Box>

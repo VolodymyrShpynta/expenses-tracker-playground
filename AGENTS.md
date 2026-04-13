@@ -7,7 +7,7 @@
 ## Quick orientation
 - Monorepo: backend in `expenses-tracker-api`, frontend in `expenses-tracker-frontend/`.
 - **Backend**: Kotlin + Spring Boot WebFlux + Coroutines + R2DBC, with PostgreSQL as the only persisted store.
-- **Frontend**: React 19 + TypeScript + MUI v7 + Vite. Consumes the backend REST API.
+- **Frontend**: React 19 + TypeScript + MUI v7 + TanStack Query + Vite. Consumes the backend REST API.
 - Architecture is CQRS + event sourcing: `expense_events` is source of truth, `expense_projections` is query model, `processed_events` is idempotency registry (`expenses-tracker-api/src/main/resources/db/migration/V1__Create_expenses_tables.sql`).
 
 ## Runtime flow you should preserve
@@ -22,7 +22,8 @@
 - Deletes are soft deletes (`deleted=true`) and can be superseded by newer non-deleted updates (resurrection is supported by timestamp ordering).
 - Event payload is JSON text in `expense_events.payload`; mapping is centralized via `JsonOperations` and `ExpenseMapper`.
 - Sync file is optionally gzip-compressed and checksum-cached for change detection (`SyncFileManager`, `FileOperations`); default path is `./sync-data/sync.json` (+ `.gz` when compression enabled).
-- **Always prefer modern APIs over deprecated ones.** MUI v7 uses `slotProps`/`slots` instead of legacy `*Props`/`*Component`/`componentsProps`. See `.github/instructions/expenses-tracker-frontend.instructions.md` for the full migration table.
+- **Always prefer modern APIs over deprecated ones.** MUI v7 uses `slotProps`/`slots` instead of legacy `*Props`/`*Component`/`componentsProps`. React 19 (`@types/react` v19) deprecates generic synthetic event types (`FormEvent`, `FormEventHandler`) — use specific types like `React.SubmitEvent<HTMLFormElement>` or let TypeScript infer from handler props. See `.github/instructions/expenses-tracker-frontend.instructions.md` for the full migration tables.
+- **Frontend data fetching uses TanStack Query.** `src/api/` contains typed `fetch` wrappers; `src/hooks/` wraps them with `useQuery` / `useMutation`. Mutations auto-invalidate the `['expenses']` query key on success. Never use hand-rolled `useState`+`useEffect` for server state.
 
 ## Build, run, test workflows
 - Build all: `./gradlew build`.

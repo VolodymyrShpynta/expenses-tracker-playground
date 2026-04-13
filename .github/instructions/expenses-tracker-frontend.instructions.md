@@ -12,6 +12,7 @@ These rules apply when working on files under `expenses-tracker-frontend/`.
 
 - **Runtime**: React 19 + TypeScript (strict mode, `verbatimModuleSyntax`)
 - **UI library**: MUI (Material UI) **v7** + `@mui/x-charts` **v9**
+- **Server state**: TanStack Query (`@tanstack/react-query`) for data fetching & mutations
 - **Build**: Vite 8
 - **Routing**: React Router DOM v7
 - **Testing**: (not yet configured — will be Vitest)
@@ -174,7 +175,7 @@ Use the MUI v7 Grid component with `size` prop (not the deprecated `xs`, `sm`, `
 
 ```
 expenses-tracker-frontend/src/
-├── main.tsx              # Entry point (StrictMode, BrowserRouter)
+├── main.tsx              # Entry point (StrictMode, QueryClientProvider, BrowserRouter)
 ├── App.tsx               # Routes + ThemeProvider + ColorMode context
 ├── theme.ts              # MUI dark/light theme with toggle
 ├── index.css             # Global reset styles
@@ -186,9 +187,10 @@ expenses-tracker-frontend/src/
 │   ├── CategoryDonutChart.tsx
 │   ├── ColorModeToggle.tsx
 │   └── DateRangeSelector.tsx
-├── hooks/                # Custom React hooks for data fetching
-│   ├── useExpenses.ts
-│   └── useCategorySummary.ts
+├── hooks/                # TanStack Query hooks for data fetching & mutations
+│   ├── useExpenses.ts          # useQuery wrapper + EXPENSES_QUERY_KEY
+│   ├── useExpenseMutations.ts  # useMutation hooks (create/update/delete/sync)
+│   └── useCategorySummary.ts   # Derived state (pure useMemo, no API call)
 ├── pages/                # Page-level components (one per route)
 │   ├── CategoriesPage.tsx
 │   ├── TransactionsPage.tsx
@@ -205,7 +207,7 @@ expenses-tracker-frontend/src/
 
 - **`pages/`** — one file per route. Default-exported page component.
 - **`components/`** — shared, reusable UI components used across pages.
-- **`hooks/`** — custom React hooks. Encapsulate all API calls and derived state here.
+- **`hooks/`** — TanStack Query wrappers (`useQuery` / `useMutation`) and derived-state hooks.
 - **`types/`** — shared TypeScript interfaces. Keep API response types here.
 - **`utils/`** — pure functions (formatting, validation, config maps). No React imports.
 - **`api/`** — typed `fetch` wrappers. One file per backend resource.
@@ -236,6 +238,9 @@ Follow `theme.ts`:
 The project currently uses **native React state** (`useState` + `onChange`) for forms because the
 only form (`AddExpensePage`) is simple (4–5 fields, no conditional logic).
 
+Form submit handlers use **`React.SubmitEvent<HTMLFormElement>`** (not the deprecated `FormEvent`).
+See the [React 19 Event Types](#react-19-event-types--no-deprecated-synthetic-events) section below.
+
 **When to upgrade to React Hook Form + Zod:**
 
 - A form has **≥ 6 fields**, or fields are **conditionally shown/required**.
@@ -247,9 +252,9 @@ If any of these apply, install `react-hook-form`, `@hookform/resolvers`, and `zo
 then use the controller pattern with MUI:
 
 ```tsx
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import {useForm, Controller} from 'react-hook-form';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {z} from 'zod';
 
 const schema = z.object({
     description: z.string().min(1, 'Required'),
@@ -258,28 +263,88 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-const { control, handleSubmit } = useForm<FormData>({
+const {control, handleSubmit} = useForm<FormData>({
     resolver: zodResolver(schema),
 });
 
 <Controller
     name="description"
     control={control}
-    render={({ field, fieldState }) => (
+    render={({field, fieldState}) => (
         <TextField {...field} error={!!fieldState.error}
-                   helperText={fieldState.error?.message} />
+                   helperText={fieldState.error?.message}/>
     )}
 />
 ```
 
 Until then, keep forms simple with `useState` — no need for extra dependencies.
 
-## Data Fetching
+## Data Fetching — TanStack Query
 
-- All API calls live in `src/api/` — typed `fetch` wrappers with error handling.
-- Components consume data through custom hooks in `src/hooks/`.
-- Never call `fetch` directly inside a component.
-- Handle `loading`, `error`, and success states explicitly in every hook.
+All server state is managed by **TanStack Query** (`@tanstack/react-query`).
+Never use hand-rolled `useState` + `useEffect` for data that comes from the API.
+
+### Architecture (two layers)
+
+| Layer                    | Location                                             | Role                                                           |
+|--------------------------|------------------------------------------------------|----------------------------------------------------------------|
+| **Fetch wrappers**       | `src/api/expenses.ts`                                | Typed `fetch` calls — no React imports, pure `async` functions |
+| **Query/Mutation hooks** | `src/hooks/useExpenses.ts`, `useExpenseMutations.ts` | Wrap fetch wrappers with `useQuery` / `useMutation`            |
+
+Components only import from `src/hooks/` — never from `src/api/` directly.
+
+### QueryClient setup (`main.tsx`)
+
+```tsx
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            staleTime: 30_000,          // 30 s before data is considered stale
+            refetchOnWindowFocus: true,  // refresh when user returns to tab
+        },
+    },
+});
+```
+
+### Query hook pattern
+
+```tsx
+import {useQuery} from '@tanstack/react-query';
+import {fetchExpenses} from '../api/expenses.ts';
+
+export const EXPENSES_QUERY_KEY = ['expenses'] as const;
+
+export function useExpenses() {
+    const {data: expenses = [], isLoading: loading, error} = useQuery({
+        queryKey: EXPENSES_QUERY_KEY,
+        queryFn: fetchExpenses,
+    });
+    return {expenses, loading, error: error?.message ?? null};
+}
+```
+
+### Mutation hook pattern
+
+```tsx
+import {useMutation, useQueryClient} from '@tanstack/react-query';
+import {createExpense} from '../api/expenses.ts';
+import {EXPENSES_QUERY_KEY} from './useExpenses.ts';
+
+export function useCreateExpense() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: createExpense,
+        onSuccess: () => queryClient.invalidateQueries({queryKey: EXPENSES_QUERY_KEY}),
+    });
+}
+```
+
+### Rules
+
+- **One query key per resource** — export it as a `const` array from the query hook file.
+- **Mutations always invalidate** the relevant query key(s) `onSuccess`.
+- **Never call `fetch` directly inside a component** — all fetch calls live in `src/api/`.
+- Use `isLoading` / `error` / `data` from the hook — don't add manual loading state.
 
 ## TypeScript
 
@@ -287,6 +352,42 @@ Until then, keep forms simple with `useState` — no need for extra dependencies
 - **`import type`** for type-only imports (enforced by `verbatimModuleSyntax`).
 - **Generics** — type `useState<T>` explicitly when initial value doesn't reveal the full type.
 - Prefer `interface` for object shapes, `type` for unions/intersections.
+
+## React 19 Event Types — No Deprecated Synthetic Events
+
+`@types/react` v19 deprecates generic synthetic event types in favor of more specific ones.
+**Never use the deprecated types — the TypeScript compiler will emit TS6385.**
+
+### Migration table
+
+| Deprecated type       | Modern replacement (React 19) | Typical use case               |
+|-----------------------|-------------------------------|--------------------------------|
+| `FormEvent<T>`        | `SubmitEvent<T>`              | `<form onSubmit>`              |
+| `FormEventHandler<T>` | `SubmitEventHandler<T>`       | `<form onSubmit>` handler type |
+
+All types above live in the `React` namespace (e.g., `React.SubmitEvent<HTMLFormElement>`).
+
+### Preferred patterns
+
+```tsx
+// ✅ Explicit specific type
+const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => { …
+};
+<form onSubmit={handleSubmit}>
+
+    // ✅ Let TypeScript infer from handler prop (best when possible)
+    <form onSubmit={(e) => {
+        e.preventDefault(); …
+    }}>
+
+        // ❌ Deprecated — do NOT use
+        const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {…};
+        const handleSubmit = (e: FormEvent) => {…};
+```
+
+**General rule:** prefer letting TypeScript infer event types from handler props
+(e.g., MUI `onChange`, `onClick`). Only annotate explicitly when assigning to a
+standalone function variable.
 
 ## React Router v7
 

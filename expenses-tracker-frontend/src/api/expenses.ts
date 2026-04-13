@@ -7,14 +7,6 @@ import type {
 
 const BASE = '/api/expenses';
 
-async function handleResponse<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`HTTP ${res.status}: ${body}`);
-  }
-  return res.json() as Promise<T>;
-}
-
 export async function fetchExpenses(): Promise<Expense[]> {
   const res = await fetch(BASE);
   return handleResponse<Expense[]>(res);
@@ -57,4 +49,12 @@ export async function deleteExpense(id: string): Promise<void> {
 export async function triggerSync(): Promise<SyncResult> {
   const res = await fetch(`${BASE}/sync`, { method: 'POST' });
   return handleResponse<SyncResult>(res);
+}
+
+async function handleResponse<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`HTTP ${res.status}: ${body}`);
+  }
+  return (await res.json()) as T;
 }
