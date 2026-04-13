@@ -1,9 +1,8 @@
 import type React from 'react';
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { useTheme } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
@@ -15,15 +14,18 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import IconButton from '@mui/material/IconButton';
+import Collapse from '@mui/material/Collapse';
+import Switch from '@mui/material/Switch';
 import Fab from '@mui/material/Fab';
-import Divider from '@mui/material/Divider';
 import MenuIcon from '@mui/icons-material/Menu';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
 import PieChartIcon from '@mui/icons-material/PieChart';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import AddIcon from '@mui/icons-material/Add';
 import SyncIcon from '@mui/icons-material/Sync';
-import { ColorModeToggle } from './ColorModeToggle.tsx';
+import { ColorModeToggleContext } from '../theme.ts';
 
 const DRAWER_WIDTH = 240;
 
@@ -50,7 +52,12 @@ export function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const { toggleColorMode } = useContext(ColorModeToggleContext);
+  const isDark = theme.palette.mode === 'dark';
+
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const activeIdx = navIndex(location.pathname);
 
@@ -59,69 +66,143 @@ export function Layout() {
     setDrawerOpen(false);
   };
 
+  const navItemSx = (isActive: boolean) => ({
+    py: '10px',
+    my: '4px',
+    mx: '12px',
+    borderRadius: '10px',
+    color: 'text.primary',
+    transition: 'background-color 120ms ease, color 120ms ease',
+    '&:hover': {
+      backgroundColor: alpha(theme.palette.primary.main, 0.12),
+      color: 'primary.light',
+    },
+    ...(isActive && {
+      backgroundColor: alpha(theme.palette.primary.main, 0.14),
+      color: 'primary.light',
+      boxShadow: `inset 0 0 0 1.5px ${alpha(theme.palette.primary.main, 0.4)}`,
+      '&:hover': {
+        backgroundColor: alpha(theme.palette.primary.main, 0.2),
+      },
+    }),
+  });
+
+  const drawerPaperSx = {
+    width: DRAWER_WIDTH,
+    boxSizing: 'border-box',
+    borderRight: 'none',
+    borderTopRightRadius: '6px',
+    borderBottomRightRadius: '6px',
+    backgroundColor: 'background.paper',
+  } as const;
+
+  const renderSectionHeader = (
+    label: string,
+    open: boolean,
+    onToggle: () => void,
+  ) => (
+    <ListItemButton onClick={onToggle} sx={{ mx: '12px', mt: '15px', mb: '4px', borderRadius: '10px', py: '6px' }}>
+      <ListItemText
+        primary={label}
+        slotProps={{ primary: { variant: 'h6', color: 'text.secondary' } }}
+      />
+      {open
+        ? <ExpandLess sx={{ color: 'text.secondary' }} />
+        : <ExpandMore sx={{ color: 'text.secondary' }} />}
+    </ListItemButton>
+  );
+
   // Sidebar content shared between permanent & temporary drawer
   const sidebarContent = (
     <Box sx={{ width: DRAWER_WIDTH }}>
       <Toolbar>
-        <Typography variant="h6" fontWeight={700} noWrap>
+        <Typography variant="h4" fontWeight={700} noWrap>
           Expenses Tracker
         </Typography>
       </Toolbar>
-      <Divider />
       <List>
         {NAV_ITEMS.map((item, i) => (
           <ListItemButton
             key={item.path}
             selected={i === activeIdx}
             onClick={() => handleNav(item.path)}
+            sx={navItemSx(i === activeIdx)}
           >
-            <ListItemIcon>{item.icon}</ListItemIcon>
+            <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>{item.icon}</ListItemIcon>
             <ListItemText primary={item.label} />
           </ListItemButton>
         ))}
       </List>
-      <Divider />
-      <List>
-        <ListItemButton onClick={() => handleNav('/sync')}>
-          <ListItemIcon><SyncIcon /></ListItemIcon>
-          <ListItemText primary="Sync" />
-        </ListItemButton>
-      </List>
+      {renderSectionHeader('Tools', toolsOpen, () => setToolsOpen((prev) => !prev))}
+      <Collapse in={toolsOpen}>
+        <List
+          disablePadding
+          sx={{
+            ml: '24px',
+            borderLeft: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+          }}
+        >
+          <ListItemButton
+            selected={location.pathname === '/sync'}
+            onClick={() => handleNav('/sync')}
+            sx={navItemSx(location.pathname === '/sync')}
+          >
+            <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}><SyncIcon /></ListItemIcon>
+            <ListItemText primary="Sync" />
+          </ListItemButton>
+        </List>
+      </Collapse>
+      {renderSectionHeader('Settings', settingsOpen, () => setSettingsOpen((prev) => !prev))}
+      <Collapse in={settingsOpen}>
+        <Box
+          sx={{
+            ml: '24px',
+            borderLeft: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+          }}
+        >
+          <ListItemButton
+            onClick={toggleColorMode}
+            sx={{
+              ...navItemSx(false),
+              justifyContent: 'space-between',
+            }}
+          >
+            <ListItemText primary="Dark Mode" />
+            <Switch
+              checked={isDark}
+              slotProps={{ input: { 'aria-label': 'Toggle dark mode' } }}
+              sx={{ mr: -1 }}
+            />
+          </ListItemButton>
+        </Box>
+      </Collapse>
     </Box>
   );
 
   return (
     <Box sx={{ display: 'flex', height: '100dvh', flexDirection: 'column' }}>
-      {/* App bar */}
-      <AppBar
-        position="fixed"
-        elevation={1}
-        sx={{
-          zIndex: theme.zIndex.drawer + 1,
-          backgroundColor: theme.palette.background.paper,
-          color: theme.palette.text.primary,
-        }}
-      >
-        <Toolbar variant="dense">
-          {!isDesktop && (
-            <IconButton
-              edge="start"
-              color="inherit"
-              onClick={() => setDrawerOpen(true)}
-              sx={{ mr: 1 }}
-              aria-label="Open menu"
-            >
-              <MenuIcon />
-            </IconButton>
-          )}
-          <Typography variant="h6" fontWeight={700} noWrap sx={{ flexGrow: 1 }}>
+      {/* Mobile top bar */}
+      {!isDesktop && (
+        <Toolbar
+          variant="dense"
+          sx={{ backgroundColor: 'background.paper', color: 'text.primary' }}
+        >
+          <IconButton
+            edge="start"
+            color="inherit"
+            onClick={() => setDrawerOpen(true)}
+            sx={{ mr: 1 }}
+            aria-label="Open menu"
+          >
+            <MenuIcon />
+          </IconButton>
+          <Typography variant="h6" fontWeight={700} noWrap>
             Expenses Tracker
           </Typography>
-          <ColorModeToggle />
         </Toolbar>
-      </AppBar>
+      )}
 
-      <Box sx={{ display: 'flex', flex: 1, pt: '48px' /* dense toolbar height */ }}>
+      <Box sx={{ display: 'flex', flex: 1 }}>
         {/* Desktop sidebar */}
         {isDesktop && (
           <Drawer
@@ -129,11 +210,7 @@ export function Layout() {
             sx={{
               width: DRAWER_WIDTH,
               flexShrink: 0,
-              '& .MuiDrawer-paper': {
-                width: DRAWER_WIDTH,
-                boxSizing: 'border-box',
-                mt: '48px',
-              },
+              '& .MuiDrawer-paper': drawerPaperSx,
             }}
           >
             {sidebarContent}
@@ -148,7 +225,7 @@ export function Layout() {
             onClose={() => setDrawerOpen(false)}
             slotProps={{ root: { keepMounted: true } }}
             sx={{
-              '& .MuiDrawer-paper': { width: DRAWER_WIDTH },
+              '& .MuiDrawer-paper': drawerPaperSx,
             }}
           >
             {sidebarContent}

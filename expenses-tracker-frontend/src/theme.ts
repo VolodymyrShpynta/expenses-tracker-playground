@@ -81,7 +81,7 @@ interface ColorModeToggle {
 export const themeSettings = (mode: PaletteMode) => {
   const isDark = mode === 'dark';
 
-  const paperBg = isDark ? navy[400] : '#ffffff';
+  const paperBg = isDark ? navy[400] : blueAccent[50];
   const scrollbarTrack = isDark ? navy[500] : grey[100];
   const scrollbarThumbStart = isDark ? navy[400] : grey[300];
   const scrollbarThumbEnd = isDark ? blueAccent[600] : grey[600];
