@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
@@ -12,13 +12,13 @@ import { useCategorySummary } from '../hooks/useCategorySummary.ts';
 import { CategoryCard } from '../components/CategoryCard.tsx';
 import { CategoryDonutChart } from '../components/CategoryDonutChart.tsx';
 import { SpendingDateHeader } from '../components/SpendingDateHeader.tsx';
-import { buildRangeForPreset, readStoredPreset } from '../utils/dateRange.ts';
 import { useMainCurrency } from '../hooks/useCurrency.ts';
+import { useDateRange } from '../hooks/useDateRange.ts';
 
 export default function CategoriesPage() {
   const { expenses, loading, error } = useExpenses();
   const convertedExpenses = useConvertedExpenses(expenses);
-  const [dateRange, setDateRange] = useState(() => buildRangeForPreset(readStoredPreset()));
+  const { dateRange } = useDateRange();
   const { categories, grandTotal } = useCategorySummary(convertedExpenses, dateRange);
   const { mainCurrency } = useMainCurrency();
   const theme = useTheme();
@@ -63,8 +63,6 @@ export default function CategoriesPage() {
       <SpendingDateHeader
         totalSpending={grandTotal}
         currency={mainCurrency}
-        dateRange={dateRange}
-        onDateRangeChange={setDateRange}
       />
 
       {/* Top categories row */}

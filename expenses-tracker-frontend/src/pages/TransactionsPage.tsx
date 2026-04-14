@@ -21,7 +21,7 @@ import { useExchangeRates } from '../hooks/useExchangeRates.ts';
 import { getCategoryConfig } from '../utils/categoryConfig.ts';
 import { formatAmountWithCurrency } from '../utils/format.ts';
 import { SpendingDateHeader } from '../components/SpendingDateHeader.tsx';
-import { buildRangeForPreset, readStoredPreset } from '../utils/dateRange.ts';
+import { useDateRange } from '../hooks/useDateRange.ts';
 import type { PresetKey } from '../utils/dateRange.ts';
 import type { Expense } from '../types/expense.ts';
 import { EditExpenseDialog } from '../components/EditExpenseDialog.tsx';
@@ -69,16 +69,13 @@ interface ExpenseGroup {
 export default function TransactionsPage() {
   const { expenses, loading, error } = useExpenses();
   const { convert, mainCurrency } = useExchangeRates();
-  const [dateRange, setDateRange] = useState(() => buildRangeForPreset(readStoredPreset()));
-  const [groupBy, setGroupBy] = useState<GroupBy>(() => presetToGroupBy(readStoredPreset()));
+  const { dateRange, preset } = useDateRange();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [filterOpen, setFilterOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
-  const handlePresetChange = useCallback((preset: PresetKey) => {
-    setGroupBy(presetToGroupBy(preset));
-  }, []);
+  const groupBy = useMemo(() => presetToGroupBy(preset), [preset]);
 
   const addCategory = useCallback((category: string) => {
     setSelectedCategories((prev) => new Set(prev).add(category));
@@ -167,9 +164,6 @@ export default function TransactionsPage() {
       <SpendingDateHeader
         totalSpending={totalSpending}
         currency={mainCurrency}
-        dateRange={dateRange}
-        onDateRangeChange={setDateRange}
-        onPresetChange={handlePresetChange}
       />
 
       {/* Search & category filters */}

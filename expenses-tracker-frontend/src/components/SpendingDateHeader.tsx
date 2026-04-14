@@ -2,24 +2,20 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { DateRangeSelector } from './DateRangeSelector.tsx';
 import { formatAmountWithCurrency } from '../utils/format.ts';
-import type { DateRange, PresetKey } from '../utils/dateRange.ts';
+import { useDateRange } from '../hooks/useDateRange.ts';
 import type { CurrencyCode } from '../api/exchange.ts';
 
 interface SpendingDateHeaderProps {
   totalSpending: number;
   currency: CurrencyCode;
-  dateRange: DateRange;
-  onDateRangeChange: (range: DateRange) => void;
-  onPresetChange?: (preset: PresetKey) => void;
 }
 
 export function SpendingDateHeader({
   totalSpending,
   currency,
-  dateRange,
-  onDateRangeChange,
-  onPresetChange,
 }: SpendingDateHeaderProps) {
+  const { dateRange, setDateRange, setPreset } = useDateRange();
+
   return (
     <>
       <Box sx={{ textAlign: 'center', mb: 1 }}>
@@ -30,7 +26,7 @@ export function SpendingDateHeader({
           {formatAmountWithCurrency(totalSpending, currency)}
         </Typography>
       </Box>
-      <DateRangeSelector value={dateRange} onChange={onDateRangeChange} onPresetChange={onPresetChange} />
+      <DateRangeSelector value={dateRange} onChange={setDateRange} onPresetChange={setPreset} />
     </>
   );
 }
