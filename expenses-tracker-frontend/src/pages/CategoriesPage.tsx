@@ -7,14 +7,17 @@ import Alert from '@mui/material/Alert';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 import { useExpenses } from '../hooks/useExpenses.ts';
+import { useConvertedExpenses } from '../hooks/useExchangeRates.ts';
 import { useCategorySummary } from '../hooks/useCategorySummary.ts';
 import { CategoryCard } from '../components/CategoryCard.tsx';
 import { CategoryDonutChart } from '../components/CategoryDonutChart.tsx';
 import { DateRangeSelector } from '../components/DateRangeSelector.tsx';
-import { formatAmount } from '../utils/format.ts';
+import { formatAmountWithCurrency } from '../utils/format.ts';
+import { useMainCurrency } from '../hooks/useCurrency.ts';
 
 export default function CategoriesPage() {
   const { expenses, loading, error } = useExpenses();
+  const convertedExpenses = useConvertedExpenses(expenses);
   const [dateRange, setDateRange] = useState(() => {
     const now = new Date();
     return {
@@ -22,7 +25,8 @@ export default function CategoriesPage() {
       to: new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999),
     };
   });
-  const { categories, grandTotal } = useCategorySummary(expenses, dateRange);
+  const { categories, grandTotal } = useCategorySummary(convertedExpenses, dateRange);
+  const { mainCurrency } = useMainCurrency();
   const theme = useTheme();
   const isLarge = useMediaQuery(theme.breakpoints.up('md'));
 
@@ -68,7 +72,7 @@ export default function CategoriesPage() {
           Total spending
         </Typography>
         <Typography variant="h4" fontWeight={700}>
-          {formatAmount(grandTotal)}
+          {formatAmountWithCurrency(grandTotal, mainCurrency)}
         </Typography>
       </Box>
 
@@ -80,7 +84,7 @@ export default function CategoriesPage() {
         <Grid container spacing={1} sx={{ mt: 1 }}>
           {topCats.map((cat) => (
             <Grid key={cat.category} size={{ xs: 12 / topCount, md: 12 / topCount }}>
-              <CategoryCard summary={cat} />
+              <CategoryCard summary={cat} currency={mainCurrency} />
             </Grid>
           ))}
         </Grid>
@@ -94,7 +98,7 @@ export default function CategoriesPage() {
             <Grid container spacing={1}>
               {leftCats.map((cat) => (
                 <Grid key={cat.category} size={{ xs: 12, md: 12 / sideCols }}>
-                  <CategoryCard summary={cat} />
+                  <CategoryCard summary={cat} currency={mainCurrency} />
                 </Grid>
               ))}
             </Grid>
@@ -107,6 +111,7 @@ export default function CategoriesPage() {
                 categories={categories}
                 grandTotal={grandTotal}
                 size={donutSize}
+                currency={mainCurrency}
               />
             </Box>
           </Grid>
@@ -116,7 +121,7 @@ export default function CategoriesPage() {
             <Grid container spacing={1}>
               {rightCats.map((cat) => (
                 <Grid key={cat.category} size={{ xs: 12, md: 12 / sideCols }}>
-                  <CategoryCard summary={cat} />
+                  <CategoryCard summary={cat} currency={mainCurrency} />
                 </Grid>
               ))}
             </Grid>
@@ -129,7 +134,7 @@ export default function CategoriesPage() {
         <Grid container spacing={1}>
           {bottomCats.map((cat) => (
             <Grid key={cat.category} size={{ xs: 3, sm: 3, md: 2 }}>
-              <CategoryCard summary={cat} />
+              <CategoryCard summary={cat} currency={mainCurrency} />
             </Grid>
           ))}
         </Grid>

@@ -40,12 +40,14 @@ interface ExpenseProjectionRepository : CoroutineCrudRepository<ExpenseProjectio
     @Modifying
     @Query(
         """
-        INSERT INTO expense_projections (id, description, amount, category, date, updated_at, deleted)
-        VALUES (:#{#projection.id}, :#{#projection.description}, :#{#projection.amount}, 
-                :#{#projection.category}, :#{#projection.date}, :#{#projection.updatedAt}, :#{#projection.deleted})
+        INSERT INTO expense_projections (id, description, amount, currency, category, date, updated_at, deleted)
+        VALUES (:#{#projection.id}, :#{#projection.description}, :#{#projection.amount},
+                :#{#projection.currency}, :#{#projection.category}, :#{#projection.date},
+                :#{#projection.updatedAt}, :#{#projection.deleted})
         ON CONFLICT (id) DO UPDATE SET
             description = EXCLUDED.description,
             amount = EXCLUDED.amount,
+            currency = EXCLUDED.currency,
             category = EXCLUDED.category,
             date = EXCLUDED.date,
             updated_at = EXCLUDED.updated_at,

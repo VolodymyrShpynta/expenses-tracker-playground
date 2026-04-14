@@ -13,7 +13,7 @@ import type { Dayjs } from 'dayjs';
 import { useCreateExpense } from '../hooks/useExpenseMutations.ts';
 import { MoneyField } from '../components/MoneyField.tsx';
 import { useMainCurrency } from '../hooks/useCurrency.ts';
-import { SUPPORTED_CURRENCIES, convertCurrency } from '../api/exchange.ts';
+import { SUPPORTED_CURRENCIES } from '../api/exchange.ts';
 import type { CurrencyCode } from '../api/exchange.ts';
 
 const CATEGORIES = [
@@ -51,9 +51,8 @@ export default function AddExpensePage() {
   const [category, setCategory] = useState(searchParams.get('category') ?? '');
   const [date, setDate] = useState<Dayjs>(dayjs());
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [converting, setConverting] = useState(false);
 
-  const handleSubmit = async (e: SubmitEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     setValidationError(null);
 
@@ -68,26 +67,13 @@ export default function AddExpensePage() {
       return;
     }
 
-    let finalAmount = parsedAmount;
-    if (currency !== mainCurrency) {
-      try {
-        setConverting(true);
-        finalAmount = await convertCurrency(parsedAmount, currency, mainCurrency);
-      } catch {
-        setValidationError(`Failed to convert ${currency} to ${mainCurrency}. Check your connection and try again.`);
-        setConverting(false);
-        return;
-      } finally {
-        setConverting(false);
-      }
-    }
-
-    const cents = Math.round(finalAmount * 100);
+    const cents = Math.round(parsedAmount * 100);
 
     createExpense.mutate(
       {
         description,
         amount: cents,
+        currency,
         category,
         date: date.toISOString(),
       },
@@ -95,7 +81,7 @@ export default function AddExpensePage() {
     );
   };
 
-  const isBusy = createExpense.isPending || converting;
+  const isBusy = createExpense.isPending;
   const error = validationError
     ?? (createExpense.error instanceof Error ? createExpense.error.message : null);
 
@@ -106,7 +92,7 @@ export default function AddExpensePage() {
       </Typography>
 
       <Paper sx={{ p: 2 }}>
-        <form onSubmit={(e) => void handleSubmit(e)}>
+        <form onSubmit={handleSubmit}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {error && <Alert severity="error">{error}</Alert>}
 
@@ -128,11 +114,6 @@ export default function AddExpensePage() {
                 onCurrencyChange={(code) => setCurrency(code as CurrencyCode)}
               />
             </Box>
-            {currency !== mainCurrency && (
-              <Typography variant="caption" color="text.secondary" sx={{ mt: -1.5 }}>
-                Will be converted from {currency} to {mainCurrency} on save
-              </Typography>
-            )}
 
             <Autocomplete
               options={CATEGORIES}
@@ -155,7 +136,7 @@ export default function AddExpensePage() {
                 Cancel
               </Button>
               <Button variant="contained" type="submit" disabled={isBusy}>
-                {converting ? 'Converting…' : createExpense.isPending ? 'Saving…' : 'Save'}
+                {createExpense.isPending ? 'Saving…' : 'Save'}
               </Button>
             </Box>
           </Box>

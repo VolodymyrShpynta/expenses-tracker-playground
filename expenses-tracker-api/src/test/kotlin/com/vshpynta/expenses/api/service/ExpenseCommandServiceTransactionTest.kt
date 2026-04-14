@@ -83,6 +83,7 @@ class ExpenseCommandServiceTransactionTest {
             id = originalExpense.id,
             description = "Updated description",
             amount = 2000,
+            currency = null,
             category = null,
             date = null
         )
@@ -131,6 +132,7 @@ class ExpenseCommandServiceTransactionTest {
             id = expense1.id,
             description = "Expense 1 Updated",
             amount = 1500,
+            currency = null,
             category = null,
             date = null
         )
@@ -171,6 +173,7 @@ class ExpenseCommandServiceTransactionTest {
             id = expense1.id,
             description = "Successfully updated",
             amount = 1500,
+            currency = null,
             category = null,
             date = null
         )
@@ -182,6 +185,7 @@ class ExpenseCommandServiceTransactionTest {
                     id = expense2.id,
                     description = "a".repeat(10000), // Exceeds database column limit
                     amount = 2500,
+                    currency = null,
                     category = null,
                     date = null
                 )
@@ -239,6 +243,7 @@ class ExpenseCommandServiceTransactionTest {
                 commandService.createExpense(
                     description = "Test expense",
                     amount = 1000,
+                    currency = "USD",
                     category = "Food",
                     date = "2026-01-20T10:00:00Z"
                 )
@@ -270,6 +275,7 @@ class ExpenseCommandServiceTransactionTest {
     ) = commandService.createExpense(
         description = description,
         amount = amount,
+        currency = "USD",
         category = category,
         date = "2026-01-20T10:00:00Z"
     )

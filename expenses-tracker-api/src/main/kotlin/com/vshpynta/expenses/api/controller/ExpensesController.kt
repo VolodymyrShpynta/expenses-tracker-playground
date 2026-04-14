@@ -41,6 +41,7 @@ class ExpensesController(
         val expense = commandService.createExpense(
             description = request.description,
             amount = request.amount,
+            currency = request.currency,
             category = request.category,
             date = request.date
         )
@@ -56,6 +57,7 @@ class ExpensesController(
             id = UUID.fromString(id),
             description = request.description,
             amount = request.amount,
+            currency = request.currency,
             category = request.category,
             date = request.date
         ) ?: throw NoSuchElementException("Expense not found: $id")

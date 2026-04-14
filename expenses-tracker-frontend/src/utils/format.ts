@@ -11,12 +11,28 @@ export function formatAmount(cents: number): string {
 }
 
 /**
+ * Formats cents with a currency code prefix.
+ * Example: (501276, 'CZK') → "CZK 5,012.76"
+ */
+export function formatAmountWithCurrency(cents: number, currency: string): string {
+  return `${currency} ${formatAmount(cents)}`;
+}
+
+/**
  * Formats cents as compact currency (no decimals for large values).
  * Example: 501276 → "5,013"
  */
 export function formatAmountCompact(cents: number): string {
   const value = Math.round(cents / 100);
   return value.toLocaleString('en-US');
+}
+
+/**
+ * Formats cents as compact currency with a currency code prefix.
+ * Example: (501276, 'USD') → "USD 5,013"
+ */
+export function formatAmountCompactWithCurrency(cents: number, currency: string): string {
+  return `${currency} ${formatAmountCompact(cents)}`;
 }
 
 /**

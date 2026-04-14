@@ -9,11 +9,13 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
 import { useExpenses } from '../hooks/useExpenses.ts';
+import { useExchangeRates } from '../hooks/useExchangeRates.ts';
 import { getCategoryConfig } from '../utils/categoryConfig.ts';
-import { formatAmount } from '../utils/format.ts';
+import { formatAmountWithCurrency } from '../utils/format.ts';
 
 export default function TransactionsPage() {
   const { expenses, loading, error } = useExpenses();
+  const { convert, mainCurrency } = useExchangeRates();
 
   if (loading) {
     return (
@@ -63,9 +65,16 @@ export default function TransactionsPage() {
               <ListItem
                 sx={{ px: 1 }}
                 secondaryAction={
-                  <Typography variant="body2" fontWeight={600}>
-                    {formatAmount(expense.amount)}
-                  </Typography>
+                  <Box sx={{ textAlign: 'right' }}>
+                    <Typography variant="body2" fontWeight={600}>
+                      {formatAmountWithCurrency(convert(expense.amount, expense.currency), mainCurrency)}
+                    </Typography>
+                    {expense.currency !== mainCurrency && (
+                      <Typography variant="caption" color="text.secondary">
+                        {formatAmountWithCurrency(expense.amount, expense.currency)}
+                      </Typography>
+                    )}
+                  </Box>
                 }
               >
                 <ListItemIcon sx={{ minWidth: 40 }}>

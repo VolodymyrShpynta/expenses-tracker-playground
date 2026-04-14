@@ -39,6 +39,7 @@ class ExpenseCommandService(
     suspend fun createExpense(
         description: String,
         amount: Long,
+        currency: String,
         category: String,
         date: String
     ): ExpenseProjection {
@@ -49,6 +50,7 @@ class ExpenseCommandService(
             id = expenseId,
             description = description,
             amount = amount,
+            currency = currency,
             category = category,
             date = date,
             updatedAt = now,
@@ -76,6 +78,7 @@ class ExpenseCommandService(
         id: UUID,
         description: String?,
         amount: Long?,
+        currency: String?,
         category: String?,
         date: String?
     ): ExpenseProjection? {
@@ -86,6 +89,7 @@ class ExpenseCommandService(
             id = id,
             description = description ?: existing.description,
             amount = amount ?: existing.amount,
+            currency = currency ?: existing.currency,
             category = category ?: existing.category,
             date = date ?: existing.date,
             updatedAt = now,
@@ -116,6 +120,7 @@ class ExpenseCommandService(
             id = id,
             description = existing.description,
             amount = existing.amount,
+            currency = existing.currency,
             category = existing.category,
             date = existing.date,
             updatedAt = now,

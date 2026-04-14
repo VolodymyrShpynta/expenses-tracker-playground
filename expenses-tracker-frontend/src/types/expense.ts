@@ -6,7 +6,8 @@
 export interface Expense {
   id: string;
   description: string;
-  amount: number; // cents
+  amount: number; // cents (in the currency the user entered)
+  currency: string; // ISO 4217 currency code
   category: string;
   date: string; // ISO 8601
   updatedAt: number;
@@ -16,6 +17,7 @@ export interface Expense {
 export interface CreateExpenseRequest {
   description: string;
   amount: number; // cents
+  currency: string; // ISO 4217 currency code
   category: string;
   date: string; // ISO 8601
 }
@@ -23,6 +25,7 @@ export interface CreateExpenseRequest {
 export interface UpdateExpenseRequest {
   description?: string;
   amount?: number;
+  currency?: string;
   category?: string;
   date?: string;
 }

@@ -31,6 +31,7 @@ class SyncExpenseControllerTest {
         val request = CreateExpenseRequest(
             description = "Coffee",
             amount = 450,  // $4.50 in cents
+            currency = "USD",
             category = "Food",
             date = "2026-01-20T10:00:00Z"
         )
@@ -57,6 +58,7 @@ class SyncExpenseControllerTest {
         val request = CreateExpenseRequest(
             description = "Lunch",
             amount = 1200,
+            currency = "USD",
             category = "Food",
             date = "2026-01-20T12:00:00Z"
         )
@@ -87,6 +89,7 @@ class SyncExpenseControllerTest {
         val createRequest = CreateExpenseRequest(
             description = "Original",
             amount = 1000,
+            currency = "USD",
             category = "Food",
             date = "2026-01-20T10:00:00Z"
         )
@@ -128,6 +131,7 @@ class SyncExpenseControllerTest {
         val createRequest = CreateExpenseRequest(
             description = "To Delete",
             amount = 500,
+            currency = "USD",
             category = "Test",
             date = "2026-01-20T10:00:00Z"
         )
@@ -161,6 +165,7 @@ class SyncExpenseControllerTest {
         val request = CreateExpenseRequest(
             description = "Sync Test",
             amount = 1500,
+            currency = "USD",
             category = "Test",
             date = "2026-01-20T10:00:00Z"
         )

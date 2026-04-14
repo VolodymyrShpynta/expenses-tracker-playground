@@ -11,6 +11,8 @@ data class CreateExpenseRequest(
     val description: String,
     @field:Positive(message = "Amount must be positive")
     val amount: Long,  // cents
+    @field:NotBlank(message = "Currency is required")
+    val currency: String,  // ISO 4217 currency code
     @field:NotBlank(message = "Category is required")
     val category: String,
     @field:NotBlank(message = "Date is required")
@@ -23,6 +25,7 @@ data class CreateExpenseRequest(
 data class UpdateExpenseRequest(
     val description: String? = null,
     val amount: Long? = null,
+    val currency: String? = null,
     val category: String? = null,
     val date: String? = null
 )
@@ -34,6 +37,7 @@ data class ExpenseDto(
     val id: String,
     val description: String,
     val amount: Long,
+    val currency: String,
     val category: String,
     val date: String,
     val updatedAt: Long,

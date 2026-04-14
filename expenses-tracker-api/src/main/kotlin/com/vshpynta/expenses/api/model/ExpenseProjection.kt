@@ -22,6 +22,9 @@ data class ExpenseProjection(
     @Column("amount")
     val amount: Long,  // Store cents as BIGINT
 
+    @Column("currency")
+    val currency: String = "USD",  // ISO 4217 currency code
+
     @Column("category")
     val category: String? = null,
 

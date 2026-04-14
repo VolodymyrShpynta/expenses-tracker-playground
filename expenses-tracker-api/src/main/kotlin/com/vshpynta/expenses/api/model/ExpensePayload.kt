@@ -11,6 +11,7 @@ data class ExpensePayload(
     val id: UUID,
     val description: String? = null,
     val amount: Long? = null,  // cents
+    val currency: String? = null,  // ISO 4217 currency code
     val category: String? = null,
     val date: String? = null,  // ISO 8601
     val updatedAt: Long,

@@ -5,13 +5,14 @@ import { useTheme } from '@mui/material/styles';
 import { alpha } from '@mui/material/styles';
 import type { CategorySummary } from '../types/expense.ts';
 import { getCategoryConfig } from '../utils/categoryConfig.ts';
-import { formatAmountCompact } from '../utils/format.ts';
+import { formatAmountCompactWithCurrency } from '../utils/format.ts';
 
 interface CategoryCardProps {
   summary: CategorySummary;
+  currency?: string;
 }
 
-export function CategoryCard({ summary }: CategoryCardProps) {
+export function CategoryCard({ summary, currency }: CategoryCardProps) {
   const navigate = useNavigate();
   const theme = useTheme();
   const config = getCategoryConfig(summary.category);
@@ -66,7 +67,7 @@ export function CategoryCard({ summary }: CategoryCardProps) {
         fontWeight={700}
         sx={{ color: config.color }}
       >
-        {formatAmountCompact(summary.total)}
+        {currency ? formatAmountCompactWithCurrency(summary.total, currency) : String(Math.round(summary.total / 100))}
       </Typography>
     </Box>
   );

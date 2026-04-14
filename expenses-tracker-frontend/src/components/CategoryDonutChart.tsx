@@ -4,19 +4,21 @@ import { useTheme } from '@mui/material/styles';
 import { PieChart } from '@mui/x-charts/PieChart';
 import type { CategorySummary } from '../types/expense.ts';
 import { getCategoryColor } from '../utils/categoryConfig.ts';
-import { formatAmountCompact } from '../utils/format.ts';
+import { formatAmountCompactWithCurrency, formatAmountWithCurrency } from '../utils/format.ts';
 
 interface CategoryDonutChartProps {
   categories: CategorySummary[];
   grandTotal: number;
   /** Chart outer size in px (defaults to 260) */
   size?: number;
+  currency?: string;
 }
 
 export function CategoryDonutChart({
   categories,
   grandTotal,
   size = 260,
+  currency,
 }: CategoryDonutChartProps) {
   const theme = useTheme();
 
@@ -26,7 +28,7 @@ export function CategoryDonutChart({
   const data = filtered.length > 0
     ? filtered.map((c) => ({
         id: c.category,
-        value: c.total,
+        value: c.total / 100,
         label: c.category,
         color: getCategoryColor(c.category),
       }))
@@ -42,6 +44,7 @@ export function CategoryDonutChart({
             outerRadius: size * 0.46,
             paddingAngle: 1,
             cornerRadius: 3,
+            valueFormatter: (v) => currency ? formatAmountWithCurrency(Math.round(v.value * 100), currency) : String(v.value),
           },
         ]}
         width={size}
@@ -69,7 +72,7 @@ export function CategoryDonutChart({
           fontWeight={700}
           sx={{ color: theme.palette.error.main }}
         >
-          {formatAmountCompact(grandTotal)}
+          {currency ? formatAmountCompactWithCurrency(grandTotal, currency) : String(Math.round(grandTotal / 100))}
         </Typography>
       </Box>
     </Box>

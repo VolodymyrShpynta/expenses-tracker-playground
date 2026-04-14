@@ -80,6 +80,7 @@ class ExpenseEventSyncServiceTest {
         val expense = commandService.createExpense(
             description = "Test Expense",
             amount = 10000,
+            currency = "USD",
             category = "Food",
             date = "2026-01-20T10:00:00Z"
         )
