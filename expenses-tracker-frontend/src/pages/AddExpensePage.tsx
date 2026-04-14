@@ -4,8 +4,6 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
-import Autocomplete from '@mui/material/Autocomplete';
-import ListItemIcon from '@mui/material/ListItemIcon';
 import Paper from '@mui/material/Paper';
 import Alert from '@mui/material/Alert';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -16,7 +14,7 @@ import { MoneyField } from '../components/MoneyField.tsx';
 import { useMainCurrency } from '../hooks/useCurrency.ts';
 import { SUPPORTED_CURRENCIES } from '../api/exchange.ts';
 import type { CurrencyCode } from '../api/exchange.ts';
-import { getCategoryConfig } from '../utils/categoryConfig.ts';
+import { CategoryAutocomplete } from '../components/CategoryAutocomplete.tsx';
 
 const CATEGORIES = [
   'Food',
@@ -117,25 +115,13 @@ export default function AddExpensePage() {
               />
             </Box>
 
-            <Autocomplete
+            <CategoryAutocomplete
               options={CATEGORIES}
               value={category || null}
-              onChange={(_e, newValue) => setCategory(newValue ?? '')}
-              renderOption={(props, option) => {
-                const config = getCategoryConfig(option);
-                const Icon = config.icon;
-                return (
-                  <li {...props} key={option}>
-                    <ListItemIcon sx={{ minWidth: 32 }}>
-                      <Icon sx={{ color: config.color }} fontSize="small" />
-                    </ListItemIcon>
-                    {option}
-                  </li>
-                );
-              }}
-              renderInput={(params) => (
-                <TextField {...params} label="Category" required fullWidth />
-              )}
+              onChange={(val) => setCategory(val ?? '')}
+              label="Category"
+              required
+              fullWidth
             />
 
             <DatePicker

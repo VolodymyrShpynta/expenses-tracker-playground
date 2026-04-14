@@ -11,10 +11,10 @@ import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
-import Autocomplete from '@mui/material/Autocomplete';
 import IconButton from '@mui/material/IconButton';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
+import { CategoryAutocomplete } from '../components/CategoryAutocomplete.tsx';
 import { useExpenses } from '../hooks/useExpenses.ts';
 import { useExchangeRates } from '../hooks/useExchangeRates.ts';
 import { getCategoryConfig } from '../utils/categoryConfig.ts';
@@ -197,31 +197,15 @@ export default function TransactionsPage() {
           />
         </Box>
         {filterOpen && unselectedCategories.length > 0 && (
-          <Autocomplete
+          <CategoryAutocomplete
             open
             size="small"
             options={unselectedCategories}
-            onChange={(_e, val) => { if (val) { addCategory(val); setFilterOpen(unselectedCategories.length > 1); } }}
-            renderOption={(props, option) => {
-              const config = getCategoryConfig(option);
-              const Icon = config.icon;
-              return (
-                <li {...props} key={option}>
-                  <ListItemIcon sx={{ minWidth: 32 }}>
-                    <Icon sx={{ color: config.color }} fontSize="small" />
-                  </ListItemIcon>
-                  {option}
-                </li>
-              );
-            }}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                placeholder="Search categories…"
-                autoFocus
-              />
-            )}
             value={null}
+            onChange={(val) => { if (val) { addCategory(val); setFilterOpen(unselectedCategories.length > 1); } }}
+            placeholder="Search categories…"
+            fullWidth
+            autoFocus
             blurOnSelect
             onClose={() => setFilterOpen(false)}
             sx={{ mt: 1 }}
