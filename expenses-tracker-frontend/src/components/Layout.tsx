@@ -202,7 +202,7 @@ export function Layout() {
         </Toolbar>
       )}
 
-      <Box sx={{ display: 'flex', flex: 1 }}>
+      <Box sx={{ display: 'flex', flex: 1, minHeight: 0 }}>
         {/* Desktop sidebar */}
         {isDesktop && (
           <Drawer

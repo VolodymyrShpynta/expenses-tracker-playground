@@ -20,12 +20,17 @@ export function CategoryDonutChart({
 }: CategoryDonutChartProps) {
   const theme = useTheme();
 
-  const data = categories.map((c) => ({
-    id: c.category,
-    value: c.total,
-    label: c.category,
-    color: getCategoryColor(c.category),
-  }));
+  const filtered = categories.filter((c) => c.total > 0);
+
+  // Show a single grey ring when there are no expenses
+  const data = filtered.length > 0
+    ? filtered.map((c) => ({
+        id: c.category,
+        value: c.total,
+        label: c.category,
+        color: getCategoryColor(c.category),
+      }))
+    : [{ id: 'empty', value: 1, label: 'No expenses', color: theme.palette.action.disabledBackground }];
 
   return (
     <Box sx={{ position: 'relative', width: size, height: size, mx: 'auto' }}>

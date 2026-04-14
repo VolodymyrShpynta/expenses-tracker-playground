@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
-import Paper from '@mui/material/Paper';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 import { useExpenses } from '../hooks/useExpenses.ts';
 import { useCategorySummary } from '../hooks/useCategorySummary.ts';
 import { CategoryCard } from '../components/CategoryCard.tsx';
@@ -22,6 +23,24 @@ export default function CategoriesPage() {
     };
   });
   const { categories, grandTotal } = useCategorySummary(expenses, dateRange);
+  const theme = useTheme();
+  const isLarge = useMediaQuery(theme.breakpoints.up('md'));
+
+  // Responsive layout: how many categories go in each zone around the donut
+  const topCount = isLarge ? 6 : 4;
+  // On desktop: 2 columns per side × 3 rows = 6 per side; mobile: 1 col × 2 rows = 2 per side
+  const sideCols = isLarge ? 2 : 1;
+  const sideRows = isLarge ? 3 : 2;
+  const sideCount = sideCols * sideRows;
+  const aroundTotal = topCount + sideCount * 2;
+
+  const { topCats, leftCats, rightCats, bottomCats } = useMemo(() => {
+    const top = categories.slice(0, topCount);
+    const left = categories.slice(topCount, topCount + sideCount);
+    const right = categories.slice(topCount + sideCount, aroundTotal);
+    const bottom = categories.slice(aroundTotal);
+    return { topCats: top, leftCats: left, rightCats: right, bottomCats: bottom };
+  }, [categories, topCount, sideCount, aroundTotal]);
 
   if (loading) {
     return (
@@ -39,6 +58,8 @@ export default function CategoriesPage() {
     );
   }
 
+  const donutSize = isLarge ? 300 : 240;
+
   return (
     <Box sx={{ py: 2 }}>
       {/* Total header */}
@@ -55,39 +76,58 @@ export default function CategoriesPage() {
       <DateRangeSelector value={dateRange} onChange={setDateRange} />
 
       {/* Top categories row */}
-      <Grid container spacing={1} sx={{ mt: 1 }}>
-        {categories.slice(0, 4).map((cat) => (
-          <Grid key={cat.category} size={{ xs: 3, sm: 3, md: 2 }}>
-            <CategoryCard summary={cat} />
-          </Grid>
-        ))}
-      </Grid>
+      {topCats.length > 0 && (
+        <Grid container spacing={1} sx={{ mt: 1 }}>
+          {topCats.map((cat) => (
+            <Grid key={cat.category} size={{ xs: 12 / topCount, md: 12 / topCount }}>
+              <CategoryCard summary={cat} />
+            </Grid>
+          ))}
+        </Grid>
+      )}
 
-      {/* Donut chart */}
+      {/* Donut chart with side categories */}
       {categories.length > 0 && (
-        <Paper
-          elevation={0}
-          sx={{
-            mt: 2,
-            mb: 2,
-            py: 2,
-            display: 'flex',
-            justifyContent: 'center',
-            backgroundColor: 'transparent',
-          }}
-        >
-          <CategoryDonutChart
-            categories={categories}
-            grandTotal={grandTotal}
-            size={280}
-          />
-        </Paper>
+        <Grid container spacing={1} sx={{ mt: 2, mb: 2, alignItems: 'center' }}>
+          {/* Left side categories — 1 col on mobile, 2 cols on desktop */}
+          <Grid size={{ xs: 12 / topCount, md: (12 / topCount) * sideCols }}>
+            <Grid container spacing={1}>
+              {leftCats.map((cat) => (
+                <Grid key={cat.category} size={{ xs: 12, md: 12 / sideCols }}>
+                  <CategoryCard summary={cat} />
+                </Grid>
+              ))}
+            </Grid>
+          </Grid>
+
+          {/* Donut chart — takes the remaining center columns */}
+          <Grid size={{ xs: 12 - (24 / topCount), md: 12 - ((24 / topCount) * sideCols) }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+              <CategoryDonutChart
+                categories={categories}
+                grandTotal={grandTotal}
+                size={donutSize}
+              />
+            </Box>
+          </Grid>
+
+          {/* Right side categories — 1 col on mobile, 2 cols on desktop */}
+          <Grid size={{ xs: 12 / topCount, md: (12 / topCount) * sideCols }}>
+            <Grid container spacing={1}>
+              {rightCats.map((cat) => (
+                <Grid key={cat.category} size={{ xs: 12, md: 12 / sideCols }}>
+                  <CategoryCard summary={cat} />
+                </Grid>
+              ))}
+            </Grid>
+          </Grid>
+        </Grid>
       )}
 
       {/* Remaining categories grid */}
-      {categories.length > 4 && (
+      {bottomCats.length > 0 && (
         <Grid container spacing={1}>
-          {categories.slice(4).map((cat) => (
+          {bottomCats.map((cat) => (
             <Grid key={cat.category} size={{ xs: 3, sm: 3, md: 2 }}>
               <CategoryCard summary={cat} />
             </Grid>

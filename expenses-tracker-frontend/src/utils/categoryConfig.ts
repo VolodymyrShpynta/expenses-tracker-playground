@@ -83,6 +83,35 @@ const DEFAULT_CONFIG: CategoryConfig = {
   color: '#78909c',
 };
 
+/**
+ * Canonical display names for all known categories.
+ * Order here defines the default display order for categories with zero spending.
+ */
+export const ALL_CATEGORY_NAMES: string[] = [
+  'Food',
+  'Transportation',
+  'Health',
+  'Gifts',
+  'Children',
+  'Hygiene',
+  'Sport',
+  'Car',
+  'Clothing',
+  'Communication',
+  'Beauty',
+  'House',
+  'Parents',
+  'Pet',
+  'Farm',
+  'Tech',
+  'Charity',
+  'Entertainment',
+  'Utilities',
+  'Education',
+  'Travel',
+  'Restaurant',
+];
+
 export function getCategoryConfig(category: string): CategoryConfig {
   return CATEGORY_MAP[category.toLowerCase()] ?? DEFAULT_CONFIG;
 }
