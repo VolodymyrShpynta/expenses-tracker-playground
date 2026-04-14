@@ -1,13 +1,17 @@
 import { type SubmitEvent, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
-import MenuItem from '@mui/material/MenuItem';
+import Autocomplete from '@mui/material/Autocomplete';
 import Paper from '@mui/material/Paper';
 import Alert from '@mui/material/Alert';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import dayjs from 'dayjs';
+import type { Dayjs } from 'dayjs';
 import { useCreateExpense } from '../hooks/useExpenseMutations.ts';
+import { MoneyField } from '../components/MoneyField.tsx';
 
 const CATEGORIES = [
   'Food',
@@ -35,11 +39,12 @@ const CATEGORIES = [
 
 export default function AddExpensePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const createExpense = useCreateExpense();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 16));
+  const [category, setCategory] = useState(searchParams.get('category') ?? '');
+  const [date, setDate] = useState<Dayjs>(dayjs());
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleSubmit = (e: SubmitEvent<HTMLFormElement>) => {
@@ -62,7 +67,7 @@ export default function AddExpensePage() {
         description,
         amount: cents,
         category,
-        date: new Date(date).toISOString(),
+        date: date.toISOString(),
       },
       { onSuccess: () => void navigate('/') },
     );
@@ -90,44 +95,26 @@ export default function AddExpensePage() {
               fullWidth
             />
 
-            <TextField
-              label="Amount"
-              type="number"
-              slotProps={{
-                htmlInput: { step: '0.01', min: '0.01' },
-              }}
+            <MoneyField
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              helperText="Enter amount in dollars (e.g. 50.00)"
+              onChange={setAmount}
               required
-              fullWidth
             />
 
-            <TextField
-              label="Category"
-              select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              required
-              fullWidth
-            >
-              {CATEGORIES.map((cat) => (
-                <MenuItem key={cat} value={cat}>
-                  {cat}
-                </MenuItem>
-              ))}
-            </TextField>
+            <Autocomplete
+              options={CATEGORIES}
+              value={category || null}
+              onChange={(_e, newValue) => setCategory(newValue ?? '')}
+              renderInput={(params) => (
+                <TextField {...params} label="Category" required fullWidth />
+              )}
+            />
 
-            <TextField
+            <DatePicker
               label="Date"
-              type="datetime-local"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
-              required
-              fullWidth
-              slotProps={{
-                inputLabel: { shrink: true },
-              }}
+              onChange={(v) => { if (v) setDate(v); }}
+              slotProps={{ textField: { required: true, fullWidth: true } }}
             />
 
             <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>

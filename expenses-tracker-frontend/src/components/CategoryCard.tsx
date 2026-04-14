@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
@@ -11,6 +12,7 @@ interface CategoryCardProps {
 }
 
 export function CategoryCard({ summary }: CategoryCardProps) {
+  const navigate = useNavigate();
   const theme = useTheme();
   const config = getCategoryConfig(summary.category);
   const Icon = config.icon;
@@ -18,6 +20,7 @@ export function CategoryCard({ summary }: CategoryCardProps) {
 
   return (
     <Box
+      onClick={() => void navigate(`/add?category=${encodeURIComponent(summary.category)}`)}
       sx={{
         display: 'flex',
         flexDirection: 'column',
