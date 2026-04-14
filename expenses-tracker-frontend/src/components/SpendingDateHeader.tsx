@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { DateRangeSelector } from './DateRangeSelector.tsx';
 import { formatAmountWithCurrency } from '../utils/format.ts';
-import type { DateRange } from '../utils/dateRange.ts';
+import type { DateRange, PresetKey } from '../utils/dateRange.ts';
 import type { CurrencyCode } from '../api/exchange.ts';
 
 interface SpendingDateHeaderProps {
@@ -10,6 +10,7 @@ interface SpendingDateHeaderProps {
   currency: CurrencyCode;
   dateRange: DateRange;
   onDateRangeChange: (range: DateRange) => void;
+  onPresetChange?: (preset: PresetKey) => void;
 }
 
 export function SpendingDateHeader({
@@ -17,6 +18,7 @@ export function SpendingDateHeader({
   currency,
   dateRange,
   onDateRangeChange,
+  onPresetChange,
 }: SpendingDateHeaderProps) {
   return (
     <>
@@ -28,7 +30,7 @@ export function SpendingDateHeader({
           {formatAmountWithCurrency(totalSpending, currency)}
         </Typography>
       </Box>
-      <DateRangeSelector value={dateRange} onChange={onDateRangeChange} />
+      <DateRangeSelector value={dateRange} onChange={onDateRangeChange} onPresetChange={onPresetChange} />
     </>
   );
 }

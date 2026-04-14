@@ -70,17 +70,19 @@ const calendarSx = {
 interface DateRangeSelectorProps {
   value: DateRange;
   onChange: (range: DateRange) => void;
+  onPresetChange?: (preset: PresetKey) => void;
 }
 
 type PickerMode = 'none' | 'day' | 'range';
 type RangeStep = 'from' | 'to';
 
-export function DateRangeSelector({ value, onChange }: DateRangeSelectorProps) {
+export function DateRangeSelector({ value, onChange, onPresetChange }: DateRangeSelectorProps) {
   const [activePreset, setActivePresetState] = useState<PresetKey>(readStoredPreset);
   const setActivePreset = useCallback((key: PresetKey) => {
     setActivePresetState(key);
     savePreset(key);
-  }, []);
+    onPresetChange?.(key);
+  }, [onPresetChange]);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [pickerAnchorEl, setPickerAnchorEl] = useState<HTMLElement | null>(null);
   const [pickerMode, setPickerMode] = useState<PickerMode>('none');
