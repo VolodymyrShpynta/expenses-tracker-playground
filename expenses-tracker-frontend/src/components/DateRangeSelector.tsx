@@ -186,13 +186,9 @@ export function DateRangeSelector({ value, onChange }: DateRangeSelectorProps) {
         to.setDate(to.getDate() + delta);
       } else if (unit === 'month') {
         from.setMonth(from.getMonth() + delta);
-        to.setMonth(to.getMonth() + delta);
-        // Clamp end-of-month
-        to.setDate(0); // last day of previous month+1
-        to.setMonth(to.getMonth() + 1);
-        to.setDate(0);
-        to.setHours(23, 59, 59, 999);
         from.setDate(1);
+        to.setFullYear(from.getFullYear(), from.getMonth() + 1, 0);
+        to.setHours(23, 59, 59, 999);
       } else {
         from.setFullYear(from.getFullYear() + delta);
         to.setFullYear(to.getFullYear() + delta);
