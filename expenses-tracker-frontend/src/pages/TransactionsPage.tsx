@@ -14,6 +14,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import IconButton from '@mui/material/IconButton';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
+import EditIcon from '@mui/icons-material/Edit';
 import { CategoryAutocomplete } from '../components/CategoryAutocomplete.tsx';
 import { useExpenses } from '../hooks/useExpenses.ts';
 import { useExchangeRates } from '../hooks/useExchangeRates.ts';
@@ -23,6 +24,7 @@ import { SpendingDateHeader } from '../components/SpendingDateHeader.tsx';
 import { buildRangeForPreset, readStoredPreset } from '../utils/dateRange.ts';
 import type { PresetKey } from '../utils/dateRange.ts';
 import type { Expense } from '../types/expense.ts';
+import { EditExpenseDialog } from '../components/EditExpenseDialog.tsx';
 
 type GroupBy = 'day' | 'month' | 'year';
 
@@ -72,6 +74,7 @@ export default function TransactionsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [filterOpen, setFilterOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
   const handlePresetChange = useCallback((preset: PresetKey) => {
     setGroupBy(presetToGroupBy(preset));
@@ -296,15 +299,24 @@ export default function TransactionsPage() {
                     <ListItem
                       sx={{ px: 1 }}
                       secondaryAction={
-                        <Box sx={{ textAlign: 'right' }}>
-                          <Typography variant="body2" fontWeight={600}>
-                            {formatAmountWithCurrency(convert(expense.amount, expense.currency), mainCurrency)}
-                          </Typography>
-                          {expense.currency !== mainCurrency && (
-                            <Typography variant="caption" color="text.secondary">
-                              {formatAmountWithCurrency(expense.amount, expense.currency)}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{ textAlign: 'right' }}>
+                            <Typography variant="body2" fontWeight={600}>
+                              {formatAmountWithCurrency(convert(expense.amount, expense.currency), mainCurrency)}
                             </Typography>
-                          )}
+                            {expense.currency !== mainCurrency && (
+                              <Typography variant="caption" color="text.secondary">
+                                {formatAmountWithCurrency(expense.amount, expense.currency)}
+                              </Typography>
+                            )}
+                          </Box>
+                          <IconButton
+                            size="small"
+                            onClick={() => setEditingExpense(expense)}
+                            aria-label="Edit expense"
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
                         </Box>
                       }
                     >
@@ -331,6 +343,15 @@ export default function TransactionsPage() {
           </Box>
         );
       })}
+
+      {editingExpense && (
+        <EditExpenseDialog
+          key={editingExpense.id}
+          expense={editingExpense}
+          open
+          onClose={() => setEditingExpense(null)}
+        />
+      )}
     </Box>
   );
 }
