@@ -11,9 +11,8 @@ import { useConvertedExpenses } from '../hooks/useExchangeRates.ts';
 import { useCategorySummary } from '../hooks/useCategorySummary.ts';
 import { CategoryCard } from '../components/CategoryCard.tsx';
 import { CategoryDonutChart } from '../components/CategoryDonutChart.tsx';
-import { DateRangeSelector } from '../components/DateRangeSelector.tsx';
+import { SpendingDateHeader } from '../components/SpendingDateHeader.tsx';
 import { buildRangeForPreset, readStoredPreset } from '../utils/dateRange.ts';
-import { formatAmountWithCurrency } from '../utils/format.ts';
 import { useMainCurrency } from '../hooks/useCurrency.ts';
 
 export default function CategoriesPage() {
@@ -61,18 +60,12 @@ export default function CategoriesPage() {
 
   return (
     <Box sx={{ py: 2 }}>
-      {/* Total header */}
-      <Box sx={{ textAlign: 'center', mb: 1 }}>
-        <Typography variant="body2" color="text.secondary">
-          Total spending
-        </Typography>
-        <Typography variant="h4" fontWeight={700}>
-          {formatAmountWithCurrency(grandTotal, mainCurrency)}
-        </Typography>
-      </Box>
-
-      {/* Date range */}
-      <DateRangeSelector value={dateRange} onChange={setDateRange} />
+      <SpendingDateHeader
+        totalSpending={grandTotal}
+        currency={mainCurrency}
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
+      />
 
       {/* Top categories row */}
       {topCats.length > 0 && (

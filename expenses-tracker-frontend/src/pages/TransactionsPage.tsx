@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import List from '@mui/material/List';
@@ -12,10 +13,30 @@ import { useExpenses } from '../hooks/useExpenses.ts';
 import { useExchangeRates } from '../hooks/useExchangeRates.ts';
 import { getCategoryConfig } from '../utils/categoryConfig.ts';
 import { formatAmountWithCurrency } from '../utils/format.ts';
+import { SpendingDateHeader } from '../components/SpendingDateHeader.tsx';
+import { buildRangeForPreset, readStoredPreset } from '../utils/dateRange.ts';
 
 export default function TransactionsPage() {
   const { expenses, loading, error } = useExpenses();
   const { convert, mainCurrency } = useExchangeRates();
+  const [dateRange, setDateRange] = useState(() => buildRangeForPreset(readStoredPreset()));
+
+  // Filter by date range, then sort by date descending
+  const sorted = useMemo(() => {
+    const fromTime = dateRange.from.getTime();
+    const toTime = dateRange.to.getTime();
+    return [...expenses]
+      .filter((e) => {
+        const t = new Date(e.date).getTime();
+        return t >= fromTime && t <= toTime;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [expenses, dateRange]);
+
+  const totalSpending = useMemo(
+    () => sorted.reduce((sum, e) => sum + convert(e.amount, e.currency), 0),
+    [sorted, convert],
+  );
 
   if (loading) {
     return (
@@ -33,16 +54,14 @@ export default function TransactionsPage() {
     );
   }
 
-  // Sort by date descending
-  const sorted = [...expenses].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-  );
-
   return (
     <Box sx={{ py: 2 }}>
-      <Typography variant="h5" fontWeight={700} sx={{ mb: 2, px: 1 }}>
-        Transactions
-      </Typography>
+      <SpendingDateHeader
+        totalSpending={totalSpending}
+        currency={mainCurrency}
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
+      />
 
       {sorted.length === 0 && (
         <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 4 }}>
