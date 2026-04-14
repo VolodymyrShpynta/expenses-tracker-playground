@@ -156,8 +156,13 @@ export const ColorModeToggleContext = createContext<ColorModeToggle>({
 
 export const useColorTheme = (): [Theme, ColorModeToggle] => {
   const [mode, setMode] = useState<PaletteMode>(() => {
-    const stored = localStorage.getItem('themeMode');
-    return stored === 'light' || stored === 'dark' ? stored : 'dark';
+    try {
+      const stored = localStorage.getItem('themeMode');
+      return stored === 'light' || stored === 'dark' ? stored : 'dark';
+    } catch (e) {
+      console.warn('Failed to read theme mode from localStorage', e);
+      return 'dark';
+    }
   });
 
   const colorModeToggle = useMemo<ColorModeToggle>(
@@ -165,7 +170,9 @@ export const useColorTheme = (): [Theme, ColorModeToggle] => {
       toggleColorMode: () =>
         setMode((prev) => {
           const next = prev === 'light' ? 'dark' : 'light';
-          localStorage.setItem('themeMode', next);
+          try {
+            localStorage.setItem('themeMode', next);
+          } catch (e) { console.warn('Failed to save theme mode to localStorage', e); }
           return next;
         }),
     }),

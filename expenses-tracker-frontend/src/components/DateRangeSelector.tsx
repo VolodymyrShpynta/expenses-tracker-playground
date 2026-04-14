@@ -25,78 +25,21 @@ import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import type { TransitionProps } from '@mui/material/transitions';
 import { forwardRef } from 'react';
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface DateRange {
-  from: Date;
-  to: Date;
-}
-
-type PresetKey = 'range' | 'all' | 'day' | 'week' | 'today' | 'year' | 'month';
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function startOfDay(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
-
-function endOfDay(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
-}
-
-function buildWeekRange(): DateRange {
-  const now = new Date();
-  const day = now.getDay(); // 0=Sun
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - ((day + 6) % 7));
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  return { from: startOfDay(monday), to: endOfDay(sunday) };
-}
-
-function buildMonthRange(): DateRange {
-  const now = new Date();
-  return {
-    from: new Date(now.getFullYear(), now.getMonth(), 1),
-    to: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999),
-  };
-}
-
-function buildYearRange(): DateRange {
-  const now = new Date();
-  return {
-    from: new Date(now.getFullYear(), 0, 1),
-    to: new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999),
-  };
-}
-
-function buildTodayRange(): DateRange {
-  const now = new Date();
-  return { from: startOfDay(now), to: endOfDay(now) };
-}
-
-function buildAllTimeRange(): DateRange {
-  return {
-    from: new Date(2000, 0, 1),
-    to: endOfDay(new Date()),
-  };
-}
-
-function formatShort(d: Date): string {
-  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
-}
-
-function formatRange(range: DateRange): string {
-  const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
-  const from = range.from.toLocaleDateString('en-US', opts).toUpperCase();
-  const to = range.to.toLocaleDateString('en-US', opts).toUpperCase();
-  return `${from} – ${to}`;
-}
+import type { PresetKey } from '../utils/dateRange.ts';
+import {
+  buildWeekRange,
+  buildMonthRange,
+  buildYearRange,
+  buildTodayRange,
+  buildAllTimeRange,
+  readStoredPreset,
+  savePreset,
+  formatShort,
+  formatRange,
+  startOfDay,
+  endOfDay,
+} from '../utils/dateRange.ts';
+import type { DateRange } from '../utils/dateRange.ts';
 
 // ---------------------------------------------------------------------------
 // Slide-up transition for the bottom sheet
@@ -133,7 +76,11 @@ type PickerMode = 'none' | 'day' | 'range';
 type RangeStep = 'from' | 'to';
 
 export function DateRangeSelector({ value, onChange }: DateRangeSelectorProps) {
-  const [activePreset, setActivePreset] = useState<PresetKey>('year');
+  const [activePreset, setActivePresetState] = useState<PresetKey>(readStoredPreset);
+  const setActivePreset = useCallback((key: PresetKey) => {
+    setActivePresetState(key);
+    savePreset(key);
+  }, []);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [pickerAnchorEl, setPickerAnchorEl] = useState<HTMLElement | null>(null);
   const [pickerMode, setPickerMode] = useState<PickerMode>('none');

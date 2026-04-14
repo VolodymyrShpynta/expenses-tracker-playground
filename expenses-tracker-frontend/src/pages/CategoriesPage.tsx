@@ -12,19 +12,14 @@ import { useCategorySummary } from '../hooks/useCategorySummary.ts';
 import { CategoryCard } from '../components/CategoryCard.tsx';
 import { CategoryDonutChart } from '../components/CategoryDonutChart.tsx';
 import { DateRangeSelector } from '../components/DateRangeSelector.tsx';
+import { buildRangeForPreset, readStoredPreset } from '../utils/dateRange.ts';
 import { formatAmountWithCurrency } from '../utils/format.ts';
 import { useMainCurrency } from '../hooks/useCurrency.ts';
 
 export default function CategoriesPage() {
   const { expenses, loading, error } = useExpenses();
   const convertedExpenses = useConvertedExpenses(expenses);
-  const [dateRange, setDateRange] = useState(() => {
-    const now = new Date();
-    return {
-      from: new Date(now.getFullYear(), 0, 1),
-      to: new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999),
-    };
-  });
+  const [dateRange, setDateRange] = useState(() => buildRangeForPreset(readStoredPreset()));
   const { categories, grandTotal } = useCategorySummary(convertedExpenses, dateRange);
   const { mainCurrency } = useMainCurrency();
   const theme = useTheme();

@@ -18,7 +18,7 @@ function readStoredCurrency(): CurrencyCode {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) return stored as CurrencyCode;
-  } catch { /* localStorage unavailable */ }
+  } catch (e) { console.warn('Failed to read currency from localStorage', e); }
   return DEFAULT_CURRENCY;
 }
 
@@ -29,7 +29,7 @@ export function useCurrencyProvider(): CurrencyContextValue {
     setMainCurrencyState(code);
     try {
       localStorage.setItem(STORAGE_KEY, code);
-    } catch { /* localStorage unavailable */ }
+    } catch (e) { console.warn('Failed to save currency to localStorage', e); }
   }, []);
 
   return { mainCurrency, setMainCurrency };
