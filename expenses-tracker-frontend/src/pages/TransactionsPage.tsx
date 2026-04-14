@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import List from '@mui/material/List';
@@ -70,8 +71,12 @@ export default function TransactionsPage() {
   const { expenses, loading, error } = useExpenses();
   const { convert, mainCurrency } = useExchangeRates();
   const { dateRange, preset } = useDateRange();
+  const [searchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(() => {
+    const cat = searchParams.get('category');
+    return cat ? new Set([cat]) : new Set();
+  });
   const [filterOpen, setFilterOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 

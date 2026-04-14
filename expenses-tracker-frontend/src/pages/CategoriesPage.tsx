@@ -1,19 +1,24 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import Grid from '@mui/material/Grid';
+import Divider from '@mui/material/Divider';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
+import { alpha, useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import { useTheme } from '@mui/material/styles';
+import AddIcon from '@mui/icons-material/Add';
+import IconButton from '@mui/material/IconButton';
 import { useExpenses } from '../hooks/useExpenses.ts';
 import { useConvertedExpenses } from '../hooks/useExchangeRates.ts';
 import { useCategorySummary } from '../hooks/useCategorySummary.ts';
-import { CategoryCard } from '../components/CategoryCard.tsx';
 import { CategoryDonutChart } from '../components/CategoryDonutChart.tsx';
 import { SpendingDateHeader } from '../components/SpendingDateHeader.tsx';
 import { useMainCurrency } from '../hooks/useCurrency.ts';
 import { useDateRange } from '../hooks/useDateRange.ts';
+import { getCategoryConfig } from '../utils/categoryConfig.ts';
+import { formatAmountCompactWithCurrency } from '../utils/format.ts';
+import { AddExpenseDialog } from '../components/AddExpenseDialog.tsx';
 
 export default function CategoriesPage() {
   const { expenses, loading, error } = useExpenses();
@@ -21,24 +26,20 @@ export default function CategoriesPage() {
   const { dateRange } = useDateRange();
   const { categories, grandTotal } = useCategorySummary(convertedExpenses, dateRange);
   const { mainCurrency } = useMainCurrency();
+  const navigate = useNavigate();
   const theme = useTheme();
-  const isLarge = useMediaQuery(theme.breakpoints.up('md'));
+  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
+  const [addCategory, setAddCategory] = useState<string | null>(null);
 
-  // Responsive layout: how many categories go in each zone around the donut
-  const topCount = isLarge ? 6 : 4;
-  // On desktop: 2 columns per side × 3 rows = 6 per side; mobile: 1 col × 2 rows = 2 per side
-  const sideCols = isLarge ? 2 : 1;
-  const sideRows = isLarge ? 3 : 2;
-  const sideCount = sideCols * sideRows;
-  const aroundTotal = topCount + sideCount * 2;
+  // Categories with spending, sorted descending by amount (from useCategorySummary)
+  const activeCategories = useMemo(
+    () => categories.filter((c) => c.total > 0),
+    [categories],
+  );
 
-  const { topCats, leftCats, rightCats, bottomCats } = useMemo(() => {
-    const top = categories.slice(0, topCount);
-    const left = categories.slice(topCount, topCount + sideCount);
-    const right = categories.slice(topCount + sideCount, aroundTotal);
-    const bottom = categories.slice(aroundTotal);
-    return { topCats: top, leftCats: left, rightCats: right, bottomCats: bottom };
-  }, [categories, topCount, sideCount, aroundTotal]);
+  const handleCategoryClick = (category: string) => {
+    void navigate(`/transactions?category=${encodeURIComponent(category)}`);
+  };
 
   if (loading) {
     return (
@@ -56,8 +57,6 @@ export default function CategoriesPage() {
     );
   }
 
-  const donutSize = isLarge ? 300 : 240;
-
   return (
     <Box sx={{ py: 2 }}>
       <SpendingDateHeader
@@ -65,65 +64,123 @@ export default function CategoriesPage() {
         currency={mainCurrency}
       />
 
-      {/* Top categories row */}
-      {topCats.length > 0 && (
-        <Grid container spacing={1} sx={{ mt: 1 }}>
-          {topCats.map((cat) => (
-            <Grid key={cat.category} size={{ xs: 12 / topCount, md: 12 / topCount }}>
-              <CategoryCard summary={cat} currency={mainCurrency} />
-            </Grid>
-          ))}
-        </Grid>
-      )}
+      {/* Donut chart — centered */}
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3, mb: 2 }}>
+        <CategoryDonutChart
+          categories={activeCategories}
+          grandTotal={grandTotal}
+          size={isDesktop ? 320 : 240}
+          currency={mainCurrency}
+        />
+      </Box>
 
-      {/* Donut chart with side categories */}
-      {categories.length > 0 && (
-        <Grid container spacing={1} sx={{ mt: 2, mb: 2, alignItems: 'center' }}>
-          {/* Left side categories — 1 col on mobile, 2 cols on desktop */}
-          <Grid size={{ xs: 12 / topCount, md: (12 / topCount) * sideCols }}>
-            <Grid container spacing={1}>
-              {leftCats.map((cat) => (
-                <Grid key={cat.category} size={{ xs: 12, md: 12 / sideCols }}>
-                  <CategoryCard summary={cat} currency={mainCurrency} />
-                </Grid>
-              ))}
-            </Grid>
-          </Grid>
+      {/* Category legend list — sorted by spending (matches chart) */}
+      <Box sx={{ mt: 1, px: 1 }}>
+        {activeCategories.map((cat, idx) => {
+          const config = getCategoryConfig(cat.category);
+          const Icon = config.icon;
+          const isDark = theme.palette.mode === 'dark';
+          const pct = Math.round(cat.percentage);
+          return (
+            <Box key={cat.category}>
+              {idx > 0 && <Divider sx={{ opacity: 0.15 }} />}
+              <Box
+                onClick={() => handleCategoryClick(cat.category)}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  py: 1.5,
+                  px: 1,
+                  borderRadius: 1,
+                  cursor: 'pointer',
+                  transition: 'background-color 0.15s',
+                  '&:hover': {
+                    backgroundColor: alpha(config.color, 0.08),
+                  },
+                }}
+              >
+                {/* Icon */}
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: '50%',
+                    backgroundColor: alpha(config.color, isDark ? 0.25 : 0.15),
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Icon sx={{ fontSize: 22, color: config.color }} />
+                </Box>
 
-          {/* Donut chart — takes the remaining center columns */}
-          <Grid size={{ xs: 12 - (24 / topCount), md: 12 - ((24 / topCount) * sideCols) }}>
-            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-              <CategoryDonutChart
-                categories={categories}
-                grandTotal={grandTotal}
-                size={donutSize}
-                currency={mainCurrency}
-              />
+                {/* Name + percentage bar */}
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 1 }}>
+                    <Typography variant="body1" fontWeight={500} noWrap>
+                      {cat.category}
+                    </Typography>
+                    <Typography variant="caption" fontWeight={600} sx={{ color: config.color, flexShrink: 0 }}>
+                      {pct}%
+                    </Typography>
+                  </Box>
+                  {/* Progress bar — full width of the text area */}
+                  <Box
+                    sx={{
+                      width: '100%',
+                      height: 6,
+                      borderRadius: 3,
+                      backgroundColor: alpha(config.color, isDark ? 0.15 : 0.1),
+                      overflow: 'hidden',
+                      mt: 0.5,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: `${pct}%`,
+                        height: '100%',
+                        borderRadius: 3,
+                        backgroundColor: config.color,
+                      }}
+                    />
+                  </Box>
+                </Box>
+
+                {/* Amount */}
+                <Typography
+                  variant="body1"
+                  fontWeight={700}
+                  sx={{ color: config.color, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}
+                >
+                  {mainCurrency
+                    ? formatAmountCompactWithCurrency(cat.total, mainCurrency)
+                    : String(Math.round(cat.total / 100))}
+                </Typography>
+
+                {/* Add expense button */}
+                <IconButton
+                  size="small"
+                  onClick={(e) => { e.stopPropagation(); setAddCategory(cat.category); }}
+                  sx={{ color: 'text.disabled', flexShrink: 0 }}
+                  aria-label={`Add ${cat.category} expense`}
+                >
+                  <AddIcon fontSize="small" />
+                </IconButton>
+              </Box>
             </Box>
-          </Grid>
+          );
+        })}
+      </Box>
 
-          {/* Right side categories — 1 col on mobile, 2 cols on desktop */}
-          <Grid size={{ xs: 12 / topCount, md: (12 / topCount) * sideCols }}>
-            <Grid container spacing={1}>
-              {rightCats.map((cat) => (
-                <Grid key={cat.category} size={{ xs: 12, md: 12 / sideCols }}>
-                  <CategoryCard summary={cat} currency={mainCurrency} />
-                </Grid>
-              ))}
-            </Grid>
-          </Grid>
-        </Grid>
-      )}
-
-      {/* Remaining categories grid */}
-      {bottomCats.length > 0 && (
-        <Grid container spacing={1}>
-          {bottomCats.map((cat) => (
-            <Grid key={cat.category} size={{ xs: 3, sm: 3, md: 2 }}>
-              <CategoryCard summary={cat} currency={mainCurrency} />
-            </Grid>
-          ))}
-        </Grid>
+      {addCategory !== null && (
+        <AddExpenseDialog
+          key={addCategory}
+          open
+          onClose={() => setAddCategory(null)}
+          defaultCategory={addCategory}
+        />
       )}
 
       {/* Empty state */}

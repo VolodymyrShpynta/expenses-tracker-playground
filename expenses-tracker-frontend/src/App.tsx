@@ -7,7 +7,6 @@ import { Layout } from './components/Layout.tsx';
 import CategoriesPage from './pages/CategoriesPage.tsx';
 import TransactionsPage from './pages/TransactionsPage.tsx';
 import OverviewPage from './pages/OverviewPage.tsx';
-import AddExpensePage from './pages/AddExpensePage.tsx';
 
 function App() {
   const [theme, colorModeToggle] = useColorTheme();
@@ -25,7 +24,6 @@ function App() {
                 <Route path="/" element={<CategoriesPage />} />
                 <Route path="/transactions" element={<TransactionsPage />} />
                 <Route path="/overview" element={<OverviewPage />} />
-                <Route path="/add" element={<AddExpensePage />} />
               </Route>
             </Routes>
           </ThemeProvider>

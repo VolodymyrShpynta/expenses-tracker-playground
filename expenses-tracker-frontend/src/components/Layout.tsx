@@ -31,6 +31,7 @@ import { ColorModeToggleContext } from '../theme.ts';
 import { useMainCurrency } from '../hooks/useCurrency.ts';
 import { SUPPORTED_CURRENCIES } from '../api/exchange.ts';
 import type { CurrencyCode } from '../api/exchange.ts';
+import { AddExpenseDialog } from './AddExpenseDialog.tsx';
 
 const DRAWER_WIDTH = 240;
 
@@ -64,6 +65,7 @@ export function Layout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
 
   const activeIdx = navIndex(location.pathname);
 
@@ -282,7 +284,7 @@ export function Layout() {
       <Fab
         color="primary"
         aria-label="Add expense"
-        onClick={() => handleNav('/add')}
+        onClick={() => setAddDialogOpen(true)}
         sx={{
           position: 'fixed',
           right: 16,
@@ -292,6 +294,11 @@ export function Layout() {
       >
         <AddIcon />
       </Fab>
+
+      <AddExpenseDialog
+        open={addDialogOpen}
+        onClose={() => setAddDialogOpen(false)}
+      />
 
       {/* Mobile bottom nav */}
       {!isDesktop && (
