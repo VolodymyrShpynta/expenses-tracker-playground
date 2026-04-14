@@ -17,6 +17,8 @@ import IconButton from '@mui/material/IconButton';
 import Collapse from '@mui/material/Collapse';
 import Switch from '@mui/material/Switch';
 import Fab from '@mui/material/Fab';
+import Autocomplete from '@mui/material/Autocomplete';
+import TextField from '@mui/material/TextField';
 import MenuIcon from '@mui/icons-material/Menu';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
@@ -26,6 +28,9 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import AddIcon from '@mui/icons-material/Add';
 import SyncIcon from '@mui/icons-material/Sync';
 import { ColorModeToggleContext } from '../theme.ts';
+import { useMainCurrency } from '../hooks/useCurrency.ts';
+import { SUPPORTED_CURRENCIES } from '../api/exchange.ts';
+import type { CurrencyCode } from '../api/exchange.ts';
 
 const DRAWER_WIDTH = 240;
 
@@ -54,6 +59,7 @@ export function Layout() {
 
   const { toggleColorMode } = useContext(ColorModeToggleContext);
   const isDark = theme.palette.mode === 'dark';
+  const { mainCurrency, setMainCurrency } = useMainCurrency();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -174,6 +180,32 @@ export function Layout() {
               sx={{ mr: -1 }}
             />
           </ListItemButton>
+          <Box sx={{ px: '12px', mx: '12px', my: '4px' }}>
+            <ListItemText primary="Currency" sx={{ mb: 0.5 }} />
+            <Autocomplete
+              options={SUPPORTED_CURRENCIES.map((c) => c.code)}
+              value={mainCurrency}
+              onChange={(_e, newValue) => { if (newValue) setMainCurrency(newValue as CurrencyCode); }}
+              disableClearable
+              getOptionLabel={(code) => code}
+              renderOption={(props, code) => {
+                const cur = SUPPORTED_CURRENCIES.find((c) => c.code === code);
+                return <li {...props} key={code}>{code} — {cur?.name}</li>;
+              }}
+              filterOptions={(options, { inputValue }) => {
+                const q = inputValue.toLowerCase();
+                return options.filter((code) => {
+                  const cur = SUPPORTED_CURRENCIES.find((c) => c.code === code);
+                  return code.toLowerCase().includes(q) || (cur?.name.toLowerCase().includes(q) ?? false);
+                });
+              }}
+              renderInput={(params) => (
+                <TextField {...params} size="small" />
+              )}
+              size="small"
+              fullWidth
+            />
+          </Box>
         </Box>
       </Collapse>
     </Box>

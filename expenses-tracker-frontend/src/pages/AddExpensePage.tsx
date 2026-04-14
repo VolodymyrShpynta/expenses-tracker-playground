@@ -12,6 +12,9 @@ import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import { useCreateExpense } from '../hooks/useExpenseMutations.ts';
 import { MoneyField } from '../components/MoneyField.tsx';
+import { useMainCurrency } from '../hooks/useCurrency.ts';
+import { SUPPORTED_CURRENCIES, convertCurrency } from '../api/exchange.ts';
+import type { CurrencyCode } from '../api/exchange.ts';
 
 const CATEGORIES = [
   'Food',
@@ -41,13 +44,16 @@ export default function AddExpensePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const createExpense = useCreateExpense();
+  const { mainCurrency } = useMainCurrency();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
+  const [currency, setCurrency] = useState<CurrencyCode>(mainCurrency);
   const [category, setCategory] = useState(searchParams.get('category') ?? '');
   const [date, setDate] = useState<Dayjs>(dayjs());
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [converting, setConverting] = useState(false);
 
-  const handleSubmit = (e: SubmitEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     setValidationError(null);
 
@@ -56,11 +62,27 @@ export default function AddExpensePage() {
       return;
     }
 
-    const cents = Math.round(parseFloat(amount) * 100);
-    if (isNaN(cents) || cents <= 0) {
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
       setValidationError('Amount must be a positive number.');
       return;
     }
+
+    let finalAmount = parsedAmount;
+    if (currency !== mainCurrency) {
+      try {
+        setConverting(true);
+        finalAmount = await convertCurrency(parsedAmount, currency, mainCurrency);
+      } catch {
+        setValidationError(`Failed to convert ${currency} to ${mainCurrency}. Check your connection and try again.`);
+        setConverting(false);
+        return;
+      } finally {
+        setConverting(false);
+      }
+    }
+
+    const cents = Math.round(finalAmount * 100);
 
     createExpense.mutate(
       {
@@ -73,6 +95,7 @@ export default function AddExpensePage() {
     );
   };
 
+  const isBusy = createExpense.isPending || converting;
   const error = validationError
     ?? (createExpense.error instanceof Error ? createExpense.error.message : null);
 
@@ -83,7 +106,7 @@ export default function AddExpensePage() {
       </Typography>
 
       <Paper sx={{ p: 2 }}>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={(e) => void handleSubmit(e)}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {error && <Alert severity="error">{error}</Alert>}
 
@@ -95,11 +118,21 @@ export default function AddExpensePage() {
               fullWidth
             />
 
-            <MoneyField
-              value={amount}
-              onChange={setAmount}
-              required
-            />
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <MoneyField
+                value={amount}
+                onChange={setAmount}
+                required
+                currencyCode={currency}
+                currencies={SUPPORTED_CURRENCIES}
+                onCurrencyChange={(code) => setCurrency(code as CurrencyCode)}
+              />
+            </Box>
+            {currency !== mainCurrency && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: -1.5 }}>
+                Will be converted from {currency} to {mainCurrency} on save
+              </Typography>
+            )}
 
             <Autocomplete
               options={CATEGORIES}
@@ -121,8 +154,8 @@ export default function AddExpensePage() {
               <Button variant="outlined" onClick={() => void navigate(-1)}>
                 Cancel
               </Button>
-              <Button variant="contained" type="submit" disabled={createExpense.isPending}>
-                {createExpense.isPending ? 'Saving…' : 'Save'}
+              <Button variant="contained" type="submit" disabled={isBusy}>
+                {converting ? 'Converting…' : createExpense.isPending ? 'Saving…' : 'Save'}
               </Button>
             </Box>
           </Box>

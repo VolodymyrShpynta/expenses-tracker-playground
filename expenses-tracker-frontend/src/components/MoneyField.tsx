@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import ButtonBase from '@mui/material/ButtonBase';
@@ -8,10 +8,14 @@ import IconButton from '@mui/material/IconButton';
 import Popover from '@mui/material/Popover';
 import Dialog from '@mui/material/Dialog';
 import Slide from '@mui/material/Slide';
+import List from '@mui/material/List';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemText from '@mui/material/ListItemText';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme, alpha } from '@mui/material/styles';
 import CalculateIcon from '@mui/icons-material/Calculate';
 import BackspaceOutlinedIcon from '@mui/icons-material/BackspaceOutlined';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { NumericFormat } from 'react-number-format';
 import type { NumberFormatValues } from 'react-number-format';
 import type { TransitionProps } from '@mui/material/transitions';
@@ -214,14 +218,74 @@ interface MoneyFieldProps {
   value: string;
   onChange: (value: string) => void;
   required?: boolean;
+  /** ISO 4217 currency code (e.g. 'USD', 'EUR', 'UAH'). Determines the symbol shown. */
+  currencyCode?: string;
+  /** When provided, the currency badge becomes clickable and opens a picker. */
+  currencies?: ReadonlyArray<{ code: string; name: string }>;
+  /** Called when the user picks a different currency. */
+  onCurrencyChange?: (code: string) => void;
 }
 
-export function MoneyField({ label = 'Amount', value, onChange, required }: MoneyFieldProps) {
+// ---------------------------------------------------------------------------
+// Currency picker popover content
+// ---------------------------------------------------------------------------
+
+interface CurrencyPickerProps {
+  currencies: ReadonlyArray<{ code: string; name: string }>;
+  selected: string;
+  onSelect: (code: string) => void;
+}
+
+function CurrencyPicker({ currencies, selected, onSelect }: CurrencyPickerProps) {
+  const [search, setSearch] = useState('');
+
+  const filtered = useMemo(() => {
+    if (!search) return currencies;
+    const q = search.toLowerCase();
+    return currencies.filter(
+      (c) => c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q),
+    );
+  }, [currencies, search]);
+
+  return (
+    <Box sx={{ width: 260 }}>
+      <Box sx={{ p: 1, pb: 0 }}>
+        <TextField
+          placeholder="Search currency…"
+          size="small"
+          fullWidth
+          autoFocus
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </Box>
+      <List dense sx={{ maxHeight: 260, overflow: 'auto' }}>
+        {filtered.map((c) => (
+          <ListItemButton
+            key={c.code}
+            selected={c.code === selected}
+            onClick={() => onSelect(c.code)}
+          >
+            <ListItemText
+              primary={`${c.code} — ${c.name}`}
+              primaryTypographyProps={{ variant: 'body2' }}
+            />
+          </ListItemButton>
+        ))}
+      </List>
+    </Box>
+  );
+}
+
+export function MoneyField({ label = 'Amount', value, onChange, required, currencyCode = 'USD', currencies, onCurrencyChange }: MoneyFieldProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [calcOpen, setCalcOpen] = useState(false);
   const [expression, setExpression] = useState('');
+  const [currencyAnchor, setCurrencyAnchor] = useState<HTMLElement | null>(null);
+  const currencyPickerOpen = Boolean(currencyAnchor);
+  const canPickCurrency = Boolean(currencies && onCurrencyChange);
 
   const openCalc = useCallback((anchor?: HTMLElement) => {
     setExpression(value);
@@ -250,6 +314,31 @@ export function MoneyField({ label = 'Amount', value, onChange, required }: Mone
     />
   );
 
+  const currencyBadge = canPickCurrency ? (
+    <ButtonBase
+      onClick={(e) => setCurrencyAnchor(e.currentTarget)}
+      sx={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        borderRadius: 1,
+        px: 0.75,
+        py: 0.25,
+        mr: -0.5,
+        color: 'text.secondary',
+        '&:hover': { bgcolor: alpha(theme.palette.text.primary, 0.08) },
+      }}
+    >
+      <Typography variant="body2" fontWeight={600} sx={{ lineHeight: 1 }}>
+        {currencyCode}
+      </Typography>
+      <ArrowDropDownIcon sx={{ fontSize: 18, ml: 0.25 }} />
+    </ButtonBase>
+  ) : (
+    <Typography variant="body2" color="text.secondary" fontWeight={600}>
+      {currencyCode}
+    </Typography>
+  );
+
   return (
     <>
       <NumericFormat
@@ -262,7 +351,7 @@ export function MoneyField({ label = 'Amount', value, onChange, required }: Mone
         onValueChange={(values: NumberFormatValues) => onChange(values.value)}
         slotProps={{
           input: {
-            startAdornment: <InputAdornment position="start">$</InputAdornment>,
+            startAdornment: <InputAdornment position="start">{currencyBadge}</InputAdornment>,
             endAdornment: (
               <InputAdornment position="end">
                 <IconButton
@@ -314,6 +403,25 @@ export function MoneyField({ label = 'Amount', value, onChange, required }: Mone
           transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         >
           {calcPad}
+        </Popover>
+      )}
+
+      {canPickCurrency && (
+        <Popover
+          open={currencyPickerOpen}
+          anchorEl={currencyAnchor}
+          onClose={() => setCurrencyAnchor(null)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        >
+          <CurrencyPicker
+            currencies={currencies!}
+            selected={currencyCode}
+            onSelect={(code) => {
+              onCurrencyChange!(code);
+              setCurrencyAnchor(null);
+            }}
+          />
         </Popover>
       )}
     </>
