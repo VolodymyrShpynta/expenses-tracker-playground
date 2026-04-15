@@ -68,16 +68,18 @@ export function buildAllTimeRange(): DateRange {
 const PRESET_STORAGE_KEY = 'expenses-tracker-period-preset';
 const VALID_PRESETS: PresetKey[] = ['range', 'all', 'day', 'week', 'today', 'year', 'month'];
 
-export function readStoredPreset(): PresetKey {
+export function readStoredPreset(userId?: string): PresetKey {
+  const key = userId ? `${PRESET_STORAGE_KEY}:${userId}` : PRESET_STORAGE_KEY;
   try {
-    const stored = localStorage.getItem(PRESET_STORAGE_KEY);
+    const stored = localStorage.getItem(key);
     if (stored && VALID_PRESETS.includes(stored as PresetKey)) return stored as PresetKey;
   } catch (e) { console.warn('Failed to read period preset from localStorage', e); }
   return 'year';
 }
 
-export function savePreset(key: PresetKey): void {
-  try { localStorage.setItem(PRESET_STORAGE_KEY, key); }
+export function savePreset(key: PresetKey, userId?: string): void {
+  const storageKey = userId ? `${PRESET_STORAGE_KEY}:${userId}` : PRESET_STORAGE_KEY;
+  try { localStorage.setItem(storageKey, key); }
   catch (e) { console.warn('Failed to save period preset to localStorage', e); }
 }
 

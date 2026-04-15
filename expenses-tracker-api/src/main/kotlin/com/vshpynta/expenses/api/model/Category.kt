@@ -32,7 +32,10 @@ data class Category(
     val updatedAt: Long,
 
     @Column("deleted")
-    val deleted: Boolean = false
+    val deleted: Boolean = false,
+
+    @Column("user_id")
+    val userId: String
 ) : Persistable<UUID> {
     override fun getId(): UUID = categoryId
     override fun isNew(): Boolean = true

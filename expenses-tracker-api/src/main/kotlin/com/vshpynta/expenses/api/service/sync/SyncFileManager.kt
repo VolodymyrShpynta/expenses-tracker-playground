@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.io.File
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Manages sync-specific file operations
@@ -27,30 +27,30 @@ class SyncFileManager(
     @Value($$"${sync.file.path:./sync-data/sync.json}") private val syncFilePath: String,
     @Value($$"${sync.file.compression.enabled:true}") private val compressionEnabled: Boolean
 ) {
-    private val cachedChecksum = AtomicReference<String?>(null)
+    private val cachedChecksums = ConcurrentHashMap<String, String>()
 
     companion object {
         private val logger = LoggerFactory.getLogger(SyncFileManager::class.java)
         private const val GZIP_EXTENSION = ".gz"
     }
 
-    suspend fun getSyncFile(): File {
-        val file = File(getActualFilePath())
+    suspend fun getSyncFile(userId: String): File {
+        val file = File(getActualFilePath(userId))
         fileOperations.ensureParentDirectories(file)
         return file
     }
 
     /**
-     * Checks if the sync file has changed since last sync
+     * Checks if the sync file has changed since last sync for the given user
      */
-    suspend fun hasFileChanged(file: File): Boolean {
-        val previousChecksum = cachedChecksum.get() ?: return true
+    suspend fun hasFileChanged(file: File, userId: String): Boolean {
+        val previousChecksum = cachedChecksums[userId] ?: return true
         return !fileOperations.matchesChecksum(file, previousChecksum)
     }
 
-    suspend fun cacheFileChecksum(file: File) {
-        val checksum = fileOperations.calculateChecksum(file)
-        cachedChecksum.set(checksum)
+    suspend fun cacheFileChecksum(file: File, userId: String) {
+        val checksum = fileOperations.calculateChecksum(file) ?: return
+        cachedChecksums[userId] = checksum
     }
 
     /**
@@ -83,8 +83,12 @@ class SyncFileManager(
         fileOperations.writeJson(file, updatedSyncFile, compressionEnabled)
     }
 
-    private fun getActualFilePath(): String =
-        if (compressionEnabled) "$syncFilePath$GZIP_EXTENSION" else syncFilePath
+    private fun getActualFilePath(userId: String): String {
+        val baseDir = File(syncFilePath).parent ?: "."
+        val fileName = File(syncFilePath).name
+        val userPath = "$baseDir/$userId/$fileName"
+        return if (compressionEnabled) "$userPath$GZIP_EXTENSION" else userPath
+    }
 
     private fun sortEventsIfNotEmpty(events: List<EventEntry>): List<EventEntry> =
         events
@@ -118,6 +122,7 @@ class SyncFileManager(
             timestamp = timestamp,
             eventType = eventType.name,
             expenseId = expenseId.toString(),
-            payload = jsonOperations.fromJson(payload, ExpensePayload::class.java)
+            payload = jsonOperations.fromJson(payload, ExpensePayload::class.java),
+            userId = userId
         )
 }

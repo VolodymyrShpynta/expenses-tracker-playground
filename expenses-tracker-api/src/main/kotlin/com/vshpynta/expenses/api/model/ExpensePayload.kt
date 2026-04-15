@@ -15,5 +15,6 @@ data class ExpensePayload(
     val category: String? = null,
     val date: String? = null,  // ISO 8601
     val updatedAt: Long,
-    val deleted: Boolean? = null
+    val deleted: Boolean? = null,
+    val userId: String? = null
 )

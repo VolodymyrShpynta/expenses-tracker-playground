@@ -1,18 +1,18 @@
 # Expenses Tracker with Event Sourcing & CQRS
 
-A production-ready, fully reactive expense tracking application with **conflict-free, idempotent multi-device
-synchronization** built with **Spring Boot 4**, **Kotlin Coroutines**, **R2DBC**, and **PostgreSQL**. The project
-includes a **React 19 + TypeScript + MUI v7** frontend for managing expenses via a responsive web UI.
-It implements a complete **Event Sourcing** and **CQRS** architecture with an optimized sync engine designed for
-eventual
-consistency across multiple devices without a central server.
+A production-ready, fully reactive **multi-user** expense tracking application with **Keycloak authentication**,
+**conflict-free, idempotent multi-device synchronization**, built with **Spring Boot 4**, **Kotlin Coroutines**,
+**R2DBC**, and **PostgreSQL**. The project includes a **React 19 + TypeScript + MUI v7** frontend for managing
+expenses via a responsive web UI. It implements a complete **Event Sourcing** and **CQRS** architecture with an
+optimized sync engine designed for eventual consistency across multiple devices.
 
 ## 🌟 What Makes This Project Special?
 
 - ✨ **Modern Stack**: Spring Boot 4, Kotlin 2.3.10, Java 21 LTS, PostgreSQL 17
+- 🔐 **Multi-User Auth**: Keycloak (OAuth2 / OpenID Connect) with per-user data isolation
 - 🎨 **React Frontend**: React 19, TypeScript, MUI v7, Vite — responsive for mobile & desktop
 - 🏗️ **Event Sourcing & CQRS**: Proper event-driven architecture with separate read/write models
-- 🔄 **Multi-Device Sync**: Decentralized synchronization via shared file (Dropbox, Google Drive)
+- 🔄 **Multi-Device Sync**: Per-user synchronization via shared file (Dropbox, Google Drive)
 - 🛡️ **Battle-Tested**: Comprehensive test suite with Testcontainers and real PostgreSQL
 - 🚀 **Fully Reactive**: Non-blocking I/O with Spring WebFlux and Kotlin Coroutines
 - 📱 **Android-Ready**: Designed for easy migration to Android with Room and SQLite
@@ -24,6 +24,7 @@ consistency across multiple devices without a central server.
 - [Key Features](#-key-features)
 - [Technology Stack](#-technology-stack)
 - [Project Structure](#-project-structure)
+- [Communication Flow](#-communication-flow)
 - [Sync Engine Architecture](#-sync-engine-architecture)
     - [Design Principles](#design-principles)
     - [Event Sourcing Model](#event-sourcing-model)
@@ -62,21 +63,24 @@ consistency across multiple devices without a central server.
 
 ## 🎯 Project Overview
 
-This is a **multi-device expense tracker** with **serverless synchronization** using a shared file system (emulating
-cloud storage like Dropbox, Google Drive, etc.). The sync engine is designed to be:
+This is a **multi-user, multi-device expense tracker** with **Keycloak authentication** and **file-based
+synchronization** using a shared file system (emulating cloud storage like Dropbox, Google Drive, etc.).
+Each user's data (expenses, categories, sync files) is fully isolated. The sync engine is designed to be:
 
 - ✅ **Conflict-free** - Automatic conflict resolution using last-write-wins
 - ✅ **Idempotent** - Safe to retry operations without duplicates
 - ✅ **Eventually consistent** - All devices converge to the same state
+- ✅ **User-isolated** - Per-user data, categories, and sync files
 - ✅ **Portable** - Simple SQL designed for Android/SQLite migration
 - ✅ **Transactional** - Atomic operations prevent partial state
 
 ### Real-World Use Case
 
-**Scenario:** 2-3 users share expense tracking (e.g., family, roommates, travel group)
+**Scenario:** Multiple users each track their own expenses across devices
 
-- Each user has their own device
-- Devices sync through shared file (Dropbox, Google Drive, etc.)
+- Users authenticate via Keycloak (self-registration enabled)
+- Each user sees only their own expenses and categories
+- Each user's devices sync through per-user sync files
 - No internet connection required for local operations
 - Changes sync automatically when file access available
 - Conflicts resolved automatically (newest change wins)
@@ -84,6 +88,16 @@ cloud storage like Dropbox, Google Drive, etc.). The sync engine is designed to 
 ---
 
 ## ✨ Key Features
+
+### Authentication & Multi-User
+
+- ✅ **Keycloak Integration** - OAuth2 / OpenID Connect via Keycloak identity provider
+- ✅ **Per-User Data Isolation** - All data (expenses, events, categories) scoped by `user_id`
+- ✅ **Per-User Sync Files** - Sync files stored in `{basePath}/{userId}/` directories
+- ✅ **JWT Validation** - Backend validates Keycloak JWTs as an OAuth2 Resource Server
+- ✅ **PKCE Flow** - Secure SPA authentication (no client secret)
+- ✅ **Self-Registration** - Users can register directly via Keycloak
+- ✅ **Auto Token Refresh** - Frontend transparently refreshes expired tokens
 
 ### Event Sourcing & CQRS Architecture
 
@@ -107,10 +121,12 @@ cloud storage like Dropbox, Google Drive, etc.). The sync engine is designed to 
 
 - ✅ **Fully Reactive Stack** - Spring WebFlux + Kotlin Coroutines + R2DBC
 - ✅ **React Frontend** - React 19 + TypeScript + MUI v7, responsive for mobile & desktop
-- ✅ **REST API** - CRUD operations for expense management
+- ✅ **Keycloak Auth** - OAuth2 Resource Server (backend) + keycloak-js PKCE (frontend)
+- ✅ **User-Configurable Categories** - Per-user expense categories with icons and colors
+- ✅ **REST API** - CRUD operations for expense and category management
 - ✅ **Database Migrations** - Flyway with PostgreSQL
 - ✅ **Testcontainers** - Real PostgreSQL for integration tests
-- ✅ **Docker Support** - Complete containerized deployment
+- ✅ **Docker Support** - Complete containerized deployment (PostgreSQL, Keycloak, API, Frontend)
 
 ---
 
@@ -121,6 +137,12 @@ cloud storage like Dropbox, Google Drive, etc.). The sync engine is designed to 
 - **Spring Boot 4.0.1** - Latest with enhanced reactive support
 - **Kotlin 2.3.10** - Modern JVM language with coroutines
 - **Java 21** - Long-term support (LTS) release
+
+### Authentication
+
+- **Keycloak 26.2** - Identity and access management (OAuth2 / OpenID Connect)
+- **Spring Security OAuth2 Resource Server** - JWT validation on the backend
+- **keycloak-js** - Frontend PKCE authentication flow
 
 ### Reactive Stack
 
@@ -151,6 +173,8 @@ cloud storage like Dropbox, Google Drive, etc.). The sync engine is designed to 
 - **MUI (Material UI) v7** - Component library
 - **Vite 8** - Build tool and dev server
 - **React Router DOM v7** - Client-side routing
+- **TanStack Query** (`@tanstack/react-query`) - Server state management
+- **keycloak-js** - Keycloak JavaScript adapter (PKCE flow)
 - **@mui/x-charts** - Charting (donut/pie charts for category breakdown)
 
 ---
@@ -164,14 +188,18 @@ expenses-tracker-playground/
 │   │   ├── main/
 │   │   │   ├── kotlin/com/vshpynta/expenses/api/
 │   │   │   │   ├── config/            # Configuration classes
+│   │   │   │   │   ├── R2dbcConfig.kt        # UUID converter wiring
+│   │   │   │   │   └── SecurityConfig.kt     # OAuth2 Resource Server + CORS
 │   │   │   │   ├── controller/        # REST API endpoints
 │   │   │   │   │   ├── dto/          # Data Transfer Objects
 │   │   │   │   │   │   └── ExpenseDtos.kt
 │   │   │   │   │   ├── ExpensesController.kt
+│   │   │   │   │   ├── CategoriesController.kt
 │   │   │   │   │   └── GlobalExceptionHandler.kt
 │   │   │   │   ├── model/            # Domain models
 │   │   │   │   │   ├── ExpenseEvent.kt         # Event store model
 │   │   │   │   │   ├── ExpenseProjection.kt    # Read model
+│   │   │   │   │   ├── Category.kt             # User category model
 │   │   │   │   │   ├── EventType.kt            # Event types enum
 │   │   │   │   │   ├── EventSyncFile.kt        # Sync file format + EventEntry
 │   │   │   │   │   ├── ExpensePayload.kt       # JSON payload model
@@ -179,6 +207,7 @@ expenses-tracker-playground/
 │   │   │   │   ├── repository/       # Data access layer
 │   │   │   │   │   ├── ExpenseEventRepository.kt      # Event store
 │   │   │   │   │   ├── ExpenseProjectionRepository.kt # Read model
+│   │   │   │   │   ├── CategoryRepository.kt          # Categories
 │   │   │   │   │   └── ProcessedEventRepository.kt    # Idempotency
 │   │   │   │   ├── service/          # Business logic
 │   │   │   │   │   ├── ExpenseCommandService.kt       # CQRS write side
@@ -187,19 +216,24 @@ expenses-tracker-playground/
 │   │   │   │   │   ├── ExpenseMapper.kt               # Entity ↔ DTO mapping
 │   │   │   │   │   ├── ExpenseSyncProjector.kt        # Idempotency + cache layer
 │   │   │   │   │   ├── ExpenseSyncRecorder.kt         # Transactional recorder
+│   │   │   │   │   ├── CategoryService.kt             # Category CRUD
 │   │   │   │   │   ├── ProcessedEventsCache.kt        # In-memory cache
+│   │   │   │   │   ├── auth/                          # Authentication
+│   │   │   │   │   │   └── UserContextService.kt      # Extract userId from JWT
 │   │   │   │   │   └── sync/                          # Sync subsystem
 │   │   │   │   │       ├── FileOperations.kt          # File I/O utilities
 │   │   │   │   │       ├── RemoteEventProcessor.kt    # Remote event processing
-│   │   │   │   │       └── SyncFileManager.kt         # Sync file read/write
+│   │   │   │   │       └── SyncFileManager.kt         # Per-user sync file read/write
 │   │   │   │   ├── util/             # Utilities
 │   │   │   │   └── ExpensesTrackerApiApplication.kt
 │   │   │   └── resources/
 │   │   │       ├── application.yaml  # Application configuration
 │   │   │       └── db/migration/     # Flyway migrations
-│   │   │           └── V1__Create_expenses_tables.sql
+│   │   │           ├── V1__Create_expenses_tables.sql
+│   │   │           └── V5__Add_user_id_to_all_tables.sql
 │   │   └── test/                     # Comprehensive test suite
 │   │       ├── kotlin/com/vshpynta/expenses/api/
+│   │       │   ├── config/           # Test security & Testcontainers config
 │   │       │   ├── controller/       # API integration tests
 │   │       │   ├── repository/       # Repository tests
 │   │       │   └── service/          # Service tests
@@ -209,58 +243,176 @@ expenses-tracker-playground/
 │   └── Dockerfile
 ├── expenses-tracker-frontend/     # Frontend React application
 │   ├── src/
-│   │   ├── main.tsx               # Entry point (StrictMode, BrowserRouter)
+│   │   ├── main.tsx               # Entry point (AuthProvider, QueryClient, Router)
 │   │   ├── App.tsx                # Layout shell + Routes + ThemeProvider
 │   │   ├── theme.ts               # MUI dark/light theme with toggle
 │   │   ├── api/                   # Typed fetch wrappers for REST API
-│   │   │   └── expenses.ts
+│   │   │   ├── expenses.ts        # Expense API calls (authenticated)
+│   │   │   ├── categories.ts      # Category API calls (authenticated)
+│   │   │   └── fetchWithAuth.ts   # Fetch wrapper with JWT Bearer token
+│   │   ├── config/                # App configuration
+│   │   │   ├── keycloak.ts        # Keycloak instance configuration
+│   │   │   └── AuthContext.tsx     # Auth provider (login, token, userId)
 │   │   ├── components/            # Shared reusable components
-│   │   │   ├── Layout.tsx         # Responsive shell (sidebar + bottom nav)
-│   │   │   ├── CategoryCard.tsx   # Category summary card with icon
+│   │   │   ├── Layout.tsx         # Responsive shell (sidebar + bottom nav + logout)
+│   │   │   ├── AddExpenseDialog.tsx
+│   │   │   ├── EditExpenseDialog.tsx
 │   │   │   ├── CategoryDonutChart.tsx  # Donut chart (MUI X Charts)
-│   │   │   ├── ColorModeToggle.tsx     # Dark/light toggle button
-│   │   │   └── DateRangeSelector.tsx   # Date range navigator
+│   │   │   ├── DateRangeSelector.tsx   # Date range navigator
+│   │   │   └── MoneyField.tsx         # Calculator-style money input
 │   │   ├── hooks/                 # Custom React hooks
 │   │   │   ├── useExpenses.ts     # Fetch expenses with loading/error
+│   │   │   ├── useExpenseMutations.ts  # Create/update/delete/sync mutations
+│   │   │   ├── useCategories.ts   # Category query hook
+│   │   │   ├── useCurrency.ts     # Per-user currency preference
+│   │   │   ├── useDateRange.ts    # Per-user date range preference
 │   │   │   └── useCategorySummary.ts  # Derive category totals
 │   │   ├── pages/                 # Page-level components (one per route)
 │   │   │   ├── CategoriesPage.tsx # Main screen: categories + donut chart
 │   │   │   ├── TransactionsPage.tsx   # Transaction list
-│   │   │   ├── AddExpensePage.tsx     # Create expense form
-│   │   │   └── OverviewPage.tsx       # Overview (placeholder)
+│   │   │   └── OverviewPage.tsx       # Overview
 │   │   ├── types/                 # TypeScript interfaces
-│   │   │   └── expense.ts         # Expense, CategorySummary, etc.
+│   │   │   ├── expense.ts         # Expense types
+│   │   │   └── category.ts        # Category types
 │   │   └── utils/                 # Pure utility functions
 │   │       ├── format.ts          # Currency formatting (cents → display)
-│   │       └── categoryConfig.ts  # Category → icon/color mapping
+│   │       ├── categoryConfig.ts  # Category → icon/color mapping
+│   │       └── dateRange.ts       # Date range utilities
 │   ├── build.gradle.kts           # Gradle build (npm install + build via node plugin)
 │   ├── Dockerfile                 # Multi-stage build (Node → nginx)
-│   ├── nginx.conf                 # nginx config (static files + /api proxy)
-│   ├── .dockerignore
+│   ├── nginx.conf                 # nginx config (static files + /api + /auth proxy)
 │   ├── package.json
 │   ├── vite.config.ts             # Vite + /api proxy to backend
 │   ├── tsconfig.json
 │   └── index.html
+├── keycloak/
+│   └── realm-export.json          # Pre-configured Keycloak realm for auto-import
 ├── gradle/
 │   ├── libs.versions.toml           # Centralized dependency versions
 │   └── wrapper/
 ├── build.gradle.kts                  # Root build configuration
 ├── settings.gradle.kts               # Multi-module configuration (api + frontend)
-├── docker-compose.yml                # Container orchestration
+├── docker-compose.yml                # Container orchestration (postgres, keycloak, api, frontend)
 ├── expenses-tracker-api.http         # HTTP request examples
 └── README.md
 
 Key Components:
-- ExpenseEvent: Immutable event representing a change
-- ExpenseProjection: Current state optimized for queries
+- SecurityConfig: OAuth2 Resource Server security configuration
+- UserContextService: Extracts userId from JWT security context
+- ExpenseEvent: Immutable event representing a change (scoped by userId)
+- ExpenseProjection: Current state optimized for queries (scoped by userId)
+- Category: User-configurable expense category (scoped by userId)
 - EventType: CREATED, UPDATED, DELETED
 - ExpenseCommandService: Handles write operations (CQRS)
 - ExpenseQueryService: Handles read operations (CQRS)
-- ExpenseEventSyncService: Orchestrates synchronization
+- CategoryService: Category CRUD operations
+- ExpenseEventSyncService: Orchestrates per-user synchronization
 - ExpenseSyncProjector: Projects events with idempotency checks
 - ExpenseSyncRecorder: Transactional database recorder
 - ProcessedEventsCache: In-memory cache for performance
+- SyncFileManager: Per-user sync file management
+- AuthContext / keycloak.ts: Frontend Keycloak authentication
+- fetchWithAuth: Authenticated fetch wrapper with auto token refresh
 ```
+
+---
+
+## 🔀 Communication Flow
+
+The user enters **`http://localhost:3000`** — this is the Nginx frontend URL which acts as the single entry
+point. Nginx serves the React SPA and reverse-proxies `/api/*` to the backend and `/auth/*` to Keycloak.
+There is no separate API gateway; Nginx fulfills that role in this architecture.
+
+The following diagram shows the complete request lifecycle — from initial page load and Keycloak PKCE
+authentication, through authenticated API calls with JWT, to token refresh:
+
+```mermaid
+sequenceDiagram
+    actor User
+
+    box honeydew Browser (user's machine)
+        participant Browser as React SPA<br/>(in Browser)
+    end
+
+    box AliceBlue Docker / Cloud (server-side)
+        participant Nginx as Nginx<br/>(Frontend :3000)
+        participant KC as Keycloak<br/>(:8180)
+        participant API as Spring Boot API<br/>(:8080)
+        participant DB as PostgreSQL
+    end
+
+    Note over User,DB: 1. Initial Page Load & Authentication (PKCE)
+    User->>Browser: Navigate to http://localhost:3000
+    Browser->>Nginx: GET /
+    Nginx->>Browser: index.html + JS bundle (static files)
+    Browser->>Browser: Mount AuthProvider (React starts in browser)
+    Browser->>Nginx: GET /auth/realms/expenses-tracker/.well-known/openid-configuration
+    Nginx->>KC: Proxy → GET /realms/expenses-tracker/.well-known/openid-configuration
+    KC->>DB: Read realm config (keycloak schema)
+    DB-->>KC: Realm settings, keys, clients
+    KC-->>Nginx: OpenID Connect discovery
+    Nginx-->>Browser: OpenID Connect discovery
+    Browser->>Nginx: Redirect to /auth/realms/expenses-tracker/protocol/openid-connect/auth<br/>(PKCE code_challenge)
+    Nginx->>KC: Proxy → /realms/.../auth
+    KC-->>Nginx: Login page
+    Nginx-->>Browser: Login page
+    User->>Browser: Enter username + password
+    Browser->>Nginx: POST /auth/.../login-actions/authenticate
+    Nginx->>KC: Proxy → POST credentials
+    KC->>DB: Verify credentials (keycloak schema)
+    DB-->>KC: User record + hashed password
+    KC-->>Nginx: Redirect with authorization code
+    Nginx-->>Browser: Redirect with authorization code
+    Browser->>Nginx: POST /auth/.../token (code + code_verifier)
+    Nginx->>KC: Proxy → POST /token
+    KC->>DB: Create session (keycloak schema)
+    KC-->>Nginx: Access token (JWT) + Refresh token
+    Nginx-->>Browser: Access token (JWT) + Refresh token
+
+    Note over User,DB: 2. Authenticated API Request (e.g. Load Categories)
+    Browser->>Nginx: GET /api/categories<br/>Authorization: Bearer {JWT}
+    Nginx->>API: Proxy → GET /api/categories
+    API->>KC: Fetch JWK set (public keys, cached after first call)
+    KC-->>API: RSA/EC public keys
+    API->>API: Validate JWT signature locally<br/>(cached keys, no Keycloak call per request)
+    API->>DB: SELECT COUNT(*) FROM categories WHERE user_id = ?
+    DB-->>API: 0 (new user)
+    API->>DB: INSERT INTO categories ... (seed defaults from default_categories)
+    DB-->>API: 22 rows inserted
+    API->>DB: SELECT * FROM categories WHERE user_id = ? AND deleted = false
+    DB-->>API: Categories list
+    API-->>Nginx: 200 OK [categories JSON]
+    Nginx-->>Browser: Response
+    Browser->>User: Render categories UI
+
+    Note over User,DB: 3. Create Expense
+    User->>Browser: Fill form → Submit
+    Browser->>Nginx: POST /api/expenses<br/>Authorization: Bearer {JWT}
+    Nginx->>API: Proxy → POST /api/expenses
+    API->>DB: INSERT INTO expense_events (append event)
+    API->>DB: UPSERT expense_projections (project read model)
+    DB-->>API: OK (atomic transaction)
+    API-->>Nginx: 201 Created {expense}
+    Nginx-->>Browser: Response
+    Browser->>Browser: Invalidate ['expenses'] query cache
+    Browser->>User: Updated expense list
+
+    Note over User,DB: 4. Token Refresh (transparent)
+    Browser->>Browser: Token expiring soon
+    Browser->>Nginx: POST /auth/.../token (refresh_token grant)
+    Nginx->>KC: Proxy → POST /token
+    KC->>DB: Validate refresh token session
+    KC-->>Nginx: New access token
+    Nginx-->>Browser: New access token
+```
+
+**Key points:**
+- **Client vs Server** — The React SPA is served as static files by Nginx but runs entirely **in the user's browser**. After the initial download, all UI rendering and state management happens client-side. The green box is the user's machine; the blue box is server-side infrastructure (Docker containers or cloud).
+- **Shared PostgreSQL** — Both Keycloak and the application use the same PostgreSQL instance but different schemas: Keycloak uses the `keycloak` schema (realm config, users, sessions, credentials), while the application uses the `public` schema (expenses, events, categories).
+- **Local dev** — Vite proxies `/api/*` to `localhost:8080` and `/auth/*` to `localhost:8180` (Keycloak). The browser always uses `localhost:3000` as the origin.
+- **Docker Compose** — Nginx on port 3000 is the single entry point. It proxies `/api/*` → `expenses-api:8080` and `/auth/*` → `keycloak:8180`. All browser traffic (API calls **and** authentication) goes through Nginx.
+- **JWT validation** — The API fetches Keycloak's JWK set (public keys) once on startup via `jwk-set-uri` (container-to-container: `keycloak:8180/auth`) and caches them. Token validation is then done **locally** using cryptographic verification — no Keycloak call per request. The `issuer-uri` matches what `KC_HOSTNAME` pins as the public URL (`localhost:3000/auth` in Docker, configurable in `application.yaml` for dev).
+- **Lazy seeding** — On first API call for a new user, default categories are copied from the `default_categories` template table.
 
 ---
 
@@ -290,7 +442,8 @@ data class ExpenseEvent(
     val eventType: EventType,    // CREATED, UPDATED, DELETED
     val expenseId: UUID,         // The expense this event is about
     val payload: String,         // Complete expense state (JSON)
-    val committed: Boolean = false  // Has been synced to file?
+    val committed: Boolean = false,  // Has been synced to file?
+    val userId: String           // Owner of this event
 ) : Persistable<UUID>
 ```
 
@@ -329,7 +482,8 @@ Read Side (Queries):
 
 ### Database Schema
 
-The sync engine uses **three tables** working together:
+The sync engine uses **three tables** working together, plus a **categories** table.
+All data tables include a `user_id` column for per-user data isolation.
 
 #### **Table: `expense_projections`** (Read Model / Materialized View)
 
@@ -340,16 +494,19 @@ CREATE TABLE expense_projections
 (
     id          VARCHAR(36) PRIMARY KEY,
     description VARCHAR(500),
-    amount      BIGINT  NOT NULL,
+    amount      BIGINT       NOT NULL,
+    currency    VARCHAR(10)  NOT NULL DEFAULT 'USD',
     category    VARCHAR(100),
     date        VARCHAR(50),
-    updated_at  BIGINT  NOT NULL,
-    deleted     BOOLEAN NOT NULL DEFAULT FALSE
+    updated_at  BIGINT       NOT NULL,
+    deleted     BOOLEAN      NOT NULL DEFAULT FALSE,
+    user_id     VARCHAR(255) NOT NULL
 );
 
 CREATE INDEX idx_expense_projections_updated_at ON expense_projections (updated_at);
 CREATE INDEX idx_expense_projections_deleted ON expense_projections (deleted);
 CREATE INDEX idx_expense_projections_category ON expense_projections (category);
+CREATE INDEX idx_expense_projections_user_id ON expense_projections (user_id);
 ```
 
 #### **Table: `expense_events`** (Event Store / Source of Truth)
@@ -360,16 +517,18 @@ Immutable append-only log of all modifications:
 CREATE TABLE expense_events
 (
     event_id   VARCHAR(36) PRIMARY KEY,
-    timestamp  BIGINT      NOT NULL,
-    event_type VARCHAR(20) NOT NULL CHECK (event_type IN ('CREATED', 'UPDATED', 'DELETED')),
-    expense_id VARCHAR(36) NOT NULL,
-    payload    TEXT        NOT NULL, -- JSON
-    committed  BOOLEAN     NOT NULL DEFAULT FALSE
+    timestamp  BIGINT       NOT NULL,
+    event_type VARCHAR(20)  NOT NULL CHECK (event_type IN ('CREATED', 'UPDATED', 'DELETED')),
+    expense_id VARCHAR(36)  NOT NULL,
+    payload    TEXT         NOT NULL, -- JSON
+    committed  BOOLEAN      NOT NULL DEFAULT FALSE,
+    user_id    VARCHAR(255) NOT NULL
 );
 
 CREATE INDEX idx_expense_events_committed ON expense_events (committed);
 CREATE INDEX idx_expense_events_timestamp ON expense_events (timestamp);
 CREATE INDEX idx_expense_events_expense_id ON expense_events (expense_id);
+CREATE INDEX idx_expense_events_user_id ON expense_events (user_id);
 ```
 
 #### **Table: `processed_events`** (Idempotency Registry)
@@ -381,15 +540,34 @@ CREATE TABLE processed_events
 (
     event_id VARCHAR(36) PRIMARY KEY
 );
-
-CREATE INDEX idx_processed_events_event_id ON processed_events (event_id);
 ```
 
-**Why three tables?**
+#### **Table: `categories`** (User-Configurable Categories)
 
-- `expense_projections` - Fast queries for current state (read model)
-- `expense_events` - Complete audit trail + sync source (event store)
+Per-user expense categories with customizable icons and colors:
+
+```sql
+CREATE TABLE categories
+(
+    id         VARCHAR(36) PRIMARY KEY,
+    name       VARCHAR(100) NOT NULL,
+    icon       VARCHAR(50),
+    color      VARCHAR(20),
+    sort_order INT          NOT NULL DEFAULT 0,
+    deleted    BOOLEAN      NOT NULL DEFAULT FALSE,
+    created_at BIGINT       NOT NULL,
+    updated_at BIGINT       NOT NULL,
+    user_id    VARCHAR(255) NOT NULL,
+    UNIQUE (name, user_id) -- Category names are unique per user
+);
+```
+
+**Why the tables are designed this way:**
+
+- `expense_projections` - Fast queries for current state (read model), filtered by `user_id`
+- `expense_events` - Complete audit trail + sync source (event store), scoped by `user_id`
 - `processed_events` - Prevents duplicate event processing (idempotency)
+- `categories` - User-configurable expense categories, unique name per user
 
 ### Conflict Resolution
 
@@ -766,7 +944,7 @@ The sync system uses a well-designed component hierarchy:
 
 ### Sync File Format
 
-**File:** `sync-data/sync.json` (gzip compressed)
+**File:** `sync-data/{userId}/sync.json` (gzip compressed, per-user directory)
 
 ```json
 {
@@ -776,6 +954,7 @@ The sync system uses a well-designed component hierarchy:
       "timestamp": 1737475200000,
       "eventType": "CREATED",
       "expenseId": "c4f3d7e9-8b2a-4e6c-9d1f-5a8b3c7e2f0d",
+      "userId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "payload": {
         "id": "c4f3d7e9-8b2a-4e6c-9d1f-5a8b3c7e2f0d",
         "description": "Coffee",
@@ -791,6 +970,7 @@ The sync system uses a well-designed component hierarchy:
       "timestamp": 1737475300000,
       "eventType": "UPDATED",
       "expenseId": "c4f3d7e9-8b2a-4e6c-9d1f-5a8b3c7e2f0d",
+      "userId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "payload": {
         "id": "c4f3d7e9-8b2a-4e6c-9d1f-5a8b3c7e2f0d",
         "description": "Expensive Coffee",
@@ -1132,12 +1312,13 @@ ExpenseQueryService      // Service for read operations
 
 **Decentralized Architecture**
 
-No central server needed:
+No central sync server needed:
 
 - Devices sync via shared file (Dropbox, Google Drive, etc.)
+- Each user has their own sync directory (`{basePath}/{userId}/`)
 - Works offline - sync when connection available
-- No server maintenance or costs
-- Natural fit for small teams (2-5 people)
+- No sync server maintenance or costs
+- Natural fit for individual users across multiple devices
 
 **Eventual Consistency**
 
@@ -1150,11 +1331,12 @@ All devices eventually see the same data:
 
 **Device Isolation**
 
-Each device maintains its own:
+Each device maintains its own per-user:
 
-- Event store (`expense_events` table)
-- Read model (`expense_projections` table)
+- Event store (`expense_events` table, filtered by `user_id`)
+- Read model (`expense_projections` table, filtered by `user_id`)
 - Processed events registry (`processed_events` table)
+- Sync files (`{basePath}/{userId}/sync.json`)
 - Works completely independently until sync
 
 ---
@@ -1376,6 +1558,12 @@ The application can be configured via environment variables:
 - `SYNC_FILE_PATH` - Path to sync file (default: `./sync-data/sync.json`)
 - `SYNC_FILE_COMPRESSION_ENABLED` - Enable gzip compression (default: `true`)
 
+**Authentication (Keycloak):**
+
+- `KEYCLOAK_ISSUER_URI` - Keycloak JWT issuer URI (default: `http://localhost:3000/auth/realms/expenses-tracker`)
+- `KEYCLOAK_JWK_SET_URI` - JWK set endpoint for key fetching (default: same host as issuer)
+- `KC_ADMIN` / `KC_ADMIN_PASSWORD` - Keycloak admin credentials (default: `admin` / `admin`)
+
 ### Application Configuration
 
 **application.yaml:**
@@ -1402,6 +1590,12 @@ spring:
       username: ${EXPENSES_TRACKER_FLYWAY_USERNAME:postgres}
       password: ${EXPENSES_TRACKER_FLYWAY_PASSWORD:postgres}
       driver-class-name: org.postgresql.Driver
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:3000/auth/realms/expenses-tracker}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/auth/realms/expenses-tracker/protocol/openid-connect/certs}
 
 sync:
   file:
@@ -1425,13 +1619,37 @@ services:
     ports:
       - "5432:5432"
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.2
+    command: start-dev --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/expenses_db
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: postgres
+      KC_DB_SCHEMA: keycloak
+      KC_HTTP_PORT: 8180
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HOSTNAME: http://localhost:3000/auth
+    ports:
+      - "8180:8180"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   expenses-api:
     build: ./expenses-tracker-api
     depends_on:
       postgres:
         condition: service_healthy
+      keycloak:
+        condition: service_healthy
     environment:
       EXPENSES_TRACKER_R2DBC_URL: r2dbc:postgresql://postgres:5432/expenses_db
+      KEYCLOAK_ISSUER_URI: http://localhost:3000/auth/realms/expenses-tracker
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8180/auth/realms/expenses-tracker/protocol/openid-connect/certs
     ports:
       - "8080:8080"
 
@@ -1443,6 +1661,10 @@ services:
     ports:
       - "3000:80"
 ```
+
+> **Note:** Keycloak auto-imports the `expenses-tracker` realm from `keycloak/realm-export.json` on first start.
+> This includes a pre-configured `expenses-frontend` client (public, PKCE) and a test user (`testuser` / `password`).
+> Self-registration is enabled.
 
 ---
 
@@ -1478,11 +1700,14 @@ cd expenses-tracker-playground
 
 #### Running the Backend
 
-##### Start PostgreSQL (required)
+##### Start PostgreSQL and Keycloak (required)
 
 ```bash
-docker compose up -d postgres
+docker compose up -d postgres keycloak
 ```
+
+Keycloak starts on **http://localhost:8180** and auto-imports the `expenses-tracker` realm.
+Admin console: **http://localhost:8180/auth/admin** (admin/admin).
 
 ##### Run the API server
 
@@ -1509,10 +1734,10 @@ Open **http://localhost:3000** in your browser.
 
 The recommended local development workflow:
 
-**Terminal 1 — Database:**
+**Terminal 1 — Database & Keycloak:**
 
 ```bash
-docker compose up -d postgres
+docker compose up -d postgres keycloak
 ```
 
 **Terminal 2 — Backend API:**
@@ -1528,7 +1753,8 @@ cd expenses-tracker-frontend
 npm run dev
 ```
 
-Open **http://localhost:3000** to use the application.
+Open **http://localhost:3000** to use the application. You'll be redirected to Keycloak to log in.
+Use the test user (`testuser` / `password`) or register a new account.
 
 > **Tip:** The Vite dev server (`npm run dev`) automatically proxies `/api/*` requests to the
 > backend at `localhost:8080`, so no CORS configuration is needed during development.
@@ -1555,14 +1781,14 @@ The project is **pre-configured for two scenarios**:
 
 **Scenario 1: Local Development (No .env needed)** ⭐ Recommended
 
-- PostgreSQL in Docker, application runs locally
-- `application.yaml` defaults to `localhost:5432`
-- Just run: `docker compose up -d postgres` and `./gradlew bootRun`
+- PostgreSQL and Keycloak in Docker, application runs locally
+- `application.yaml` defaults to `localhost:5432` (DB) and `localhost:8180` (Keycloak)
+- Just run: `docker compose up -d postgres keycloak` and `./gradlew bootRun`
 
 **Scenario 2: Full Docker Compose (Uses .env file)**
 
-- PostgreSQL, backend API, and frontend all in Docker
-- `docker-compose.yml` uses `postgres` service name for inter-container networking
+- PostgreSQL, Keycloak, backend API, and frontend all in Docker
+- `docker-compose.yml` uses service names for inter-container networking
 - Copy `.env.example` to `.env` if you want to customize
 
 ##### Using Docker Compose (Recommended)
@@ -1576,11 +1802,12 @@ docker compose up -d --build
 - `-d` runs containers in detached mode (background)
 - `--build` rebuilds images if Dockerfile or code changed
 - Starts PostgreSQL database on port 5432
+- Starts Keycloak on port 8180 (auto-imports realm)
 - Starts the backend API on port 8080
 - Starts the frontend (nginx) on port 3000
 - **Note:** Works without .env file (uses defaults from docker-compose.yml)
 
-Open **http://localhost:3000** in your browser.
+Open **http://localhost:3000** in your browser. You'll be redirected to Keycloak to log in.
 
 **View logs:**
 
@@ -1626,15 +1853,15 @@ docker compose restart expenses-api
 docker compose ps
 ```
 
-##### Running PostgreSQL Only (Local Development)
+##### Running Dependencies Only (Local Development)
 
-For local development, you can run **just PostgreSQL in Docker Compose** and run the application locally with
+For local development, you can run **PostgreSQL and Keycloak in Docker Compose** and run the application locally with
 Gradle/IntelliJ:
 
-**Start only PostgreSQL:**
+**Start PostgreSQL and Keycloak:**
 
 ```bash
-docker compose up -d postgres
+docker compose up -d postgres keycloak
 ```
 
 **Run application locally:**
@@ -1658,10 +1885,10 @@ application will automatically connect to PostgreSQL running in Docker on `local
 - ✅ PostgreSQL in container (consistent with production)
 - ✅ No extra configuration files needed
 
-**Stop PostgreSQL:**
+**Stop services:**
 
 ```bash
-docker compose stop postgres
+docker compose stop postgres keycloak
 
 # Or stop and remove
 docker compose down
@@ -1830,26 +2057,26 @@ docker compose ps | Select-String "expenses-api"
 
 ##### Development Workflow Examples
 
-**1. Local Development with Containerized Database:**
+**1. Local Development with Containerized Dependencies:**
 
 ```bash
-# Start PostgreSQL only
-docker compose up -d postgres
+# Start PostgreSQL and Keycloak
+docker compose up -d postgres keycloak
 
 # Run application locally
 ./gradlew :expenses-tracker-api:bootRun
 
-# View database logs
-docker compose logs -f postgres
+# View logs
+docker compose logs -f postgres keycloak
 
 # Stop when done
-docker compose stop postgres
+docker compose stop postgres keycloak
 ```
 
 **2. Full Stack in Docker:**
 
 ```bash
-# Start everything (postgres + api + frontend)
+# Start everything (postgres + keycloak + api + frontend)
 docker compose up -d --build
 
 # Open http://localhost:3000 in your browser
@@ -2094,19 +2321,23 @@ EXPENSES_TRACKER_FLYWAY_PASSWORD=postgres
 
 **Available Variables:**
 
-| Variable                           | Default                                        | Description                                      |
-|------------------------------------|------------------------------------------------|--------------------------------------------------|
-| `POSTGRES_DB`                      | `expenses_db`                                  | PostgreSQL database name                         |
-| `POSTGRES_USER`                    | `postgres`                                     | PostgreSQL username                              |
-| `POSTGRES_PASSWORD`                | `postgres`                                     | PostgreSQL password                              |
-| `EXPENSES_TRACKER_R2DBC_URL`       | `r2dbc:postgresql://postgres:5432/expenses_db` | R2DBC connection URL                             |
-| `EXPENSES_TRACKER_R2DBC_USERNAME`  | `postgres`                                     | R2DBC database username                          |
-| `EXPENSES_TRACKER_R2DBC_PASSWORD`  | `postgres`                                     | R2DBC database password                          |
-| `EXPENSES_TRACKER_FLYWAY_JDBC_URL` | `jdbc:postgresql://postgres:5432/expenses_db`  | Flyway JDBC URL                                  |
-| `EXPENSES_TRACKER_FLYWAY_USERNAME` | `postgres`                                     | Flyway database username                         |
-| `EXPENSES_TRACKER_FLYWAY_PASSWORD` | `postgres`                                     | Flyway database password                         |
-| `SERVER_PORT`                      | `8080`                                         | Application HTTP port (optional)                 |
-| `SPRING_PROFILES_ACTIVE`           | (none)                                         | Spring profile: `dev`, `test`, `prod` (optional) |
+| Variable                           | Default                                         | Description                                      |
+|------------------------------------|-------------------------------------------------|--------------------------------------------------|
+| `POSTGRES_DB`                      | `expenses_db`                                   | PostgreSQL database name                         |
+| `POSTGRES_USER`                    | `postgres`                                      | PostgreSQL username                              |
+| `POSTGRES_PASSWORD`                | `postgres`                                      | PostgreSQL password                              |
+| `EXPENSES_TRACKER_R2DBC_URL`       | `r2dbc:postgresql://postgres:5432/expenses_db`  | R2DBC connection URL                             |
+| `EXPENSES_TRACKER_R2DBC_USERNAME`  | `postgres`                                      | R2DBC database username                          |
+| `EXPENSES_TRACKER_R2DBC_PASSWORD`  | `postgres`                                      | R2DBC database password                          |
+| `EXPENSES_TRACKER_FLYWAY_JDBC_URL` | `jdbc:postgresql://postgres:5432/expenses_db`   | Flyway JDBC URL                                  |
+| `EXPENSES_TRACKER_FLYWAY_USERNAME` | `postgres`                                      | Flyway database username                         |
+| `EXPENSES_TRACKER_FLYWAY_PASSWORD` | `postgres`                                      | Flyway database password                         |
+| `KEYCLOAK_ISSUER_URI`              | `http://localhost:8180/realms/expenses-tracker` | Keycloak JWT issuer URI                          |
+| `KEYCLOAK_JWK_SET_URI`             | (derived from issuer URI)                       | JWK set endpoint for key fetching                |
+| `KC_ADMIN`                         | `admin`                                         | Keycloak admin username                          |
+| `KC_ADMIN_PASSWORD`                | `admin`                                         | Keycloak admin password                          |
+| `SERVER_PORT`                      | `8080`                                          | Application HTTP port (optional)                 |
+| `SPRING_PROFILES_ACTIVE`           | (none)                                          | Spring profile: `dev`, `test`, `prod` (optional) |
 
 **Common Customization Examples:**
 
@@ -2214,11 +2445,24 @@ The backend API starts on `http://localhost:8080` and the frontend on `http://lo
 
 ### Quick API Test
 
+> **Note:** All API endpoints (except `/actuator/health`) require a valid JWT Bearer token from Keycloak.
+> Use the frontend UI for the easiest experience, or obtain a token via Keycloak's token endpoint:
+
+**Get a token (using test user):**
+
+```bash
+TOKEN=$(curl -s -X POST 'http://localhost:8180/realms/expenses-tracker/protocol/openid-connect/token' \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  -d 'grant_type=password&client_id=expenses-frontend&username=testuser&password=password' \
+  | jq -r '.access_token')
+```
+
 **Create an Expense:**
 
 ```bash
 curl -X POST http://localhost:8080/api/expenses \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{
     "description": "Coffee",
     "amount": 450,
@@ -2230,43 +2474,43 @@ curl -X POST http://localhost:8080/api/expenses \
 **Trigger Sync:**
 
 ```bash
-curl -X POST http://localhost:8080/api/expenses/sync
-```
-
-**Check Sync File:**
-
-```bash
-cat sync-data/sync.json
+curl -X POST http://localhost:8080/api/expenses/sync \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ---
 
 ## 🎨 Frontend
 
-The frontend is a **React 19 + TypeScript + MUI v7** single-page application that consumes the backend REST API.
+The frontend is a **React 19 + TypeScript + MUI v7** single-page application with **Keycloak authentication**
+that consumes the backend REST API.
 
 ### Features
 
+- **Keycloak login** — PKCE authentication flow, auto token refresh, logout
 - **Dark / Light theme** — persisted in `localStorage`, toggle via the sun/moon icon in the app bar
 - **Responsive layout** — bottom navigation + hamburger menu on mobile; permanent sidebar on desktop
 - **Categories screen** — category grid with colored icons, amounts, and a donut chart of total expenses
 - **Transactions screen** — chronological list of all expenses with category chips
-- **Add Expense** — form with category selector, amount (dollars, converted to cents), and date picker
-- **Floating Action Button** — quick access to add expense from any screen
+- **Add/Edit Expense** — dialogs with category selector, calculator-style money input, and date picker
+- **Category management** — user-configurable categories with custom icons and colors
+- **Multi-currency** — per-user currency preference with exchange rate conversion
+- **Per-user preferences** — currency and date range stored in `localStorage` namespaced by userId
 
 ### Architecture
 
 ```
 expenses-tracker-frontend/src/
-├── main.tsx            # Entry (StrictMode, BrowserRouter)
+├── main.tsx            # Entry (AuthProvider, QueryClientProvider, BrowserRouter)
 ├── App.tsx             # Routes + ThemeProvider + ColorMode context
 ├── theme.ts            # MUI dark/light theme (ColorModeToggleContext)
-├── api/                # Typed fetch wrappers (all REST endpoints)
-├── components/         # Shared UI: Layout, CategoryCard, DonutChart, …
-├── hooks/              # useExpenses, useCategorySummary
-├── pages/              # CategoriesPage, TransactionsPage, AddExpensePage, …
-├── types/              # Expense interfaces (mirrors backend DTOs)
-└── utils/              # formatCurrency, categoryConfig (icon/color map)
+├── config/             # Keycloak config + AuthContext (provider, userId, logout)
+├── api/                # Typed fetch wrappers (all REST endpoints, authenticated)
+├── components/         # Shared UI: Layout, MoneyField, DonutChart, …
+├── hooks/              # useExpenses, useCategories, useCurrency, useDateRange, …
+├── pages/              # CategoriesPage, TransactionsPage, OverviewPage
+├── types/              # Expense & Category interfaces (mirrors backend DTOs)
+└── utils/              # formatCurrency, categoryConfig, dateRange
 ```
 
 ### Commands
@@ -2282,9 +2526,12 @@ npm run preview  # Preview production build locally
 
 ### API Proxy
 
-During development, Vite proxies all `/api/*` requests to `http://localhost:8080` (configured in `vite.config.ts`).
-No CORS setup is needed. In Docker Compose production mode, the frontend is served by nginx which proxies `/api/*`
-to the `expenses-api` container (configured in `nginx.conf`).
+During development, Vite proxies `/api/*` requests to `http://localhost:8080` and `/auth/*` requests to
+`http://localhost:8180` (Keycloak) — both configured in `vite.config.ts`. This mirrors the nginx proxy setup in Docker
+Compose, so the browser always uses `localhost:3000` as the origin in both modes. No CORS setup is needed.
+
+All API calls go through `fetchWithAuth.ts` which automatically attaches the Keycloak JWT Bearer token
+and refreshes it when expired.
 
 ---
 
@@ -2292,15 +2539,22 @@ to the `expenses-api` container (configured in `nginx.conf`).
 
 ### Endpoints
 
-| Method | Endpoint             | Description                   |
-|--------|----------------------|-------------------------------|
-| POST   | `/api/expenses`      | Create expense with sync      |
-| GET    | `/api/expenses`      | Get all expenses              |
-| GET    | `/api/expenses/{id}` | Get expense by ID             |
-| PUT    | `/api/expenses/{id}` | Update expense with sync      |
-| DELETE | `/api/expenses/{id}` | Soft delete expense with sync |
-| POST   | `/api/expenses/sync` | Trigger sync manually         |
-| GET    | `/actuator/health`   | Health check endpoint         |
+All endpoints (except health check) require a valid JWT Bearer token.
+
+| Method | Endpoint               | Description                       |
+|--------|------------------------|-----------------------------------|
+| POST   | `/api/expenses`        | Create expense                    |
+| GET    | `/api/expenses`        | Get all expenses (current user)   |
+| GET    | `/api/expenses/{id}`   | Get expense by ID                 |
+| PUT    | `/api/expenses/{id}`   | Update expense                    |
+| DELETE | `/api/expenses/{id}`   | Soft delete expense               |
+| POST   | `/api/expenses/sync`   | Trigger sync manually             |
+| GET    | `/api/categories`      | Get all categories (current user) |
+| GET    | `/api/categories/{id}` | Get category by ID                |
+| POST   | `/api/categories`      | Create category                   |
+| PUT    | `/api/categories/{id}` | Update category                   |
+| DELETE | `/api/categories/{id}` | Delete category                   |
+| GET    | `/actuator/health`     | Health check (no auth required)   |
 
 ### Examples
 
@@ -2405,13 +2659,13 @@ Content-Type: application/json
 }
 ```
 
-**With authentication (if implemented):**
+**With authentication:**
 
 ```json
 {
   "prod": {
     "ExpensesApiUrl": "https://expenses-api.example.com",
-    "AuthToken": "Bearer your-jwt-token-here"
+    "AuthToken": "Bearer <your-keycloak-jwt-token>"
   }
 }
 ```
@@ -3149,6 +3403,32 @@ docker compose up -d postgres
 > ⚠️ This deletes all data in the local database. For a playground project this is fine —
 > Flyway will recreate the schema on the next application start.
 
+### Docker Build Fails with `npm ci` Error
+
+If `docker compose up -d --build` fails with:
+
+```
+npm error `npm ci` can only install packages when your package.json and package-lock.json are in sync.
+```
+
+This typically happens when the npm version in the Docker image (`node:24-alpine`) differs from
+your local npm version, causing the lock file to be missing transitive dependencies that the
+newer npm expects. To fix, regenerate the lock file from scratch:
+
+```bash
+cd expenses-tracker-frontend
+Remove-Item -Recurse -Force node_modules   # or: rm -rf node_modules
+Remove-Item package-lock.json              # or: rm package-lock.json
+npm install
+```
+
+Then rebuild:
+
+```bash
+docker compose build --no-cache
+docker compose up -d
+```
+
 ---
 
 ## 🔄 CI/CD
@@ -3185,12 +3465,16 @@ project's architecture, naming conventions, and best practices.
 ### Documentation
 
 - [Spring Boot](https://docs.spring.io/spring-boot/reference/)
+- [Spring Security OAuth2 Resource Server](https://docs.spring.io/spring-security/reference/servlet/oauth2/resource-server/index.html)
+- [Keycloak](https://www.keycloak.org/documentation)
+- [keycloak-js](https://www.keycloak.org/docs/latest/securing_apps/#_javascript_adapter)
 - [Kotlin Coroutines](https://kotlinlang.org/docs/coroutines-overview.html)
 - [R2DBC](https://r2dbc.io/)
 - [Spring Data R2DBC](https://docs.spring.io/spring-data/r2dbc/reference/)
 - [Testcontainers](https://www.testcontainers.org/)
 - [React](https://react.dev/)
 - [MUI (Material UI)](https://mui.com/)
+- [TanStack Query](https://tanstack.com/query/latest)
 - [Vite](https://vite.dev/)
 
 ### Key Learnings

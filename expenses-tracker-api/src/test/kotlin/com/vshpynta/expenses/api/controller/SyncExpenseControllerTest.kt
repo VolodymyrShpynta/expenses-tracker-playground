@@ -1,6 +1,7 @@
 package com.vshpynta.expenses.api.controller
 
 import com.vshpynta.expenses.api.config.TestContainersConfig
+import com.vshpynta.expenses.api.config.TestSecurityConfig
 import com.vshpynta.expenses.api.config.WebTestClientConfig
 import com.vshpynta.expenses.api.controller.dto.CreateExpenseRequest
 import com.vshpynta.expenses.api.controller.dto.ExpenseDto
@@ -18,8 +19,8 @@ import org.springframework.test.web.reactive.server.expectBody
 /**
  * Integration tests for sync controller endpoints
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import(WebTestClientConfig::class, TestContainersConfig::class)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
+@Import(WebTestClientConfig::class, TestContainersConfig::class, TestSecurityConfig::class)
 @ActiveProfiles("test")
 class SyncExpenseControllerTest {
 

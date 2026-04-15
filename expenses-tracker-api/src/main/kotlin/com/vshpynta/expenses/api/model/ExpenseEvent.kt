@@ -30,7 +30,10 @@ data class ExpenseEvent(
     val payload: String,  // JSON as String
 
     @Column("committed")
-    val committed: Boolean = false
+    val committed: Boolean = false,
+
+    @Column("user_id")
+    val userId: String
 ) : Persistable<UUID> {
 
     override fun getId(): UUID = eventId

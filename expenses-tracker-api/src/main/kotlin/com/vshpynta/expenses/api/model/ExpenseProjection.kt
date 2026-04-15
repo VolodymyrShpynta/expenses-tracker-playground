@@ -35,5 +35,8 @@ data class ExpenseProjection(
     val updatedAt: Long,
 
     @Column("deleted")
-    val deleted: Boolean = false
+    val deleted: Boolean = false,
+
+    @Column("user_id")
+    val userId: String
 )

@@ -18,16 +18,16 @@ import java.util.UUID
 interface ExpenseProjectionRepository : CoroutineCrudRepository<ExpenseProjection, UUID> {
 
     /**
-     * Find expense projection by ID (returns null if not found)
+     * Find expense projection by ID and user (returns null if not found)
      */
-    @Query("SELECT * FROM expense_projections WHERE id = :id")
-    suspend fun findByIdOrNull(id: UUID): ExpenseProjection?
+    @Query("SELECT * FROM expense_projections WHERE id = :id AND user_id = :userId")
+    suspend fun findByIdAndUserId(id: UUID, userId: String): ExpenseProjection?
 
     /**
-     * Find all active (non-deleted) expense projections
+     * Find all active (non-deleted) expense projections for a user
      */
-    @Query("SELECT * FROM expense_projections WHERE deleted = false")
-    fun findAllActive(): Flow<ExpenseProjection>
+    @Query("SELECT * FROM expense_projections WHERE deleted = false AND user_id = :userId")
+    fun findAllActiveByUserId(userId: String): Flow<ExpenseProjection>
 
     /**
      * Project expense from event with last-write-wins conflict resolution
@@ -40,10 +40,10 @@ interface ExpenseProjectionRepository : CoroutineCrudRepository<ExpenseProjectio
     @Modifying
     @Query(
         """
-        INSERT INTO expense_projections (id, description, amount, currency, category, date, updated_at, deleted)
+        INSERT INTO expense_projections (id, description, amount, currency, category, date, updated_at, deleted, user_id)
         VALUES (:#{#projection.id}, :#{#projection.description}, :#{#projection.amount},
                 :#{#projection.currency}, :#{#projection.category}, :#{#projection.date},
-                :#{#projection.updatedAt}, :#{#projection.deleted})
+                :#{#projection.updatedAt}, :#{#projection.deleted}, :#{#projection.userId})
         ON CONFLICT (id) DO UPDATE SET
             description = EXCLUDED.description,
             amount = EXCLUDED.amount,

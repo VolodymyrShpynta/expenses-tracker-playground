@@ -11,11 +11,45 @@ services:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init-keycloak-schema.sql:/docker-entrypoint-initdb.d/init-keycloak-schema.sql:ro
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}" ]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - expenses-network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.2
+    container_name: expenses-keycloak
+    restart: unless-stopped
+    command: start-dev --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-expenses_db}
+      KC_DB_USERNAME: ${POSTGRES_USER:-postgres}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      KC_DB_SCHEMA: keycloak
+      KC_HTTP_PORT: 8180
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HOSTNAME: http://localhost:3000/auth
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:-admin}
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8180:8180"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000; echo -e 'GET /auth/health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3; cat <&3 | grep -q '200 OK'" ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - expenses-network
 
@@ -28,6 +62,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      keycloak:
+        condition: service_healthy
     environment:
       EXPENSES_TRACKER_R2DBC_URL: ${EXPENSES_TRACKER_R2DBC_URL:-r2dbc:postgresql://postgres:5432/expenses_db}
       EXPENSES_TRACKER_R2DBC_USERNAME: ${EXPENSES_TRACKER_R2DBC_USERNAME:-postgres}
@@ -35,6 +71,8 @@ services:
       EXPENSES_TRACKER_FLYWAY_JDBC_URL: ${EXPENSES_TRACKER_FLYWAY_JDBC_URL:-jdbc:postgresql://postgres:5432/expenses_db}
       EXPENSES_TRACKER_FLYWAY_USERNAME: ${EXPENSES_TRACKER_FLYWAY_USERNAME:-postgres}
       EXPENSES_TRACKER_FLYWAY_PASSWORD: ${EXPENSES_TRACKER_FLYWAY_PASSWORD:-postgres}
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://localhost:3000/auth/realms/expenses-tracker}
+      KEYCLOAK_JWK_SET_URI: ${KEYCLOAK_JWK_SET_URI:-http://keycloak:8180/auth/realms/expenses-tracker/protocol/openid-connect/certs}
     ports:
       - "8080:8080"
     networks:

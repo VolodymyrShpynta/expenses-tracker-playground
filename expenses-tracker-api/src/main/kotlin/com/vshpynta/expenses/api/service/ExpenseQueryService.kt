@@ -2,7 +2,10 @@ package com.vshpynta.expenses.api.service
 
 import com.vshpynta.expenses.api.model.ExpenseProjection
 import com.vshpynta.expenses.api.repository.ExpenseProjectionRepository
+import com.vshpynta.expenses.api.service.auth.UserContextService
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.util.UUID
@@ -14,7 +17,8 @@ import java.util.UUID
  */
 @Service
 class ExpenseQueryService(
-    private val projectionRepository: ExpenseProjectionRepository
+    private val projectionRepository: ExpenseProjectionRepository,
+    private val userContextService: UserContextService
 ) {
 
     companion object {
@@ -22,28 +26,31 @@ class ExpenseQueryService(
     }
 
     /**
-     * Find all active (non-deleted) expense projections
+     * Find all active (non-deleted) expense projections for the current user
      */
-    fun findAllExpenses(): Flow<ExpenseProjection> {
-        logger.debug("Querying all active expense projections")
-        return projectionRepository.findAllActive()
+    fun findAllExpenses(): Flow<ExpenseProjection> = flow {
+        val userId = userContextService.currentUserId()
+        logger.debug("Querying all active expense projections for user: {}", userId)
+        emitAll(projectionRepository.findAllActiveByUserId(userId))
     }
 
     /**
-     * Find expense projection by ID
+     * Find expense projection by ID for the current user
      * Returns null if not found or if deleted
      */
     suspend fun findExpenseById(id: UUID): ExpenseProjection? {
-        logger.debug("Querying expense projection by id: {}", id)
-        return projectionRepository.findByIdOrNull(id)
+        val userId = userContextService.currentUserId()
+        logger.debug("Querying expense projection by id: {} for user: {}", id, userId)
+        return projectionRepository.findByIdAndUserId(id, userId)
             ?.takeUnless { it.deleted }
     }
 
     /**
-     * Check if expense exists and is active
+     * Check if expense exists and is active for the current user
      */
     suspend fun exists(id: UUID): Boolean {
-        return projectionRepository.findByIdOrNull(id)
+        val userId = userContextService.currentUserId()
+        return projectionRepository.findByIdAndUserId(id, userId)
             ?.let { !it.deleted }
             ?: false
     }

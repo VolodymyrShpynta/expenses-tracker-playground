@@ -13,6 +13,7 @@ class WebTestClientConfig {
         return WebTestClient
             .bindToApplicationContext(applicationContext)
             .configureClient()
+            .defaultHeader("Authorization", "Bearer test-token")
             .build()
     }
 }

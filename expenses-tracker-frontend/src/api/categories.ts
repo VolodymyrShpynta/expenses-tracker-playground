@@ -3,16 +3,17 @@ import type {
   CreateCategoryRequest,
   UpdateCategoryRequest,
 } from '../types/category.ts';
+import { fetchWithAuth } from './fetchWithAuth.ts';
 
 const BASE = '/api/categories';
 
 export async function fetchCategories(): Promise<Category[]> {
-  const res = await fetch(BASE);
+  const res = await fetchWithAuth(BASE);
   return handleResponse<Category[]>(res);
 }
 
 export async function createCategory(req: CreateCategoryRequest): Promise<Category> {
-  const res = await fetch(BASE, {
+  const res = await fetchWithAuth(BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
@@ -24,7 +25,7 @@ export async function updateCategory(
   id: string,
   req: UpdateCategoryRequest,
 ): Promise<Category> {
-  const res = await fetch(`${BASE}/${id}`, {
+  const res = await fetchWithAuth(`${BASE}/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
@@ -33,7 +34,7 @@ export async function updateCategory(
 }
 
 export async function deleteCategory(id: string): Promise<void> {
-  const res = await fetch(`${BASE}/${id}`, { method: 'DELETE' });
+  const res = await fetchWithAuth(`${BASE}/${id}`, { method: 'DELETE' });
   if (!res.ok) {
     const body = await res.text().catch(() => '');
     throw new Error(`HTTP ${res.status}: ${body}`);

@@ -1,9 +1,11 @@
 package com.vshpynta.expenses.api.service
 
 import com.vshpynta.expenses.api.config.TestContainersConfig
+import com.vshpynta.expenses.api.config.TestSecurityConfig
 import com.vshpynta.expenses.api.model.ExpenseProjection
 import com.vshpynta.expenses.api.repository.ExpenseEventRepository
 import com.vshpynta.expenses.api.repository.ExpenseProjectionRepository
+import com.vshpynta.expenses.api.service.auth.UserContextService
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.runBlocking
@@ -13,11 +15,14 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.doAnswer
 import org.mockito.kotlin.any
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.r2dbc.core.DatabaseClient
 import org.springframework.test.context.ActiveProfiles
+import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean
 
 /**
@@ -29,8 +34,12 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean
  */
 @SpringBootTest
 @ActiveProfiles("test")
-@Import(TestContainersConfig::class)
+@Import(TestContainersConfig::class, TestSecurityConfig::class)
 class ExpenseCommandServiceTransactionTest {
+
+    companion object {
+        private const val TEST_USER_ID = TestSecurityConfig.TEST_USER_ID
+    }
 
     @Autowired
     private lateinit var commandService: ExpenseCommandService
@@ -44,6 +53,9 @@ class ExpenseCommandServiceTransactionTest {
     @MockitoSpyBean
     private lateinit var projectionRepository: ExpenseProjectionRepository
 
+    @MockitoBean
+    private lateinit var userContextService: UserContextService
+
     @BeforeEach
     fun setup() {
         // Manual cleanup required because R2DBC doesn't support @Transactional in tests
@@ -51,6 +63,9 @@ class ExpenseCommandServiceTransactionTest {
             databaseClient.sql("DELETE FROM processed_events").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM expense_events").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM expense_projections").fetch().rowsUpdated().awaitSingle()
+
+            // Mock user context for service calls
+            whenever(userContextService.currentUserId()) doReturn TEST_USER_ID
         }
     }
 
@@ -284,5 +299,5 @@ class ExpenseCommandServiceTransactionTest {
 
     private suspend fun getAllProjections() = projectionRepository.findAll().toList()
 
-    private suspend fun getProjectionById(id: java.util.UUID) = projectionRepository.findByIdOrNull(id)
+    private suspend fun getProjectionById(id: java.util.UUID) = projectionRepository.findByIdAndUserId(id, TEST_USER_ID)
 }

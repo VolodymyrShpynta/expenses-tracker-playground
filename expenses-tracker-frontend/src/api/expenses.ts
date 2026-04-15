@@ -4,21 +4,22 @@ import type {
   UpdateExpenseRequest,
   SyncResult,
 } from '../types/expense.ts';
+import { fetchWithAuth } from './fetchWithAuth.ts';
 
 const BASE = '/api/expenses';
 
 export async function fetchExpenses(): Promise<Expense[]> {
-  const res = await fetch(BASE);
+  const res = await fetchWithAuth(BASE);
   return handleResponse<Expense[]>(res);
 }
 
 export async function fetchExpenseById(id: string): Promise<Expense> {
-  const res = await fetch(`${BASE}/${id}`);
+  const res = await fetchWithAuth(`${BASE}/${id}`);
   return handleResponse<Expense>(res);
 }
 
 export async function createExpense(req: CreateExpenseRequest): Promise<Expense> {
-  const res = await fetch(BASE, {
+  const res = await fetchWithAuth(BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
@@ -30,7 +31,7 @@ export async function updateExpense(
   id: string,
   req: UpdateExpenseRequest,
 ): Promise<Expense> {
-  const res = await fetch(`${BASE}/${id}`, {
+  const res = await fetchWithAuth(`${BASE}/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
@@ -39,7 +40,7 @@ export async function updateExpense(
 }
 
 export async function deleteExpense(id: string): Promise<void> {
-  const res = await fetch(`${BASE}/${id}`, { method: 'DELETE' });
+  const res = await fetchWithAuth(`${BASE}/${id}`, { method: 'DELETE' });
   if (!res.ok) {
     const body = await res.text().catch(() => '');
     throw new Error(`HTTP ${res.status}: ${body}`);
@@ -47,7 +48,7 @@ export async function deleteExpense(id: string): Promise<void> {
 }
 
 export async function triggerSync(): Promise<SyncResult> {
-  const res = await fetch(`${BASE}/sync`, { method: 'POST' });
+  const res = await fetchWithAuth(`${BASE}/sync`, { method: 'POST' });
   return handleResponse<SyncResult>(res);
 }
 

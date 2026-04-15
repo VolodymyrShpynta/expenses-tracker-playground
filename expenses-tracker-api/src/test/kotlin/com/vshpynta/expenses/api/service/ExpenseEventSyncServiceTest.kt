@@ -2,9 +2,11 @@ package com.vshpynta.expenses.api.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.vshpynta.expenses.api.config.TestContainersConfig
+import com.vshpynta.expenses.api.config.TestSecurityConfig
 import com.vshpynta.expenses.api.model.EventEntry
 import com.vshpynta.expenses.api.model.EventSyncFile
 import com.vshpynta.expenses.api.repository.ExpenseProjectionRepository
+import com.vshpynta.expenses.api.service.auth.UserContextService
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.runBlocking
@@ -12,10 +14,13 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.test.context.ActiveProfiles
+import org.springframework.test.context.bean.override.mockito.MockitoBean
 import java.io.File
 import java.util.UUID
 
@@ -24,8 +29,12 @@ import java.util.UUID
  */
 @SpringBootTest
 @ActiveProfiles("test")
-@Import(TestContainersConfig::class)
+@Import(TestContainersConfig::class, TestSecurityConfig::class)
 class ExpenseEventSyncServiceTest {
+
+    companion object {
+        private const val TEST_USER_ID = TestSecurityConfig.TEST_USER_ID
+    }
 
     @Autowired
     private lateinit var expenseEventSyncService: ExpenseEventSyncService
@@ -48,8 +57,11 @@ class ExpenseEventSyncServiceTest {
     @Autowired
     private lateinit var processedEventsCache: ProcessedEventsCache
 
-    // Use the sync file path from application-test.yaml
-    private val testSyncFilePath = "./build/test-sync-data/sync.json"
+    @MockitoBean
+    private lateinit var userContextService: UserContextService
+
+    // Per-user sync file path matching SyncFileManager.getActualFilePath(userId)
+    private val testSyncFilePath = "./build/test-sync-data/$TEST_USER_ID/sync.json"
 
     @BeforeEach
     fun setup() {
@@ -58,20 +70,26 @@ class ExpenseEventSyncServiceTest {
             databaseClient.sql("DELETE FROM processed_events").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM expense_events").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM expense_projections").fetch().rowsUpdated().awaitSingle()
+
+            // Mock user context for service calls
+            whenever(userContextService.currentUserId()) doReturn TEST_USER_ID
         }
 
         // Reset cache to clear state from previous tests
         processedEventsCache.reset()
 
-        // Clean up sync file before each test
+        // Clean up sync file and parent directory before each test
         File(testSyncFilePath).delete()
-        File(testSyncFilePath).parentFile?.mkdirs()
+        File(testSyncFilePath).parentFile?.let { dir ->
+            dir.deleteRecursively()
+            dir.mkdirs()
+        }
     }
 
     @AfterEach
     fun cleanup() {
-        // Clean up sync file after each test
-        File(testSyncFilePath).delete()
+        // Clean up sync file and parent directory after each test
+        File(testSyncFilePath).parentFile?.deleteRecursively()
     }
 
     @Test
@@ -371,9 +389,11 @@ class ExpenseEventSyncServiceTest {
                 amount = amount,
                 category = "Test",
                 date = "2026-01-20T10:00:00Z",
-                updatedAt = updatedAt ?: timestamp,  // Use provided updatedAt or default to timestamp
-                deleted = deleted
-            )
+                updatedAt = updatedAt ?: timestamp,
+                deleted = deleted,
+                userId = TEST_USER_ID
+            ),
+            userId = TEST_USER_ID
         )
     }
 

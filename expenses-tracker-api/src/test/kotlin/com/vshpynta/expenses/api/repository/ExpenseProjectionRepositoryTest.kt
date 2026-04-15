@@ -1,6 +1,7 @@
 package com.vshpynta.expenses.api.repository
 
 import com.vshpynta.expenses.api.config.TestContainersConfig
+import com.vshpynta.expenses.api.config.TestSecurityConfig
 import com.vshpynta.expenses.api.model.ExpenseProjection
 import kotlinx.coroutines.reactor.awaitSingle
 import kotlinx.coroutines.runBlocking
@@ -24,8 +25,12 @@ import java.util.UUID
  */
 @SpringBootTest
 @ActiveProfiles("test")
-@Import(TestContainersConfig::class)
+@Import(TestContainersConfig::class, TestSecurityConfig::class)
 class ExpenseProjectionRepositoryTest {
+
+    companion object {
+        private const val TEST_USER_ID = "test-user-id"
+    }
 
     @Autowired
     private lateinit var projectionRepository: ExpenseProjectionRepository
@@ -60,7 +65,7 @@ class ExpenseProjectionRepositoryTest {
         // Then: Expense should be inserted
         assertThat(result).describedAs("Should return 1 (one row affected)").isEqualTo(1)
 
-        val saved = projectionRepository.findByIdOrNull(expense.id)
+        val saved = projectionRepository.findByIdAndUserId(expense.id, TEST_USER_ID)
         assertThat(saved).describedAs("Expense should be saved").isNotNull()
         assertThat(saved?.id).isEqualTo(expense.id)
         assertThat(saved?.description).isEqualTo("New expense")
@@ -92,7 +97,7 @@ class ExpenseProjectionRepositoryTest {
         // Then: Expense should be updated
         assertThat(result).describedAs("Should return 1 (one row affected)").isEqualTo(1)
 
-        val saved = projectionRepository.findByIdOrNull(expenseId)
+        val saved = projectionRepository.findByIdAndUserId(expenseId, TEST_USER_ID)
         assertThat(saved).isNotNull()
         assertThat(saved?.description).describedAs("Description should be updated").isEqualTo("Updated")
         assertThat(saved?.amount).describedAs("Amount should be updated").isEqualTo(2000L)
@@ -125,7 +130,7 @@ class ExpenseProjectionRepositoryTest {
             assertThat(result).describedAs("Should return 0 (no rows affected - WHERE clause not satisfied)")
                 .isEqualTo(0)
 
-            val saved = projectionRepository.findByIdOrNull(expenseId)
+            val saved = projectionRepository.findByIdAndUserId(expenseId, TEST_USER_ID)
             assertThat(saved).isNotNull()
             assertThat(saved?.description).describedAs("Description should remain unchanged").isEqualTo("Newer version")
             assertThat(saved?.amount).describedAs("Amount should remain unchanged").isEqualTo(2000L)
@@ -156,7 +161,7 @@ class ExpenseProjectionRepositoryTest {
         // Then: Should NOT update (WHERE clause requires EXCLUDED.updated_at > expenses.updated_at)
         assertThat(result).describedAs("Should return 0 (equal timestamp doesn't satisfy WHERE clause)").isEqualTo(0)
 
-        val saved = projectionRepository.findByIdOrNull(expenseId)
+        val saved = projectionRepository.findByIdAndUserId(expenseId, TEST_USER_ID)
         assertThat(saved?.description).describedAs("Original value should remain").isEqualTo("First write")
         assertThat(saved?.amount).isEqualTo(1000L)
     }
@@ -177,7 +182,7 @@ class ExpenseProjectionRepositoryTest {
         projectionRepository.projectFromEvent(expense3)
 
         // Then: Final version should be the latest
-        val saved = projectionRepository.findByIdOrNull(expenseId)
+        val saved = projectionRepository.findByIdAndUserId(expenseId, TEST_USER_ID)
         assertThat(saved).isNotNull()
         assertThat(saved?.description).isEqualTo("Version 3")
         assertThat(saved?.amount).isEqualTo(3000L)
@@ -203,7 +208,7 @@ class ExpenseProjectionRepositoryTest {
         assertThat(result1).describedAs("Op 1 should be rejected (older)").isEqualTo(0)
         assertThat(result3).describedAs("Op 3 should be applied (newer)").isEqualTo(1)
 
-        val saved = projectionRepository.findByIdOrNull(expenseId)
+        val saved = projectionRepository.findByIdAndUserId(expenseId, TEST_USER_ID)
         assertThat(saved?.description).describedAs("Should have the latest version").isEqualTo("Op 3")
         assertThat(saved?.updatedAt).isEqualTo(3000L)
     }
@@ -226,7 +231,7 @@ class ExpenseProjectionRepositoryTest {
         assertThat(result1).describedAs("First upsert should insert").isEqualTo(1)
         assertThat(result2).describedAs("Second upsert should have no effect (same timestamp)").isEqualTo(0)
 
-        val saved = projectionRepository.findByIdOrNull(expense.id)
+        val saved = projectionRepository.findByIdAndUserId(expense.id, TEST_USER_ID)
         assertThat(saved).isNotNull()
         assertThat(saved?.description).isEqualTo("Test")
         assertThat(saved?.amount).isEqualTo(1000L)
@@ -260,7 +265,7 @@ class ExpenseProjectionRepositoryTest {
         // Then: Should be updated (deleted flag overrides)
         assertThat(result).describedAs("Should update to deleted").isEqualTo(1)
 
-        val saved = projectionRepository.findByIdOrNull(expenseId)
+        val saved = projectionRepository.findByIdAndUserId(expenseId, TEST_USER_ID)
         assertThat(saved).isNotNull()
         assertThat(saved!!.deleted).describedAs("Should be marked as deleted").isTrue()
         assertThat(saved.updatedAt).isEqualTo(2000L)
@@ -292,7 +297,7 @@ class ExpenseProjectionRepositoryTest {
         // Then: Should NOT be updated (older timestamp, consistent last-write-wins)
         assertThat(result).describedAs("Should not update with older timestamp (last-write-wins)").isEqualTo(0)
 
-        val saved = projectionRepository.findByIdOrNull(expenseId)
+        val saved = projectionRepository.findByIdAndUserId(expenseId, TEST_USER_ID)
         assertThat(saved).isNotNull()
         assertThat(saved!!.deleted).describedAs("Should remain active (newer timestamp wins)").isFalse()
         assertThat(saved.updatedAt).isEqualTo(2000L)
@@ -324,7 +329,7 @@ class ExpenseProjectionRepositoryTest {
         // Then: Should NOT update (older timestamp, not a delete)
         assertThat(result).describedAs("Should not resurrect with older timestamp").isEqualTo(0)
 
-        val saved = projectionRepository.findByIdOrNull(expenseId)
+        val saved = projectionRepository.findByIdAndUserId(expenseId, TEST_USER_ID)
         assertThat(saved!!.deleted).describedAs("Should remain deleted").isTrue()
         assertThat(saved.description).isEqualTo("Deleted")
         assertThat(saved.updatedAt).isEqualTo(2000L)
@@ -356,7 +361,7 @@ class ExpenseProjectionRepositoryTest {
         // Then: Should update (newer timestamp wins)
         assertThat(result).describedAs("Should allow resurrection with newer timestamp").isEqualTo(1)
 
-        val saved = projectionRepository.findByIdOrNull(expenseId)
+        val saved = projectionRepository.findByIdAndUserId(expenseId, TEST_USER_ID)
         assertThat(saved!!.deleted).describedAs("Should be active again").isFalse()
         assertThat(saved.description).isEqualTo("Resurrected")
         assertThat(saved.updatedAt).isEqualTo(2000L)
@@ -383,7 +388,7 @@ class ExpenseProjectionRepositoryTest {
         // Then: Should be marked as deleted
         assertThat(result).describedAs("Should return 1 (one row affected)").isEqualTo(1)
 
-        val saved = projectionRepository.findByIdOrNull(expenseId)
+        val saved = projectionRepository.findByIdAndUserId(expenseId, TEST_USER_ID)
         assertThat(saved).isNotNull()
         assertThat(saved!!.deleted).describedAs("Should be marked as deleted").isTrue()
         assertThat(saved.updatedAt).describedAs("Timestamp should be updated").isEqualTo(2000L)
@@ -408,7 +413,7 @@ class ExpenseProjectionRepositoryTest {
         // Then: Delete should be rejected (last-write-wins: newer timestamp wins)
         assertThat(result).describedAs("Should NOT delete with older timestamp").isEqualTo(0)
 
-        val saved = projectionRepository.findByIdOrNull(expenseId)
+        val saved = projectionRepository.findByIdAndUserId(expenseId, TEST_USER_ID)
         assertThat(saved).isNotNull()
         assertThat(saved!!.deleted).describedAs("Should remain active").isFalse()
         assertThat(saved.updatedAt).describedAs("Timestamp should remain unchanged").isEqualTo(2000L)
@@ -433,7 +438,7 @@ class ExpenseProjectionRepositoryTest {
         // Then: Should NOT update (already deleted AND older timestamp)
         assertThat(result).describedAs("Should return 0 (already deleted with newer timestamp)").isEqualTo(0)
 
-        val saved = projectionRepository.findByIdOrNull(expenseId)
+        val saved = projectionRepository.findByIdAndUserId(expenseId, TEST_USER_ID)
         assertThat(saved).isNotNull()
         assertThat(saved!!.deleted).describedAs("Should remain deleted").isTrue()
         assertThat(saved.updatedAt).describedAs("Timestamp should remain unchanged").isEqualTo(2000L)
@@ -460,7 +465,7 @@ class ExpenseProjectionRepositoryTest {
         assertThat(result1).describedAs("First delete should succeed").isEqualTo(1)
         assertThat(result2).describedAs("Second delete should have no effect (already deleted)").isEqualTo(0)
 
-        val saved = projectionRepository.findByIdOrNull(expenseId)
+        val saved = projectionRepository.findByIdAndUserId(expenseId, TEST_USER_ID)
         assertThat(saved!!.deleted).isTrue()
         assertThat(saved.updatedAt).isEqualTo(2000L)
     }
@@ -496,7 +501,7 @@ class ExpenseProjectionRepositoryTest {
         // Then: Should update timestamp (WHERE clause: updated_at < :updatedAt)
         assertThat(result).describedAs("Should update timestamp even if already deleted").isEqualTo(1)
 
-        val saved = projectionRepository.findByIdOrNull(expenseId)
+        val saved = projectionRepository.findByIdAndUserId(expenseId, TEST_USER_ID)
         assertThat(saved!!.deleted).isTrue()
         assertThat(saved.updatedAt).describedAs("Timestamp should be updated").isEqualTo(2000L)
     }
@@ -521,7 +526,7 @@ class ExpenseProjectionRepositoryTest {
         // Then: Latest timestamp wins
         assertThat(result2).describedAs("Device 2 update should be rejected (older than Device 3)").isEqualTo(0)
 
-        val saved = projectionRepository.findByIdOrNull(expenseId)
+        val saved = projectionRepository.findByIdAndUserId(expenseId, TEST_USER_ID)
         assertThat(saved?.description).describedAs("Latest update should win").isEqualTo("Device 3")
         assertThat(saved?.updatedAt).isEqualTo(3000L)
     }
@@ -536,14 +541,15 @@ class ExpenseProjectionRepositoryTest {
             category = "Food",
             date = "2026-01-20T10:00:00Z",
             updatedAt = 1000L,
-            deleted = false
+            deleted = false,
+            userId = TEST_USER_ID
         )
 
         // When: Upserting
         projectionRepository.projectFromEvent(expense)
 
         // Then: All fields should be saved correctly
-        val saved = projectionRepository.findByIdOrNull(expense.id)
+        val saved = projectionRepository.findByIdAndUserId(expense.id, TEST_USER_ID)
         assertThat(saved).isNotNull()
         assertThat(saved?.description).isEqualTo("Test Expense")
         assertThat(saved?.amount).isEqualTo(12345L)
@@ -570,7 +576,8 @@ class ExpenseProjectionRepositoryTest {
             category = category,
             date = Instant.now().toString(),
             updatedAt = updatedAt,
-            deleted = deleted
+            deleted = deleted,
+            userId = TEST_USER_ID
         )
     }
 }

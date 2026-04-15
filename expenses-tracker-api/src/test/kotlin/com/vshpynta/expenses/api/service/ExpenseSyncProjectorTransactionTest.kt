@@ -1,6 +1,7 @@
 package com.vshpynta.expenses.api.service
 
 import com.vshpynta.expenses.api.config.TestContainersConfig
+import com.vshpynta.expenses.api.config.TestSecurityConfig
 import com.vshpynta.expenses.api.model.EventEntry
 import com.vshpynta.expenses.api.model.ExpensePayload
 import com.vshpynta.expenses.api.model.ExpenseProjection
@@ -38,7 +39,7 @@ import java.util.UUID
  */
 @SpringBootTest
 @ActiveProfiles("test")
-@Import(TestContainersConfig::class)
+@Import(TestContainersConfig::class, TestSecurityConfig::class)
 class ExpenseSyncProjectorTransactionTest {
 
     @Autowired
@@ -91,7 +92,7 @@ class ExpenseSyncProjectorTransactionTest {
         assertThat(result).describedAs("Event should be projected successfully").isTrue()
 
         // Verify expense projection was created
-        val projection = projectionRepository.findByIdOrNull(eventEntry.payload.id)
+        val projection = projectionRepository.findByIdAndUserId(eventEntry.payload.id, TEST_USER_ID)
         assertThat(projection).describedAs("Expense projection should be created").isNotNull()
         assertThat(projection?.amount).describedAs("Expense amount should match").isEqualTo(5000L)
 
@@ -182,7 +183,7 @@ class ExpenseSyncProjectorTransactionTest {
             .hasSize(initialProjectionCount)
 
         // Verify projection was NOT created (rollback worked)
-        val projection = projectionRepository.findByIdOrNull(eventEntry.payload.id)
+        val projection = projectionRepository.findByIdAndUserId(eventEntry.payload.id, TEST_USER_ID)
         assertThat(projection).describedAs("Projection should NOT exist - entire transaction rolled back").isNull()
     }
 
@@ -224,7 +225,7 @@ class ExpenseSyncProjectorTransactionTest {
             .hasSize(initialProcessedEventsCount)
 
         // Verify nothing was persisted
-        val projection = projectionRepository.findByIdOrNull(eventEntry.payload.id)
+        val projection = projectionRepository.findByIdAndUserId(eventEntry.payload.id, TEST_USER_ID)
         assertThat(projection).describedAs("Projection should NOT exist - entire transaction rolled back").isNull()
 
         val wasProcessed = processedEventRepository.hasBeenProcessed(UUID.fromString(eventEntry.eventId))
@@ -245,7 +246,7 @@ class ExpenseSyncProjectorTransactionTest {
         val firstResult = expenseSyncProjector.projectEvent(eventEntry)
         assertThat(firstResult).describedAs("First execution should succeed").isTrue()
 
-        val projectionAfterFirst = projectionRepository.findByIdOrNull(eventEntry.payload.id)
+        val projectionAfterFirst = projectionRepository.findByIdAndUserId(eventEntry.payload.id, TEST_USER_ID)
         assertThat(projectionAfterFirst).describedAs("Projection should exist after first execution").isNotNull()
         val firstUpdatedAt = projectionAfterFirst!!.updatedAt
 
@@ -255,7 +256,7 @@ class ExpenseSyncProjectorTransactionTest {
         // Then: Should be skipped, no modifications
         assertThat(secondResult).describedAs("Second execution should return false (already processed)").isFalse()
 
-        val projectionAfterSecond = projectionRepository.findByIdOrNull(eventEntry.payload.id)
+        val projectionAfterSecond = projectionRepository.findByIdAndUserId(eventEntry.payload.id, TEST_USER_ID)
         assertThat(projectionAfterSecond).describedAs("Projection should still exist").isNotNull()
         assertThat(projectionAfterSecond!!.updatedAt)
             .describedAs("Projection should NOT be modified on second execution (idempotency)")
@@ -287,7 +288,7 @@ class ExpenseSyncProjectorTransactionTest {
         // Then: All steps should complete atomically
         assertThat(deleteResult).describedAs("Delete event should be projected successfully").isTrue()
 
-        val projection = projectionRepository.findByIdOrNull(expenseId)
+        val projection = projectionRepository.findByIdAndUserId(expenseId, TEST_USER_ID)
         assertThat(projection).describedAs("Projection should still exist (soft delete)").isNotNull()
         assertThat(projection!!.deleted).describedAs("Projection should be marked as deleted").isTrue()
 
@@ -321,7 +322,7 @@ class ExpenseSyncProjectorTransactionTest {
         // Then: All steps should complete atomically
         assertThat(updateResult).describedAs("Update event should be projected successfully").isTrue()
 
-        val projection = projectionRepository.findByIdOrNull(expenseId)
+        val projection = projectionRepository.findByIdAndUserId(expenseId, TEST_USER_ID)
         assertThat(projection).describedAs("Projection should exist").isNotNull()
         assertThat(projection!!.amount).describedAs("Amount should be updated").isEqualTo(2000L)
         assertThat(projection.description).describedAs("Description should be updated").isEqualTo("Updated")
@@ -368,10 +369,10 @@ class ExpenseSyncProjectorTransactionTest {
         assertThat(result2).describedAs("Second event should be projected successfully").isTrue()
 
         // Verify: First event rolled back, second committed
-        val projection1 = projectionRepository.findByIdOrNull(event1.payload.id)
+        val projection1 = projectionRepository.findByIdAndUserId(event1.payload.id, TEST_USER_ID)
         assertThat(projection1).describedAs("First projection should NOT exist (transaction rolled back)").isNull()
 
-        val projection2 = projectionRepository.findByIdOrNull(event2.payload.id)
+        val projection2 = projectionRepository.findByIdAndUserId(event2.payload.id, TEST_USER_ID)
         assertThat(projection2).describedAs("Second projection should exist (transaction committed)").isNotNull()
         assertThat(projection2?.amount).isEqualTo(2000L)
 
@@ -386,6 +387,7 @@ class ExpenseSyncProjectorTransactionTest {
     // ========== Helper Functions ==========
 
     private companion object {
+        private const val TEST_USER_ID = TestSecurityConfig.TEST_USER_ID
         private const val DEFAULT_TIMESTAMP = 1_700_000_000_000L
         private const val DEFAULT_DATE = "2026-01-20T10:00:00Z"
     }
@@ -414,8 +416,10 @@ class ExpenseSyncProjectorTransactionTest {
                 category = category,
                 date = DEFAULT_DATE,
                 updatedAt = timestamp,
-                deleted = deleted
-            )
+                deleted = deleted,
+                userId = TEST_USER_ID
+            ),
+            userId = TEST_USER_ID
         )
     }
 

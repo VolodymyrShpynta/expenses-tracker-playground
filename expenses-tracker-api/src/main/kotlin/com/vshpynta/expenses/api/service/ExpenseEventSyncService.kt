@@ -1,6 +1,7 @@
 package com.vshpynta.expenses.api.service
 
 import com.vshpynta.expenses.api.repository.ExpenseEventRepository
+import com.vshpynta.expenses.api.service.auth.UserContextService
 import com.vshpynta.expenses.api.service.sync.RemoteEventProcessor
 import com.vshpynta.expenses.api.service.sync.SyncFileManager
 import kotlinx.coroutines.flow.toList
@@ -24,7 +25,8 @@ import org.springframework.stereotype.Service
 class ExpenseEventSyncService(
     private val syncFileManager: SyncFileManager,
     private val remoteEventProcessor: RemoteEventProcessor,
-    private val eventRepository: ExpenseEventRepository
+    private val eventRepository: ExpenseEventRepository,
+    private val userContextService: UserContextService
 ) {
 
     companion object {
@@ -32,7 +34,7 @@ class ExpenseEventSyncService(
     }
 
     /**
-     * Performs full synchronization cycle between local and remote events
+     * Performs full synchronization cycle between local and remote events for the current user
      *
      * Flow:
      * 1. Check if sync file changed (skip processing if unchanged)
@@ -41,18 +43,19 @@ class ExpenseEventSyncService(
      * 4. Update file hash for next sync optimization
      */
     suspend fun performFullSync() {
-        logger.info("Starting sync cycle")
+        val userId = userContextService.currentUserId()
+        logger.info("Starting sync cycle for user: {}", userId)
 
         runCatching {
-            syncFileManager.getSyncFile().let { file ->
+            syncFileManager.getSyncFile(userId).let { file ->
                 // Process remote events if file changed
-                file.takeIf { syncFileManager.hasFileChanged(it) }
+                file.takeIf { syncFileManager.hasFileChanged(it, userId) }
                     ?.let { syncFileManager.readEvents(it) }
                     ?.also { remoteEventProcessor.processRemoteEvents(it) }
                     ?: logger.info("Sync file unchanged, skipping remote processing")
 
                 // Upload local events if any
-                collectLocalEvents()
+                collectLocalEvents(userId)
                     .takeIf { it.isNotEmpty() }
                     ?.also { events ->
                         logger.info("Uploading {} local uncommitted events", events.size)
@@ -61,16 +64,16 @@ class ExpenseEventSyncService(
                     }
 
                 // Cache checksum for next sync
-                syncFileManager.cacheFileChecksum(file)
+                syncFileManager.cacheFileChecksum(file, userId)
             }
 
-            logger.info("Sync completed successfully")
+            logger.info("Sync completed successfully for user: {}", userId)
         }.onFailure { e ->
-            logger.error("Sync failed", e)
+            logger.error("Sync failed for user: {}", userId, e)
             throw e
         }
     }
 
-    private suspend fun collectLocalEvents() =
-        eventRepository.findUncommittedEvents().toList()
+    private suspend fun collectLocalEvents(userId: String) =
+        eventRepository.findUncommittedEventsByUserId(userId).toList()
 }

@@ -25,13 +25,22 @@ object ExpenseMapper {
         category = category,
         date = date,
         updatedAt = updatedAt,
-        deleted = deleted ?: false
+        deleted = deleted ?: false,
+        userId = userId ?: error("userId is required for projection")
     )
 
     /**
      * Converts EventEntry to ExpenseProjection using the embedded payload
+     * Falls back to the event-level userId if the payload doesn't have one
      */
-    fun EventEntry.toProjection() = payload.toProjection()
+    fun EventEntry.toProjection(): ExpenseProjection {
+        val effectivePayload = if (payload.userId == null && userId != null) {
+            payload.copy(userId = userId)
+        } else {
+            payload
+        }
+        return effectivePayload.toProjection()
+    }
 
     /**
      * Converts ExpenseProjection to ExpenseDto for the presentation layer

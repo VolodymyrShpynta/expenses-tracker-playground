@@ -21,5 +21,6 @@ data class EventEntry(
     val timestamp: Long,
     val eventType: String,
     val expenseId: String,  // UUID as string
-    val payload: ExpensePayload
+    val payload: ExpensePayload,
+    val userId: String? = null
 )

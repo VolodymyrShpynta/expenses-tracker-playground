@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useState } from 'react';
 import type { DateRange, PresetKey } from '../utils/dateRange.ts';
 import { buildRangeForPreset, readStoredPreset, savePreset } from '../utils/dateRange.ts';
+import { useAuth } from '../context/AuthContext.tsx';
 
 interface DateRangeContextValue {
   dateRange: DateRange;
@@ -9,23 +10,22 @@ interface DateRangeContextValue {
   setPreset: (key: PresetKey) => void;
 }
 
-const initial = readStoredPreset();
-
 export const DateRangeContext = createContext<DateRangeContextValue>({
-  dateRange: buildRangeForPreset(initial),
+  dateRange: buildRangeForPreset('year'),
   setDateRange: () => {},
-  preset: initial,
+  preset: 'year',
   setPreset: () => {},
 });
 
 export function useDateRangeProvider(): DateRangeContextValue {
-  const [preset, setPresetState] = useState<PresetKey>(readStoredPreset);
-  const [dateRange, setDateRange] = useState<DateRange>(() => buildRangeForPreset(readStoredPreset()));
+  const { userId } = useAuth();
+  const [preset, setPresetState] = useState<PresetKey>(() => readStoredPreset(userId));
+  const [dateRange, setDateRange] = useState<DateRange>(() => buildRangeForPreset(readStoredPreset(userId)));
 
   const setPreset = useCallback((key: PresetKey) => {
     setPresetState(key);
-    savePreset(key);
-  }, []);
+    savePreset(key, userId);
+  }, [userId]);
 
   return { dateRange, setDateRange, preset, setPreset };
 }

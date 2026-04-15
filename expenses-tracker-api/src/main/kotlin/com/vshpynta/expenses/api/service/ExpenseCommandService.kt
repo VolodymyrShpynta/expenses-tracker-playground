@@ -7,6 +7,7 @@ import com.vshpynta.expenses.api.model.ExpenseProjection
 import com.vshpynta.expenses.api.repository.ExpenseEventRepository
 import com.vshpynta.expenses.api.repository.ExpenseProjectionRepository
 import com.vshpynta.expenses.api.service.ExpenseMapper.toProjection
+import com.vshpynta.expenses.api.service.auth.UserContextService
 import com.vshpynta.expenses.api.util.JsonOperations
 import com.vshpynta.expenses.api.util.TimeProvider
 import org.slf4j.LoggerFactory
@@ -24,7 +25,8 @@ class ExpenseCommandService(
     private val projectionRepository: ExpenseProjectionRepository,
     private val eventRepository: ExpenseEventRepository,
     private val jsonOperations: JsonOperations,
-    private val timeProvider: TimeProvider
+    private val timeProvider: TimeProvider,
+    private val userContextService: UserContextService
 ) {
 
     companion object {
@@ -43,6 +45,7 @@ class ExpenseCommandService(
         category: String,
         date: String
     ): ExpenseProjection {
+        val userId = userContextService.currentUserId()
         val expenseId = UUID.randomUUID()
         val now = timeProvider.currentTimeMillis()
 
@@ -54,18 +57,19 @@ class ExpenseCommandService(
             category = category,
             date = date,
             updatedAt = now,
-            deleted = false
+            deleted = false,
+            userId = userId
         )
 
         // 1. Append event to event store
-        appendEvent(EventType.CREATED, expenseId, payload)
+        appendEvent(EventType.CREATED, expenseId, payload, userId)
 
         // 2. Project event to read model (UPSERT)
         projectionRepository.projectFromEvent(payload.toProjection())
 
         logger.info("Created expense: {}", expenseId)
 
-        return projectionRepository.findByIdOrNull(expenseId)
+        return projectionRepository.findByIdAndUserId(expenseId, userId)
             ?: error("Failed to retrieve created expense projection: $expenseId")
     }
 
@@ -82,7 +86,8 @@ class ExpenseCommandService(
         category: String?,
         date: String?
     ): ExpenseProjection? {
-        val existing = projectionRepository.findByIdOrNull(id) ?: return null
+        val userId = userContextService.currentUserId()
+        val existing = projectionRepository.findByIdAndUserId(id, userId) ?: return null
         val now = timeProvider.currentTimeMillis()
 
         val payload = ExpensePayload(
@@ -93,18 +98,19 @@ class ExpenseCommandService(
             category = category ?: existing.category,
             date = date ?: existing.date,
             updatedAt = now,
-            deleted = false
+            deleted = false,
+            userId = userId
         )
 
         // 1. Append event
-        appendEvent(EventType.UPDATED, id, payload)
+        appendEvent(EventType.UPDATED, id, payload, userId)
 
         // 2. Project to read model
         projectionRepository.projectFromEvent(payload.toProjection())
 
         logger.info("Updated expense: {}", id)
 
-        return projectionRepository.findByIdOrNull(id)
+        return projectionRepository.findByIdAndUserId(id, userId)
     }
 
     /**
@@ -113,7 +119,8 @@ class ExpenseCommandService(
      */
     @Transactional
     suspend fun deleteExpense(id: UUID): Boolean {
-        val existing = projectionRepository.findByIdOrNull(id) ?: return false
+        val userId = userContextService.currentUserId()
+        val existing = projectionRepository.findByIdAndUserId(id, userId) ?: return false
         val now = timeProvider.currentTimeMillis()
 
         val payload = ExpensePayload(
@@ -124,11 +131,12 @@ class ExpenseCommandService(
             category = existing.category,
             date = existing.date,
             updatedAt = now,
-            deleted = true
+            deleted = true,
+            userId = userId
         )
 
         // 1. Append event
-        appendEvent(EventType.DELETED, id, payload)
+        appendEvent(EventType.DELETED, id, payload, userId)
 
         // 2. Mark projection as deleted
         projectionRepository.markAsDeleted(id, now)
@@ -144,7 +152,8 @@ class ExpenseCommandService(
     private suspend fun appendEvent(
         eventType: EventType,
         expenseId: UUID,
-        payload: ExpensePayload
+        payload: ExpensePayload,
+        userId: String
     ): ExpenseEvent {
         val event = ExpenseEvent(
             eventId = UUID.randomUUID(),
@@ -152,7 +161,8 @@ class ExpenseCommandService(
             eventType = eventType,
             expenseId = expenseId,
             payload = jsonOperations.toJson(payload),
-            committed = false
+            committed = false,
+            userId = userId
         )
 
         return runCatching {

@@ -17,12 +17,12 @@ import java.util.UUID
 interface ExpenseEventRepository : CoroutineCrudRepository<ExpenseEvent, UUID> {
 
     /**
-     * Find uncommitted events
+     * Find uncommitted events for a user
      * Returns Flow for efficient reactive streaming
      * Ordered by timestamp for chronological processing
      */
-    @Query("SELECT * FROM expense_events WHERE committed = false ORDER BY timestamp")
-    fun findUncommittedEvents(): Flow<ExpenseEvent>
+    @Query("SELECT * FROM expense_events WHERE committed = false AND user_id = :userId ORDER BY timestamp")
+    fun findUncommittedEventsByUserId(userId: String): Flow<ExpenseEvent>
 
     /**
      * Mark events as committed by their event IDs

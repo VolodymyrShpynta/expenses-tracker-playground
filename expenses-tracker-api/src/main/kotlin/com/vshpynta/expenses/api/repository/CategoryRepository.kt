@@ -15,11 +15,14 @@ import java.util.UUID
 @Repository
 interface CategoryRepository : CoroutineCrudRepository<Category, UUID> {
 
-    @Query("SELECT * FROM categories WHERE id = :id AND deleted = false")
-    suspend fun findByIdOrNull(id: UUID): Category?
+    @Query("SELECT COUNT(*) FROM categories WHERE user_id = :userId")
+    suspend fun countByUserId(userId: String): Long
 
-    @Query("SELECT * FROM categories WHERE deleted = false ORDER BY sort_order, name")
-    fun findAllActive(): Flow<Category>
+    @Query("SELECT * FROM categories WHERE id = :id AND user_id = :userId AND deleted = false")
+    suspend fun findByIdAndUserId(id: UUID, userId: String): Category?
+
+    @Query("SELECT * FROM categories WHERE deleted = false AND user_id = :userId ORDER BY sort_order, name")
+    fun findAllActiveByUserId(userId: String): Flow<Category>
 
     /**
      * Upsert category with last-write-wins conflict resolution.
@@ -28,9 +31,9 @@ interface CategoryRepository : CoroutineCrudRepository<Category, UUID> {
     @Modifying
     @Query(
         """
-        INSERT INTO categories (id, name, icon, color, sort_order, updated_at, deleted)
+        INSERT INTO categories (id, name, icon, color, sort_order, updated_at, deleted, user_id)
         VALUES (:#{#category.categoryId}, :#{#category.name}, :#{#category.icon}, :#{#category.color},
-                :#{#category.sortOrder}, :#{#category.updatedAt}, :#{#category.deleted})
+                :#{#category.sortOrder}, :#{#category.updatedAt}, :#{#category.deleted}, :#{#category.userId})
         ON CONFLICT (id) DO UPDATE SET
             name = EXCLUDED.name,
             icon = EXCLUDED.icon,

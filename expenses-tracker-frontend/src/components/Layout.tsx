@@ -28,8 +28,10 @@ import AddIcon from '@mui/icons-material/Add';
 import SyncIcon from '@mui/icons-material/Sync';
 import CategoryIcon from '@mui/icons-material/Category';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import LogoutIcon from '@mui/icons-material/Logout';
 import { ColorModeToggleContext } from '../theme.ts';
 import { useMainCurrency } from '../hooks/useCurrency.ts';
+import { useAuth } from '../context/AuthContext.tsx';
 import type { CurrencyCode } from '../api/exchange.ts';
 import { AddExpenseDialog } from './AddExpenseDialog.tsx';
 import { ManageCategoriesDialog } from './ManageCategoriesDialog.tsx';
@@ -63,6 +65,7 @@ export function Layout() {
   const { toggleColorMode } = useContext(ColorModeToggleContext);
   const isDark = theme.palette.mode === 'dark';
   const { mainCurrency, setMainCurrency } = useMainCurrency();
+  const { username, logout } = useAuth();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -203,6 +206,20 @@ export function Layout() {
           </ListItemButton>
         </Box>
       </Collapse>
+
+      {/* User section */}
+      <Box sx={{ mt: 3, borderTop: `1px solid ${theme.palette.divider}`, pt: 1, pb: 1 }}>
+        <ListItemButton
+          onClick={logout}
+          sx={{ ...navItemSx(false), mx: '12px' }}
+        >
+          <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}><LogoutIcon fontSize="medium" /></ListItemIcon>
+          <ListItemText
+            primary={username}
+            slotProps={{ primary: { noWrap: true, variant: 'body1' } }}
+          />
+        </ListItemButton>
+      </Box>
     </Box>
   );
 
