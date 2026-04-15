@@ -17,8 +17,7 @@ import IconButton from '@mui/material/IconButton';
 import Collapse from '@mui/material/Collapse';
 import Switch from '@mui/material/Switch';
 import Fab from '@mui/material/Fab';
-import Autocomplete from '@mui/material/Autocomplete';
-import TextField from '@mui/material/TextField';
+import Chip from '@mui/material/Chip';
 import MenuIcon from '@mui/icons-material/Menu';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
@@ -27,11 +26,14 @@ import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import AddIcon from '@mui/icons-material/Add';
 import SyncIcon from '@mui/icons-material/Sync';
+import CategoryIcon from '@mui/icons-material/Category';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import { ColorModeToggleContext } from '../theme.ts';
 import { useMainCurrency } from '../hooks/useCurrency.ts';
-import { SUPPORTED_CURRENCIES } from '../api/exchange.ts';
 import type { CurrencyCode } from '../api/exchange.ts';
 import { AddExpenseDialog } from './AddExpenseDialog.tsx';
+import { ManageCategoriesDialog } from './ManageCategoriesDialog.tsx';
+import { CurrencyPickerDialog } from './CurrencyPickerDialog.tsx';
 
 const DRAWER_WIDTH = 240;
 
@@ -66,6 +68,8 @@ export function Layout() {
   const [toolsOpen, setToolsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false);
+  const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
 
   const activeIdx = navIndex(location.pathname);
 
@@ -182,32 +186,21 @@ export function Layout() {
               sx={{ mr: -1 }}
             />
           </ListItemButton>
-          <Box sx={{ px: '12px', mx: '12px', my: '4px' }}>
-            <ListItemText primary="Currency" sx={{ mb: 0.5 }} />
-            <Autocomplete
-              options={SUPPORTED_CURRENCIES.map((c) => c.code)}
-              value={mainCurrency}
-              onChange={(_e, newValue) => { if (newValue) setMainCurrency(newValue as CurrencyCode); }}
-              disableClearable
-              getOptionLabel={(code) => code}
-              renderOption={(props, code) => {
-                const cur = SUPPORTED_CURRENCIES.find((c) => c.code === code);
-                return <li {...props} key={code}>{code} — {cur?.name}</li>;
-              }}
-              filterOptions={(options, { inputValue }) => {
-                const q = inputValue.toLowerCase();
-                return options.filter((code) => {
-                  const cur = SUPPORTED_CURRENCIES.find((c) => c.code === code);
-                  return code.toLowerCase().includes(q) || (cur?.name.toLowerCase().includes(q) ?? false);
-                });
-              }}
-              renderInput={(params) => (
-                <TextField {...params} size="small" />
-              )}
-              size="small"
-              fullWidth
-            />
-          </Box>
+          <ListItemButton
+            onClick={() => { setManageCategoriesOpen(true); setDrawerOpen(false); }}
+            sx={navItemSx(false)}
+          >
+            <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}><CategoryIcon fontSize="small" /></ListItemIcon>
+            <ListItemText primary="Manage Categories" slotProps={{ primary: { noWrap: true } }} />
+          </ListItemButton>
+          <ListItemButton
+            onClick={() => { setCurrencyPickerOpen(true); setDrawerOpen(false); }}
+            sx={navItemSx(false)}
+          >
+            <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}><AttachMoneyIcon fontSize="small" /></ListItemIcon>
+            <ListItemText primary="Currency" />
+            <Chip label={mainCurrency} size="small" variant="outlined" sx={{ ml: 1 }} />
+          </ListItemButton>
         </Box>
       </Collapse>
     </Box>
@@ -299,6 +292,22 @@ export function Layout() {
         open={addDialogOpen}
         onClose={() => setAddDialogOpen(false)}
       />
+
+      {manageCategoriesOpen && (
+        <ManageCategoriesDialog
+          open
+          onClose={() => setManageCategoriesOpen(false)}
+        />
+      )}
+
+      {currencyPickerOpen && (
+        <CurrencyPickerDialog
+          open
+          onClose={() => setCurrencyPickerOpen(false)}
+          value={mainCurrency}
+          onChange={(code) => setMainCurrency(code as CurrencyCode)}
+        />
+      )}
 
       {/* Mobile bottom nav */}
       {!isDesktop && (

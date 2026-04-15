@@ -21,62 +21,108 @@ import FlashOnIcon from '@mui/icons-material/FlashOn';
 import SchoolIcon from '@mui/icons-material/School';
 import FlightIcon from '@mui/icons-material/Flight';
 import CategoryIcon from '@mui/icons-material/Category';
+import SavingsIcon from '@mui/icons-material/Savings';
+import CoffeeIcon from '@mui/icons-material/Coffee';
+import LocalBarIcon from '@mui/icons-material/LocalBar';
+import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
+import BookIcon from '@mui/icons-material/Book';
+import BuildIcon from '@mui/icons-material/Build';
+import LocalGroceryStoreIcon from '@mui/icons-material/LocalGroceryStore';
+import WaterDropIcon from '@mui/icons-material/WaterDrop';
+import ChildCareIcon from '@mui/icons-material/ChildCare';
+import CakeIcon from '@mui/icons-material/Cake';
+import LocalParkingIcon from '@mui/icons-material/LocalParking';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
+import LocalLaundryServiceIcon from '@mui/icons-material/LocalLaundryService';
+import SmokingRoomsIcon from '@mui/icons-material/SmokingRooms';
+import BrushIcon from '@mui/icons-material/Brush';
+import CameraAltIcon from '@mui/icons-material/CameraAlt';
+import WifiIcon from '@mui/icons-material/Wifi';
 import type { SvgIconComponent } from '@mui/icons-material';
+import type { Category } from '../types/category.ts';
 
 export interface CategoryConfig {
   icon: SvgIconComponent;
   color: string; // primary color for the icon circle
 }
 
+/** Available icon definitions for category configuration */
+export interface IconOption {
+  key: string;
+  icon: SvgIconComponent;
+  label: string;
+}
+
 /**
- * Static mapping of known category names to icons and accent colors.
- * Keys are lowercase for case-insensitive lookup.
+ * Map from icon key (stored in DB) to MUI icon component.
  */
-const CATEGORY_MAP: Record<string, CategoryConfig> = {
-  food: { icon: ShoppingCartIcon, color: '#5b8def' },
-  groceries: { icon: ShoppingCartIcon, color: '#5b8def' },
-  продукти: { icon: ShoppingCartIcon, color: '#5b8def' },
-  transportation: { icon: DirectionsBusIcon, color: '#f5a623' },
-  транспорт: { icon: DirectionsBusIcon, color: '#f5a623' },
-  health: { icon: LocalHospitalIcon, color: '#4caf50' },
-  здоровье: { icon: LocalHospitalIcon, color: '#4caf50' },
-  "здоров'я": { icon: LocalHospitalIcon, color: '#4caf50' },
-  gifts: { icon: CardGiftcardIcon, color: '#e53935' },
-  подарки: { icon: CardGiftcardIcon, color: '#e53935' },
-  подарунки: { icon: CardGiftcardIcon, color: '#e53935' },
-  children: { icon: ChildFriendlyIcon, color: '#7e57c2' },
-  kids: { icon: ChildFriendlyIcon, color: '#7e57c2' },
-  дітки: { icon: ChildFriendlyIcon, color: '#7e57c2' },
-  hygiene: { icon: SelfImprovementIcon, color: '#8d6e63' },
-  гігієна: { icon: SelfImprovementIcon, color: '#8d6e63' },
-  sport: { icon: FitnessCenterIcon, color: '#1a237e' },
-  спорт: { icon: FitnessCenterIcon, color: '#1a237e' },
-  car: { icon: DirectionsCarIcon, color: '#9e9e9e' },
-  'vw tiguan': { icon: DirectionsCarIcon, color: '#9e9e9e' },
-  clothing: { icon: CheckroomIcon, color: '#cddc39' },
-  одяг: { icon: CheckroomIcon, color: '#cddc39' },
-  communication: { icon: PhoneIcon, color: '#2196f3' },
-  "зв'язок": { icon: PhoneIcon, color: '#2196f3' },
-  beauty: { icon: FaceIcon, color: '#00bcd4' },
-  'краса гало': { icon: FaceIcon, color: '#00bcd4' },
-  house: { icon: HomeIcon, color: '#4caf50' },
-  будинок: { icon: HomeIcon, color: '#4caf50' },
-  parents: { icon: FamilyRestroomIcon, color: '#795548' },
-  батьки: { icon: FamilyRestroomIcon, color: '#795548' },
-  pet: { icon: PetsIcon, color: '#607d8b' },
-  cat: { icon: PetsIcon, color: '#607d8b' },
-  кіт: { icon: PetsIcon, color: '#607d8b' },
-  farm: { icon: AgricultureIcon, color: '#c8e6c9' },
-  ферма: { icon: AgricultureIcon, color: '#c8e6c9' },
-  tech: { icon: LaptopIcon, color: '#616161' },
-  техніка: { icon: LaptopIcon, color: '#616161' },
-  charity: { icon: VolunteerActivismIcon, color: '#fdd835' },
-  entertainment: { icon: MovieIcon, color: '#ff7043' },
-  utilities: { icon: FlashOnIcon, color: '#ffc107' },
-  education: { icon: SchoolIcon, color: '#3f51b5' },
-  travel: { icon: FlightIcon, color: '#00acc1' },
-  restaurant: { icon: RestaurantIcon, color: '#ff5722' },
+export const ICON_MAP: Record<string, SvgIconComponent> = {
+  ShoppingCart: ShoppingCartIcon,
+  DirectionsBus: DirectionsBusIcon,
+  LocalHospital: LocalHospitalIcon,
+  CardGiftcard: CardGiftcardIcon,
+  ChildFriendly: ChildFriendlyIcon,
+  SelfImprovement: SelfImprovementIcon,
+  DirectionsCar: DirectionsCarIcon,
+  Checkroom: CheckroomIcon,
+  Phone: PhoneIcon,
+  Face: FaceIcon,
+  Home: HomeIcon,
+  FamilyRestroom: FamilyRestroomIcon,
+  Pets: PetsIcon,
+  Agriculture: AgricultureIcon,
+  Laptop: LaptopIcon,
+  VolunteerActivism: VolunteerActivismIcon,
+  FitnessCenter: FitnessCenterIcon,
+  Restaurant: RestaurantIcon,
+  Movie: MovieIcon,
+  FlashOn: FlashOnIcon,
+  School: SchoolIcon,
+  Flight: FlightIcon,
+  Category: CategoryIcon,
+  Savings: SavingsIcon,
+  Coffee: CoffeeIcon,
+  LocalBar: LocalBarIcon,
+  MusicNote: MusicNoteIcon,
+  SportsEsports: SportsEsportsIcon,
+  Book: BookIcon,
+  Build: BuildIcon,
+  LocalGroceryStore: LocalGroceryStoreIcon,
+  WaterDrop: WaterDropIcon,
+  ChildCare: ChildCareIcon,
+  Cake: CakeIcon,
+  LocalParking: LocalParkingIcon,
+  AttachMoney: AttachMoneyIcon,
+  AccountBalance: AccountBalanceIcon,
+  LocalLaundryService: LocalLaundryServiceIcon,
+  SmokingRooms: SmokingRoomsIcon,
+  Brush: BrushIcon,
+  CameraAlt: CameraAltIcon,
+  Wifi: WifiIcon,
 };
+
+/**
+ * Predefined icon options for the category icon picker.
+ */
+export const AVAILABLE_ICONS: IconOption[] = Object.entries(ICON_MAP).map(([key, icon]) => ({
+  key,
+  icon,
+  label: key.replace(/([A-Z])/g, ' $1').trim(),
+}));
+
+/**
+ * Predefined color palette for the category color picker.
+ */
+export const AVAILABLE_COLORS: string[] = [
+  '#5b8def', '#f5a623', '#4caf50', '#e53935', '#7e57c2',
+  '#8d6e63', '#1a237e', '#9e9e9e', '#cddc39', '#2196f3',
+  '#00bcd4', '#795548', '#607d8b', '#c8e6c9', '#616161',
+  '#fdd835', '#ff7043', '#ffc107', '#3f51b5', '#00acc1',
+  '#ff5722', '#78909c', '#e91e63', '#009688', '#ff9800',
+  '#673ab7', '#03a9f4', '#8bc34a', '#f44336', '#ffeb3b',
+];
 
 const DEFAULT_CONFIG: CategoryConfig = {
   icon: CategoryIcon,
@@ -84,36 +130,44 @@ const DEFAULT_CONFIG: CategoryConfig = {
 };
 
 /**
- * Canonical display names for all known categories.
- * Order here defines the default display order for categories with zero spending.
+ * Runtime cache of backend categories, keyed by lowercase name.
+ * Set via setBackendCategories() when categories are fetched.
  */
-export const ALL_CATEGORY_NAMES: string[] = [
-  'Beauty',
-  'Car',
-  'Charity',
-  'Children',
-  'Clothing',
-  'Communication',
-  'Education',
-  'Entertainment',
-  'Farm',
-  'Food',
-  'Gifts',
-  'Health',
-  'House',
-  'Hygiene',
-  'Parents',
-  'Pet',
-  'Restaurant',
-  'Sport',
-  'Tech',
-  'Transportation',
-  'Travel',
-  'Utilities',
-];
+let backendCategoryMap: Record<string, CategoryConfig> = {};
+let backendCategoryNames: string[] = [];
+
+/**
+ * Update the runtime category config from backend categories.
+ * Call this when categories are fetched from the API.
+ */
+export function setBackendCategories(categories: Category[]): void {
+  const map: Record<string, CategoryConfig> = {};
+  const names: string[] = [];
+  for (const cat of categories) {
+    const icon = ICON_MAP[cat.icon] ?? CategoryIcon;
+    map[cat.name.toLowerCase()] = { icon, color: cat.color };
+    names.push(cat.name);
+  }
+  backendCategoryMap = map;
+  backendCategoryNames = names;
+}
+
+/**
+ * Returns the list of category names from the backend.
+ */
+export function getAllCategoryNames(): string[] {
+  return backendCategoryNames;
+}
+
+/**
+ * Resolve icon key string to MUI icon component.
+ */
+export function getIconByKey(key: string): SvgIconComponent {
+  return ICON_MAP[key] ?? CategoryIcon;
+}
 
 export function getCategoryConfig(category: string): CategoryConfig {
-  return CATEGORY_MAP[category.toLowerCase()] ?? DEFAULT_CONFIG;
+  return backendCategoryMap[category.toLowerCase()] ?? DEFAULT_CONFIG;
 }
 
 /**

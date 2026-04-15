@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { Expense, CategorySummary } from '../types/expense.ts';
-import { ALL_CATEGORY_NAMES } from '../utils/categoryConfig.ts';
+import { getAllCategoryNames } from '../utils/categoryConfig.ts';
 
 interface DateRange {
   from: Date;
@@ -32,7 +32,7 @@ export function useCategorySummary(
     const map = new Map<string, { total: number; count: number }>();
 
     // Seed all canonical categories so they always appear
-    for (const cat of ALL_CATEGORY_NAMES) {
+    for (const cat of getAllCategoryNames()) {
       map.set(cat, { total: 0, count: 0 });
     }
 

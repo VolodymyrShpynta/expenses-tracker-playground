@@ -11,7 +11,7 @@ import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import { MoneyField } from './MoneyField.tsx';
 import { CategoryAutocomplete } from './CategoryAutocomplete.tsx';
-import { ALL_CATEGORY_NAMES } from '../utils/categoryConfig.ts';
+import { getAllCategoryNames } from '../utils/categoryConfig.ts';
 import { SUPPORTED_CURRENCIES } from '../api/exchange.ts';
 import type { CurrencyCode } from '../api/exchange.ts';
 import { useCreateExpense } from '../hooks/useExpenseMutations.ts';
@@ -99,7 +99,7 @@ export function AddExpenseDialog({ open, onClose, defaultCategory = '' }: AddExp
         />
 
         <CategoryAutocomplete
-          options={ALL_CATEGORY_NAMES}
+          options={getAllCategoryNames()}
           value={category || null}
           onChange={(val) => setCategory(val ?? '')}
           label="Category"

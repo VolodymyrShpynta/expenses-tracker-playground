@@ -3,10 +3,25 @@ import { Route, Routes } from 'react-router-dom';
 import { ColorModeToggleContext, useColorTheme } from './theme.ts';
 import { CurrencyContext, useCurrencyProvider } from './hooks/useCurrency.ts';
 import { DateRangeContext, useDateRangeProvider } from './hooks/useDateRange.ts';
+import { useSyncCategoryConfig } from './hooks/useSyncCategoryConfig.ts';
 import { Layout } from './components/Layout.tsx';
 import CategoriesPage from './pages/CategoriesPage.tsx';
 import TransactionsPage from './pages/TransactionsPage.tsx';
 import OverviewPage from './pages/OverviewPage.tsx';
+
+function AppContent() {
+  useSyncCategoryConfig();
+
+  return (
+    <Routes>
+      <Route element={<Layout />}>
+        <Route path="/" element={<CategoriesPage />} />
+        <Route path="/transactions" element={<TransactionsPage />} />
+        <Route path="/overview" element={<OverviewPage />} />
+      </Route>
+    </Routes>
+  );
+}
 
 function App() {
   const [theme, colorModeToggle] = useColorTheme();
@@ -19,13 +34,7 @@ function App() {
         <DateRangeContext.Provider value={dateRangeValue}>
           <ThemeProvider theme={theme}>
             <CssBaseline />
-            <Routes>
-              <Route element={<Layout />}>
-                <Route path="/" element={<CategoriesPage />} />
-                <Route path="/transactions" element={<TransactionsPage />} />
-                <Route path="/overview" element={<OverviewPage />} />
-              </Route>
-            </Routes>
+            <AppContent />
           </ThemeProvider>
         </DateRangeContext.Provider>
       </CurrencyContext.Provider>
