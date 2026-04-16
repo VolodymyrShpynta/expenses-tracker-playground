@@ -1,3 +1,8 @@
+server:
+  # Trust X-Forwarded-* headers from Nginx/Envoy so that remoteAddress,
+  # scheme, and port reflect the real client, not the proxy.
+  forward-headers-strategy: framework
+
 spring:
   application:
     name: expenses-tracker-api

@@ -1013,6 +1013,140 @@ Write-Host "Next: Configure Keycloak realm (see Step 6 in AZURE-DEPLOYMENT.md)" 
 
 ---
 
+## Next Steps: Production Security Hardening
+
+The current deployment includes rate limiting at the Nginx layer (per-IP and global). For production
+workloads handling real user data, consider the following paid Azure services for defense in depth.
+
+### 1. Azure Front Door + Web Application Firewall (WAF)
+
+**What it does:** Global Layer 7 load balancer with built-in WAF that sits in front of your Container App.
+Blocks malicious traffic at Azure's edge (200+ global PoPs) before it reaches your environment.
+
+**Cost:** ~$35/month base + ~$0.60 per million requests.
+
+**What you get:**
+
+- Per-IP and per-path rate limiting rules
+- OWASP Core Rule Set (SQL injection, XSS, etc.)
+- Bot protection (managed ruleset)
+- Geo-blocking (allow/deny by country)
+- DDoS mitigation at the edge
+- Global CDN for static assets
+- Custom domain + managed TLS certificates
+
+**Setup:**
+
+```powershell
+# Create WAF policy
+az network front-door waf-policy create `
+  --name "expenses-waf" `
+  --resource-group $resourceGroup `
+  --sku Premium_AzureFrontDoor
+
+# Create Front Door profile
+az afd profile create `
+  --profile-name "expenses-frontdoor" `
+  --resource-group $resourceGroup `
+  --sku Premium_AzureFrontDoor
+
+# Add origin (your frontend container app)
+az afd origin-group create `
+  --resource-group $resourceGroup `
+  --profile-name "expenses-frontdoor" `
+  --origin-group-name "frontend-origin" `
+  --probe-request-type GET `
+  --probe-protocol Https `
+  --probe-interval-in-seconds 30
+
+az afd origin create `
+  --resource-group $resourceGroup `
+  --profile-name "expenses-frontdoor" `
+  --origin-group-name "frontend-origin" `
+  --origin-name "frontend" `
+  --host-name "$frontendFqdn" `
+  --origin-host-header "$frontendFqdn" `
+  --http-port 80 `
+  --https-port 443 `
+  --priority 1
+
+# Add rate limit rule (100 requests per minute per IP)
+az network front-door waf-policy rule create `
+  --name "RateLimitPerIP" `
+  --policy-name "expenses-waf" `
+  --resource-group $resourceGroup `
+  --rule-type RateLimitRule `
+  --rate-limit-threshold 100 `
+  --rate-limit-duration 1 `
+  --action Block `
+  --priority 1
+```
+
+**When to add:** Before going live with real users. This is the single highest-impact security improvement.
+
+### 2. Azure DDoS Protection Standard
+
+**What it does:** Adaptive DDoS protection with real-time traffic analytics, automatic attack mitigation,
+and integration with Azure Monitor for alerting.
+
+**Cost:** ~$2,944/month (flat fee, covers up to 100 public IPs in a subscription).
+
+**What you get over DDoS Basic (free):**
+
+- Adaptive tuning based on your app's traffic patterns
+- Near real-time attack metrics and diagnostic logs
+- DDoS Rapid Response (DRR) team support during active attacks
+- Cost protection (credits for scale-out during attacks)
+- WAF integration
+
+**When to add:** Only for compliance-driven workloads (e.g., financial/healthcare) or high-traffic apps
+where downtime cost exceeds the monthly fee. DDoS Basic + Front Door WAF is sufficient for most apps.
+
+### 3. Azure Private Link + VNet Integration
+
+**What it does:** Places your PostgreSQL database and other Azure services on a private network,
+removing all public internet exposure.
+
+**Cost:** ~$7.30/month per private endpoint.
+
+**What you get:**
+
+- Database accessible only from your Container Apps Environment (no public endpoint)
+- All traffic stays on Azure's backbone network
+- Eliminates database connection exposure
+
+**Setup:**
+
+```powershell
+# Disable public access on PostgreSQL
+az postgres flexible-server update `
+  --name $dbServerName `
+  --resource-group $resourceGroup `
+  --public-access Disabled
+
+# Create private endpoint
+az network private-endpoint create `
+  --name "expenses-db-pe" `
+  --resource-group $resourceGroup `
+  --vnet-name "$envName-vnet" `
+  --subnet "private-endpoints" `
+  --private-connection-resource-id $(az postgres flexible-server show --name $dbServerName --resource-group $resourceGroup --query id -o tsv) `
+  --group-id postgresqlServer `
+  --connection-name "expenses-db-connection"
+```
+
+**When to add:** Recommended for any production deployment handling sensitive data.
+
+### Recommended adoption order
+
+| Priority | Service                       | Monthly cost | Impact                                               |
+|----------|-------------------------------|--------------|------------------------------------------------------|
+| 1        | **Front Door + WAF**          | ~$35+        | Rate limiting, OWASP protection, bot defense at edge |
+| 2        | **Private Link (PostgreSQL)** | ~$7          | Eliminates public DB exposure                        |
+| 3        | **DDoS Protection Standard**  | ~$2,944      | Only if compliance requires it                       |
+
+---
+
 ## Additional Resources
 
 - [Azure Container Apps Documentation](https://docs.microsoft.com/azure/container-apps/)
