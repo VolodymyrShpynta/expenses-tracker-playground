@@ -1675,7 +1675,11 @@ services:
 - **Java 21** (or compatible JDK)
 - **Docker & Docker Compose**
 - **Gradle 9.4.0** (or use included wrapper)
-- **Node.js 22+** and **npm** (required — the Gradle build includes the frontend via the node plugin)
+- **Node.js 24.13.x** and **npm** (required — the Gradle build includes the frontend via the node plugin)
+
+> **Important:** The frontend Dockerfile pins `node:24.13.0-alpine` to match the local Node version.
+> This prevents `npm ci` failures caused by npm version mismatches between local and Docker.
+> If you upgrade your local Node.js, update the `FROM` line in `expenses-tracker-frontend/Dockerfile` to match.
 
 ### Quick Start
 
@@ -3411,18 +3415,20 @@ If `docker compose up -d --build` fails with:
 npm error `npm ci` can only install packages when your package.json and package-lock.json are in sync.
 ```
 
-This typically happens when the npm version in the Docker image (`node:24-alpine`) differs from
-your local npm version, causing the lock file to be missing transitive dependencies that the
-newer npm expects. To fix, regenerate the lock file from scratch:
+This happens when the npm version in the Docker image differs from your local npm version,
+causing the lock file format to be incompatible. The Dockerfile pins `node:24.13.0-alpine` to
+prevent this. If versions drift:
+
+1. Check your local Node version: `node --version`
+2. Update the `FROM` line in `expenses-tracker-frontend/Dockerfile` to match
+3. Regenerate the lock file:
 
 ```bash
 cd expenses-tracker-frontend
-Remove-Item -Recurse -Force node_modules   # or: rm -rf node_modules
-Remove-Item package-lock.json              # or: rm package-lock.json
 npm install
 ```
 
-Then rebuild:
+4. Rebuild:
 
 ```bash
 docker compose build --no-cache
