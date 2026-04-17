@@ -142,6 +142,56 @@ export const themeSettings = (mode: PaletteMode) => {
           '*::-webkit-scrollbar-corner': { backgroundColor: scrollbarTrack },
         },
       },
+      // Enlarge MUI X DateCalendar globally. Default ~320×334 with 36px day cells;
+      // we scale the whole grid so every DateCalendar (AddExpenseDialog, DateRangeSelector, ...)
+      // feels comfortable on touch and desktop. The calendar stretches to its container;
+      // callers cap the width where needed.
+      MuiDateCalendar: {
+        styleOverrides: {
+          root: {
+            width: '100%',
+            maxHeight: 400,
+          },
+        },
+      },
+      MuiDayCalendar: {
+        styleOverrides: {
+          // Force both the weekday header and every day row onto the same
+          // 7-column CSS grid so labels and numbers align exactly.
+          header: {
+            display: 'grid',
+            gridTemplateColumns: 'repeat(7, 1fr)',
+            justifyItems: 'center',
+          },
+          weekContainer: {
+            display: 'grid',
+            gridTemplateColumns: 'repeat(7, 1fr)',
+            justifyItems: 'center',
+            margin: '2px 0',
+          },
+          weekDayLabel: {
+            width: 44,
+            height: 32,
+            margin: 0,
+            fontSize: '0.95rem',
+          },
+        },
+      },
+      MuiPickersDay: {
+        styleOverrides: {
+          root: {
+            width: 44,
+            height: 44,
+            margin: 0,
+            fontSize: '1.05rem',
+          },
+        },
+      },
+      MuiPickersSlideTransition: {
+        styleOverrides: {
+          root: { minHeight: 280 },
+        },
+      },
     },
   };
 };

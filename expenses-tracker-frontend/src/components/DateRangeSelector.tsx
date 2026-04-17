@@ -59,8 +59,6 @@ const SlideUp = forwardRef(function SlideUp(
 const calendarSx = {
   width: '100%',
   '& .MuiPickersCalendarHeader-root': { mt: 1 },
-  '& .MuiDayCalendar-weekDayLabel': { fontSize: '0.75rem' },
-  '& .MuiPickersDay-root': { fontSize: '0.8rem' },
 };
 
 // ---------------------------------------------------------------------------
@@ -423,7 +421,7 @@ export function DateRangeSelector({ value, onChange, onPresetChange }: DateRange
         <Dialog
           open={pickerMode === 'day'}
           onClose={closePicker}
-          sx={{ '& .MuiDialog-paper': { maxWidth: 360, mx: 3, px: 2, width: '100%' } }}
+          sx={{ '& .MuiDialog-paper': { width: '100%', maxWidth: '100%', m: 0, px: 2 } }}
         >
           <Typography variant="h6" fontWeight={600} textAlign="center" sx={{ pt: 2 }}>
             Pick a day
@@ -441,7 +439,7 @@ export function DateRangeSelector({ value, onChange, onPresetChange }: DateRange
           onClose={closePicker}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
           transformOrigin={{ vertical: 'top', horizontal: 'center' }}
-          slotProps={{ paper: { sx: { px: 2, maxWidth: 360 } } }}
+          slotProps={{ paper: { sx: { px: 2, width: 420, maxWidth: '100%' } } }}
         >
           <Typography variant="h6" fontWeight={600} textAlign="center" sx={{ pt: 2 }}>
             Pick a day
@@ -459,7 +457,7 @@ export function DateRangeSelector({ value, onChange, onPresetChange }: DateRange
         <Dialog
           open={pickerMode === 'range'}
           onClose={closePicker}
-          sx={{ '& .MuiDialog-paper': { maxWidth: 360, mx: 3, px: 2, width: '100%' } }}
+          sx={{ '& .MuiDialog-paper': { width: '100%', maxWidth: '100%', m: 0, px: 2 } }}
         >
           {rangePickerContent}
         </Dialog>
@@ -470,7 +468,7 @@ export function DateRangeSelector({ value, onChange, onPresetChange }: DateRange
           onClose={closePicker}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
           transformOrigin={{ vertical: 'top', horizontal: 'center' }}
-          slotProps={{ paper: { sx: { px: 2, maxWidth: 360 } } }}
+          slotProps={{ paper: { sx: { px: 2, width: 420, maxWidth: '100%' } } }}
         >
           {rangePickerContent}
         </Popover>
