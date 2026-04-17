@@ -350,6 +350,10 @@ export function MoneyField({ label = 'Amount', value, onChange, required, curren
         value={value}
         onValueChange={(values: NumberFormatValues) => onChange(values.value)}
         slotProps={{
+          htmlInput: {
+            inputMode: 'decimal',
+            pattern: '[0-9]*',
+          },
           input: {
             startAdornment: <InputAdornment position="start">{currencyBadge}</InputAdornment>,
             endAdornment: (
