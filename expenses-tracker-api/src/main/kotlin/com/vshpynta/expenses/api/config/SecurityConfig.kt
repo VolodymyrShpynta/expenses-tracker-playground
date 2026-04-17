@@ -1,5 +1,6 @@
 package com.vshpynta.expenses.api.config
 
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpMethod
@@ -16,7 +17,10 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource
  */
 @Configuration
 @EnableWebFluxSecurity
-class SecurityConfig {
+class SecurityConfig(
+    @Value($$"${app.cors.allowed-origins}") private val allowedOriginsCsv: String,
+    @Value($$"${app.cors.allowed-origin-patterns:}") private val allowedOriginPatternsCsv: String,
+) {
 
     @Bean
     fun securityFilterChain(http: ServerHttpSecurity): SecurityWebFilterChain {
@@ -35,11 +39,11 @@ class SecurityConfig {
 
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
+        val origins = allowedOriginsCsv.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+        val originPatterns = allowedOriginPatternsCsv.split(',').map { it.trim() }.filter { it.isNotEmpty() }
         val config = CorsConfiguration().apply {
-            allowedOrigins = listOf(
-                "http://localhost:5173",
-                "http://localhost:3000"
-            )
+            origins.takeIf { it.isNotEmpty() }?.let { allowedOrigins = it }
+            originPatterns.takeIf { it.isNotEmpty() }?.let { allowedOriginPatterns = it }
             allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
             allowedHeaders = listOf("*")
             allowCredentials = true

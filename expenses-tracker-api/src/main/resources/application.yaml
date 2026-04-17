@@ -31,6 +31,14 @@ spring:
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:3000/auth/realms/expenses-tracker}
           jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/auth/realms/expenses-tracker/protocol/openid-connect/certs}
 
+# CORS configuration. Comma-separated list of origins the browser is allowed
+# to send cross-origin requests from. In Azure the frontend URL must be listed
+# here, otherwise Spring's CORS filter returns 403 on POST/PUT/DELETE.
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+    allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:}
+
 # Sync configuration
 sync:
   file:
