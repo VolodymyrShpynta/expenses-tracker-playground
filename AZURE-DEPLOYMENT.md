@@ -6,6 +6,28 @@ This guide walks you through deploying the **Expenses Tracker** application to *
 - **Azure Database for PostgreSQL** — managed database
 - **Azure Container Apps (Keycloak)** — identity provider
 
+## Table of Contents
+
+- [Architecture Overview](#architecture-overview)
+- [Prerequisites](#prerequisites)
+- [Configuration Variables](#configuration-variables)
+- [Step 1: Install and Login to Azure CLI](#step-1-install-and-login-to-azure-cli)
+- [Step 2: Create Azure Resources](#step-2-create-azure-resources)
+- [Step 3: Create Azure Database for PostgreSQL](#step-3-create-azure-database-for-postgresql)
+- [Step 4: Build and Push Docker Images](#step-4-build-and-push-docker-images)
+- [Step 5: Deploy Keycloak](#step-5-deploy-keycloak)
+- [Step 6: Deploy Backend API](#step-6-deploy-backend-api)
+- [Step 7: Deploy Frontend](#step-7-deploy-frontend)
+- [Step 8: Configure Keycloak Realm](#step-8-configure-keycloak-realm)
+- [Step 9: Verify Deployment](#step-9-verify-deployment)
+- [Update Existing Deployment](#update-existing-deployment)
+- [Monitoring and Logs](#monitoring-and-logs)
+- [Troubleshooting](#troubleshooting)
+- [Cost Optimization](#cost-optimization)
+- [Clean Up Resources](#clean-up-resources)
+
+---
+
 ## Architecture Overview
 
 ### Traffic Flow (Internet → Application)
@@ -171,25 +193,6 @@ Write-Host "DB Server: $dbServerName" -ForegroundColor Yellow
 > ```powershell
 > echo $dbAdminPassword   # should print the full password
 > ```
-
-## Table of Contents
-
-- [Step 1: Install and Login to Azure CLI](#step-1-install-and-login-to-azure-cli)
-- [Step 2: Create Azure Resources](#step-2-create-azure-resources)
-- [Step 3: Create Azure Database for PostgreSQL](#step-3-create-azure-database-for-postgresql)
-- [Step 4: Build and Push Docker Images](#step-4-build-and-push-docker-images)
-- [Step 5: Deploy Keycloak](#step-5-deploy-keycloak)
-- [Step 6: Deploy Backend API](#step-6-deploy-backend-api)
-- [Step 7: Deploy Frontend](#step-7-deploy-frontend)
-- [Step 8: Configure Keycloak Realm](#step-8-configure-keycloak-realm)
-- [Step 9: Verify Deployment](#step-9-verify-deployment)
-- [Update Existing Deployment](#update-existing-deployment)
-- [Monitoring and Logs](#monitoring-and-logs)
-- [Troubleshooting](#troubleshooting)
-- [Cost Optimization](#cost-optimization)
-- [Clean Up Resources](#clean-up-resources)
-
----
 
 ## Step 1: Install and Login to Azure CLI
 
@@ -659,6 +662,7 @@ az containerapp create `
     EXPENSES_TRACKER_FLYWAY_PASSWORD=secretref:db-password `
     KEYCLOAK_ISSUER_URI="PLACEHOLDER" `
     KEYCLOAK_JWK_SET_URI="$keycloakJwkSetUri" `
+    CORS_ALLOWED_ORIGINS="PLACEHOLDER" `
     SYNC_FILE_PATH="/app/sync-data/sync.json" `
     SYNC_FILE_COMPRESSION_ENABLED=true
 ```
@@ -674,6 +678,10 @@ az containerapp create `
 > browser-issued JWTs. Since browsers authenticate through the frontend nginx proxy (`/auth/*`),
 > the issuer will be `https://$frontendFqdn/auth/realms/expenses-tracker` — but we don't know
 > the frontend URL until Step 7. We'll update this at the end of Step 7.
+>
+> `CORS_ALLOWED_ORIGINS` is also a placeholder for the same reason: Spring's CORS filter must
+> allow the browser's `Origin` header, which is the frontend URL we don't know yet. It will be
+> filled in at the end of Step 7 alongside `KEYCLOAK_ISSUER_URI`.
 >
 > `KEYCLOAK_JWK_SET_URI` uses the Keycloak external URL directly (container-to-container call for
 > fetching public keys) and can be set immediately.
@@ -847,19 +855,19 @@ server {
 > `expenses-tracker-frontend/nginx.conf` (used by local Docker Compose):
 >
 > - **Real client IP resolution** (`set_real_ip_from` + `real_ip_header X-Forwarded-For`) is
->   essential on Azure. Without it, per-IP limits would treat every request as coming from Envoy
->   and collapse into a single global bucket. With it, nginx sees the actual browser IP that
->   Envoy forwarded in `X-Forwarded-For`.
+    > essential on Azure. Without it, per-IP limits would treat every request as coming from Envoy
+    > and collapse into a single global bucket. With it, nginx sees the actual browser IP that
+    > Envoy forwarded in `X-Forwarded-For`.
 > - **Per-IP limits** on `/api/`, `/auth/`, and the SPA (`/`) cap abuse from any single client.
 > - **Global limits** on `/api/` and `/api/expenses/sync` protect the backend from total overload
->   even if many clients stay within their per-IP budget.
+    > even if many clients stay within their per-IP budget.
 > - **`server_tokens off`** hides the exact nginx version from response headers.
 > - **`client_max_body_size 1m`** rejects oversized request bodies with 413.
 > - **`client_body_timeout` / `client_header_timeout`** mitigate slow-POST / Slowloris attacks.
 > - **`limit_req_status 429`** returns the correct HTTP status when a client hits a limit
->   (nginx's default is 503).
+    > (nginx's default is 503).
 > - Actuator is intentionally not rate-limited because Azure's health probe hits it every few
->   seconds.
+    > seconds.
 
 > **Why `proxy_set_header Host $apiFqdn` (and not `$host`)?** Azure Container Apps routes requests
 > through a shared Envoy proxy that dispatches to the right app **based on the `Host` header**.
@@ -874,11 +882,13 @@ server {
 > Container Apps Environment. The `proxy_ssl_server_name on;` directive enables SNI, which the
 > shared Envoy needs to select the correct TLS certificate for the target app.
 
-### Build and Push Frontend with Azure Config
+### Build Frontend Image
 
 ```powershell
-# Create a Dockerfile variant for Azure that uses the Azure nginx config
-@"
+# Create a Dockerfile variant for Azure that uses the Azure nginx config.
+# Use a single-quoted here-string (@'...'@) so PowerShell doesn't treat the
+# backticks in the comments as escape characters.
+@'
 FROM node:24-alpine AS builder
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -894,15 +904,20 @@ COPY nginx-azure.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
-"@ | Out-File -FilePath "expenses-tracker-frontend/Dockerfile.azure" -Encoding UTF8
+'@ | Out-File -FilePath "expenses-tracker-frontend/Dockerfile.azure" -Encoding UTF8
 
+# Build with an immutable timestamp tag so every push creates a new revision
+$imgTag = (Get-Date -Format "yyyyMMdd-HHmmss")
+docker build -f expenses-tracker-frontend/Dockerfile.azure -t "expenses-frontend:$imgTag" ./expenses-tracker-frontend
+docker tag "expenses-frontend:$imgTag" "$acrName.azurecr.io/expenses-frontend:$imgTag"
+```
+
+### Push Frontend Image and Clean Up
+
+```powershell
 # ACR access tokens expire — refresh Docker's credentials before pushing
 az acr login --name $acrName
-
-# Build and push
-docker build -f expenses-tracker-frontend/Dockerfile.azure -t expenses-frontend:azure ./expenses-tracker-frontend
-docker tag expenses-frontend:azure "$acrName.azurecr.io/expenses-frontend:latest"
-docker push "$acrName.azurecr.io/expenses-frontend:latest"
+docker push "$acrName.azurecr.io/expenses-frontend:$imgTag"
 
 # Clean up local build artifacts — they're now baked into the pushed image
 Remove-Item expenses-tracker-frontend/nginx-azure.conf, expenses-tracker-frontend/Dockerfile.azure -ErrorAction SilentlyContinue
@@ -931,7 +946,7 @@ az containerapp create `
   --name $frontendAppName `
   --resource-group $resourceGroup `
   --environment $envName `
-  --image "$acrName.azurecr.io/expenses-frontend:latest" `
+  --image "$acrName.azurecr.io/expenses-frontend:$imgTag" `
   --target-port 80 `
   --ingress external `
   --registry-server "$acrName.azurecr.io" `
@@ -955,10 +970,10 @@ $frontendUrl = "https://$frontendFqdn"
 Write-Host "Frontend URL: $frontendUrl" -ForegroundColor Green
 ```
 
-### Update Keycloak Hostname and API Issuer URI
+### Update Keycloak Hostname, API Issuer URI, and CORS
 
-Both Keycloak's `KC_HOSTNAME` and the API's `KEYCLOAK_ISSUER_URI` were set to placeholders in
-Steps 5 and 6. Now that the frontend URL is known, update them:
+Keycloak's `KC_HOSTNAME`, the API's `KEYCLOAK_ISSUER_URI`, and the API's `CORS_ALLOWED_ORIGINS`
+were all set to placeholders in Steps 5 and 6. Now that the frontend URL is known, update them:
 
 ```powershell
 $keycloakIssuerUri = "https://$frontendFqdn/auth/realms/expenses-tracker"
@@ -969,23 +984,25 @@ az containerapp update `
   --resource-group $resourceGroup `
   --set-env-vars KC_HOSTNAME="https://$frontendFqdn/auth"
 
-# Set the API's issuer URI to match Keycloak's pinned hostname
+# Set the API's issuer URI and CORS origin to match the frontend proxy
 az containerapp update `
   --name $apiAppName `
   --resource-group $resourceGroup `
-  --set-env-vars KEYCLOAK_ISSUER_URI="$keycloakIssuerUri"
+  --set-env-vars `
+    KEYCLOAK_ISSUER_URI="$keycloakIssuerUri" `
+    CORS_ALLOWED_ORIGINS="$frontendUrl"
 ```
 
 > **Why pin `KC_HOSTNAME`?** With a pinned hostname, Keycloak ignores forwarded headers and always
 > generates URLs with the frontend proxy origin. This prevents header-spoofing attacks and ensures
 > JWT `iss` claims are consistent regardless of how Keycloak is accessed (via Nginx proxy or
 > directly via its external ingress for admin). The API's `KEYCLOAK_ISSUER_URI` must match.
-
-### Update Backend CORS (If Needed)
-
-The current `SecurityConfig.kt` only allows `localhost` origins. For Azure, the frontend proxies
-all requests through nginx (same origin), so CORS is not needed. If you later call the API directly
-from a different origin, add it to `SecurityConfig`.
+>
+> **Why `CORS_ALLOWED_ORIGINS`?** Even though the browser and API share the same origin through
+> the nginx proxy, browsers still send the `Origin` header on POST/PUT/DELETE requests. Spring's
+> `CorsWebFilter` rejects any request whose `Origin` isn't on the allow-list — returning a 403
+> with empty body and `Vary: Origin` in the response headers. Listing the frontend URL here fixes
+> that. Multiple origins can be given as a comma-separated list (e.g., a staging + prod URL).
 
 ---
 
@@ -1116,7 +1133,7 @@ curl "$frontendUrl/api/expenses" -H "Authorization: Bearer <TOKEN>"
 > update is a no-op and the old container keeps running. Use **one** of the two approaches below:
 >
 > 1. **Force a new revision with `--revision-suffix`** (quick fix for an already-tagged `:latest` push):
->    ```powershell
+     >    ```powershell
 >    az containerapp update `
 >      --name $apiAppName `
 >      --resource-group $resourceGroup `
@@ -1124,8 +1141,8 @@ curl "$frontendUrl/api/expenses" -H "Authorization: Bearer <TOKEN>"
 >      --revision-suffix ("v" + (Get-Date -Format "yyyyMMddHHmmss"))
 >    ```
 > 2. **Use immutable tags** (recommended — no `--revision-suffix` trick needed). Each build gets a
->    unique tag, so the spec genuinely changes and Container Apps rolls a new revision automatically.
->    See the examples below.
+     > unique tag, so the spec genuinely changes and Container Apps rolls a new revision automatically.
+     > See the examples below.
 >
 > Verify a new revision was created with:
 > ```powershell
@@ -1155,24 +1172,20 @@ az containerapp update `
 
 ### Update Frontend
 
+1. Regenerate `nginx-azure.conf` by running the `@"..."@ | Out-File ...` snippet from
+   [Step 7 → Create Azure-Specific nginx.conf](#create-azure-specific-nginxconf). It embeds
+   the current API/Keycloak internal FQDNs into the image.
+2. Run the [Build Frontend Image](#build-frontend-image) snippet to regenerate
+   `Dockerfile.azure`, build, and tag the image. This sets `$imgTag`.
+3. Run the [Push Frontend Image and Clean Up](#push-frontend-image-and-clean-up) snippet to
+   push to ACR and remove the generated files.
+4. Roll out a new revision using that same `$imgTag`:
+
 ```powershell
-# 1. Regenerate nginx-azure.conf and Dockerfile.azure (see Step 7)
-
-# 2. Build and push with an immutable tag
-$imgTag = (Get-Date -Format "yyyyMMdd-HHmmss")
-docker build -f expenses-tracker-frontend/Dockerfile.azure -t "expenses-frontend:$imgTag" ./expenses-tracker-frontend
-docker tag "expenses-frontend:$imgTag" "$acrName.azurecr.io/expenses-frontend:$imgTag"
-az acr login --name $acrName
-docker push "$acrName.azurecr.io/expenses-frontend:$imgTag"
-
-# 3. Update Container App — new tag = new revision automatically
 az containerapp update `
   --name $frontendAppName `
   --resource-group $resourceGroup `
   --image "$acrName.azurecr.io/expenses-frontend:$imgTag"
-
-# 4. Clean up generated files
-Remove-Item expenses-tracker-frontend/nginx-azure.conf, expenses-tracker-frontend/Dockerfile.azure -ErrorAction SilentlyContinue
 ```
 
 ### Update Environment Variables Only
@@ -1248,17 +1261,18 @@ az containerapp revision activate `
 
 ### Common Issues
 
-| Issue                         | Solution                                                                                                                                                                                                                                                                                                                                            |
-|-------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Keycloak won't start**      | Check DB connectivity: `az containerapp logs show --name expenses-keycloak ...`                                                                                                                                                                                                                                                                     |
-| **API returns 401**           | Verify `KEYCLOAK_ISSUER_URI` matches the frontend proxy URL (`$frontendUrl/auth/realms/...`); check JWT issuer claim                                                                                                                                                                                                                                |
-| **Frontend shows blank page** | Check nginx-azure.conf proxy targets; verify API and Keycloak FQDNs                                                                                                                                                                                                                                                                                 |
-| **DB connection refused**     | Verify Container Apps Environment is in the same VNet as PostgreSQL; check private DNS zone link; check SSL mode                                                                                                                                                                                                                                    |
-| **DB UnknownHostException**   | Azure auto-generates a hostname prefix for the private DNS A record (e.g., `abc123.$dbServerName.private...`). Do **not** use the bare zone name. Run `az network private-dns record-set a list --resource-group $resourceGroup --zone-name $privateDnsZone -o table` to find the correct hostname. Also verify the DNS zone is linked to your VNet |
-| **Login redirects fail**      | Update Keycloak client redirect URIs to match the actual frontend URL                                                                                                                                                                                                                                                                               |
-| **502 Bad Gateway on /api**   | API might still be starting; check API logs and health endpoint                                                                                                                                                                                                                                                                                     |
-| **ACR name already taken**    | ACR names are globally unique; add your initials or a random suffix                                                                                                                                                                                                                                                                                 |
-| **Keycloak split-DNS issue**  | Ensure `KC_HOSTNAME` is pinned to the frontend proxy URL (`https://$frontendFqdn/auth`)                                                                                                                                                                                                                                                             |
+| Issue                                                           | Solution                                                                                                                                                                                                                                                                                                                                            |
+|-----------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Keycloak won't start**                                        | Check DB connectivity: `az containerapp logs show --name expenses-keycloak ...`                                                                                                                                                                                                                                                                     |
+| **API returns 401**                                             | Verify `KEYCLOAK_ISSUER_URI` matches the frontend proxy URL (`$frontendUrl/auth/realms/...`); check JWT issuer claim                                                                                                                                                                                                                                |
+| **API returns 403 on POST (empty body, `Vary: Origin` header)** | Spring CORS rejecting the request. Set `CORS_ALLOWED_ORIGINS` on the API Container App to the frontend URL: `az containerapp update --name $apiAppName --resource-group $resourceGroup --set-env-vars "CORS_ALLOWED_ORIGINS=https://$frontendFqdn"`                                                                                                 |
+| **Frontend shows blank page**                                   | Check nginx-azure.conf proxy targets; verify API and Keycloak FQDNs                                                                                                                                                                                                                                                                                 |
+| **DB connection refused**                                       | Verify Container Apps Environment is in the same VNet as PostgreSQL; check private DNS zone link; check SSL mode                                                                                                                                                                                                                                    |
+| **DB UnknownHostException**                                     | Azure auto-generates a hostname prefix for the private DNS A record (e.g., `abc123.$dbServerName.private...`). Do **not** use the bare zone name. Run `az network private-dns record-set a list --resource-group $resourceGroup --zone-name $privateDnsZone -o table` to find the correct hostname. Also verify the DNS zone is linked to your VNet |
+| **Login redirects fail**                                        | Update Keycloak client redirect URIs to match the actual frontend URL                                                                                                                                                                                                                                                                               |
+| **502 Bad Gateway on /api**                                     | API might still be starting; check API logs and health endpoint                                                                                                                                                                                                                                                                                     |
+| **ACR name already taken**                                      | ACR names are globally unique; add your initials or a random suffix                                                                                                                                                                                                                                                                                 |
+| **Keycloak split-DNS issue**                                    | Ensure `KC_HOSTNAME` is pinned to the frontend proxy URL (`https://$frontendFqdn/auth`)                                                                                                                                                                                                                                                             |
 
 ### Debug Commands
 
@@ -1506,7 +1520,7 @@ Write-Host "Keycloak URL: $keycloakUrl" -ForegroundColor Green
 # 11. Deploy API (internal ingress) — issuer-uri is a placeholder until frontend URL is known
 $keycloakJwkSetUri = "$keycloakUrl/auth/realms/expenses-tracker/protocol/openid-connect/certs"
 
-az containerapp create --name $apiAppName --resource-group $resourceGroup --environment $envName --image "$acrName.azurecr.io/expenses-api:latest" --target-port 8080 --ingress internal --registry-server "$acrName.azurecr.io" --registry-username $acrName --registry-password $acrPassword --cpu 0.5 --memory 1.0Gi --min-replicas 1 --max-replicas 3 --secrets db-password="$dbAdminPassword" --env-vars EXPENSES_TRACKER_R2DBC_URL="$dbR2dbcUrl" EXPENSES_TRACKER_R2DBC_USERNAME="$dbAdminUser" EXPENSES_TRACKER_R2DBC_PASSWORD=secretref:db-password EXPENSES_TRACKER_FLYWAY_JDBC_URL="$dbJdbcUrl" EXPENSES_TRACKER_FLYWAY_USERNAME="$dbAdminUser" EXPENSES_TRACKER_FLYWAY_PASSWORD=secretref:db-password KEYCLOAK_ISSUER_URI="PLACEHOLDER" KEYCLOAK_JWK_SET_URI="$keycloakJwkSetUri" SYNC_FILE_PATH="/app/sync-data/sync.json" SYNC_FILE_COMPRESSION_ENABLED=true
+az containerapp create --name $apiAppName --resource-group $resourceGroup --environment $envName --image "$acrName.azurecr.io/expenses-api:latest" --target-port 8080 --ingress internal --registry-server "$acrName.azurecr.io" --registry-username $acrName --registry-password $acrPassword --cpu 0.5 --memory 1.0Gi --min-replicas 1 --max-replicas 3 --secrets db-password="$dbAdminPassword" --env-vars EXPENSES_TRACKER_R2DBC_URL="$dbR2dbcUrl" EXPENSES_TRACKER_R2DBC_USERNAME="$dbAdminUser" EXPENSES_TRACKER_R2DBC_PASSWORD=secretref:db-password EXPENSES_TRACKER_FLYWAY_JDBC_URL="$dbJdbcUrl" EXPENSES_TRACKER_FLYWAY_USERNAME="$dbAdminUser" EXPENSES_TRACKER_FLYWAY_PASSWORD=secretref:db-password KEYCLOAK_ISSUER_URI="PLACEHOLDER" KEYCLOAK_JWK_SET_URI="$keycloakJwkSetUri" CORS_ALLOWED_ORIGINS="PLACEHOLDER" SYNC_FILE_PATH="/app/sync-data/sync.json" SYNC_FILE_COMPRESSION_ENABLED=true
 
 $apiFqdn = az containerapp show --name $apiAppName --resource-group $resourceGroup --query properties.configuration.ingress.fqdn -o tsv
 
@@ -1527,11 +1541,11 @@ Write-Host "Keycloak FQDN: $keycloakFqdn" -ForegroundColor Cyan
 # docker push "$acrName.azurecr.io/expenses-frontend:latest"
 # az containerapp create --name $frontendAppName --resource-group $resourceGroup --environment $envName --image "$acrName.azurecr.io/expenses-frontend:latest" --target-port 80 --ingress external --registry-server "$acrName.azurecr.io" --registry-username $acrName --registry-password $acrPassword --cpu 0.25 --memory 0.5Gi --min-replicas 1 --max-replicas 3
 
-# 13. Get frontend URL, pin Keycloak hostname, and update API issuer URI
+# 13. Get frontend URL, pin Keycloak hostname, and update API issuer URI + CORS
 # $frontendFqdn = az containerapp show --name $frontendAppName --resource-group $resourceGroup --query properties.configuration.ingress.fqdn -o tsv
 # $keycloakIssuerUri = "https://$frontendFqdn/auth/realms/expenses-tracker"
 # az containerapp update --name $keycloakAppName --resource-group $resourceGroup --set-env-vars KC_HOSTNAME="https://$frontendFqdn/auth"
-# az containerapp update --name $apiAppName --resource-group $resourceGroup --set-env-vars KEYCLOAK_ISSUER_URI="$keycloakIssuerUri"
+# az containerapp update --name $apiAppName --resource-group $resourceGroup --set-env-vars KEYCLOAK_ISSUER_URI="$keycloakIssuerUri" CORS_ALLOWED_ORIGINS="https://$frontendFqdn"
 # Write-Host "Application URL: https://$frontendFqdn" -ForegroundColor Green
 
 # 14. Configure Keycloak realm (manual step — see Step 8 in AZURE-DEPLOYMENT.md)
