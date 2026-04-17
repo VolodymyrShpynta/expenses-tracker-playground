@@ -73,11 +73,11 @@ export function EditExpenseDialog({ expense, open, onClose }: EditExpenseDialogP
       open={open}
       onClose={onClose}
       fullWidth
-      maxWidth="xs"
-      slotProps={{ paper: { sx: { p: 1 } } }}
+      maxWidth="sm"
+      slotProps={{ paper: { sx: { p: 1, m: { xs: 1, sm: 4 }, width: { xs: 'calc(100% - 16px)', sm: 'auto' } } } }}
     >
       <DialogTitle>Edit Expense</DialogTitle>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, px: 3, pb: 1 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, px: 2, pb: 1 }}>
         {error && <Alert severity="error">{error}</Alert>}
 
         <TextField
@@ -116,7 +116,7 @@ export function EditExpenseDialog({ expense, open, onClose }: EditExpenseDialogP
         />
       </Box>
 
-      <DialogActions sx={{ px: 3, pb: 2, justifyContent: 'space-between' }}>
+      <DialogActions sx={{ px: 2, pb: 2, justifyContent: 'space-between' }}>
         {!confirmDelete ? (
           <Button color="error" onClick={() => setConfirmDelete(true)} disabled={isBusy}>
             Delete

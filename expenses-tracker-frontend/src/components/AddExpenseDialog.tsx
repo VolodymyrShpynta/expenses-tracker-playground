@@ -73,11 +73,11 @@ export function AddExpenseDialog({ open, onClose, defaultCategory = '' }: AddExp
       open={open}
       onClose={onClose}
       fullWidth
-      maxWidth="xs"
-      slotProps={{ paper: { sx: { p: 1 } } }}
+      maxWidth="sm"
+      slotProps={{ paper: { sx: { p: 1, m: { xs: 1, sm: 4 }, width: { xs: 'calc(100% - 16px)', sm: 'auto' } } } }}
     >
       <DialogTitle>Add Expense</DialogTitle>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, px: 3, pb: 1 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, px: 2, pb: 1 }}>
         {error && <Alert severity="error">{error}</Alert>}
 
         <TextField
@@ -116,7 +116,7 @@ export function AddExpenseDialog({ open, onClose, defaultCategory = '' }: AddExp
         />
       </Box>
 
-      <DialogActions sx={{ px: 3, pb: 2 }}>
+      <DialogActions sx={{ px: 2, pb: 2 }}>
         <Button onClick={onClose} disabled={isBusy}>Cancel</Button>
         <Button variant="contained" onClick={handleSave} disabled={isBusy}>
           {createExpense.isPending ? 'Saving…' : 'Save'}
