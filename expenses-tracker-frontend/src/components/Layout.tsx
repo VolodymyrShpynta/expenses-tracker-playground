@@ -37,7 +37,7 @@ import { AddExpenseDialog } from './AddExpenseDialog.tsx';
 import { ManageCategoriesDialog } from './ManageCategoriesDialog.tsx';
 import { CurrencyPickerDialog } from './CurrencyPickerDialog.tsx';
 
-const DRAWER_WIDTH = 240;
+const DRAWER_WIDTH = 280;
 
 interface NavItem {
   label: string;

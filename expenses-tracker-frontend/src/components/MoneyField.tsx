@@ -254,7 +254,6 @@ function CurrencyPicker({ currencies, selected, onSelect }: CurrencyPickerProps)
           placeholder="Search currency…"
           size="small"
           fullWidth
-          autoFocus
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />

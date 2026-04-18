@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
+import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import Divider from '@mui/material/Divider';
@@ -15,8 +15,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import IconButton from '@mui/material/IconButton';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
-import EditIcon from '@mui/icons-material/Edit';
-import { CategoryAutocomplete } from '../components/CategoryAutocomplete.tsx';
+import { CategoryPickerDialog } from '../components/CategoryPickerDialog.tsx';
 import { useExpenses } from '../hooks/useExpenses.ts';
 import { useExchangeRates } from '../hooks/useExchangeRates.ts';
 import { getCategoryConfig } from '../utils/categoryConfig.ts';
@@ -119,14 +118,17 @@ export default function TransactionsPage() {
       const t = new Date(e.date).getTime();
       if (t >= fromTime && t <= toTime) cats.add(e.category);
     }
-    return Array.from(cats).sort();
+    return cats;
   }, [expenses, dateRange]);
 
-  // Categories not yet selected (for the dropdown menu)
-  const unselectedCategories = useMemo(
-    () => availableCategories.filter((c) => !selectedCategories.has(c)),
-    [availableCategories, selectedCategories],
-  );
+  // Categories not yet selected (available to pick in the dialog)
+  const unselectedCategories = useMemo(() => {
+    const next = new Set<string>();
+    availableCategories.forEach((c) => {
+      if (!selectedCategories.has(c)) next.add(c);
+    });
+    return next;
+  }, [availableCategories, selectedCategories]);
 
   const totalSpending = useMemo(
     () => sorted.reduce((sum, e) => sum + convert(e.amount, e.currency), 0),
@@ -175,8 +177,13 @@ export default function TransactionsPage() {
       <Box sx={{ px: 1, mt: 2 }}>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
           <IconButton
-            onClick={() => setFilterOpen((prev) => !prev)}
-            disabled={unselectedCategories.length === 0}
+            onClick={(e) => {
+              // Blur before the Dialog applies aria-hidden to #root, otherwise
+              // the focused button becomes an aria-hidden descendant (a11y violation).
+              e.currentTarget.blur();
+              setFilterOpen(true);
+            }}
+            disabled={unselectedCategories.size === 0}
             aria-label="Filter by category"
           >
             <FilterListIcon />
@@ -198,21 +205,17 @@ export default function TransactionsPage() {
             }}
           />
         </Box>
-        {filterOpen && unselectedCategories.length > 0 && (
-          <CategoryAutocomplete
-            open
-            size="small"
-            options={unselectedCategories}
-            value={null}
-            onChange={(val) => { if (val) { addCategory(val); setFilterOpen(unselectedCategories.length > 1); } }}
-            placeholder="Search categories…"
-            fullWidth
-            autoFocus
-            blurOnSelect
-            onClose={() => setFilterOpen(false)}
-            sx={{ mt: 1 }}
-          />
-        )}
+        <CategoryPickerDialog
+          open={filterOpen}
+          onClose={() => setFilterOpen(false)}
+          selected=""
+          onSelect={(name) => {
+            addCategory(name);
+            setFilterOpen(false);
+          }}
+          availableNames={unselectedCategories}
+          title="Filter by Category"
+        />
         {selectedCategories.size > 0 && (
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
             {Array.from(selectedCategories).map((cat) => {
@@ -290,34 +293,14 @@ export default function TransactionsPage() {
                 const dateStr = new Date(expense.date).toLocaleDateString('en-US', {
                   day: 'numeric',
                   month: 'short',
-                  year: 'numeric',
                 });
 
                 return (
                   <Box key={expense.id}>
-                    <ListItem
+                    <ListItemButton
                       sx={{ px: 1 }}
-                      secondaryAction={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Box sx={{ textAlign: 'right' }}>
-                            <Typography variant="body2" fontWeight={600}>
-                              {formatAmountWithCurrency(convert(expense.amount, expense.currency), mainCurrency)}
-                            </Typography>
-                            {expense.currency !== mainCurrency && (
-                              <Typography variant="caption" color="text.secondary">
-                                {formatAmountWithCurrency(expense.amount, expense.currency)}
-                              </Typography>
-                            )}
-                          </Box>
-                          <IconButton
-                            size="small"
-                            onClick={() => setEditingExpense(expense)}
-                            aria-label="Edit expense"
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        </Box>
-                      }
+                      onClick={() => setEditingExpense(expense)}
+                      aria-label={`Edit expense ${expense.description}`}
                     >
                       <ListItemIcon sx={{ minWidth: 40 }}>
                         <Icon sx={{ color: config.color }} />
@@ -334,7 +317,17 @@ export default function TransactionsPage() {
                           </Box>
                         }
                       />
-                    </ListItem>
+                      <Box sx={{ textAlign: 'right', ml: 1 }}>
+                        <Typography variant="body2" fontWeight={600}>
+                          {formatAmountWithCurrency(convert(expense.amount, expense.currency), mainCurrency)}
+                        </Typography>
+                        {expense.currency !== mainCurrency && (
+                          <Typography variant="caption" color="text.secondary">
+                            {formatAmountWithCurrency(expense.amount, expense.currency)}
+                          </Typography>
+                        )}
+                      </Box>
+                    </ListItemButton>
                     <Divider variant="inset" component="li" />
                   </Box>
                 );

@@ -23,24 +23,30 @@ interface CategoryPickerDialogProps {
   onClose: () => void;
   selected: string;
   onSelect: (name: string) => void;
+  /** Optional whitelist of category names to show. If provided, only these categories are listed. */
+  availableNames?: ReadonlySet<string>;
+  title?: string;
 }
 
 /**
  * List-style category picker (no autofocus on the search field — avoids
  * popping the virtual keyboard on mobile).
  */
-export function CategoryPickerDialog({ open, onClose, selected, onSelect }: CategoryPickerDialogProps) {
+export function CategoryPickerDialog({ open, onClose, selected, onSelect, availableNames, title = 'Pick Category' }: CategoryPickerDialogProps) {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
   const { categories, loading, error } = useCategories();
   const [search, setSearch] = useState('');
 
   const filtered = useMemo<Category[]>(() => {
-    const sorted = [...categories].sort((a, b) => a.name.localeCompare(b.name));
+    const base = availableNames
+      ? categories.filter((c) => availableNames.has(c.name))
+      : categories;
+    const sorted = [...base].sort((a, b) => a.name.localeCompare(b.name));
     const q = search.trim().toLowerCase();
     if (!q) return sorted;
     return sorted.filter((c) => c.name.toLowerCase().includes(q));
-  }, [categories, search]);
+  }, [categories, availableNames, search]);
 
   return (
     <Dialog
@@ -50,7 +56,7 @@ export function CategoryPickerDialog({ open, onClose, selected, onSelect }: Cate
       maxWidth="xs"
       slotProps={{ paper: { sx: { p: 0 } } }}
     >
-      <DialogTitle>Pick Category</DialogTitle>
+      <DialogTitle>{title}</DialogTitle>
 
       <DialogContent sx={{ px: 0, pb: 0 }}>
         <Box sx={{ px: 2, pb: 1 }}>

@@ -51,7 +51,6 @@ export function CurrencyPickerDialog({ open, onClose, value, onChange }: Currenc
             onChange={(e) => setSearch(e.target.value)}
             size="small"
             fullWidth
-            autoFocus
             slotProps={{
               input: {
                 startAdornment: (
