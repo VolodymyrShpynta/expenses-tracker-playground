@@ -165,8 +165,14 @@ export interface UseCalculatorResult {
   dispatch: React.Dispatch<CalculatorAction>;
 }
 
-export function useCalculator(): UseCalculatorResult {
-  const [tokens, dispatch] = useReducer(reducer, [] as Token[]);
+export function useCalculator(initialAmount?: number | null): UseCalculatorResult {
+  const [tokens, dispatch] = useReducer(
+    reducer,
+    initialAmount,
+    (seed): Token[] => (seed != null && Number.isFinite(seed) && seed > 0
+      ? [{ kind: 'num', value: String(seed) }]
+      : []),
+  );
 
   return useMemo(() => ({
     expression: tokensToString(tokens),

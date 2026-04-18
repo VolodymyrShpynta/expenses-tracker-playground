@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { createElement, useState } from 'react';
 import Box from '@mui/material/Box';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -116,7 +116,7 @@ export function CategoryFormDialog({
   const [color, setColor] = useState(initialColor);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const PreviewIcon = useMemo(() => getIconByKey(icon), [icon]);
+  const previewIcon = getIconByKey(icon);
   const displayError = validationError ?? error;
 
   const handleSave = () => {
@@ -147,7 +147,7 @@ export function CategoryFormDialog({
               justifyContent: 'center',
             }}
           >
-            <PreviewIcon sx={{ fontSize: 28, color }} />
+            {createElement(previewIcon, { sx: { fontSize: 28, color } })}
           </Box>
           <Typography variant="h6" fontWeight={600}>
             {name || 'Category'}

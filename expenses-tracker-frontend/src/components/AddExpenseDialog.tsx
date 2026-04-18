@@ -1,5 +1,11 @@
 /**
- * AddExpenseDialog — calculator-style dialog for creating a new expense.
+ * AddExpenseDialog — calculator-style dialog for creating or editing an expense.
+ *
+ * Modes:
+ *   - Create (default): empty state, submits via `useCreateExpense`.
+ *   - Edit (when `expense` is provided): state is seeded from the expense, the
+ *     calculator starts with the existing amount, submissions go through
+ *     `useUpdateExpense`, and a small Delete button (with confirm) is shown.
  *
  * Layout (top → bottom):
  *   1. Two header tiles: Date (opens a calendar popover) and Category (opens a picker).
@@ -9,12 +15,12 @@
  *   4. An {@link AmountKeypad} (5×4 grid). Dual-purpose `=`/`OK` button:
  *        - `=`  when the expression still contains operators → evaluates in place.
  *        - `OK` when only a number remains → submits the expense.
- *   5. A small footer showing the currently selected date.
+ *   5. A small footer showing the currently selected date (plus a Delete button in edit mode).
  *
  * State split:
  *   - Local `useState` for description, currency, category, date, validation error.
  *   - {@link useCalculator} owns the amount expression (token-based reducer).
- *   - TanStack Query `useCreateExpense` persists via `POST /api/expenses`.
+ *   - TanStack Query mutations persist changes.
  *
  * Responsive behavior:
  *   - Mobile (xs): bottom-sheet with slide-up transition, tightened paddings/gaps.
@@ -25,6 +31,7 @@
  */
 import { forwardRef, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Popover from '@mui/material/Popover';
 import Typography from '@mui/material/Typography';
@@ -44,8 +51,13 @@ import { getCategoryConfig } from '../utils/categoryConfig.ts';
 import { AmountKeypad } from './amount-keypad/AmountKeypad.tsx';
 import { useCalculator } from './amount-keypad/useCalculator.ts';
 import type { CurrencyCode } from '../api/exchange.ts';
-import { useCreateExpense } from '../hooks/useExpenseMutations.ts';
+import {
+  useCreateExpense,
+  useDeleteExpense,
+  useUpdateExpense,
+} from '../hooks/useExpenseMutations.ts';
 import { useMainCurrency } from '../hooks/useCurrency.ts';
+import type { Expense } from '../types/expense.ts';
 
 // ---------------------------------------------------------------------------
 // Slide-up transition for mobile
@@ -108,22 +120,38 @@ function Tile({ label, value, color, onClick }: TileProps) {
 interface AddExpenseDialogProps {
   open: boolean;
   onClose: () => void;
+  /** Pre-fill the dialog with an existing expense; switches to edit/delete mode. */
+  expense?: Expense;
+  /** Category pre-selected in create mode. Ignored when `expense` is provided. */
   defaultCategory?: string;
 }
 
-export function AddExpenseDialog({ open, onClose, defaultCategory = '' }: AddExpenseDialogProps) {
+export function AddExpenseDialog({
+  open,
+  onClose,
+  expense,
+  defaultCategory = '',
+}: AddExpenseDialogProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const createExpense = useCreateExpense();
+  const updateExpense = useUpdateExpense();
+  const deleteExpense = useDeleteExpense();
   const { mainCurrency } = useMainCurrency();
 
-  const [description, setDescription] = useState('');
-  const [currency, setCurrency] = useState<CurrencyCode>(mainCurrency);
-  const [category, setCategory] = useState(defaultCategory);
-  const [date, setDate] = useState<Dayjs>(dayjs());
+  const isEdit = Boolean(expense);
+  const [description, setDescription] = useState(expense?.description ?? '');
+  const [currency, setCurrency] = useState<CurrencyCode>(
+    (expense?.currency as CurrencyCode) ?? mainCurrency,
+  );
+  const [category, setCategory] = useState(expense?.category ?? defaultCategory);
+  const [date, setDate] = useState<Dayjs>(expense ? dayjs(expense.date) : dayjs());
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const { expression, hasOperator, amount, dispatch } = useCalculator();
+  const { expression, hasOperator, amount, dispatch } = useCalculator(
+    expense ? expense.amount / 100 : null,
+  );
 
   const dateTileRef = useRef<HTMLDivElement | null>(null);
   const [dateAnchor, setDateAnchor] = useState<HTMLElement | null>(null);
@@ -131,12 +159,15 @@ export function AddExpenseDialog({ open, onClose, defaultCategory = '' }: AddExp
   const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
 
   const resetAndClose = () => {
-    setDescription('');
-    setCategory('');
-    setCurrency(mainCurrency);
-    setDate(dayjs());
+    if (!isEdit) {
+      setDescription('');
+      setCategory('');
+      setCurrency(mainCurrency);
+      setDate(dayjs());
+      dispatch({ type: 'reset' });
+    }
     setValidationError(null);
-    dispatch({ type: 'reset' });
+    setConfirmDelete(false);
     onClose();
   };
 
@@ -151,16 +182,27 @@ export function AddExpenseDialog({ open, onClose, defaultCategory = '' }: AddExp
       return;
     }
 
-    createExpense.mutate(
-      {
-        description: description.trim() || category,
-        amount: Math.round(amount * 100),
-        currency,
-        category,
-        date: date.toISOString(),
-      },
-      { onSuccess: resetAndClose },
-    );
+    const req = {
+      description: description.trim() || category,
+      amount: Math.round(amount * 100),
+      currency,
+      category,
+      date: date.toISOString(),
+    };
+
+    if (expense) {
+      updateExpense.mutate(
+        { id: expense.id, req },
+        { onSuccess: resetAndClose },
+      );
+    } else {
+      createExpense.mutate(req, { onSuccess: resetAndClose });
+    }
+  };
+
+  const handleDelete = () => {
+    if (!expense) return;
+    deleteExpense.mutate(expense.id, { onSuccess: resetAndClose });
   };
 
   const handleEquals = () => {
@@ -168,8 +210,11 @@ export function AddExpenseDialog({ open, onClose, defaultCategory = '' }: AddExp
     else handleSave();
   };
 
+  const isPending = createExpense.isPending || updateExpense.isPending || deleteExpense.isPending;
   const error = validationError
-    ?? (createExpense.error instanceof Error ? createExpense.error.message : null);
+    ?? (createExpense.error instanceof Error ? createExpense.error.message : null)
+    ?? (updateExpense.error instanceof Error ? updateExpense.error.message : null)
+    ?? (deleteExpense.error instanceof Error ? deleteExpense.error.message : null);
 
   const categoryConfig = category ? getCategoryConfig(category) : null;
   const categoryColor = categoryConfig?.color ?? theme.palette.secondary.main;
@@ -245,7 +290,7 @@ export function AddExpenseDialog({ open, onClose, defaultCategory = '' }: AddExp
         currency={currency}
         hasOperator={hasOperator}
         canEquals={expression.length > 0}
-        disabled={createExpense.isPending}
+        disabled={isPending}
         bindKeyboard={open && !isMobile}
         dispatch={dispatch}
         onEquals={handleEquals}
@@ -253,10 +298,47 @@ export function AddExpenseDialog({ open, onClose, defaultCategory = '' }: AddExp
         onOpenCurrency={() => setCurrencyPickerOpen(true)}
       />
 
-      <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-        {isSameDay ? 'Today, ' : ''}
-        {date.format('MMM D, YYYY')}
-      </Typography>
+      {isEdit ? (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 1,
+            minHeight: 32,
+          }}
+        >
+          {confirmDelete ? (
+            <Button
+              size="small"
+              color="error"
+              variant="contained"
+              onClick={handleDelete}
+              disabled={isPending}
+            >
+              {deleteExpense.isPending ? 'Deleting\u2026' : 'Confirm delete'}
+            </Button>
+          ) : (
+            <Button
+              size="small"
+              color="error"
+              onClick={() => setConfirmDelete(true)}
+              disabled={isPending}
+            >
+              Delete
+            </Button>
+          )}
+          <Typography variant="body2" color="text.secondary">
+            {isSameDay ? 'Today, ' : ''}
+            {date.format('MMM D, YYYY')}
+          </Typography>
+        </Box>
+      ) : (
+        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+          {isSameDay ? 'Today, ' : ''}
+          {date.format('MMM D, YYYY')}
+        </Typography>
+      )}
     </Box>
   );
 

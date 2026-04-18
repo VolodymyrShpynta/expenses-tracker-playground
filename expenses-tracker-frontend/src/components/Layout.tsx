@@ -294,7 +294,12 @@ export function Layout() {
       <Fab
         color="primary"
         aria-label="Add expense"
-        onClick={() => setAddDialogOpen(true)}
+        onClick={(e) => {
+          // Blur the FAB before the Dialog mounts; otherwise MUI's aria-hidden
+          // on #root conflicts with the still-focused trigger button.
+          e.currentTarget.blur();
+          setAddDialogOpen(true);
+        }}
         sx={{
           position: 'fixed',
           right: 16,

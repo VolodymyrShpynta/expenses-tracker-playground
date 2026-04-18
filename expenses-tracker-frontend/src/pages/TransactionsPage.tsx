@@ -25,7 +25,7 @@ import { SpendingDateHeader } from '../components/SpendingDateHeader.tsx';
 import { useDateRange } from '../hooks/useDateRange.ts';
 import type { PresetKey } from '../utils/dateRange.ts';
 import type { Expense } from '../types/expense.ts';
-import { EditExpenseDialog } from '../components/EditExpenseDialog.tsx';
+import { AddExpenseDialog } from '../components/AddExpenseDialog.tsx';
 
 type GroupBy = 'day' | 'month' | 'year';
 
@@ -324,10 +324,11 @@ export default function TransactionsPage() {
                       </ListItemIcon>
                       <ListItemText
                         primary={expense.description}
+                        slotProps={{ secondary: { component: 'div' } }}
                         secondary={
                           <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.3 }}>
                             <Chip label={expense.category} size="small" variant="outlined" />
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography variant="caption" color="text.secondary" component="span">
                               {dateStr}
                             </Typography>
                           </Box>
@@ -344,7 +345,7 @@ export default function TransactionsPage() {
       })}
 
       {editingExpense && (
-        <EditExpenseDialog
+        <AddExpenseDialog
           key={editingExpense.id}
           expense={editingExpense}
           open
