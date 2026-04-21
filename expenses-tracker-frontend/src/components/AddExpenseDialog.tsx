@@ -57,6 +57,7 @@ import {
   useUpdateExpense,
 } from '../hooks/useExpenseMutations.ts';
 import { useMainCurrency } from '../hooks/useCurrency.ts';
+import { FIELD_LIMITS } from '../utils/fieldLimits.ts';
 import type { Expense } from '../types/expense.ts';
 
 // ---------------------------------------------------------------------------
@@ -283,7 +284,12 @@ export function AddExpenseDialog({
         onChange={(e) => setDescription(e.target.value)}
         fullWidth
         size="small"
-        slotProps={{ htmlInput: { style: { textAlign: 'center', fontStyle: 'italic' } } }}
+        slotProps={{
+          htmlInput: {
+            maxLength: FIELD_LIMITS.EXPENSE_DESCRIPTION_MAX,
+            style: { textAlign: 'center', fontStyle: 'italic' },
+          },
+        }}
       />
 
       <AmountKeypad

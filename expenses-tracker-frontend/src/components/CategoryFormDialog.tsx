@@ -14,6 +14,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import CheckIcon from '@mui/icons-material/Check';
 import { AVAILABLE_ICONS, AVAILABLE_COLORS, getIconByKey } from '../utils/categoryConfig.ts';
 import type { IconOption } from '../utils/categoryConfig.ts';
+import { FIELD_LIMITS } from '../utils/fieldLimits.ts';
 
 interface IconPickerProps {
   value: string;
@@ -162,6 +163,8 @@ export function CategoryFormDialog({
           fullWidth
           size="small"
           disabled={nameDisabled}
+          helperText={`${name.length}/${FIELD_LIMITS.CATEGORY_NAME_MAX}`}
+          slotProps={{ htmlInput: { maxLength: FIELD_LIMITS.CATEGORY_NAME_MAX } }}
         />
 
         <Box>

@@ -5,6 +5,7 @@ import com.vshpynta.expenses.api.config.TestSecurityConfig
 import com.vshpynta.expenses.api.config.WebTestClientConfig
 import com.vshpynta.expenses.api.controller.dto.CreateExpenseRequest
 import com.vshpynta.expenses.api.controller.dto.ExpenseDto
+import com.vshpynta.expenses.api.controller.dto.FieldLimits
 import com.vshpynta.expenses.api.controller.dto.UpdateExpenseRequest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -195,5 +196,94 @@ class SyncExpenseControllerTest {
             .uri("/api/expenses/$nonExistentId")
             .exchange()
             .expectStatus().isNotFound
+    }
+
+    @Test
+    fun `should return 400 when create payload violates size constraint`() {
+        // Given: description exceeds the configured max length
+        val tooLong = "x".repeat(FieldLimits.EXPENSE_DESCRIPTION_MAX + 1)
+        val request = CreateExpenseRequest(
+            description = tooLong,
+            amount = 450,
+            currency = "USD",
+            category = "Food",
+            date = "2026-01-20T10:00:00Z"
+        )
+
+        // When / Then: GlobalExceptionHandler should map the WebExchangeBindException
+        // to a structured 400 with per-field messages in `details`.
+        webTestClient.post()
+            .uri("/api/expenses")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(request)
+            .exchange()
+            .expectStatus().isBadRequest
+            .expectBody()
+            .jsonPath("$.error").isEqualTo("Validation failed")
+            .jsonPath("$.details.description")
+            .value<String> { message ->
+                assertThat(message).contains(FieldLimits.EXPENSE_DESCRIPTION_MAX.toString())
+            }
+    }
+
+    @Test
+    fun `should return 400 when create payload has blank category and non-positive amount`() {
+        // Given: two violations at once
+        val request = CreateExpenseRequest(
+            description = "Coffee",
+            amount = 0,            // violates @Positive
+            currency = "USD",
+            category = "  ",       // violates @NotBlank
+            date = "2026-01-20T10:00:00Z"
+        )
+
+        // When / Then
+        webTestClient.post()
+            .uri("/api/expenses")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(request)
+            .exchange()
+            .expectStatus().isBadRequest
+            .expectBody()
+            .jsonPath("$.error").isEqualTo("Validation failed")
+            .jsonPath("$.details.amount").exists()
+            .jsonPath("$.details.category").exists()
+    }
+
+    @Test
+    fun `should return 400 when update payload violates size constraint`() {
+        // Given: an existing expense
+        val created = webTestClient.post()
+            .uri("/api/expenses")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(
+                CreateExpenseRequest(
+                    description = "Original",
+                    amount = 1000,
+                    currency = "USD",
+                    category = "Food",
+                    date = "2026-01-20T10:00:00Z"
+                )
+            )
+            .exchange()
+            .expectStatus().isCreated
+            .expectBody<ExpenseDto>()
+            .returnResult()
+            .responseBody!!
+
+        // When: update with oversized category
+        val oversize = "y".repeat(FieldLimits.EXPENSE_CATEGORY_MAX + 1)
+        val update = UpdateExpenseRequest(category = oversize)
+
+        // Then
+        webTestClient.put()
+            .uri("/api/expenses/${created.id}")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(update)
+            .exchange()
+            .expectStatus().isBadRequest
+            .expectBody()
+            .jsonPath("$.error").isEqualTo("Validation failed")
+            .jsonPath("$.details.category").exists()
     }
 }
