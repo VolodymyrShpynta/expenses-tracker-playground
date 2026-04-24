@@ -30,7 +30,10 @@ import CategoryIcon from '@mui/icons-material/Category';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import LogoutIcon from '@mui/icons-material/Logout';
 import FormatSizeIcon from '@mui/icons-material/FormatSize';
-import { ColorModeToggleContext, FontScaleContext, FONT_SCALE_LABEL } from '../theme.ts';
+import LanguageIcon from '@mui/icons-material/Language';
+import { useTranslation } from 'react-i18next';
+import type { ParseKeys } from 'i18next';
+import { ColorModeToggleContext, FontScaleContext } from '../theme.ts';
 import { useMainCurrency } from '../hooks/useCurrency.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import type { CurrencyCode } from '../api/exchange.ts';
@@ -38,19 +41,29 @@ import { AddExpenseDialog } from './AddExpenseDialog.tsx';
 import { ManageCategoriesDialog } from './ManageCategoriesDialog.tsx';
 import { CurrencyPickerDialog } from './CurrencyPickerDialog.tsx';
 import { FontSizePickerDialog } from './FontSizePickerDialog.tsx';
+import { LanguagePickerDialog } from './LanguagePickerDialog.tsx';
+import { SUPPORTED_LANGUAGES } from '../i18n';
+import { resolveLanguage } from '../i18n/locale.ts';
 
 const DRAWER_WIDTH = 280;
 
+// `labelKey` is typed via i18next module augmentation (see src/i18n/i18next.d.ts):
+// `ParseKeys` exposes the union of every leaf key in en.json, so a typo in any
+// of the literals below — or in code that calls `translate(item.labelKey)` —
+// is a TypeScript compile error rather than a silent missing-translation
+// fallback at runtime.
+type TranslationKey = ParseKeys;
+
 interface NavItem {
-  label: string;
+  labelKey: TranslationKey;
   path: string;
   icon: React.ReactNode;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Categories', path: '/', icon: <PieChartIcon /> },
-  { label: 'Transactions', path: '/transactions', icon: <ReceiptLongIcon /> },
-  { label: 'Overview', path: '/overview', icon: <BarChartIcon /> },
+  { labelKey: 'nav.categories', path: '/', icon: <PieChartIcon /> },
+  { labelKey: 'nav.transactions', path: '/transactions', icon: <ReceiptLongIcon /> },
+  { labelKey: 'nav.overview', path: '/overview', icon: <BarChartIcon /> },
 ];
 
 function navIndex(pathname: string): number {
@@ -63,6 +76,7 @@ export function Layout() {
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
   const navigate = useNavigate();
   const location = useLocation();
+  const { t: translate, i18n } = useTranslation();
 
   const { toggleColorMode } = useContext(ColorModeToggleContext);
   const { fontScale, setFontScale } = useContext(FontScaleContext);
@@ -77,6 +91,12 @@ export function Layout() {
   const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false);
   const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
   const [fontSizePickerOpen, setFontSizePickerOpen] = useState(false);
+  const [languagePickerOpen, setLanguagePickerOpen] = useState(false);
+
+  const activeLangCode = resolveLanguage(i18n);
+  const activeLangLabel =
+    SUPPORTED_LANGUAGES.find((l) => l.code === activeLangCode)?.code.toUpperCase()
+    ?? activeLangCode.toUpperCase();
 
   const activeIdx = navIndex(location.pathname);
 
@@ -136,7 +156,7 @@ export function Layout() {
     <Box sx={{ width: DRAWER_WIDTH }}>
       <Toolbar>
         <Typography variant="h4" fontWeight={700} noWrap>
-          Expenses Tracker
+          {translate('appName')}
         </Typography>
       </Toolbar>
       <List>
@@ -148,11 +168,11 @@ export function Layout() {
             sx={navItemSx(i === activeIdx)}
           >
             <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.label} />
+            <ListItemText primary={translate(item.labelKey)} />
           </ListItemButton>
         ))}
       </List>
-      {renderSectionHeader('Tools', toolsOpen, () => setToolsOpen((prev) => !prev))}
+      {renderSectionHeader(translate('nav.tools'), toolsOpen, () => setToolsOpen((prev) => !prev))}
       <Collapse in={toolsOpen}>
         <List
           disablePadding
@@ -167,11 +187,11 @@ export function Layout() {
             sx={navItemSx(location.pathname === '/sync')}
           >
             <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}><SyncIcon /></ListItemIcon>
-            <ListItemText primary="Sync" />
+            <ListItemText primary={translate('nav.sync')} />
           </ListItemButton>
         </List>
       </Collapse>
-      {renderSectionHeader('Settings', settingsOpen, () => setSettingsOpen((prev) => !prev))}
+      {renderSectionHeader(translate('nav.settings'), settingsOpen, () => setSettingsOpen((prev) => !prev))}
       <Collapse in={settingsOpen}>
         <Box
           sx={{
@@ -186,10 +206,10 @@ export function Layout() {
               justifyContent: 'space-between',
             }}
           >
-            <ListItemText primary="Dark Mode" />
+            <ListItemText primary={translate('settings.darkMode')} />
             <Switch
               checked={isDark}
-              slotProps={{ input: { 'aria-label': 'Toggle dark mode' } }}
+              slotProps={{ input: { 'aria-label': translate('settings.toggleDarkMode') } }}
               sx={{ mr: -1 }}
             />
           </ListItemButton>
@@ -198,14 +218,14 @@ export function Layout() {
             sx={navItemSx(false)}
           >
             <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}><CategoryIcon fontSize="small" /></ListItemIcon>
-            <ListItemText primary="Manage Categories" slotProps={{ primary: { noWrap: true } }} />
+            <ListItemText primary={translate('settings.manageCategories')} slotProps={{ primary: { noWrap: true } }} />
           </ListItemButton>
           <ListItemButton
             onClick={() => { setCurrencyPickerOpen(true); setDrawerOpen(false); }}
             sx={navItemSx(false)}
           >
             <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}><AttachMoneyIcon fontSize="small" /></ListItemIcon>
-            <ListItemText primary="Currency" />
+            <ListItemText primary={translate('settings.currency')} />
             <Chip label={mainCurrency} size="small" variant="outlined" sx={{ ml: 1 }} />
           </ListItemButton>
           <ListItemButton
@@ -213,8 +233,16 @@ export function Layout() {
             sx={navItemSx(false)}
           >
             <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}><FormatSizeIcon fontSize="small" /></ListItemIcon>
-            <ListItemText primary="Font Size" />
-            <Chip label={FONT_SCALE_LABEL[fontScale]} size="small" variant="outlined" sx={{ ml: 1 }} />
+            <ListItemText primary={translate('settings.fontSize')} />
+            <Chip label={translate(`settings.fontScale.${fontScale}`)} size="small" variant="outlined" sx={{ ml: 1 }} />
+          </ListItemButton>
+          <ListItemButton
+            onClick={() => { setLanguagePickerOpen(true); setDrawerOpen(false); }}
+            sx={navItemSx(false)}
+          >
+            <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}><LanguageIcon fontSize="small" /></ListItemIcon>
+            <ListItemText primary={translate('settings.language')} />
+            <Chip label={activeLangLabel} size="small" variant="outlined" sx={{ ml: 1 }} />
           </ListItemButton>
         </Box>
       </Collapse>
@@ -248,12 +276,12 @@ export function Layout() {
             color="inherit"
             onClick={() => setDrawerOpen(true)}
             sx={{ mr: 1 }}
-            aria-label="Open menu"
+            aria-label={translate('nav.openMenu')}
           >
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" fontWeight={700} noWrap>
-            Expenses Tracker
+            {translate('appName')}
           </Typography>
         </Toolbar>
       )}
@@ -305,7 +333,7 @@ export function Layout() {
       {/* FAB — add expense */}
       <Fab
         color="primary"
-        aria-label="Add expense"
+        aria-label={translate('expenses.addAriaLabel')}
         onClick={(e) => {
           // Blur the FAB before the Dialog mounts; otherwise MUI's aria-hidden
           // on #root conflicts with the still-focused trigger button.
@@ -352,6 +380,13 @@ export function Layout() {
         />
       )}
 
+      {languagePickerOpen && (
+        <LanguagePickerDialog
+          open
+          onClose={() => setLanguagePickerOpen(false)}
+        />
+      )}
+
       {/* Mobile bottom nav */}
       {!isDesktop && (
         <BottomNavigation
@@ -370,7 +405,7 @@ export function Layout() {
           {NAV_ITEMS.map((item) => (
             <BottomNavigationAction
               key={item.path}
-              label={item.label}
+              label={translate(item.labelKey)}
               icon={item.icon}
             />
           ))}

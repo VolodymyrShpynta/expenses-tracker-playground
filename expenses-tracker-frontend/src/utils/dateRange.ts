@@ -1,3 +1,5 @@
+import { getLocale } from '../i18n/locale.ts';
+
 export interface DateRange {
   from: Date;
   to: Date;
@@ -94,13 +96,14 @@ export function buildRangeForPreset(key: PresetKey): DateRange {
 }
 
 export function formatShort(d: Date): string {
-  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+  return d.toLocaleDateString(getLocale(), { day: 'numeric', month: 'short' });
 }
 
 export function formatRange(range: DateRange): string {
   const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
-  const from = range.from.toLocaleDateString('en-US', opts).toUpperCase();
-  const to = range.to.toLocaleDateString('en-US', opts).toUpperCase();
+  const locale = getLocale();
+  const from = range.from.toLocaleDateString(locale, opts).toUpperCase();
+  const to = range.to.toLocaleDateString(locale, opts).toUpperCase();
   return `${from} – ${to}`;
 }
 

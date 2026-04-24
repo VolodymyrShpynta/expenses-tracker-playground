@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import type { Expense, CategorySummary } from '../types/expense.ts';
-import { getAllCategoryNames } from '../utils/categoryConfig.ts';
 
 interface DateRange {
   from: Date;
@@ -10,8 +9,10 @@ interface DateRange {
 /**
  * Derives per-category totals from a list of expenses, optionally filtered
  * by date range. Sorted descending by total amount.
- * All canonical categories appear even with zero spending in the range.
- * Categories from expenses that are not in the canonical list also appear.
+ *
+ * Groups strictly by `categoryId`. Display fields (name/color/icon) are
+ * resolved by the caller via `useCategoryLookup`, which keeps this hook free of
+ * UI concerns and avoids duplicating the resolution path.
  */
 export function useCategorySummary(
   expenses: Expense[],
@@ -31,35 +32,31 @@ export function useCategorySummary(
 
     const map = new Map<string, { total: number; count: number }>();
 
-    // Seed all canonical categories so they always appear
-    for (const cat of getAllCategoryNames()) {
-      map.set(cat, { total: 0, count: 0 });
-    }
-
-    // Seed any user-created categories not in the canonical list
+    // Seed every id referenced by any expense (in or out of date range) so
+    // empty-period categories still appear when desired.
     for (const e of expenses) {
-      if (!map.has(e.category)) {
-        map.set(e.category, { total: 0, count: 0 });
+      if (!map.has(e.categoryId)) {
+        map.set(e.categoryId, { total: 0, count: 0 });
       }
     }
 
     for (const e of filtered) {
-      const entry = map.get(e.category)!;
+      const entry = map.get(e.categoryId)!;
       entry.total += e.amount;
       entry.count += 1;
     }
 
     const grandTotal = filtered.reduce((sum, e) => sum + e.amount, 0);
 
-    const categories: CategorySummary[] = Array.from(map.entries())
-      .map(([category, { total, count }]) => ({
-        category,
+    const result: CategorySummary[] = Array.from(map.entries())
+      .map(([categoryId, { total, count }]) => ({
+        categoryId,
         total,
         count,
         percentage: grandTotal > 0 ? (total / grandTotal) * 100 : 0,
       }))
       .sort((a, b) => b.total - a.total);
 
-    return { categories, grandTotal };
+    return { categories: result, grandTotal };
   }, [expenses, dateRange]);
 }

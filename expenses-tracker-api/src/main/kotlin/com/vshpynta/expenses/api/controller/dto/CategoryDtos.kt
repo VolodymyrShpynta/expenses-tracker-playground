@@ -37,13 +37,25 @@ data class UpdateCategoryRequest(
 )
 
 /**
- * Category data transfer object
+ * Category data transfer object.
+ *
+ * `name` is nullable: a templated row (`templateKey != null`) with no user
+ * override carries `name = null`, and the frontend resolves the display
+ * label via the `categoryTemplates.<templateKey>` i18n key. A non-null
+ * `name` either means a user-created custom category (`templateKey == null`)
+ * or a user override on a templated row.
+ *
+ * `deleted` is exposed so callers fetching the full catalog (with
+ * `?includeArchived=true`) can distinguish active rows from soft-deleted
+ * ones used solely for resolving historic expenses' display fields.
  */
 data class CategoryDto(
     val id: String,
-    val name: String,
+    val name: String?,
     val icon: String,
     val color: String,
     val sortOrder: Int,
-    val updatedAt: Long
+    val updatedAt: Long,
+    val templateKey: String?,
+    val deleted: Boolean
 )

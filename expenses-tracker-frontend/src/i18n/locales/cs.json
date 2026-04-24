@@ -1,0 +1,148 @@
+{
+  "appName": "Sledování výdajů",
+  "nav": {
+    "categories": "Kategorie",
+    "transactions": "Transakce",
+    "overview": "Přehled",
+    "tools": "Nástroje",
+    "sync": "Synchronizace",
+    "settings": "Nastavení",
+    "openMenu": "Otevřít menu"
+  },
+  "settings": {
+    "darkMode": "Tmavý režim",
+    "toggleDarkMode": "Přepnout tmavý režim",
+    "manageCategories": "Spravovat kategorie",
+    "currency": "Měna",
+    "fontSize": "Velikost písma",
+    "language": "Jazyk",
+    "fontScale": {
+      "small": "Malé",
+      "medium": "Střední",
+      "large": "Velké",
+      "xlarge": "Velmi velké"
+    }
+  },
+  "common": {
+    "save": "Uložit",
+    "saving": "Ukládání…",
+    "cancel": "Zrušit",
+    "close": "Zavřít",
+    "delete": "Smazat",
+    "deleting": "Mazání…",
+    "confirmDelete": "Potvrdit smazání",
+    "edit": "Upravit",
+    "add": "Přidat",
+    "ok": "OK",
+    "apply": "Použít",
+    "today": "Dnes",
+    "search": "Hledat",
+    "loading": "Načítání…"
+  },
+  "expenses": {
+    "totalSpending": "Celkem utraceno",
+    "noExpensesYet": "Zatím žádné výdaje",
+    "tapPlusHint": "Klepnutím na + přidejte svůj první výdaj.",
+    "noTransactions": "Zatím žádné transakce.",
+    "searchPlaceholder": "Hledat podle popisu…",
+    "filterByCategory": "Filtrovat podle kategorie",
+    "addAriaLabel": "Přidat výdaj",
+    "addCategoryAriaLabel": "Přidat výdaj do kategorie {{category}}",
+    "editExpenseAriaLabel": "Upravit výdaj {{description}}",
+    "overviewTitle": "Přehled",
+    "overviewComingSoon": "Přehled rozpočtu a analytika brzy."
+  },
+  "expenseDialog": {
+    "date": "Datum",
+    "category": "Kategorie",
+    "pickCategory": "Vyberte kategorii",
+    "expense": "Výdaj",
+    "description": "Popis",
+    "pickCategoryError": "Vyberte prosím kategorii.",
+    "positiveAmountError": "Částka musí být kladné číslo."
+  },
+  "categoryTemplates": {
+    "beauty": "Krása",
+    "car": "Auto",
+    "charity": "Charita",
+    "children": "Děti",
+    "clothing": "Oblečení",
+    "communication": "Komunikace",
+    "education": "Vzdělávání",
+    "entertainment": "Zábava",
+    "farm": "Hospodářství",
+    "food": "Jídlo",
+    "gifts": "Dárky",
+    "health": "Zdraví",
+    "house": "Dům",
+    "hygiene": "Hygiena",
+    "parents": "Rodiče",
+    "pet": "Mazlíček",
+    "restaurant": "Restaurace",
+    "sport": "Sport",
+    "tech": "Technika",
+    "transportation": "Doprava",
+    "travel": "Cestování",
+    "utilities": "Energie"
+  },
+  "categoryDialog": {
+    "pickTitle": "Vyberte kategorii",
+    "filterTitle": "Filtrovat podle kategorie",
+    "manageTitle": "Správa kategorií",
+    "addTitle": "Přidat kategorii",
+    "editTitle": "Upravit kategorii",
+    "deleteTitle": "Smazat kategorii",
+    "deleteConfirm": "Opravdu chcete smazat <1>{{name}}</1>?",
+    "deleteNote": "Stávající výdaje si název této kategorie ponechají.",
+    "searchPlaceholder": "Hledat kategorie…",
+    "empty": "Zatím žádné kategorie. Přidejte svou první!",
+    "emptyShort": "Zatím žádné kategorie.",
+    "noMatches": "Žádné odpovídající kategorie.",
+    "name": "Název",
+    "nameRequired": "Název je povinný.",
+    "icon": "Ikona",
+    "color": "Barva",
+    "defaultCategoryLabel": "Kategorie",
+    "editAriaLabel": "Upravit {{name}}",
+    "deleteAriaLabel": "Smazat {{name}}",
+    "resetButton": "Obnovit výchozí",
+    "resetTitle": "Obnovit výchozí kategorie?",
+    "resetConfirm": "Tímto se obnoví původní seznam kategorií. Kategorie, které jste přidali, budou odstraněny a všechny přejmenované nebo přebarvené výchozí kategorie budou vráceny do původního stavu. Existující výdaje si zachovají svou historii.",
+    "resetConfirmButton": "Obnovit"
+  },
+  "currencyDialog": {
+    "title": "Vyberte měnu",
+    "searchPlaceholder": "Hledat měny…",
+    "noMatches": "Žádné odpovídající měny."
+  },
+  "fontSizeDialog": {
+    "title": "Velikost písma"
+  },
+  "languageDialog": {
+    "title": "Jazyk"
+  },
+  "dateRange": {
+    "period": "Období",
+    "prevPeriodAria": "Předchozí období",
+    "nextPeriodAria": "Další období",
+    "pickDay": "Vyberte den",
+    "selectStart": "Vyberte počáteční datum",
+    "selectEnd": "Vyberte koncové datum",
+    "year": "Rok {{year}}",
+    "presets": {
+      "range": "Vybrat rozsah",
+      "all": "Celé období",
+      "day": "Vybrat den",
+      "week": "Týden",
+      "today": "Dnes",
+      "year": "Rok",
+      "month": "Měsíc"
+    }
+  },
+  "calculator": {
+    "enterOrUseCalculator": "Zadejte částku nebo použijte kalkulačku",
+    "amount": "Částka",
+    "openCalculator": "Otevřít kalkulačku",
+    "searchCurrency": "Hledat měnu…"
+  }
+}

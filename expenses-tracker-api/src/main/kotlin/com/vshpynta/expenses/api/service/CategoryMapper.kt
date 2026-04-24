@@ -11,9 +11,11 @@ object CategoryMapper {
     fun Category.toDto() = CategoryDto(
         id = categoryId.toString(),
         name = name,
+        templateKey = templateKey,
         icon = icon,
         color = color,
         sortOrder = sortOrder,
-        updatedAt = updatedAt
+        updatedAt = updatedAt,
+        deleted = deleted
     )
 }

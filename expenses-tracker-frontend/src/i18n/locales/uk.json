@@ -1,0 +1,148 @@
+{
+  "appName": "Облік витрат",
+  "nav": {
+    "categories": "Категорії",
+    "transactions": "Транзакції",
+    "overview": "Огляд",
+    "tools": "Інструменти",
+    "sync": "Синхронізація",
+    "settings": "Налаштування",
+    "openMenu": "Відкрити меню"
+  },
+  "settings": {
+    "darkMode": "Темна тема",
+    "toggleDarkMode": "Перемкнути темну тему",
+    "manageCategories": "Керувати категоріями",
+    "currency": "Валюта",
+    "fontSize": "Розмір шрифту",
+    "language": "Мова",
+    "fontScale": {
+      "small": "Малий",
+      "medium": "Середній",
+      "large": "Великий",
+      "xlarge": "Дуже великий"
+    }
+  },
+  "common": {
+    "save": "Зберегти",
+    "saving": "Збереження…",
+    "cancel": "Скасувати",
+    "close": "Закрити",
+    "delete": "Видалити",
+    "deleting": "Видалення…",
+    "confirmDelete": "Підтвердити видалення",
+    "edit": "Редагувати",
+    "add": "Додати",
+    "ok": "Ок",
+    "apply": "Застосувати",
+    "today": "Сьогодні",
+    "search": "Пошук",
+    "loading": "Завантаження…"
+  },
+  "expenses": {
+    "totalSpending": "Усього витрачено",
+    "noExpensesYet": "Витрат ще немає",
+    "tapPlusHint": "Натисніть кнопку +, щоб додати першу витрату.",
+    "noTransactions": "Транзакцій ще немає.",
+    "searchPlaceholder": "Пошук за описом…",
+    "filterByCategory": "Фільтр за категорією",
+    "addAriaLabel": "Додати витрату",
+    "addCategoryAriaLabel": "Додати витрату в категорію {{category}}",
+    "editExpenseAriaLabel": "Редагувати витрату {{description}}",
+    "overviewTitle": "Огляд",
+    "overviewComingSoon": "Огляд бюджету та аналітика скоро зʼявляться."
+  },
+  "expenseDialog": {
+    "date": "Дата",
+    "category": "Категорія",
+    "pickCategory": "Оберіть категорію",
+    "expense": "Витрата",
+    "description": "Опис",
+    "pickCategoryError": "Будь ласка, оберіть категорію.",
+    "positiveAmountError": "Сума має бути додатним числом."
+  },
+  "categoryTemplates": {
+    "beauty": "Краса",
+    "car": "Авто",
+    "charity": "Благодійність",
+    "children": "Діти",
+    "clothing": "Одяг",
+    "communication": "Зв'язок",
+    "education": "Освіта",
+    "entertainment": "Розваги",
+    "farm": "Господарство",
+    "food": "Їжа",
+    "gifts": "Подарунки",
+    "health": "Здоров'я",
+    "house": "Дім",
+    "hygiene": "Гігієна",
+    "parents": "Батьки",
+    "pet": "Тварини",
+    "restaurant": "Ресторан",
+    "sport": "Спорт",
+    "tech": "Техніка",
+    "transportation": "Транспорт",
+    "travel": "Подорожі",
+    "utilities": "Комунальні"
+  },
+  "categoryDialog": {
+    "pickTitle": "Оберіть категорію",
+    "filterTitle": "Фільтр за категорією",
+    "manageTitle": "Керування категоріями",
+    "addTitle": "Додати категорію",
+    "editTitle": "Редагувати категорію",
+    "deleteTitle": "Видалити категорію",
+    "deleteConfirm": "Ви впевнені, що хочете видалити <1>{{name}}</1>?",
+    "deleteNote": "Наявні витрати збережуть назву цієї категорії.",
+    "searchPlaceholder": "Пошук категорій…",
+    "empty": "Категорій ще немає. Додайте першу!",
+    "emptyShort": "Категорій ще немає.",
+    "noMatches": "Немає відповідних категорій.",
+    "name": "Назва",
+    "nameRequired": "Назва обовʼязкова.",
+    "icon": "Іконка",
+    "color": "Колір",
+    "defaultCategoryLabel": "Категорія",
+    "editAriaLabel": "Редагувати {{name}}",
+    "deleteAriaLabel": "Видалити {{name}}",
+    "resetButton": "Скинути до типових",
+    "resetTitle": "Скинути категорії до типових?",
+    "resetConfirm": "Це відновить початковий список категорій. Додані вами категорії будуть видалені, а перейменовані або перефарбовані типові — повернуті до оригіналу. Наявні витрати зберігають свою історію.",
+    "resetConfirmButton": "Скинути"
+  },
+  "currencyDialog": {
+    "title": "Оберіть валюту",
+    "searchPlaceholder": "Пошук валют…",
+    "noMatches": "Немає відповідних валют."
+  },
+  "fontSizeDialog": {
+    "title": "Розмір шрифту"
+  },
+  "languageDialog": {
+    "title": "Мова"
+  },
+  "dateRange": {
+    "period": "Період",
+    "prevPeriodAria": "Попередній період",
+    "nextPeriodAria": "Наступний період",
+    "pickDay": "Оберіть день",
+    "selectStart": "Оберіть початкову дату",
+    "selectEnd": "Оберіть кінцеву дату",
+    "year": "{{year}} рік",
+    "presets": {
+      "range": "Вибрати діапазон",
+      "all": "За весь час",
+      "day": "Вибрати день",
+      "week": "Тиждень",
+      "today": "Сьогодні",
+      "year": "Рік",
+      "month": "Місяць"
+    }
+  },
+  "calculator": {
+    "enterOrUseCalculator": "Введіть суму або скористайтесь калькулятором",
+    "amount": "Сума",
+    "openCalculator": "Відкрити калькулятор",
+    "searchCurrency": "Пошук валюти…"
+  }
+}

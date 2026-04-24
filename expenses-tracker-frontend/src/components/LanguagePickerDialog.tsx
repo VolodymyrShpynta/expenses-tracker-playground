@@ -6,48 +6,48 @@ import Button from '@mui/material/Button';
 import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
+import Typography from '@mui/material/Typography';
 import CheckIcon from '@mui/icons-material/Check';
 import { useTranslation } from 'react-i18next';
-import type { FontScale } from '../theme.ts';
+import { SUPPORTED_LANGUAGES, type LanguageCode } from '../i18n';
+import { resolveLanguage } from '../i18n/locale.ts';
 
-interface FontSizePickerDialogProps {
+interface LanguagePickerDialogProps {
   open: boolean;
   onClose: () => void;
-  value: FontScale;
-  onChange: (scale: FontScale) => void;
 }
 
-const OPTIONS: { scale: FontScale; previewPx: number }[] = [
-  { scale: 'small', previewPx: 13 },
-  { scale: 'medium', previewPx: 15 },
-  { scale: 'large', previewPx: 17 },
-  { scale: 'xlarge', previewPx: 19 },
-];
+export function LanguagePickerDialog({ open, onClose }: LanguagePickerDialogProps) {
+  const { t: translate, i18n } = useTranslation();
 
-export function FontSizePickerDialog({ open, onClose, value, onChange }: FontSizePickerDialogProps) {
-  const { t: translate } = useTranslation();
-  const handleSelect = (scale: FontScale) => {
-    onChange(scale);
+  const active = resolveLanguage(i18n);
+
+  const handleSelect = (code: LanguageCode) => {
+    void i18n.changeLanguage(code);
     onClose();
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>{translate('fontSizeDialog.title')}</DialogTitle>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs" slotProps={{ paper: { sx: { p: 0 } } }}>
+      <DialogTitle>{translate('languageDialog.title')}</DialogTitle>
       <DialogContent sx={{ px: 0, pb: 0 }}>
         <List sx={{ pt: 0 }}>
-          {OPTIONS.map(({ scale, previewPx }) => {
-            const selected = scale === value;
+          {SUPPORTED_LANGUAGES.map((lang) => {
+            const selected = lang.code === active;
             return (
               <ListItemButton
-                key={scale}
-                onClick={() => handleSelect(scale)}
+                key={lang.code}
+                onClick={() => handleSelect(lang.code)}
                 selected={selected}
                 sx={{ px: 3 }}
               >
                 <ListItemText
-                  primary={translate(`settings.fontScale.${scale}`)}
-                  slotProps={{ primary: { sx: { fontSize: previewPx, fontWeight: 500 } } }}
+                  primary={
+                    <Typography variant="body1" fontWeight={selected ? 600 : 500}>
+                      {lang.nativeLabel}
+                    </Typography>
+                  }
+                  secondary={lang.nativeLabel === lang.label ? undefined : lang.label}
                 />
                 {selected && <CheckIcon fontSize="small" color="primary" />}
               </ListItemButton>

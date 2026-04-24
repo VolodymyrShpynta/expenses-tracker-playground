@@ -9,27 +9,30 @@ import { alpha, useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import AddIcon from '@mui/icons-material/Add';
 import IconButton from '@mui/material/IconButton';
+import { useTranslation } from 'react-i18next';
 import { useExpenses } from '../hooks/useExpenses.ts';
 import { useConvertedExpenses } from '../hooks/useExchangeRates.ts';
 import { useCategorySummary } from '../hooks/useCategorySummary.ts';
+import { useCategoryLookup } from '../hooks/useCategoryLookup.ts';
 import { CategoryDonutChart } from '../components/CategoryDonutChart.tsx';
 import { SpendingDateHeader } from '../components/SpendingDateHeader.tsx';
 import { useMainCurrency } from '../hooks/useCurrency.ts';
 import { useDateRange } from '../hooks/useDateRange.ts';
-import { getCategoryConfig } from '../utils/categoryConfig.ts';
 import { formatAmountCompactWithCurrency } from '../utils/format.ts';
 import { AddExpenseDialog } from '../components/AddExpenseDialog.tsx';
 
 export default function CategoriesPage() {
+  const { t: translate } = useTranslation();
   const { expenses, loading, error } = useExpenses();
   const convertedExpenses = useConvertedExpenses(expenses);
   const { dateRange } = useDateRange();
+  const categoryLookup = useCategoryLookup();
   const { categories, grandTotal } = useCategorySummary(convertedExpenses, dateRange);
   const { mainCurrency } = useMainCurrency();
   const navigate = useNavigate();
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
-  const [addCategory, setAddCategory] = useState<string | null>(null);
+  const [addCategoryId, setAddCategoryId] = useState<string | null>(null);
 
   // Categories with spending, sorted descending by amount (from useCategorySummary)
   const activeCategories = useMemo(
@@ -37,8 +40,8 @@ export default function CategoriesPage() {
     [categories],
   );
 
-  const handleCategoryClick = (category: string) => {
-    void navigate(`/transactions?category=${encodeURIComponent(category)}`);
+  const handleCategoryClick = (categoryId: string) => {
+    void navigate(`/transactions?categoryId=${encodeURIComponent(categoryId)}`);
   };
 
   if (loading) {
@@ -69,6 +72,7 @@ export default function CategoriesPage() {
         <CategoryDonutChart
           categories={activeCategories}
           grandTotal={grandTotal}
+          categoryLookup={categoryLookup}
           size={isDesktop ? 320 : 240}
           currency={mainCurrency}
         />
@@ -77,15 +81,15 @@ export default function CategoriesPage() {
       {/* Category legend list — sorted by spending (matches chart) */}
       <Box sx={{ mt: 1, px: 1 }}>
         {activeCategories.map((cat, idx) => {
-          const config = getCategoryConfig(cat.category);
-          const Icon = config.icon;
+          const resolved = categoryLookup.resolve(cat.categoryId);
+          const Icon = resolved.icon;
           const isDark = theme.palette.mode === 'dark';
           const pct = Math.round(cat.percentage);
           return (
-            <Box key={cat.category}>
+            <Box key={cat.categoryId}>
               {idx > 0 && <Divider sx={{ opacity: 0.15 }} />}
               <Box
-                onClick={() => handleCategoryClick(cat.category)}
+                onClick={() => handleCategoryClick(cat.categoryId)}
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
@@ -96,7 +100,7 @@ export default function CategoriesPage() {
                   cursor: 'pointer',
                   transition: 'background-color 0.15s',
                   '&:hover': {
-                    backgroundColor: alpha(config.color, 0.08),
+                    backgroundColor: alpha(resolved.color, 0.08),
                   },
                 }}
               >
@@ -106,23 +110,23 @@ export default function CategoriesPage() {
                     width: 40,
                     height: 40,
                     borderRadius: '50%',
-                    backgroundColor: alpha(config.color, isDark ? 0.25 : 0.15),
+                    backgroundColor: alpha(resolved.color, isDark ? 0.25 : 0.15),
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
                   }}
                 >
-                  <Icon sx={{ fontSize: 22, color: config.color }} />
+                  <Icon sx={{ fontSize: 22, color: resolved.color }} />
                 </Box>
 
                 {/* Name + percentage bar */}
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 1 }}>
                     <Typography variant="body1" fontWeight={500} noWrap>
-                      {cat.category}
+                      {resolved.name}
                     </Typography>
-                    <Typography variant="caption" fontWeight={600} sx={{ color: config.color, flexShrink: 0 }}>
+                    <Typography variant="caption" fontWeight={600} sx={{ color: resolved.color, flexShrink: 0 }}>
                       {pct}%
                     </Typography>
                   </Box>
@@ -132,7 +136,7 @@ export default function CategoriesPage() {
                       width: '100%',
                       height: 6,
                       borderRadius: 3,
-                      backgroundColor: alpha(config.color, isDark ? 0.15 : 0.1),
+                      backgroundColor: alpha(resolved.color, isDark ? 0.15 : 0.1),
                       overflow: 'hidden',
                       mt: 0.5,
                     }}
@@ -142,7 +146,7 @@ export default function CategoriesPage() {
                         width: `${pct}%`,
                         height: '100%',
                         borderRadius: 3,
-                        backgroundColor: config.color,
+                        backgroundColor: resolved.color,
                       }}
                     />
                   </Box>
@@ -152,7 +156,7 @@ export default function CategoriesPage() {
                 <Typography
                   variant="body1"
                   fontWeight={700}
-                  sx={{ color: config.color, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}
+                  sx={{ color: resolved.color, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}
                 >
                   {mainCurrency
                     ? formatAmountCompactWithCurrency(cat.total, mainCurrency)
@@ -162,9 +166,9 @@ export default function CategoriesPage() {
                 {/* Add expense button */}
                 <IconButton
                   size="small"
-                  onClick={(e) => { e.stopPropagation(); setAddCategory(cat.category); }}
+                  onClick={(e) => { e.stopPropagation(); setAddCategoryId(cat.categoryId); }}
                   sx={{ color: 'text.disabled', flexShrink: 0 }}
-                  aria-label={`Add ${cat.category} expense`}
+                  aria-label={translate('expenses.addCategoryAriaLabel', { category: resolved.name })}
                 >
                   <AddIcon fontSize="small" />
                 </IconButton>
@@ -174,12 +178,12 @@ export default function CategoriesPage() {
         })}
       </Box>
 
-      {addCategory !== null && (
+      {addCategoryId !== null && (
         <AddExpenseDialog
-          key={addCategory}
+          key={addCategoryId}
           open
-          onClose={() => setAddCategory(null)}
-          defaultCategory={addCategory}
+          onClose={() => setAddCategoryId(null)}
+          defaultCategoryId={addCategoryId}
         />
       )}
 
@@ -187,10 +191,10 @@ export default function CategoriesPage() {
       {categories.length === 0 && (
         <Box sx={{ textAlign: 'center', mt: 6 }}>
           <Typography variant="h6" color="text.secondary">
-            No expenses yet
+            {translate('expenses.noExpensesYet')}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Tap the + button to add your first expense.
+            {translate('expenses.tapPlusHint')}
           </Typography>
         </Box>
       )}

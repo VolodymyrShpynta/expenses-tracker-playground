@@ -41,12 +41,13 @@ import BrushIcon from '@mui/icons-material/Brush';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import WifiIcon from '@mui/icons-material/Wifi';
 import type { SvgIconComponent } from '@mui/icons-material';
-import type { Category } from '../types/category.ts';
 
-export interface CategoryConfig {
-  icon: SvgIconComponent;
-  color: string; // primary color for the icon circle
-}
+/**
+ * Static catalog of icons and colors used by the category picker UI.
+ *
+ * Resolution of category id → display fields (name, color, icon) is reactive
+ * and lives in `hooks/useCategoryLookup.ts`, backed by the TanStack Query cache.
+ */
 
 /** Available icon definitions for category configuration */
 export interface IconOption {
@@ -124,55 +125,9 @@ export const AVAILABLE_COLORS: string[] = [
   '#673ab7', '#03a9f4', '#8bc34a', '#f44336', '#ffeb3b',
 ];
 
-const DEFAULT_CONFIG: CategoryConfig = {
-  icon: CategoryIcon,
-  color: '#78909c',
-};
-
 /**
- * Runtime cache of backend categories, keyed by lowercase name.
- * Set via setBackendCategories() when categories are fetched.
- */
-let backendCategoryMap: Record<string, CategoryConfig> = {};
-let backendCategoryNames: string[] = [];
-
-/**
- * Update the runtime category config from backend categories.
- * Call this when categories are fetched from the API.
- */
-export function setBackendCategories(categories: Category[]): void {
-  const map: Record<string, CategoryConfig> = {};
-  const names: string[] = [];
-  for (const cat of categories) {
-    const icon = ICON_MAP[cat.icon] ?? CategoryIcon;
-    map[cat.name.toLowerCase()] = { icon, color: cat.color };
-    names.push(cat.name);
-  }
-  backendCategoryMap = map;
-  backendCategoryNames = names;
-}
-
-/**
- * Returns the list of category names from the backend.
- */
-export function getAllCategoryNames(): string[] {
-  return backendCategoryNames;
-}
-
-/**
- * Resolve icon key string to MUI icon component.
+ * Resolve icon key string to MUI icon component, falling back to a neutral default.
  */
 export function getIconByKey(key: string): SvgIconComponent {
   return ICON_MAP[key] ?? CategoryIcon;
-}
-
-export function getCategoryConfig(category: string): CategoryConfig {
-  return backendCategoryMap[category.toLowerCase()] ?? DEFAULT_CONFIG;
-}
-
-/**
- * Returns the accent color for a category (used in donut chart slices).
- */
-export function getCategoryColor(category: string): string {
-  return getCategoryConfig(category).color;
 }

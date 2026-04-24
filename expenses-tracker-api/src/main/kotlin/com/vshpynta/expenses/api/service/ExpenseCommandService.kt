@@ -42,7 +42,7 @@ class ExpenseCommandService(
         description: String,
         amount: Long,
         currency: String,
-        category: String,
+        categoryId: UUID,
         date: String
     ): ExpenseProjection {
         val userId = userContextService.currentUserId()
@@ -54,7 +54,7 @@ class ExpenseCommandService(
             description = description,
             amount = amount,
             currency = currency,
-            category = category,
+            categoryId = categoryId,
             date = date,
             updatedAt = now,
             deleted = false,
@@ -83,7 +83,7 @@ class ExpenseCommandService(
         description: String?,
         amount: Long?,
         currency: String?,
-        category: String?,
+        categoryId: UUID?,
         date: String?
     ): ExpenseProjection? {
         val userId = userContextService.currentUserId()
@@ -95,7 +95,7 @@ class ExpenseCommandService(
             description = description ?: existing.description,
             amount = amount ?: existing.amount,
             currency = currency ?: existing.currency,
-            category = category ?: existing.category,
+            categoryId = categoryId ?: existing.categoryId,
             date = date ?: existing.date,
             updatedAt = now,
             deleted = false,
@@ -128,7 +128,7 @@ class ExpenseCommandService(
             description = existing.description,
             amount = existing.amount,
             currency = existing.currency,
-            category = existing.category,
+            categoryId = existing.categoryId,
             date = existing.date,
             updatedAt = now,
             deleted = true,

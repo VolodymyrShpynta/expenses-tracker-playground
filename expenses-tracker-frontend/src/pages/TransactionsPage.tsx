@@ -15,16 +15,18 @@ import InputAdornment from '@mui/material/InputAdornment';
 import IconButton from '@mui/material/IconButton';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
+import { useTranslation } from 'react-i18next';
 import { CategoryPickerDialog } from '../components/CategoryPickerDialog.tsx';
 import { useExpenses } from '../hooks/useExpenses.ts';
 import { useExchangeRates } from '../hooks/useExchangeRates.ts';
-import { getCategoryConfig } from '../utils/categoryConfig.ts';
+import { useCategoryLookup } from '../hooks/useCategoryLookup.ts';
 import { formatAmountWithCurrency } from '../utils/format.ts';
 import { SpendingDateHeader } from '../components/SpendingDateHeader.tsx';
 import { useDateRange } from '../hooks/useDateRange.ts';
 import type { PresetKey } from '../utils/dateRange.ts';
 import type { Expense } from '../types/expense.ts';
 import { AddExpenseDialog } from '../components/AddExpenseDialog.tsx';
+import { getLocale } from '../i18n/locale.ts';
 
 type GroupBy = 'day' | 'month' | 'year';
 
@@ -45,15 +47,16 @@ function groupKey(date: Date, groupBy: GroupBy): string {
 }
 
 function groupLabel(date: Date, groupBy: GroupBy): string {
+  const locale = getLocale();
   switch (groupBy) {
     case 'day': {
       const day = date.getDate().toString().padStart(2, '0');
-      const weekday = date.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
-      const month = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
+      const weekday = date.toLocaleDateString(locale, { weekday: 'long' }).toUpperCase();
+      const month = date.toLocaleDateString(locale, { month: 'long', year: 'numeric' }).toUpperCase();
       return `${day}  ${weekday}\n${month}`;
     }
     case 'month':
-      return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
+      return date.toLocaleDateString(locale, { month: 'long', year: 'numeric' }).toUpperCase();
     case 'year':
       return `${date.getFullYear()}`;
   }
@@ -67,13 +70,15 @@ interface ExpenseGroup {
 }
 
 export default function TransactionsPage() {
+  const { t: translate, i18n } = useTranslation();
   const { expenses, loading, error } = useExpenses();
   const { convert, mainCurrency } = useExchangeRates();
   const { dateRange, preset } = useDateRange();
+  const categoryLookup = useCategoryLookup();
   const [searchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(() => {
-    const cat = searchParams.get('category');
+    const cat = searchParams.get('categoryId');
     return cat ? new Set([cat]) : new Set();
   });
   const [filterOpen, setFilterOpen] = useState(false);
@@ -81,14 +86,14 @@ export default function TransactionsPage() {
 
   const groupBy = useMemo(() => presetToGroupBy(preset), [preset]);
 
-  const addCategory = useCallback((category: string) => {
-    setSelectedCategories((prev) => new Set(prev).add(category));
+  const addCategory = useCallback((categoryId: string) => {
+    setSelectedCategories((prev) => new Set(prev).add(categoryId));
   }, []);
 
-  const removeCategory = useCallback((category: string) => {
+  const removeCategory = useCallback((categoryId: string) => {
     setSelectedCategories((prev) => {
       const next = new Set(prev);
-      next.delete(category);
+      next.delete(categoryId);
       return next;
     });
   }, []);
@@ -102,21 +107,21 @@ export default function TransactionsPage() {
       .filter((e) => {
         const t = new Date(e.date).getTime();
         if (t < fromTime || t > toTime) return false;
-        if (selectedCategories.size > 0 && !selectedCategories.has(e.category)) return false;
+        if (selectedCategories.size > 0 && !selectedCategories.has(e.categoryId)) return false;
         if (query && !e.description.toLowerCase().includes(query)) return false;
         return true;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [expenses, dateRange, searchQuery, selectedCategories]);
 
-  // Unique categories present in date-filtered expenses (for filter chips)
+  // Unique category ids present in date-filtered expenses (for filter chips)
   const availableCategories = useMemo(() => {
     const fromTime = dateRange.from.getTime();
     const toTime = dateRange.to.getTime();
     const cats = new Set<string>();
     for (const e of expenses) {
       const t = new Date(e.date).getTime();
-      if (t >= fromTime && t <= toTime) cats.add(e.category);
+      if (t >= fromTime && t <= toTime) cats.add(e.categoryId);
     }
     return cats;
   }, [expenses, dateRange]);
@@ -184,14 +189,14 @@ export default function TransactionsPage() {
               setFilterOpen(true);
             }}
             disabled={unselectedCategories.size === 0}
-            aria-label="Filter by category"
+            aria-label={translate('expenses.filterByCategory')}
           >
             <FilterListIcon />
           </IconButton>
           <TextField
             size="small"
             fullWidth
-            placeholder="Search by description…"
+            placeholder={translate('expenses.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             slotProps={{
@@ -209,25 +214,26 @@ export default function TransactionsPage() {
           open={filterOpen}
           onClose={() => setFilterOpen(false)}
           selected=""
-          onSelect={(name) => {
-            addCategory(name);
+          onSelect={(id) => {
+            addCategory(id);
             setFilterOpen(false);
           }}
-          availableNames={unselectedCategories}
-          title="Filter by Category"
+          availableIds={unselectedCategories}
+          title={translate('categoryDialog.filterTitle')}
         />
         {selectedCategories.size > 0 && (
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
-            {Array.from(selectedCategories).map((cat) => {
-              const config = getCategoryConfig(cat);
+            {Array.from(selectedCategories).map((catId) => {
+              const resolved = categoryLookup.resolve(catId);
+              const label = resolved.name || translate('categoryDialog.defaultCategoryLabel');
               return (
                 <Chip
-                  key={cat}
-                  label={cat}
+                  key={catId}
+                  label={label}
                   size="small"
-                  onDelete={() => removeCategory(cat)}
-                  onClick={() => removeCategory(cat)}
-                  sx={{ bgcolor: config.color, color: '#fff' }}
+                  onDelete={() => removeCategory(catId)}
+                  onClick={() => removeCategory(catId)}
+                  sx={{ bgcolor: resolved.color, color: '#fff' }}
                 />
               );
             })}
@@ -237,7 +243,7 @@ export default function TransactionsPage() {
 
       {sorted.length === 0 && (
         <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 4 }}>
-          No transactions yet.
+          {translate('expenses.noTransactions')}
         </Typography>
       )}
 
@@ -268,15 +274,14 @@ export default function TransactionsPage() {
                   </Typography>
                   <Box>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3 }}>
-                      {group.date.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()}
+                      {group.date.toLocaleDateString(i18n.language, { weekday: 'long' }).toUpperCase()}
                     </Typography>
                     <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ lineHeight: 1.3 }}>
-                      {group.date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase()}
+                      {group.date.toLocaleDateString(i18n.language, { month: 'long', year: 'numeric' }).toUpperCase()}
                     </Typography>
                   </Box>
                 </Box>
-              ) : (
-                <Typography variant="subtitle2" color="text.secondary" fontWeight={600}>
+              ) : (                <Typography variant="subtitle2" color="text.secondary" fontWeight={600}>
                   {group.label}
                 </Typography>
               )}
@@ -288,9 +293,10 @@ export default function TransactionsPage() {
             {/* Group transactions */}
             <List disablePadding>
               {group.expenses.map((expense) => {
-                const config = getCategoryConfig(expense.category);
-                const Icon = config.icon;
-                const dateStr = new Date(expense.date).toLocaleDateString('en-US', {
+                const resolved = categoryLookup.resolve(expense.categoryId);
+                const Icon = resolved.icon;
+                const categoryName = resolved.name;
+                const dateStr = new Date(expense.date).toLocaleDateString(i18n.language, {
                   day: 'numeric',
                   month: 'short',
                 });
@@ -300,17 +306,17 @@ export default function TransactionsPage() {
                     <ListItemButton
                       sx={{ px: 1 }}
                       onClick={() => setEditingExpense(expense)}
-                      aria-label={`Edit expense ${expense.description}`}
+                      aria-label={translate('expenses.editExpenseAriaLabel', { description: expense.description })}
                     >
                       <ListItemIcon sx={{ minWidth: 40 }}>
-                        <Icon sx={{ color: config.color }} />
+                        <Icon sx={{ color: resolved.color }} />
                       </ListItemIcon>
                       <ListItemText
                         primary={expense.description}
                         slotProps={{ secondary: { component: 'div' } }}
                         secondary={
                           <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.3 }}>
-                            <Chip label={expense.category} size="small" variant="outlined" />
+                            <Chip label={categoryName || translate('categoryDialog.defaultCategoryLabel')} size="small" variant="outlined" />
                             <Typography variant="caption" color="text.secondary" component="span">
                               {dateStr}
                             </Typography>

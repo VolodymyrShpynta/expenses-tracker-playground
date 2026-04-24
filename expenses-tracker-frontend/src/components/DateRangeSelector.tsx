@@ -25,6 +25,7 @@ import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import type { TransitionProps } from '@mui/material/transitions';
 import { forwardRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PresetKey } from '../utils/dateRange.ts';
 import {
   buildWeekRange,
@@ -75,6 +76,7 @@ type PickerMode = 'none' | 'day' | 'range';
 type RangeStep = 'from' | 'to';
 
 export function DateRangeSelector({ value, onChange, onPresetChange }: DateRangeSelectorProps) {
+  const { t: translate, i18n } = useTranslation();
   const [activePreset, setActivePresetState] = useState<PresetKey>(readStoredPreset);
   const setActivePreset = useCallback((key: PresetKey) => {
     setActivePresetState(key);
@@ -104,11 +106,11 @@ export function DateRangeSelector({ value, onChange, onPresetChange }: DateRange
       all: '',
       day: '',
       week: `${formatShort(week.from)} – ${formatShort(week.to)}`,
-      today: now.toLocaleDateString('en-US', { month: 'long', day: 'numeric' }),
-      year: `Year ${now.getFullYear()}`,
-      month: now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+      today: now.toLocaleDateString(i18n.language, { month: 'long', day: 'numeric' }),
+      year: translate('dateRange.year', { year: now.getFullYear() }),
+      month: now.toLocaleDateString(i18n.language, { month: 'long', year: 'numeric' }),
     };
-  }, [value]);
+  }, [value, i18n.language, translate]);
 
   // Shift logic for arrow navigation
   const shiftAmount = useCallback((): { unit: 'day' | 'month' | 'year'; count: number } => {
@@ -221,20 +223,20 @@ export function DateRangeSelector({ value, onChange, onPresetChange }: DateRange
     icon: React.ReactNode;
     fullWidth?: boolean;
   }> = [
-    { key: 'range', label: 'Select range', icon: <MoreHorizIcon />, fullWidth: true },
-    { key: 'all', label: 'All time', icon: <AllInclusiveIcon /> },
-    { key: 'day', label: 'Select day', icon: <CalendarMonthIcon /> },
-    { key: 'week', label: 'Week', icon: <Filter7Icon /> },
-    { key: 'today', label: 'Today', icon: <TodayIcon /> },
-    { key: 'year', label: 'Year', icon: <Looks6Icon sx={{ transform: 'scaleX(-1)' }} /> },
-    { key: 'month', label: 'Month', icon: <DateRangeIcon /> },
+    { key: 'range', label: translate('dateRange.presets.range'), icon: <MoreHorizIcon />, fullWidth: true },
+    { key: 'all', label: translate('dateRange.presets.all'), icon: <AllInclusiveIcon /> },
+    { key: 'day', label: translate('dateRange.presets.day'), icon: <CalendarMonthIcon /> },
+    { key: 'week', label: translate('dateRange.presets.week'), icon: <Filter7Icon /> },
+    { key: 'today', label: translate('dateRange.presets.today'), icon: <TodayIcon /> },
+    { key: 'year', label: translate('dateRange.presets.year'), icon: <Looks6Icon sx={{ transform: 'scaleX(-1)' }} /> },
+    { key: 'month', label: translate('dateRange.presets.month'), icon: <DateRangeIcon /> },
   ];
 
   // Shared content for both Popover and Dialog
   const panelContent = (
     <>
       <Typography variant="h6" fontWeight={600} textAlign="center" sx={{ mb: 2 }}>
-        Period
+        {translate('dateRange.period')}
       </Typography>
 
       <Grid container spacing={1}>
@@ -276,7 +278,7 @@ export function DateRangeSelector({ value, onChange, onPresetChange }: DateRange
     <>
       <Box sx={{ pt: 2 }}>
         <Typography variant="h6" fontWeight={600} textAlign="center">
-          {rangeStep === 'from' ? 'Select start date' : 'Select end date'}
+          {rangeStep === 'from' ? translate('dateRange.selectStart') : translate('dateRange.selectEnd')}
         </Typography>
         <Box
           sx={{
@@ -323,13 +325,13 @@ export function DateRangeSelector({ value, onChange, onPresetChange }: DateRange
         sx={calendarSx}
       />
       <DialogActions>
-        <Button onClick={closePicker}>Cancel</Button>
+        <Button onClick={closePicker}>{translate('common.cancel')}</Button>
         <Button
           variant="contained"
           onClick={handleRangeConfirm}
           disabled={!pendingFrom || !pendingTo}
         >
-          Apply
+          {translate('common.apply')}
         </Button>
       </DialogActions>
     </>
@@ -347,7 +349,7 @@ export function DateRangeSelector({ value, onChange, onPresetChange }: DateRange
         }}
       >
         {canShift && (
-          <IconButton onClick={() => shift(-1)} aria-label="Previous period">
+          <IconButton onClick={() => shift(-1)} aria-label={translate('dateRange.prevPeriodAria')}>
             <ChevronLeftIcon fontSize="medium" />
           </IconButton>
         )}
@@ -366,7 +368,7 @@ export function DateRangeSelector({ value, onChange, onPresetChange }: DateRange
           {formatRange(value)}
         </Typography>
         {canShift && (
-          <IconButton onClick={() => shift(1)} aria-label="Next period">
+          <IconButton onClick={() => shift(1)} aria-label={translate('dateRange.nextPeriodAria')}>
             <ChevronRightIcon fontSize="medium" />
           </IconButton>
         )}
@@ -424,12 +426,12 @@ export function DateRangeSelector({ value, onChange, onPresetChange }: DateRange
           sx={{ '& .MuiDialog-paper': { width: '100%', maxWidth: '100%', m: 0, px: 2 } }}
         >
           <Typography variant="h6" fontWeight={600} textAlign="center" sx={{ pt: 2 }}>
-            Pick a day
+            {translate('dateRange.pickDay')}
           </Typography>
           <DateCalendar value={pendingDay} onChange={handleDayPick} sx={calendarSx} />
           <DialogActions>
-            <Button onClick={closePicker}>Cancel</Button>
-            <Button variant="contained" onClick={handleDayConfirm}>Ok</Button>
+            <Button onClick={closePicker}>{translate('common.cancel')}</Button>
+            <Button variant="contained" onClick={handleDayConfirm}>{translate('common.ok')}</Button>
           </DialogActions>
         </Dialog>
       ) : (
@@ -442,12 +444,12 @@ export function DateRangeSelector({ value, onChange, onPresetChange }: DateRange
           slotProps={{ paper: { sx: { px: 2, width: 420, maxWidth: '100%' } } }}
         >
           <Typography variant="h6" fontWeight={600} textAlign="center" sx={{ pt: 2 }}>
-            Pick a day
+            {translate('dateRange.pickDay')}
           </Typography>
           <DateCalendar value={pendingDay} onChange={handleDayPick} sx={calendarSx} />
           <DialogActions>
-            <Button onClick={closePicker}>Cancel</Button>
-            <Button variant="contained" onClick={handleDayConfirm}>Ok</Button>
+            <Button onClick={closePicker}>{translate('common.cancel')}</Button>
+            <Button variant="contained" onClick={handleDayConfirm}>{translate('common.ok')}</Button>
           </DialogActions>
         </Popover>
       )}

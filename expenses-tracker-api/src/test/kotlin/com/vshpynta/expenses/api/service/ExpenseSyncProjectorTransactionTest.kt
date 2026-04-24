@@ -400,7 +400,7 @@ class ExpenseSyncProjectorTransactionTest {
         eventType: String,
         amount: Long,
         description: String = "Test expense",
-        category: String = "Test",
+        categoryId: UUID = UUID.randomUUID(),
         deleted: Boolean = false
     ): EventEntry {
         val timestamp = timestampCounter++
@@ -413,7 +413,7 @@ class ExpenseSyncProjectorTransactionTest {
                 id = expenseId,
                 description = description,
                 amount = amount,
-                category = category,
+                categoryId = categoryId,
                 date = DEFAULT_DATE,
                 updatedAt = timestamp,
                 deleted = deleted,

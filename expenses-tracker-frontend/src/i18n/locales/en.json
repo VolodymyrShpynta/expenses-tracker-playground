@@ -1,0 +1,148 @@
+{
+  "appName": "Expenses Tracker",
+  "nav": {
+    "categories": "Categories",
+    "transactions": "Transactions",
+    "overview": "Overview",
+    "tools": "Tools",
+    "sync": "Sync",
+    "settings": "Settings",
+    "openMenu": "Open menu"
+  },
+  "settings": {
+    "darkMode": "Dark Mode",
+    "toggleDarkMode": "Toggle dark mode",
+    "manageCategories": "Manage Categories",
+    "currency": "Currency",
+    "fontSize": "Font Size",
+    "language": "Language",
+    "fontScale": {
+      "small": "Small",
+      "medium": "Medium",
+      "large": "Large",
+      "xlarge": "Extra Large"
+    }
+  },
+  "common": {
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "close": "Close",
+    "delete": "Delete",
+    "deleting": "Deleting…",
+    "confirmDelete": "Confirm delete",
+    "edit": "Edit",
+    "add": "Add",
+    "ok": "Ok",
+    "apply": "Apply",
+    "today": "Today",
+    "search": "Search",
+    "loading": "Loading…"
+  },
+  "expenses": {
+    "totalSpending": "Total spending",
+    "noExpensesYet": "No expenses yet",
+    "tapPlusHint": "Tap the + button to add your first expense.",
+    "noTransactions": "No transactions yet.",
+    "searchPlaceholder": "Search by description…",
+    "filterByCategory": "Filter by category",
+    "addAriaLabel": "Add expense",
+    "addCategoryAriaLabel": "Add {{category}} expense",
+    "editExpenseAriaLabel": "Edit expense {{description}}",
+    "overviewTitle": "Overview",
+    "overviewComingSoon": "Budget overview and analytics coming soon."
+  },
+  "expenseDialog": {
+    "date": "Date",
+    "category": "Category",
+    "pickCategory": "Pick category",
+    "expense": "Expense",
+    "description": "Description",
+    "pickCategoryError": "Please pick a category.",
+    "positiveAmountError": "Amount must be a positive number."
+  },
+  "categoryTemplates": {
+    "beauty": "Beauty",
+    "car": "Car",
+    "charity": "Charity",
+    "children": "Children",
+    "clothing": "Clothing",
+    "communication": "Communication",
+    "education": "Education",
+    "entertainment": "Entertainment",
+    "farm": "Farm",
+    "food": "Food",
+    "gifts": "Gifts",
+    "health": "Health",
+    "house": "House",
+    "hygiene": "Hygiene",
+    "parents": "Parents",
+    "pet": "Pet",
+    "restaurant": "Restaurant",
+    "sport": "Sport",
+    "tech": "Tech",
+    "transportation": "Transportation",
+    "travel": "Travel",
+    "utilities": "Utilities"
+  },
+  "categoryDialog": {
+    "pickTitle": "Pick Category",
+    "filterTitle": "Filter by Category",
+    "manageTitle": "Manage Categories",
+    "addTitle": "Add Category",
+    "editTitle": "Edit Category",
+    "deleteTitle": "Delete Category",
+    "deleteConfirm": "Are you sure you want to delete <1>{{name}}</1>?",
+    "deleteNote": "Existing expenses in this category will keep their category name.",
+    "searchPlaceholder": "Search categories…",
+    "empty": "No categories yet. Add your first category!",
+    "emptyShort": "No categories yet.",
+    "noMatches": "No matching categories.",
+    "name": "Name",
+    "nameRequired": "Name is required.",
+    "icon": "Icon",
+    "color": "Color",
+    "defaultCategoryLabel": "Category",
+    "editAriaLabel": "Edit {{name}}",
+    "deleteAriaLabel": "Delete {{name}}",
+    "resetButton": "Reset to defaults",
+    "resetTitle": "Reset categories to defaults?",
+    "resetConfirm": "This will restore the original category list. Any categories you added will be removed, and any renamed or recolored defaults will be reverted. Existing expenses keep their history.",
+    "resetConfirmButton": "Reset"
+  },
+  "currencyDialog": {
+    "title": "Select Currency",
+    "searchPlaceholder": "Search currencies…",
+    "noMatches": "No matching currencies."
+  },
+  "fontSizeDialog": {
+    "title": "Font Size"
+  },
+  "languageDialog": {
+    "title": "Language"
+  },
+  "dateRange": {
+    "period": "Period",
+    "prevPeriodAria": "Previous period",
+    "nextPeriodAria": "Next period",
+    "pickDay": "Pick a day",
+    "selectStart": "Select start date",
+    "selectEnd": "Select end date",
+    "year": "Year {{year}}",
+    "presets": {
+      "range": "Select range",
+      "all": "All time",
+      "day": "Select day",
+      "week": "Week",
+      "today": "Today",
+      "year": "Year",
+      "month": "Month"
+    }
+  },
+  "calculator": {
+    "enterOrUseCalculator": "Enter amount or use calculator",
+    "amount": "Amount",
+    "openCalculator": "Open calculator",
+    "searchCurrency": "Search currency…"
+  }
+}

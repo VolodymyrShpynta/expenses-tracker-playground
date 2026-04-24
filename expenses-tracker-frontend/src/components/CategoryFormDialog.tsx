@@ -12,6 +12,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
 import CheckIcon from '@mui/icons-material/Check';
+import { useTranslation } from 'react-i18next';
 import { AVAILABLE_ICONS, AVAILABLE_COLORS, getIconByKey } from '../utils/categoryConfig.ts';
 import type { IconOption } from '../utils/categoryConfig.ts';
 import { FIELD_LIMITS } from '../utils/fieldLimits.ts';
@@ -27,7 +28,7 @@ function IconPicker({ value, onChange, selectedColor }: IconPickerProps) {
   const isDark = theme.palette.mode === 'dark';
 
   return (
-    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxHeight: 180, overflow: 'auto' }}>
+    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
       {AVAILABLE_ICONS.map((opt: IconOption) => {
         const Icon = opt.icon;
         const selected = value === opt.key;
@@ -112,6 +113,7 @@ export function CategoryFormDialog({
   error = null,
   nameDisabled = false,
 }: CategoryFormDialogProps) {
+  const { t: translate } = useTranslation();
   const [name, setName] = useState(initialName);
   const [icon, setIcon] = useState(initialIcon);
   const [color, setColor] = useState(initialColor);
@@ -123,7 +125,7 @@ export function CategoryFormDialog({
   const handleSave = () => {
     setValidationError(null);
     if (!name.trim()) {
-      setValidationError('Name is required.');
+      setValidationError(translate('categoryDialog.nameRequired'));
       return;
     }
     onSave({ name: name.trim(), icon, color });
@@ -151,12 +153,12 @@ export function CategoryFormDialog({
             {createElement(previewIcon, { sx: { fontSize: 28, color } })}
           </Box>
           <Typography variant="h6" fontWeight={600}>
-            {name || 'Category'}
+            {name || translate('categoryDialog.defaultCategoryLabel')}
           </Typography>
         </Box>
 
         <TextField
-          label="Name"
+          label={translate('categoryDialog.name')}
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
@@ -168,20 +170,20 @@ export function CategoryFormDialog({
         />
 
         <Box>
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>Icon</Typography>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>{translate('categoryDialog.icon')}</Typography>
           <IconPicker value={icon} onChange={setIcon} selectedColor={color} />
         </Box>
 
         <Box>
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>Color</Typography>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>{translate('categoryDialog.color')}</Typography>
           <ColorPicker value={color} onChange={setColor} />
         </Box>
       </DialogContent>
 
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} disabled={saving}>Cancel</Button>
+        <Button onClick={onClose} disabled={saving}>{translate('common.cancel')}</Button>
         <Button variant="contained" onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving…' : 'Save'}
+          {saving ? translate('common.saving') : translate('common.save')}
         </Button>
       </DialogActions>
     </Dialog>

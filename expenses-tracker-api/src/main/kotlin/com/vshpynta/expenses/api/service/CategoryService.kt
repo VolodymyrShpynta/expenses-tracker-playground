@@ -29,10 +29,17 @@ class CategoryService(
         private val logger = LoggerFactory.getLogger(CategoryService::class.java)
     }
 
+    /**
+     * Returns the user's full category catalog (active + soft-deleted),
+     * triggering first-time default seeding when the user has no rows yet.
+     * Callers that need active-only data filter on `deleted` client-side;
+     * `useCategoryLookup` consumes the full catalog so historic expenses
+     * keep their display fields after their category is archived.
+     */
     fun findAllCategories(): Flow<Category> = flow {
         val userId = userContextService.currentUserId()
         ensureCategoriesExist(userId)
-        emitAll(categoryRepository.findAllActiveByUserId(userId))
+        emitAll(categoryRepository.findAllByUserId(userId))
     }
 
     suspend fun findCategoryById(id: UUID): Category? {
@@ -71,8 +78,18 @@ class CategoryService(
     ): Category? {
         val userId = userContextService.currentUserId()
         val existing = categoryRepository.findByIdAndUserId(id, userId) ?: return null
+        // For templated rows, an explicit blank name clears the override and
+        // restores the translated template label on the frontend. For custom
+        // (non-templated) rows we ignore blanks to keep the CHECK constraint
+        // happy — the frontend's form-level validation already rejects them.
+        val nextName = when {
+            name == null -> existing.name
+            name.isBlank() && existing.templateKey != null -> null
+            name.isBlank() -> existing.name
+            else -> name
+        }
         val updated = existing.copy(
-            name = name ?: existing.name,
+            name = nextName,
             icon = icon ?: existing.icon,
             color = color ?: existing.color,
             sortOrder = sortOrder ?: existing.sortOrder,
@@ -90,6 +107,33 @@ class CategoryService(
             logger.info("Deleted category: {}", id)
         }
         return rows > 0
+    }
+
+    /**
+     * Factory-reset the user's category list:
+     * 1. Soft-delete every active **custom** category (`template_key IS NULL`).
+     *    Existing expenses keep their `category_id` reference and render with
+     *    the orphan placeholder.
+     * 2. Re-apply the default templates: renames/recolors are reverted,
+     *    soft-deleted templates are resurrected.
+     *
+     * Wrapped in a single `@Transactional` boundary so a partial failure
+     * (e.g. DB error halfway through the upsert loop) leaves no orphan state.
+     * The inner `@Transactional` on [DefaultCategorySeeder.seedDefaultCategories]
+     * joins this transaction (propagation REQUIRED), keeping a single rollback
+     * point.
+     *
+     * Used by Settings → Manage Categories → "Reset to defaults".
+     */
+    @Transactional
+    suspend fun resetToDefaults() {
+        val userId = userContextService.currentUserId()
+        val now = timeProvider.currentTimeMillis()
+        val wiped = categoryRepository.softDeleteCustomCategories(userId, now)
+        if (wiped > 0) {
+            logger.info("Soft-deleted {} custom categories for user: {}", wiped, userId)
+        }
+        defaultCategorySeeder.seedDefaultCategories(userId)
     }
 
     private suspend fun ensureCategoriesExist(userId: String) {

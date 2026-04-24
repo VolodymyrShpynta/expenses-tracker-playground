@@ -13,6 +13,7 @@ import ListItemText from '@mui/material/ListItemText';
 import Typography from '@mui/material/Typography';
 import SearchIcon from '@mui/icons-material/Search';
 import CheckIcon from '@mui/icons-material/Check';
+import { useTranslation } from 'react-i18next';
 import { SUPPORTED_CURRENCIES } from '../api/exchange.ts';
 import type { CurrencyCode } from '../api/exchange.ts';
 
@@ -24,6 +25,7 @@ interface CurrencyPickerDialogProps {
 }
 
 export function CurrencyPickerDialog({ open, onClose, value, onChange }: CurrencyPickerDialogProps) {
+  const { t: translate } = useTranslation();
   const [search, setSearch] = useState('');
 
   const filtered = useMemo(() => {
@@ -41,12 +43,12 @@ export function CurrencyPickerDialog({ open, onClose, value, onChange }: Currenc
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs" slotProps={{ paper: { sx: { p: 0 } } }}>
-      <DialogTitle>Select Currency</DialogTitle>
+      <DialogTitle>{translate('currencyDialog.title')}</DialogTitle>
 
       <DialogContent sx={{ px: 0, pb: 0 }}>
         <Box sx={{ px: 2, pb: 1 }}>
           <TextField
-            placeholder="Search currencies…"
+            placeholder={translate('currencyDialog.searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             size="small"
@@ -92,7 +94,7 @@ export function CurrencyPickerDialog({ open, onClose, value, onChange }: Currenc
           {filtered.length === 0 && (
             <Box sx={{ textAlign: 'center', py: 3 }}>
               <Typography variant="body2" color="text.secondary">
-                No matching currencies.
+                {translate('currencyDialog.noMatches')}
               </Typography>
             </Box>
           )}
@@ -100,7 +102,7 @@ export function CurrencyPickerDialog({ open, onClose, value, onChange }: Currenc
       </DialogContent>
 
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose}>Close</Button>
+        <Button onClick={onClose}>{translate('common.close')}</Button>
       </DialogActions>
     </Dialog>
   );

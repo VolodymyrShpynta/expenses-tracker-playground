@@ -21,7 +21,13 @@ import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
 
 /**
- * REST controller for user-configurable expense categories
+ * REST controller for user-configurable expense categories.
+ *
+ * Templated default categories are language-agnostic on the wire: the DTO
+ * carries `templateKey` and a nullable `name`. The frontend renders the
+ * translated label via the `categoryTemplates.<templateKey>` i18n namespace
+ * whenever `name` is null, so language switches do not require a server
+ * round-trip or a "reset to defaults".
  */
 @RestController
 @RequestMapping("/api/categories")
@@ -65,16 +71,36 @@ class CategoriesController(
         }
     }
 
+    /**
+     * Returns the user's full category catalog including soft-deleted
+     * rows. Soft-deleted rows are needed by the frontend's lookup so
+     * historic expenses keep resolving their original name/icon/color
+     * after the category is archived (e.g. by "reset to defaults");
+     * active-only views (pickers, management dialog, aggregations) filter
+     * `deleted = false` client-side from the same payload.
+     */
     @GetMapping
-    fun getAllCategories(): Flow<CategoryDto> {
-        return categoryService.findAllCategories()
-            .map { it.toDto() }
-    }
+    fun getAllCategories(): Flow<CategoryDto> =
+        categoryService.findAllCategories().map { it.toDto() }
 
     @GetMapping("/{id}")
     suspend fun getCategoryById(@PathVariable id: String): CategoryDto {
         val category = categoryService.findCategoryById(UUID.fromString(id))
             ?: throw NoSuchElementException("Category not found: $id")
         return category.toDto()
+    }
+
+    /**
+     * Factory-reset the user's category list:
+     * - User-created custom categories (`templateKey == null`) are
+     *   soft-deleted; their historic expenses keep their `category_id`
+     *   and resolve through the lookup against the soft-deleted row.
+     * - Templated rows are reset to canonical name/icon/color/sort_order
+     *   from the template, and soft-deleted templates are resurrected.
+     */
+    @PostMapping("/reset")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    suspend fun resetCategories() {
+        categoryService.resetToDefaults()
     }
 }

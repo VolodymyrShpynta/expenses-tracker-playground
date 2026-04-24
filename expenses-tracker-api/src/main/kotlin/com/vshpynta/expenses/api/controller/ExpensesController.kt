@@ -42,7 +42,7 @@ class ExpensesController(
             description = request.description,
             amount = request.amount,
             currency = request.currency,
-            category = request.category,
+            categoryId = request.categoryId!!, // @NotNull guarantees non-null past validation
             date = request.date
         )
         return expense.toDto()
@@ -58,7 +58,7 @@ class ExpensesController(
             description = request.description,
             amount = request.amount,
             currency = request.currency,
-            category = request.category,
+            categoryId = request.categoryId,
             date = request.date
         ) ?: throw NoSuchElementException("Expense not found: $id")
 

@@ -24,6 +24,7 @@ import org.springframework.r2dbc.core.DatabaseClient
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+import java.util.UUID
 
 /**
  * Tests for transaction atomicity in ExpenseCommandService
@@ -74,7 +75,7 @@ class ExpenseCommandServiceTransactionTest {
         // Given: Clean database (done in @BeforeEach)
 
         // When: Creating an expense
-        val createdExpense = createExpense("Grocery shopping", 5000, "Food")
+        val createdExpense = createExpense("Grocery shopping", 5000, UUID.randomUUID())
 
         // Then: Both event and projection should be created together
         val events = getAllEvents()
@@ -91,7 +92,7 @@ class ExpenseCommandServiceTransactionTest {
     @Test
     fun `should update both operation and expense atomically`(): Unit = runBlocking {
         // Given: An existing expense
-        val originalExpense = createExpense("Original description", 1000, "Food")
+        val originalExpense = createExpense("Original description", 1000, UUID.randomUUID())
 
         // When: Updating the expense
         val updatedExpense = commandService.updateExpense(
@@ -99,7 +100,7 @@ class ExpenseCommandServiceTransactionTest {
             description = "Updated description",
             amount = 2000,
             currency = null,
-            category = null,
+            categoryId = null,
             date = null
         )
 
@@ -119,7 +120,7 @@ class ExpenseCommandServiceTransactionTest {
     @Test
     fun `should soft-delete expense projection and create event atomically`(): Unit = runBlocking {
         // Given: An existing expense
-        val existingExpense = createExpense("Expense to delete", 500, "Test")
+        val existingExpense = createExpense("Expense to delete", 500, UUID.randomUUID())
 
         // When: Deleting the expense
         val deleteResult = commandService.deleteExpense(existingExpense.id)
@@ -140,15 +141,15 @@ class ExpenseCommandServiceTransactionTest {
         // Given: Clean database (done in @BeforeEach)
 
         // When: Performing a series of operations: create 2, update 1, delete 1
-        val expense1 = createExpense("Expense 1", 1000, "Food")
-        val expense2 = createExpense("Expense 2", 2000, "Transport")
+        val expense1 = createExpense("Expense 1", 1000, UUID.randomUUID())
+        val expense2 = createExpense("Expense 2", 2000, UUID.randomUUID())
 
         commandService.updateExpense(
             id = expense1.id,
             description = "Expense 1 Updated",
             amount = 1500,
             currency = null,
-            category = null,
+            categoryId = null,
             date = null
         )
 
@@ -180,8 +181,8 @@ class ExpenseCommandServiceTransactionTest {
     @Test
     fun `failed transaction should not affect successful transactions`(): Unit = runBlocking {
         // Given: Two existing expenses
-        val expense1 = createExpense("Expense 1", 1000, "Food")
-        val expense2 = createExpense("Expense 2", 2000, "Transport")
+        val expense1 = createExpense("Expense 1", 1000, UUID.randomUUID())
+        val expense2 = createExpense("Expense 2", 2000, UUID.randomUUID())
 
         // When: Updating expense1 successfully, then failing to update expense2
         val successfulUpdate = commandService.updateExpense(
@@ -189,7 +190,7 @@ class ExpenseCommandServiceTransactionTest {
             description = "Successfully updated",
             amount = 1500,
             currency = null,
-            category = null,
+            categoryId = null,
             date = null
         )
 
@@ -201,7 +202,7 @@ class ExpenseCommandServiceTransactionTest {
                     description = "a".repeat(10000), // Exceeds database column limit
                     amount = 2500,
                     currency = null,
-                    category = null,
+                    categoryId = null,
                     date = null
                 )
             }
@@ -259,7 +260,7 @@ class ExpenseCommandServiceTransactionTest {
                     description = "Test expense",
                     amount = 1000,
                     currency = "USD",
-                    category = "Food",
+                    categoryId = UUID.randomUUID(),
                     date = "2026-01-20T10:00:00Z"
                 )
             }
@@ -286,12 +287,12 @@ class ExpenseCommandServiceTransactionTest {
     private suspend fun createExpense(
         description: String,
         amount: Long,
-        category: String
+        categoryId: UUID
     ) = commandService.createExpense(
         description = description,
         amount = amount,
         currency = "USD",
-        category = category,
+        categoryId = categoryId,
         date = "2026-01-20T10:00:00Z"
     )
 
@@ -299,5 +300,5 @@ class ExpenseCommandServiceTransactionTest {
 
     private suspend fun getAllProjections() = projectionRepository.findAll().toList()
 
-    private suspend fun getProjectionById(id: java.util.UUID) = projectionRepository.findByIdAndUserId(id, TEST_USER_ID)
+    private suspend fun getProjectionById(id: UUID) = projectionRepository.findByIdAndUserId(id, TEST_USER_ID)
 }

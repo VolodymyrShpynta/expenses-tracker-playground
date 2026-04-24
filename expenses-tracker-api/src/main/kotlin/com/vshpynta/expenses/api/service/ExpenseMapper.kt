@@ -22,7 +22,7 @@ object ExpenseMapper {
         description = description,
         amount = amount ?: 0L,
         currency = currency ?: "USD",
-        category = category,
+        categoryId = categoryId,
         date = date,
         updatedAt = updatedAt,
         deleted = deleted ?: false,
@@ -50,7 +50,7 @@ object ExpenseMapper {
         description = description ?: "",
         amount = amount,
         currency = currency,
-        category = category ?: "",
+        categoryId = categoryId?.toString() ?: "",
         date = date ?: "",
         updatedAt = updatedAt,
         deleted = deleted

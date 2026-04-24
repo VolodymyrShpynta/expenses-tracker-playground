@@ -534,11 +534,12 @@ class ExpenseProjectionRepositoryTest {
     @Test
     fun `should handle all expense fields correctly`(): Unit = runBlocking {
         // Given: An expense with all fields set
+        val categoryId = UUID.randomUUID()
         val expense = ExpenseProjection(
             id = UUID.randomUUID(),
             description = "Test Expense",
             amount = 12345L,
-            category = "Food",
+            categoryId = categoryId,
             date = "2026-01-20T10:00:00Z",
             updatedAt = 1000L,
             deleted = false,
@@ -553,7 +554,7 @@ class ExpenseProjectionRepositoryTest {
         assertThat(saved).isNotNull()
         assertThat(saved?.description).isEqualTo("Test Expense")
         assertThat(saved?.amount).isEqualTo(12345L)
-        assertThat(saved?.category).isEqualTo("Food")
+        assertThat(saved?.categoryId).isEqualTo(categoryId)
         assertThat(saved?.date).isEqualTo("2026-01-20T10:00:00Z")
         assertThat(saved?.updatedAt).isEqualTo(1000L)
         assertThat(saved!!.deleted).isFalse()
@@ -566,14 +567,14 @@ class ExpenseProjectionRepositoryTest {
         description: String,
         amount: Long,
         updatedAt: Long,
-        category: String = "Test",
+        categoryId: UUID = UUID.randomUUID(),
         deleted: Boolean = false
     ): ExpenseProjection {
         return ExpenseProjection(
             id = id,
             description = description,
             amount = amount,
-            category = category,
+            categoryId = categoryId,
             date = Instant.now().toString(),
             updatedAt = updatedAt,
             deleted = deleted,

@@ -99,7 +99,7 @@ class ExpenseEventSyncServiceTest {
             description = "Test Expense",
             amount = 10000,
             currency = "USD",
-            category = "Food",
+            categoryId = UUID.randomUUID(),
             date = "2026-01-20T10:00:00Z"
         )
 
@@ -387,7 +387,7 @@ class ExpenseEventSyncServiceTest {
                 id = expenseId,
                 description = description,
                 amount = amount,
-                category = "Test",
+                categoryId = UUID.randomUUID(),
                 date = "2026-01-20T10:00:00Z",
                 updatedAt = updatedAt ?: timestamp,
                 deleted = deleted,

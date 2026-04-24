@@ -8,7 +8,7 @@ export interface Expense {
   description: string;
   amount: number; // cents (in the currency the user entered)
   currency: string; // ISO 4217 currency code
-  category: string;
+  categoryId: string; // UUID reference to a Category
   date: string; // ISO 8601
   updatedAt: number;
   deleted: boolean;
@@ -18,7 +18,7 @@ export interface CreateExpenseRequest {
   description: string;
   amount: number; // cents
   currency: string; // ISO 4217 currency code
-  category: string;
+  categoryId: string;
   date: string; // ISO 8601
 }
 
@@ -26,7 +26,7 @@ export interface UpdateExpenseRequest {
   description?: string;
   amount?: number;
   currency?: string;
-  category?: string;
+  categoryId?: string;
   date?: string;
 }
 
@@ -34,9 +34,14 @@ export interface SyncResult {
   message: string;
 }
 
-/** Derived summary for a single category */
+/**
+ * Per-category aggregate derived from a list of expenses.
+ * Display fields (name, color, icon) are resolved at render time via
+ * `useCategoryLookup`, so renaming/recoloring a category propagates without
+ * touching this shape.
+ */
 export interface CategorySummary {
-  category: string;
+  categoryId: string;
   total: number; // cents
   count: number;
   percentage: number; // 0-100

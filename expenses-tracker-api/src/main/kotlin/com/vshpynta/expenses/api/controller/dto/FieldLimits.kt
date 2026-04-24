@@ -9,9 +9,9 @@ import com.vshpynta.expenses.api.controller.dto.FieldLimits.CATEGORY_COLOR_LENGT
  * These are intentionally smaller than the DB column widths to reserve headroom
  * and produce clean 400 responses at the API boundary instead of DB constraint errors.
  *
- *  DB column widths (see V1/V2/V3 migrations):
+ *  DB column widths (see V1 migration):
  *    - expense_projections.description  VARCHAR(500)
- *    - expense_projections.category     VARCHAR(100)
+ *    - expense_projections.category_id  VARCHAR(36)
  *    - expense_projections.date         VARCHAR(50)
  *    - expense_projections.currency     VARCHAR(3)
  *    - categories.name                  VARCHAR(100)
@@ -20,7 +20,7 @@ import com.vshpynta.expenses.api.controller.dto.FieldLimits.CATEGORY_COLOR_LENGT
  */
 object FieldLimits {
     const val EXPENSE_DESCRIPTION_MAX = 200
-    const val EXPENSE_CATEGORY_MAX = 50
+
     const val EXPENSE_DATE_MAX = 50
     const val CURRENCY_CODE_LENGTH = 3
 

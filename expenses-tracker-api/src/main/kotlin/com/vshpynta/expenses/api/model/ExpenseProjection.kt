@@ -25,8 +25,8 @@ data class ExpenseProjection(
     @Column("currency")
     val currency: String = "USD",  // ISO 4217 currency code
 
-    @Column("category")
-    val category: String? = null,
+    @Column("category_id")
+    val categoryId: UUID? = null,
 
     @Column("date")
     val date: String? = null,  // ISO 8601 timestamp as string

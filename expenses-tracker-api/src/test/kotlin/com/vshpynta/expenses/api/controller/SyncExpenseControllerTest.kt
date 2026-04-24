@@ -16,6 +16,7 @@ import org.springframework.http.MediaType
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.test.web.reactive.server.expectBody
+import java.util.UUID
 
 /**
  * Integration tests for sync controller endpoints
@@ -28,13 +29,16 @@ class SyncExpenseControllerTest {
     @Autowired
     private lateinit var webTestClient: WebTestClient
 
+    private fun newCategoryId(): UUID = UUID.randomUUID()
+
     @Test
     fun `should create expense`() {
+        val categoryId = newCategoryId()
         val request = CreateExpenseRequest(
             description = "Coffee",
             amount = 450,  // $4.50 in cents
             currency = "USD",
-            category = "Food",
+            categoryId = categoryId,
             date = "2026-01-20T10:00:00Z"
         )
 
@@ -49,7 +53,7 @@ class SyncExpenseControllerTest {
                 val expense = response.responseBody!!
                 assertThat(expense.description).isEqualTo("Coffee")
                 assertThat(expense.amount).isEqualTo(450L)
-                assertThat(expense.category).isEqualTo("Food")
+                assertThat(expense.categoryId).isEqualTo(categoryId.toString())
                 assertThat(expense.deleted).isFalse()
             }
     }
@@ -61,7 +65,7 @@ class SyncExpenseControllerTest {
             description = "Lunch",
             amount = 1200,
             currency = "USD",
-            category = "Food",
+            categoryId = newCategoryId(),
             date = "2026-01-20T12:00:00Z"
         )
 
@@ -92,7 +96,7 @@ class SyncExpenseControllerTest {
             description = "Original",
             amount = 1000,
             currency = "USD",
-            category = "Food",
+            categoryId = newCategoryId(),
             date = "2026-01-20T10:00:00Z"
         )
 
@@ -134,7 +138,7 @@ class SyncExpenseControllerTest {
             description = "To Delete",
             amount = 500,
             currency = "USD",
-            category = "Test",
+            categoryId = newCategoryId(),
             date = "2026-01-20T10:00:00Z"
         )
 
@@ -168,7 +172,7 @@ class SyncExpenseControllerTest {
             description = "Sync Test",
             amount = 1500,
             currency = "USD",
-            category = "Test",
+            categoryId = newCategoryId(),
             date = "2026-01-20T10:00:00Z"
         )
 
@@ -206,7 +210,7 @@ class SyncExpenseControllerTest {
             description = tooLong,
             amount = 450,
             currency = "USD",
-            category = "Food",
+            categoryId = newCategoryId(),
             date = "2026-01-20T10:00:00Z"
         )
 
@@ -227,13 +231,13 @@ class SyncExpenseControllerTest {
     }
 
     @Test
-    fun `should return 400 when create payload has blank category and non-positive amount`() {
+    fun `should return 400 when create payload has null categoryId and non-positive amount`() {
         // Given: two violations at once
         val request = CreateExpenseRequest(
             description = "Coffee",
             amount = 0,            // violates @Positive
             currency = "USD",
-            category = "  ",       // violates @NotBlank
+            categoryId = null,     // violates @NotNull
             date = "2026-01-20T10:00:00Z"
         )
 
@@ -247,11 +251,11 @@ class SyncExpenseControllerTest {
             .expectBody()
             .jsonPath("$.error").isEqualTo("Validation failed")
             .jsonPath("$.details.amount").exists()
-            .jsonPath("$.details.category").exists()
+            .jsonPath("$.details.categoryId").exists()
     }
 
     @Test
-    fun `should return 400 when update payload violates size constraint`() {
+    fun `should return 400 when update payload has malformed categoryId UUID`() {
         // Given: an existing expense
         val created = webTestClient.post()
             .uri("/api/expenses")
@@ -261,7 +265,7 @@ class SyncExpenseControllerTest {
                     description = "Original",
                     amount = 1000,
                     currency = "USD",
-                    category = "Food",
+                    categoryId = newCategoryId(),
                     date = "2026-01-20T10:00:00Z"
                 )
             )
@@ -271,19 +275,22 @@ class SyncExpenseControllerTest {
             .returnResult()
             .responseBody!!
 
-        // When: update with oversized category
-        val oversize = "y".repeat(FieldLimits.EXPENSE_CATEGORY_MAX + 1)
-        val update = UpdateExpenseRequest(category = oversize)
+        // When: update with malformed UUID — Jackson rejects at decoding time.
+        // Use a Map so Jackson serializes a real JSON body; constructing the typed DTO
+        // would not allow a non-UUID value here.
+        val malformedBody = mapOf("categoryId" to "not-a-uuid")
 
-        // Then
+        // Then: GlobalExceptionHandler should map the ServerWebInputException
+        // (raised by Jackson when it can't decode the UUID) to a structured 400.
         webTestClient.put()
             .uri("/api/expenses/${created.id}")
             .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(update)
+            .bodyValue(malformedBody)
             .exchange()
             .expectStatus().isBadRequest
             .expectBody()
-            .jsonPath("$.error").isEqualTo("Validation failed")
-            .jsonPath("$.details.category").exists()
+            .jsonPath("$.error").value<String> { message ->
+                assertThat(message).isNotBlank()
+            }
     }
 }

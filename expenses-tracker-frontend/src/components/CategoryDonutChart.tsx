@@ -3,12 +3,13 @@ import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 import { PieChart } from '@mui/x-charts/PieChart';
 import type { CategorySummary } from '../types/expense.ts';
-import { getCategoryColor } from '../utils/categoryConfig.ts';
+import type { CategoryLookup } from '../hooks/useCategoryLookup.ts';
 import { formatAmountCompactWithCurrency, formatAmountWithCurrency } from '../utils/format.ts';
 
 interface CategoryDonutChartProps {
   categories: CategorySummary[];
   grandTotal: number;
+  categoryLookup: CategoryLookup;
   /** Chart outer size in px (defaults to 260) */
   size?: number;
   currency?: string;
@@ -17,6 +18,7 @@ interface CategoryDonutChartProps {
 export function CategoryDonutChart({
   categories,
   grandTotal,
+  categoryLookup,
   size = 260,
   currency,
 }: CategoryDonutChartProps) {
@@ -26,12 +28,15 @@ export function CategoryDonutChart({
 
   // Show a single grey ring when there are no expenses
   const data = filtered.length > 0
-    ? filtered.map((c) => ({
-        id: c.category,
-        value: c.total / 100,
-        label: c.category,
-        color: getCategoryColor(c.category),
-      }))
+    ? filtered.map((c) => {
+        const resolved = categoryLookup.resolve(c.categoryId);
+        return {
+          id: c.categoryId,
+          value: c.total / 100,
+          label: resolved.name,
+          color: resolved.color,
+        };
+      })
     : [{ id: 'empty', value: 1, label: 'No expenses', color: theme.palette.action.disabledBackground }];
 
   return (

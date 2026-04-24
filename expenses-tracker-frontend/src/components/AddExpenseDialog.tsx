@@ -30,6 +30,7 @@
  * On success, state is reset via `resetAndClose`.
  */
 import { forwardRef, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -47,7 +48,7 @@ import type { Dayjs } from 'dayjs';
 import type { TransitionProps } from '@mui/material/transitions';
 import { CurrencyPickerDialog } from './CurrencyPickerDialog.tsx';
 import { CategoryPickerDialog } from './CategoryPickerDialog.tsx';
-import { getCategoryConfig } from '../utils/categoryConfig.ts';
+import { useCategoryLookup } from '../hooks/useCategoryLookup.ts';
 import { AmountKeypad } from './amount-keypad/AmountKeypad.tsx';
 import { useCalculator } from './amount-keypad/useCalculator.ts';
 import type { CurrencyCode } from '../api/exchange.ts';
@@ -123,16 +124,17 @@ interface AddExpenseDialogProps {
   onClose: () => void;
   /** Pre-fill the dialog with an existing expense; switches to edit/delete mode. */
   expense?: Expense;
-  /** Category pre-selected in create mode. Ignored when `expense` is provided. */
-  defaultCategory?: string;
+  /** Category id pre-selected in create mode. Ignored when `expense` is provided. */
+  defaultCategoryId?: string;
 }
 
 export function AddExpenseDialog({
   open,
   onClose,
   expense,
-  defaultCategory = '',
+  defaultCategoryId = '',
 }: AddExpenseDialogProps) {
+  const { t: translate } = useTranslation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const createExpense = useCreateExpense();
@@ -145,7 +147,8 @@ export function AddExpenseDialog({
   const [currency, setCurrency] = useState<CurrencyCode>(
     (expense?.currency as CurrencyCode) ?? mainCurrency,
   );
-  const [category, setCategory] = useState(expense?.category ?? defaultCategory);
+  const [categoryId, setCategoryId] = useState(expense?.categoryId ?? defaultCategoryId);
+  const categoryLookup = useCategoryLookup();
   const [date, setDate] = useState<Dayjs>(expense ? dayjs(expense.date) : dayjs());
   const [validationError, setValidationError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -162,7 +165,7 @@ export function AddExpenseDialog({
   const resetAndClose = () => {
     if (!isEdit) {
       setDescription('');
-      setCategory('');
+      setCategoryId('');
       setCurrency(mainCurrency);
       setDate(dayjs());
       dispatch({ type: 'reset' });
@@ -174,20 +177,21 @@ export function AddExpenseDialog({
 
   const handleSave = () => {
     setValidationError(null);
-    if (!category) {
-      setValidationError('Please pick a category.');
+    if (!categoryId) {
+      setValidationError(translate('expenseDialog.pickCategoryError'));
       return;
     }
     if (amount === null || amount <= 0) {
-      setValidationError('Amount must be a positive number.');
+      setValidationError(translate('expenseDialog.positiveAmountError'));
       return;
     }
 
+    const categoryName = categoryLookup.resolve(categoryId).name;
     const req = {
-      description: description.trim() || category,
+      description: description.trim() || categoryName,
       amount: Math.round(amount * 100),
       currency,
-      category,
+      categoryId,
       date: date.toISOString(),
     };
 
@@ -217,8 +221,9 @@ export function AddExpenseDialog({
     ?? (updateExpense.error instanceof Error ? updateExpense.error.message : null)
     ?? (deleteExpense.error instanceof Error ? deleteExpense.error.message : null);
 
-  const categoryConfig = category ? getCategoryConfig(category) : null;
-  const categoryColor = categoryConfig?.color ?? theme.palette.secondary.main;
+  const resolvedCategory = categoryId ? categoryLookup.resolve(categoryId) : null;
+  const categoryDisplayName = resolvedCategory?.name ?? '';
+  const categoryColor = resolvedCategory?.color ?? theme.palette.secondary.main;
   const accountColor = theme.palette.primary.main;
   const opColor = theme.palette.success.main;
   const isSameDay = date.isSame(dayjs(), 'day');
@@ -237,15 +242,15 @@ export function AddExpenseDialog({
       <Box sx={{ display: 'flex', gap: 1 }}>
         <Box ref={dateTileRef} sx={{ flex: 1, display: 'flex' }}>
           <Tile
-            label="Date"
-            value={isSameDay ? 'Today' : date.format('MMM D')}
+            label={translate('expenseDialog.date')}
+            value={isSameDay ? translate('common.today') : date.format('MMM D')}
             color={accountColor}
             onClick={(el) => setDateAnchor(el)}
           />
         </Box>
         <Tile
-          label="Category"
-          value={category || 'Pick category'}
+          label={translate('expenseDialog.category')}
+          value={categoryDisplayName || translate('expenseDialog.pickCategory')}
           color={categoryColor}
           onClick={() => setCategoryPickerOpen(true)}
         />
@@ -255,7 +260,7 @@ export function AddExpenseDialog({
 
       <Box sx={{ textAlign: 'center' }}>
         <Typography variant="caption" sx={{ color: opColor, letterSpacing: 0.5 }}>
-          Expense
+          {translate('expenseDialog.expense')}
         </Typography>
         <Typography
           component="div"
@@ -279,7 +284,7 @@ export function AddExpenseDialog({
       </Box>
 
       <TextField
-        placeholder="Description"
+        placeholder={translate('expenseDialog.description')}
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         fullWidth
@@ -322,7 +327,7 @@ export function AddExpenseDialog({
               onClick={handleDelete}
               disabled={isPending}
             >
-              {deleteExpense.isPending ? 'Deleting\u2026' : 'Confirm delete'}
+              {deleteExpense.isPending ? translate('common.deleting') : translate('common.confirmDelete')}
             </Button>
           ) : (
             <Button
@@ -331,17 +336,17 @@ export function AddExpenseDialog({
               onClick={() => setConfirmDelete(true)}
               disabled={isPending}
             >
-              Delete
+              {translate('common.delete')}
             </Button>
           )}
           <Typography variant="body2" color="text.secondary">
-            {isSameDay ? 'Today, ' : ''}
+            {isSameDay ? `${translate('common.today')}, ` : ''}
             {date.format('MMM D, YYYY')}
           </Typography>
         </Box>
       ) : (
         <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-          {isSameDay ? 'Today, ' : ''}
+          {isSameDay ? `${translate('common.today')}, ` : ''}
           {date.format('MMM D, YYYY')}
         </Typography>
       )}
@@ -414,9 +419,9 @@ export function AddExpenseDialog({
       <CategoryPickerDialog
         open={categoryPickerOpen}
         onClose={() => setCategoryPickerOpen(false)}
-        selected={category}
-        onSelect={(name) => {
-          setCategory(name);
+        selected={categoryId}
+        onSelect={(id) => {
+          setCategoryId(id);
           setCategoryPickerOpen(false);
         }}
       />

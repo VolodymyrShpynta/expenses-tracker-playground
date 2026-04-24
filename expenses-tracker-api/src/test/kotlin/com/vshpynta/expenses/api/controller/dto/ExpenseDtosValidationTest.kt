@@ -1,7 +1,6 @@
 package com.vshpynta.expenses.api.controller.dto
 
 import com.vshpynta.expenses.api.controller.dto.FieldLimits.CURRENCY_CODE_LENGTH
-import com.vshpynta.expenses.api.controller.dto.FieldLimits.EXPENSE_CATEGORY_MAX
 import com.vshpynta.expenses.api.controller.dto.FieldLimits.EXPENSE_DATE_MAX
 import com.vshpynta.expenses.api.controller.dto.FieldLimits.EXPENSE_DESCRIPTION_MAX
 import jakarta.validation.Validation
@@ -11,6 +10,7 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import java.util.UUID
 
 /**
  * Bean Validation tests for [CreateExpenseRequest] and [UpdateExpenseRequest].
@@ -126,29 +126,13 @@ class ExpenseDtosValidationTest {
     }
 
     @Test
-    fun `create - should accept category of exactly max length`() {
-        val request = validCreate(category = "x".repeat(EXPENSE_CATEGORY_MAX))
-        assertThat(validator.validate(request)).isEmpty()
-    }
-
-    @Test
-    fun `create - should reject category longer than max`() {
-        val request = validCreate(category = "x".repeat(EXPENSE_CATEGORY_MAX + 1))
-
-        val violations = validator.validate(request)
-
-        assertThat(violations).hasSize(1)
-        assertThat(violations.single().propertyPath.toString()).isEqualTo("category")
-    }
-
-    @Test
-    fun `create - should reject blank category`() {
-        val request = validCreate(category = "")
+    fun `create - should reject null categoryId`() {
+        val request = validCreate(categoryId = null)
 
         val violations = validator.validate(request)
 
         assertThat(violations).anyMatch {
-            it.propertyPath.toString() == "category" && it.message == "Category is required"
+            it.propertyPath.toString() == "categoryId" && it.message == "Category id is required"
         }
     }
 
@@ -227,16 +211,6 @@ class ExpenseDtosValidationTest {
     }
 
     @Test
-    fun `update - should reject category longer than max`() {
-        val request = UpdateExpenseRequest(category = "x".repeat(EXPENSE_CATEGORY_MAX + 1))
-
-        val violations = validator.validate(request)
-
-        assertThat(violations).hasSize(1)
-        assertThat(violations.single().propertyPath.toString()).isEqualTo("category")
-    }
-
-    @Test
     fun `update - should reject date longer than max`() {
         val request = UpdateExpenseRequest(date = "x".repeat(EXPENSE_DATE_MAX + 1))
 
@@ -261,7 +235,7 @@ class ExpenseDtosValidationTest {
         description: String = "Coffee",
         amount: Long = 450,
         currency: String = "USD",
-        category: String = "Food",
+        categoryId: UUID? = UUID.fromString("00000000-0000-4000-8000-000000000001"),
         date: String = "2026-01-20T10:00:00Z",
-    ) = CreateExpenseRequest(description, amount, currency, category, date)
+    ) = CreateExpenseRequest(description, amount, currency, categoryId, date)
 }

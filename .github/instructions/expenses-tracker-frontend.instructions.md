@@ -198,6 +198,13 @@ expenses-tracker-frontend/src/
 │   └── OverviewPage.tsx
 ├── types/                # Shared TypeScript interfaces
 │   └── expense.ts
+├── i18n/                 # Localization bootstrap + locale resources
+│   ├── index.ts                # i18next init, language detection, dayjs sync
+│   ├── locale.ts               # getLocale() helper for non-React utils
+│   └── locales/
+│       ├── en.json
+│       ├── uk.json
+│       └── cs.json
 └── utils/                # Pure utility functions (no React imports)
     ├── format.ts
     └── categoryConfig.ts
@@ -211,6 +218,8 @@ expenses-tracker-frontend/src/
 - **`types/`** — shared TypeScript interfaces. Keep API response types here.
 - **`utils/`** — pure functions (formatting, validation, config maps). No React imports.
 - **`api/`** — typed `fetch` wrappers. One file per backend resource.
+- **`i18n/`** — `i18next` bootstrap, locale JSON resources, and `getLocale()` helper
+  for non-React utilities (see [Localization](#localization--i18next--react-i18next)).
 
 ---
 
@@ -406,3 +415,100 @@ Use the data-router pattern with `<Outlet />` for nested layouts:
 - Mobile: `<BottomNavigation>` + hamburger `<Drawer>`.
 - Desktop: permanent `<Drawer>` sidebar.
 - Use MUI `<Grid>` with responsive `size` prop for category card grids.
+
+## Localization — `i18next` + `react-i18next`
+
+All user-facing strings go through `i18next`. Bootstrap lives in
+[`src/i18n/index.ts`](../../expenses-tracker-frontend/src/i18n/index.ts);
+locale resources are JSON files under `src/i18n/locales/`. The active language
+is detected from `localStorage` first, then from `navigator.language`, and
+persisted under the `expenses-tracker-language` key.
+
+### Rules
+
+- **Never hard-code a user-facing string** — always call `translate('some.key')`.
+- **Rename `t` to `translate`** at destructure for readability (the single-letter
+  `t` does not match this project's self-documenting-name convention):
+
+  ```tsx
+  // ✅ Self-documenting
+  const { t: translate } = useTranslation();
+  <Button>{translate('common.save')}</Button>
+
+  // ❌ Idiomatic for the library, but not for this codebase
+  const { t } = useTranslation();
+  <Button>{t('common.save')}</Button>
+  ```
+
+  Leave `i18n` as-is — it is the library instance, not a callable.
+
+- **Do not call `useTranslation()` twice** in the same component. Destructure
+  everything you need in one call: `const { t: translate, i18n } = useTranslation();`.
+
+- **Keep keys hierarchical and co-located by domain**:
+  `categoryDialog.deleteTitle`, `expenses.noTransactions`, `common.cancel`.
+  Reuse `common.*` for generic verbs (`save`, `cancel`, `close`, `delete`).
+
+- **Translation keys are statically typed** via i18next module augmentation in
+  [`src/i18n/i18next.d.ts`](../../expenses-tracker-frontend/src/i18n/i18next.d.ts).
+  Typos like `translate('categoryDailog.title')` become **TypeScript compile
+  errors**, and editor autocomplete shows every available key. When you store
+  a key in a variable for indirection (e.g. `NavItem.labelKey` in `Layout.tsx`),
+  type the field as `ParseKeys` from `i18next`, not `string`, so the
+  type-safety is preserved at the call site:
+
+  ```tsx
+  import type { ParseKeys } from 'i18next';
+  interface NavItem { labelKey: ParseKeys; /* … */ }
+  ```
+
+- **Interpolate, never concatenate**:
+
+  ```tsx
+  // ✅
+  translate('expenses.addCategoryAriaLabel', { category: cat.name })
+  // Locale JSON: "addCategoryAriaLabel": "Add {{category}} expense"
+
+  // ❌
+  `Add ${cat.name} expense`
+  ```
+
+- **Rich text with inline tags** — use `<Trans>` from `react-i18next`, never
+  build JSX strings by concatenation. See `ManageCategoriesDialog` for an
+  example with `<strong>`.
+
+- **Add a key to every locale file.** Missing translations fall back to English,
+  which hides regressions. Keep `en.json`, `uk.json`, `cs.json` in sync.
+
+### Formatting dates, numbers, currencies
+
+- **In React components**, read the active language through
+  `useTranslation()` and pass it to `Intl` APIs. For the bare language code
+  (no region subtag), use the `resolveLanguage(i18n)` helper from
+  [`src/i18n/locale.ts`](../../expenses-tracker-frontend/src/i18n/locale.ts):
+
+  ```tsx
+  const { i18n } = useTranslation();
+  // Full BCP 47 tag (e.g. "en-US") — pass straight to Intl APIs:
+  date.toLocaleDateString(i18n.language, { month: 'long', year: 'numeric' });
+  // Bare language code (e.g. "en") — for picker maps keyed by language only:
+  const lang = resolveLanguage(i18n);
+  ```
+
+- **In pure utilities under `utils/`** (no React imports allowed), read the
+  locale through `getLocale()` from `src/i18n/locale.ts`. See `utils/format.ts`
+  and `utils/dateRange.ts` — they must use `getLocale()`, never a hard-coded
+  `'en-US'`.
+
+- **Dayjs** — `src/i18n/index.ts` calls `dayjs.locale(lng)` on every language
+  change, so `dayjs().format('MMM D, YYYY')` automatically produces localized
+  month and weekday names. Do not call `dayjs.locale()` anywhere else.
+
+### Adding a new language
+
+1. Add a JSON file under `src/i18n/locales/<code>.json` with the same key
+   structure as `en.json`.
+2. Add the entry (code + native label + English label) to `SUPPORTED_LANGUAGES`
+   in `src/i18n/index.ts` and import the matching `dayjs/locale/<code>` side
+   effect.
+3. The `LanguagePickerDialog` in Settings will pick it up automatically.

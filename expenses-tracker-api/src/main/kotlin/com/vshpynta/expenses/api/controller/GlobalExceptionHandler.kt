@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.bind.support.WebExchangeBindException
+import org.springframework.web.server.ServerWebInputException
 
 /**
  * Global exception handler for REST controllers
@@ -36,6 +37,19 @@ class GlobalExceptionHandler {
         return ResponseEntity
             .status(HttpStatus.BAD_REQUEST)
             .body(mapOf("error" to "Validation failed", "details" to errors))
+    }
+
+    /**
+     * Malformed request body (e.g. invalid UUID, wrong type, malformed JSON).
+     * Spring wraps Jackson decoding failures as [ServerWebInputException]; treat
+     * them uniformly as client errors.
+     */
+    @ExceptionHandler(ServerWebInputException::class)
+    fun handleMalformedInput(ex: ServerWebInputException): ResponseEntity<Map<String, String>> {
+        logger.debug("Malformed request: {}", ex.reason)
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(mapOf("error" to (ex.reason ?: "Malformed request body")))
     }
 
     @ExceptionHandler(IllegalArgumentException::class)
