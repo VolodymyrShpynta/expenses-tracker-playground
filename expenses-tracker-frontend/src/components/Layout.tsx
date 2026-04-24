@@ -29,13 +29,15 @@ import SyncIcon from '@mui/icons-material/Sync';
 import CategoryIcon from '@mui/icons-material/Category';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import LogoutIcon from '@mui/icons-material/Logout';
-import { ColorModeToggleContext } from '../theme.ts';
+import FormatSizeIcon from '@mui/icons-material/FormatSize';
+import { ColorModeToggleContext, FontScaleContext, FONT_SCALE_LABEL } from '../theme.ts';
 import { useMainCurrency } from '../hooks/useCurrency.ts';
 import { useAuth } from '../context/AuthContext.tsx';
 import type { CurrencyCode } from '../api/exchange.ts';
 import { AddExpenseDialog } from './AddExpenseDialog.tsx';
 import { ManageCategoriesDialog } from './ManageCategoriesDialog.tsx';
 import { CurrencyPickerDialog } from './CurrencyPickerDialog.tsx';
+import { FontSizePickerDialog } from './FontSizePickerDialog.tsx';
 
 const DRAWER_WIDTH = 280;
 
@@ -63,6 +65,7 @@ export function Layout() {
   const location = useLocation();
 
   const { toggleColorMode } = useContext(ColorModeToggleContext);
+  const { fontScale, setFontScale } = useContext(FontScaleContext);
   const isDark = theme.palette.mode === 'dark';
   const { mainCurrency, setMainCurrency } = useMainCurrency();
   const { username, logout } = useAuth();
@@ -73,6 +76,7 @@ export function Layout() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false);
   const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
+  const [fontSizePickerOpen, setFontSizePickerOpen] = useState(false);
 
   const activeIdx = navIndex(location.pathname);
 
@@ -204,6 +208,14 @@ export function Layout() {
             <ListItemText primary="Currency" />
             <Chip label={mainCurrency} size="small" variant="outlined" sx={{ ml: 1 }} />
           </ListItemButton>
+          <ListItemButton
+            onClick={() => { setFontSizePickerOpen(true); setDrawerOpen(false); }}
+            sx={navItemSx(false)}
+          >
+            <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}><FormatSizeIcon fontSize="small" /></ListItemIcon>
+            <ListItemText primary="Font Size" />
+            <Chip label={FONT_SCALE_LABEL[fontScale]} size="small" variant="outlined" sx={{ ml: 1 }} />
+          </ListItemButton>
         </Box>
       </Collapse>
 
@@ -328,6 +340,15 @@ export function Layout() {
           onClose={() => setCurrencyPickerOpen(false)}
           value={mainCurrency}
           onChange={(code) => setMainCurrency(code as CurrencyCode)}
+        />
+      )}
+
+      {fontSizePickerOpen && (
+        <FontSizePickerDialog
+          open
+          onClose={() => setFontSizePickerOpen(false)}
+          value={fontScale}
+          onChange={setFontScale}
         />
       )}
 

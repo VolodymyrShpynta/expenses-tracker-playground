@@ -1,6 +1,6 @@
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { Route, Routes } from 'react-router-dom';
-import { ColorModeToggleContext, useColorTheme } from './theme.ts';
+import { ColorModeToggleContext, FontScaleContext, useColorTheme } from './theme.ts';
 import { CurrencyContext, useCurrencyProvider } from './hooks/useCurrency.ts';
 import { DateRangeContext, useDateRangeProvider } from './hooks/useDateRange.ts';
 import { useSyncCategoryConfig } from './hooks/useSyncCategoryConfig.ts';
@@ -24,20 +24,22 @@ function AppContent() {
 }
 
 function App() {
-  const [theme, colorModeToggle] = useColorTheme();
+  const [theme, colorModeToggle, fontScaleControl] = useColorTheme();
   const currencyValue = useCurrencyProvider();
   const dateRangeValue = useDateRangeProvider();
 
   return (
     <ColorModeToggleContext.Provider value={colorModeToggle}>
-      <CurrencyContext.Provider value={currencyValue}>
-        <DateRangeContext.Provider value={dateRangeValue}>
-          <ThemeProvider theme={theme}>
-            <CssBaseline />
-            <AppContent />
-          </ThemeProvider>
-        </DateRangeContext.Provider>
-      </CurrencyContext.Provider>
+      <FontScaleContext.Provider value={fontScaleControl}>
+        <CurrencyContext.Provider value={currencyValue}>
+          <DateRangeContext.Provider value={dateRangeValue}>
+            <ThemeProvider theme={theme}>
+              <CssBaseline />
+              <AppContent />
+            </ThemeProvider>
+          </DateRangeContext.Provider>
+        </CurrencyContext.Provider>
+      </FontScaleContext.Provider>
     </ColorModeToggleContext.Provider>
   );
 }

@@ -78,8 +78,31 @@ interface ColorModeToggle {
   toggleColorMode: () => void;
 }
 
-export const themeSettings = (mode: PaletteMode) => {
+export type FontScale = 'small' | 'medium' | 'large' | 'xlarge';
+
+interface FontScaleControl {
+  fontScale: FontScale;
+  setFontScale: (scale: FontScale) => void;
+}
+
+// Multipliers applied to base typography sizes. 'medium' preserves existing UI.
+const FONT_SCALE_FACTOR: Record<FontScale, number> = {
+  small: 0.875,
+  medium: 1,
+  large: 1.125,
+  xlarge: 1.25,
+};
+
+export const FONT_SCALE_LABEL: Record<FontScale, string> = {
+  small: 'Small',
+  medium: 'Medium',
+  large: 'Large',
+  xlarge: 'Extra Large',
+};
+
+export const themeSettings = (mode: PaletteMode, fontScale: FontScale = 'medium') => {
   const isDark = mode === 'dark';
+  const f = FONT_SCALE_FACTOR[fontScale];
 
   const paperBg = isDark ? navy[400] : blueAccent[50];
   const scrollbarTrack = isDark ? navy[500] : grey[100];
@@ -113,13 +136,13 @@ export const themeSettings = (mode: PaletteMode) => {
     },
     typography: {
       fontFamily: 'Roboto, sans-serif',
-      fontSize: 15,
-      h1: { fontSize: 48, fontWeight: 700 },
-      h2: { fontSize: 38, fontWeight: 700 },
-      h3: { fontSize: 28, fontWeight: 600 },
-      h4: { fontSize: 24, fontWeight: 600 },
-      h5: { fontSize: 20, fontWeight: 500 },
-      h6: { fontSize: 17, fontWeight: 500 },
+      fontSize: 15 * f,
+      h1: { fontSize: 48 * f, fontWeight: 700 },
+      h2: { fontSize: 38 * f, fontWeight: 700 },
+      h3: { fontSize: 28 * f, fontWeight: 600 },
+      h4: { fontSize: 24 * f, fontWeight: 600 },
+      h5: { fontSize: 20 * f, fontWeight: 500 },
+      h6: { fontSize: 17 * f, fontWeight: 500 },
     },
     components: {
       MuiCssBaseline: {
@@ -204,7 +227,12 @@ export const ColorModeToggleContext = createContext<ColorModeToggle>({
   toggleColorMode: () => {},
 });
 
-export const useColorTheme = (): [Theme, ColorModeToggle] => {
+export const FontScaleContext = createContext<FontScaleControl>({
+  fontScale: 'medium',
+  setFontScale: () => {},
+});
+
+export const useColorTheme = (): [Theme, ColorModeToggle, FontScaleControl] => {
   const [mode, setMode] = useState<PaletteMode>(() => {
     try {
       const stored = localStorage.getItem('themeMode');
@@ -213,6 +241,18 @@ export const useColorTheme = (): [Theme, ColorModeToggle] => {
       console.warn('Failed to read theme mode from localStorage', e);
       return 'dark';
     }
+  });
+
+  const [fontScale, setFontScaleState] = useState<FontScale>(() => {
+    try {
+      const stored = localStorage.getItem('fontScale');
+      if (stored === 'small' || stored === 'medium' || stored === 'large' || stored === 'xlarge') {
+        return stored;
+      }
+    } catch (e) {
+      console.warn('Failed to read font scale from localStorage', e);
+    }
+    return 'medium';
   });
 
   const colorModeToggle = useMemo<ColorModeToggle>(
@@ -229,6 +269,19 @@ export const useColorTheme = (): [Theme, ColorModeToggle] => {
     [],
   );
 
-  const theme = useMemo(() => createTheme(themeSettings(mode)), [mode]);
-  return [theme, colorModeToggle];
+  const fontScaleControl = useMemo<FontScaleControl>(
+    () => ({
+      fontScale,
+      setFontScale: (scale) => {
+        setFontScaleState(scale);
+        try {
+          localStorage.setItem('fontScale', scale);
+        } catch (e) { console.warn('Failed to save font scale to localStorage', e); }
+      },
+    }),
+    [fontScale],
+  );
+
+  const theme = useMemo(() => createTheme(themeSettings(mode, fontScale)), [mode, fontScale]);
+  return [theme, colorModeToggle, fontScaleControl];
 };
