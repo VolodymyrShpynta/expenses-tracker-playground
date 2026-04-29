@@ -27,6 +27,13 @@ export interface Category {
    * after the category is archived.
    */
   deleted: boolean;
+  /**
+   * Number of active (non-deleted) expenses currently referencing this
+   * category. Surfaced so the UI can suppress the "merge archived twins"
+   * affordance for archived rows whose stranded expenses have all been
+   * migrated (`activeExpenseCount === 0`).
+   */
+  activeExpenseCount: number;
 }
 
 export interface CreateCategoryRequest {

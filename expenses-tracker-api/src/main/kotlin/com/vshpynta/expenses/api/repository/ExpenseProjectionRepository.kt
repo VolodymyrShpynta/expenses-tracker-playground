@@ -1,5 +1,6 @@
 package com.vshpynta.expenses.api.repository
 
+import com.vshpynta.expenses.api.model.CategoryExpenseCount
 import com.vshpynta.expenses.api.model.ExpenseProjection
 import kotlinx.coroutines.flow.Flow
 import org.springframework.data.r2dbc.repository.Modifying
@@ -28,6 +29,35 @@ interface ExpenseProjectionRepository : CoroutineCrudRepository<ExpenseProjectio
      */
     @Query("SELECT * FROM expense_projections WHERE deleted = false AND user_id = :userId")
     fun findAllActiveByUserId(userId: String): Flow<ExpenseProjection>
+
+    /**
+     * Find all active expense projections for a user that reference the
+     * given category. Used by the category-merge flow to enumerate the
+     * expenses that need to be re-categorised onto the target category.
+     */
+    @Query(
+        """
+        SELECT * FROM expense_projections
+        WHERE deleted = false AND user_id = :userId AND category_id = :categoryId
+    """
+    )
+    fun findActiveByUserIdAndCategoryId(userId: String, categoryId: UUID): Flow<ExpenseProjection>
+
+    /**
+     * Number of active (non-deleted) expense projections grouped by
+     * `category_id` for the given user. Powers the frontend's "merge
+     * archived twins" affordance: an archived category with zero active
+     * expenses has nothing to merge and must not surface the badge.
+     */
+    @Query(
+        """
+        SELECT category_id, COUNT(*) AS expense_count
+        FROM expense_projections
+        WHERE deleted = false AND user_id = :userId AND category_id IS NOT NULL
+        GROUP BY category_id
+    """
+    )
+    fun aggregateActiveExpenseCountsByCategory(userId: String): Flow<CategoryExpenseCount>
 
     /**
      * Project expense from event with last-write-wins conflict resolution

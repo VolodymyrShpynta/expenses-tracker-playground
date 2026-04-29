@@ -28,6 +28,13 @@ interface CategoryRepository : CoroutineCrudRepository<Category, UUID> {
     suspend fun findByIdAndUserId(id: UUID, userId: String): Category?
 
     /**
+     * Find a category by id for the user, including soft-deleted rows.
+     * Used by the restore flow, which intentionally targets archived rows.
+     */
+    @Query("SELECT * FROM categories WHERE id = :id AND user_id = :userId")
+    suspend fun findByIdAndUserIdIncludingDeleted(id: UUID, userId: String): Category?
+
+    /**
      * Returns the user's full category catalog (active + soft-deleted),
      * ordered for stable display. Soft-deleted rows are included so the
      * frontend's `useCategoryLookup` can resolve display fields for

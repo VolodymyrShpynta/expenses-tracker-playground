@@ -57,5 +57,13 @@ data class CategoryDto(
     val sortOrder: Int,
     val updatedAt: Long,
     val templateKey: String?,
-    val deleted: Boolean
+    val deleted: Boolean,
+    /**
+     * Number of active expenses currently referencing this category.
+     * Surfaced so the frontend's "merge archived twins" affordance only
+     * appears for archived rows that still have stranded expenses; an
+     * archived row whose expenses have all been migrated has
+     * `activeExpenseCount = 0` and the badge stays hidden.
+     */
+    val activeExpenseCount: Long = 0
 )

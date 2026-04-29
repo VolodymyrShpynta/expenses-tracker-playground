@@ -8,7 +8,7 @@ import com.vshpynta.expenses.api.model.Category
  */
 object CategoryMapper {
 
-    fun Category.toDto() = CategoryDto(
+    fun Category.toDto(activeExpenseCount: Long = 0) = CategoryDto(
         id = categoryId.toString(),
         name = name,
         templateKey = templateKey,
@@ -16,6 +16,7 @@ object CategoryMapper {
         color = color,
         sortOrder = sortOrder,
         updatedAt = updatedAt,
-        deleted = deleted
+        deleted = deleted,
+        activeExpenseCount = activeExpenseCount
     )
 }

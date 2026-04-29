@@ -61,6 +61,26 @@ export async function resetCategories(): Promise<void> {
   }
 }
 
+/**
+ * Resurrect a soft-deleted category. Used by the duplicate-name flow:
+ * when the user tries to add a category whose name matches an archived
+ * one, restoring lets historic expenses stay linked to the same row.
+ */
+export async function restoreCategory(id: string): Promise<Category> {
+  const res = await fetchWithAuth(`${BASE}/${id}/restore`, { method: 'POST' });
+  return handleResponse<Category>(res);
+}
+
+/**
+ * Merge `sourceId` into `targetId`: every active expense in the source
+ * category is re-categorised onto the target (one event per expense),
+ * then the source is soft-deleted. Returns the (active) target.
+ */
+export async function mergeCategories(sourceId: string, targetId: string): Promise<Category> {
+  const res = await fetchWithAuth(`${BASE}/${sourceId}/merge-into/${targetId}`, { method: 'POST' });
+  return handleResponse<Category>(res);
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.text().catch(() => '');

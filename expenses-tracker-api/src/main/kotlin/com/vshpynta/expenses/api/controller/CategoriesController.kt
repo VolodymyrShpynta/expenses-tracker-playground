@@ -81,7 +81,8 @@ class CategoriesController(
      */
     @GetMapping
     fun getAllCategories(): Flow<CategoryDto> =
-        categoryService.findAllCategories().map { it.toDto() }
+        categoryService.findAllCategoriesWithExpenseCounts()
+            .map { (category, count) -> category.toDto(count) }
 
     @GetMapping("/{id}")
     suspend fun getCategoryById(@PathVariable id: String): CategoryDto {
@@ -102,5 +103,36 @@ class CategoriesController(
     @ResponseStatus(HttpStatus.NO_CONTENT)
     suspend fun resetCategories() {
         categoryService.resetToDefaults()
+    }
+
+    /**
+     * Resurrect a soft-deleted category. Used by the duplicate-detection
+     * flow on the frontend: when the user tries to add a custom category
+     * whose name matches an archived row, they can restore the archived
+     * row instead of creating a fresh one — historic expenses keep
+     * referring to the same row.
+     */
+    @PostMapping("/{id}/restore")
+    suspend fun restoreCategory(@PathVariable id: String): CategoryDto {
+        val category = categoryService.restoreCategory(UUID.fromString(id))
+            ?: throw NoSuchElementException("Category not found: $id")
+        return category.toDto()
+    }
+
+    /**
+     * Merge `id` (the source) into `targetId`: every active expense in
+     * the source category is re-categorised onto the target (one event
+     * per expense, so the change syncs), then the source is soft-deleted.
+     */
+    @PostMapping("/{id}/merge-into/{targetId}")
+    suspend fun mergeCategory(
+        @PathVariable id: String,
+        @PathVariable targetId: String
+    ): CategoryDto {
+        val target = categoryService.mergeInto(
+            sourceId = UUID.fromString(id),
+            targetId = UUID.fromString(targetId)
+        ) ?: throw NoSuchElementException("Category not found or invalid merge: $id -> $targetId")
+        return target.toDto()
     }
 }

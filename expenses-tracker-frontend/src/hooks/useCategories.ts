@@ -6,7 +6,10 @@ import {
   updateCategory,
   deleteCategory,
   resetCategories,
+  restoreCategory,
+  mergeCategories,
 } from '../api/categories.ts';
+import { EXPENSES_QUERY_KEY } from './useExpenses.ts';
 import type { Category, CreateCategoryRequest, UpdateCategoryRequest } from '../types/category.ts';
 
 export const CATEGORIES_QUERY_KEY = ['categories'] as const;
@@ -91,5 +94,35 @@ export function useResetCategories() {
   return useMutation({
     mutationFn: resetCategories,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY }),
+  });
+}
+
+/**
+ * Resurrect a soft-deleted category. Used by the duplicate-name flow.
+ */
+export function useRestoreCategory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => restoreCategory(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY }),
+  });
+}
+
+/**
+ * Merge two categories: every expense in the source is re-categorised
+ * onto the target, then the source is soft-deleted. Invalidates both
+ * the categories list and the expenses list (since each expense's
+ * `categoryId` changes).
+ */
+export function useMergeCategories() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sourceId, targetId }: { sourceId: string; targetId: string }) =>
+      mergeCategories(sourceId, targetId),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: EXPENSES_QUERY_KEY }),
+      ]),
   });
 }
