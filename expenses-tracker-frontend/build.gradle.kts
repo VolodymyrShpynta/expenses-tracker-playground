@@ -41,6 +41,19 @@ val npmLint = tasks.register<com.github.gradle.node.npm.task.NpmTask>("npmLint")
     inputs.file("tsconfig.app.json")
 }
 
+val npmTest = tasks.register<com.github.gradle.node.npm.task.NpmTask>("npmTest") {
+    group = "verification"
+    description = "Run frontend unit tests (vitest)"
+    dependsOn(tasks.npmInstall)
+    npmCommand = listOf("test", "--silent")
+    inputs.dir("src")
+    inputs.file("package.json")
+    inputs.file("vite.config.ts")
+    inputs.file("tsconfig.test.json")
+    // Vitest writes no on-disk artefact; declare an upToDate marker so Gradle can cache.
+    outputs.upToDateWhen { true }
+}
+
 tasks.register("build") {
     group = "build"
     description = "Build the frontend"
@@ -50,7 +63,7 @@ tasks.register("build") {
 tasks.register("check") {
     group = "verification"
     description = "Run frontend checks"
-    dependsOn(npmLint)
+    dependsOn(npmLint, npmTest)
 }
 
 tasks.register<Delete>("clean") {
