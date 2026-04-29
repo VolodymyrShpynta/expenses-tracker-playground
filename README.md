@@ -188,11 +188,13 @@ expenses-tracker-playground/
 │   │   ├── main/
 │   │   │   ├── kotlin/com/vshpynta/expenses/api/
 │   │   │   │   ├── config/            # Configuration classes
-│   │   │   │   │   ├── R2dbcConfig.kt        # UUID converter wiring
-│   │   │   │   │   └── SecurityConfig.kt     # OAuth2 Resource Server + CORS
+│   │   │   │   │   ├── FlywayConfig.kt        # Flyway JDBC datasource
+│   │   │   │   │   ├── JacksonConfig.kt       # Jackson 2.x ObjectMapper bean
+│   │   │   │   │   ├── R2dbcConfig.kt         # UUID converter wiring
+│   │   │   │   │   ├── SecurityConfig.kt      # OAuth2 Resource Server + CORS
+│   │   │   │   │   └── TransactionConfig.kt   # Reactive transaction manager
 │   │   │   │   ├── controller/        # REST API endpoints
 │   │   │   │   │   ├── dto/          # Data Transfer Objects
-│   │   │   │   │   │   └── ExpenseDtos.kt
 │   │   │   │   │   ├── ExpensesController.kt
 │   │   │   │   │   ├── CategoriesController.kt
 │   │   │   │   │   └── GlobalExceptionHandler.kt
@@ -200,6 +202,8 @@ expenses-tracker-playground/
 │   │   │   │   │   ├── ExpenseEvent.kt         # Event store model
 │   │   │   │   │   ├── ExpenseProjection.kt    # Read model
 │   │   │   │   │   ├── Category.kt             # User category model
+│   │   │   │   │   ├── CategoryExpenseCount.kt # Aggregate query result
+│   │   │   │   │   ├── DefaultCategory.kt      # Template seed model
 │   │   │   │   │   ├── EventType.kt            # Event types enum
 │   │   │   │   │   ├── EventSyncFile.kt        # Sync file format + EventEntry
 │   │   │   │   │   ├── ExpensePayload.kt       # JSON payload model
@@ -208,6 +212,7 @@ expenses-tracker-playground/
 │   │   │   │   │   ├── ExpenseEventRepository.kt      # Event store
 │   │   │   │   │   ├── ExpenseProjectionRepository.kt # Read model
 │   │   │   │   │   ├── CategoryRepository.kt          # Categories
+│   │   │   │   │   ├── DefaultCategoryRepository.kt   # Default category templates
 │   │   │   │   │   └── ProcessedEventRepository.kt    # Idempotency
 │   │   │   │   ├── service/          # Business logic
 │   │   │   │   │   ├── ExpenseCommandService.kt       # CQRS write side
@@ -217,6 +222,8 @@ expenses-tracker-playground/
 │   │   │   │   │   ├── ExpenseSyncProjector.kt        # Idempotency + cache layer
 │   │   │   │   │   ├── ExpenseSyncRecorder.kt         # Transactional recorder
 │   │   │   │   │   ├── CategoryService.kt             # Category CRUD
+│   │   │   │   │   ├── CategoryMapper.kt              # Category entity ↔ DTO mapping
+│   │   │   │   │   ├── DefaultCategorySeeder.kt       # Lazy default-category seeding
 │   │   │   │   │   ├── ProcessedEventsCache.kt        # In-memory cache
 │   │   │   │   │   ├── auth/                          # Authentication
 │   │   │   │   │   │   └── UserContextService.kt      # Extract userId from JWT
@@ -229,8 +236,8 @@ expenses-tracker-playground/
 │   │   │   └── resources/
 │   │   │       ├── application.yaml  # Application configuration
 │   │   │       └── db/migration/     # Flyway migrations
-│   │   │           ├── V1__Create_expenses_tables.sql
-│   │   │           └── V5__Add_user_id_to_all_tables.sql
+│   │   │           ├── V1__Initial_schema.sql           # Versioned: schema only
+│   │   │           └── R__Seed_default_categories.sql   # Repeatable: default templates
 │   │   └── test/                     # Comprehensive test suite
 │   │       ├── kotlin/com/vshpynta/expenses/api/
 │   │       │   ├── config/           # Test security & Testcontainers config
@@ -249,35 +256,49 @@ expenses-tracker-playground/
 │   │   ├── api/                   # Typed fetch wrappers for REST API
 │   │   │   ├── expenses.ts        # Expense API calls (authenticated)
 │   │   │   ├── categories.ts      # Category API calls (authenticated)
-│   │   │   └── fetchWithAuth.ts   # Fetch wrapper with JWT Bearer token
+│   │   │   ├── exchange.ts        # Currency exchange-rate API calls
+│   │   │   ├── fetchWithAuth.ts   # Fetch wrapper with JWT Bearer token
+│   │   │   └── handleResponse.ts  # Shared response/error handling
 │   │   ├── config/                # App configuration
-│   │   │   ├── keycloak.ts        # Keycloak instance configuration
-│   │   │   └── AuthContext.tsx     # Auth provider (login, token, userId)
+│   │   │   └── keycloak.ts        # Keycloak instance configuration
+│   │   ├── context/               # React context providers
+│   │   │   └── AuthContext.tsx    # Auth provider (login, token, userId)
+│   │   ├── i18n/                  # i18next config + translation namespaces
 │   │   ├── components/            # Shared reusable components
-│   │   │   ├── Layout.tsx         # Responsive shell (sidebar + bottom nav + logout)
-│   │   │   ├── AddExpenseDialog.tsx
-│   │   │   ├── EditExpenseDialog.tsx
-│   │   │   ├── CategoryDonutChart.tsx  # Donut chart (MUI X Charts)
-│   │   │   ├── DateRangeSelector.tsx   # Date range navigator
-│   │   │   └── MoneyField.tsx         # Calculator-style money input
+│   │   │   ├── Layout.tsx                  # Responsive shell (sidebar + bottom nav + logout)
+│   │   │   ├── AddExpenseDialog.tsx        # Create/edit expense dialog
+│   │   │   ├── add-expense/                # Add-expense subcomponents
+│   │   │   ├── amount-keypad/              # Calculator-style amount keypad
+│   │   │   ├── CategoryDonutChart.tsx      # Donut chart (MUI X Charts)
+│   │   │   ├── CategoryFormDialog.tsx      # Category create/rename form
+│   │   │   ├── CategoryPickerDialog.tsx    # Category selection
+│   │   │   ├── CurrencyPickerDialog.tsx    # Currency selection
+│   │   │   ├── DateRangeSelector.tsx       # Date range navigator
+│   │   │   ├── date-range/                 # Date-range subcomponents
+│   │   │   ├── FontSizePickerDialog.tsx    # User font-size preference
+│   │   │   ├── LanguagePickerDialog.tsx    # i18n language switcher
+│   │   │   ├── ManageCategoriesDialog.tsx  # Manage user categories
+│   │   │   ├── manage-categories/          # Manage-categories subcomponents
+│   │   │   ├── SpendingDateHeader.tsx      # Header with date + total
+│   │   │   ├── transactions/               # Transaction list components
+│   │   │   ├── transitions/                # Shared transition primitives
+│   │   │   └── layout/                     # Layout subcomponents
 │   │   ├── hooks/                 # Custom React hooks
-│   │   │   ├── useExpenses.ts     # Fetch expenses with loading/error
+│   │   │   ├── useExpenses.ts          # Fetch expenses (TanStack Query)
 │   │   │   ├── useExpenseMutations.ts  # Create/update/delete/sync mutations
-│   │   │   ├── useCategories.ts   # Category query hook
-│   │   │   ├── useCurrency.ts     # Per-user currency preference
-│   │   │   ├── useDateRange.ts    # Per-user date range preference
-│   │   │   └── useCategorySummary.ts  # Derive category totals
+│   │   │   ├── useCategories.ts        # Category query hook
+│   │   │   ├── useCategoryLookup.ts    # id → (name, icon, color) resolver
+│   │   │   ├── useCategorySummary.ts   # Derive category totals
+│   │   │   ├── useCurrency.ts          # Per-user currency preference
+│   │   │   ├── useDateRange.ts         # Per-user date range preference
+│   │   │   └── useExchangeRates.ts     # Currency exchange-rate query
 │   │   ├── pages/                 # Page-level components (one per route)
-│   │   │   ├── CategoriesPage.tsx # Main screen: categories + donut chart
-│   │   │   ├── TransactionsPage.tsx   # Transaction list
-│   │   │   └── OverviewPage.tsx       # Overview
+│   │   │   ├── CategoriesPage.tsx      # Categories + donut chart
+│   │   │   ├── TransactionsPage.tsx    # Transaction list
+│   │   │   └── OverviewPage.tsx        # Overview
+│   │   ├── test/                  # Test utilities and setup
 │   │   ├── types/                 # TypeScript interfaces
-│   │   │   ├── expense.ts         # Expense types
-│   │   │   └── category.ts        # Category types
 │   │   └── utils/                 # Pure utility functions
-│   │       ├── format.ts          # Currency formatting (cents → display)
-│   │       ├── categoryConfig.ts  # Category → icon/color mapping
-│   │       └── dateRange.ts       # Date range utilities
 │   ├── build.gradle.kts           # Gradle build (npm install + build via node plugin)
 │   ├── Dockerfile                 # Multi-stage build (Node → nginx)
 │   ├── nginx.conf                 # nginx config (static files + /api + /auth proxy)
@@ -495,19 +516,23 @@ CREATE TABLE expense_projections
     id          VARCHAR(36) PRIMARY KEY,
     description VARCHAR(500),
     amount      BIGINT       NOT NULL,
-    currency    VARCHAR(10)  NOT NULL DEFAULT 'USD',
-    category    VARCHAR(100),
+    currency    VARCHAR(3)   NOT NULL DEFAULT 'USD',
+    category_id VARCHAR(36),
     date        VARCHAR(50),
     updated_at  BIGINT       NOT NULL,
     deleted     BOOLEAN      NOT NULL DEFAULT FALSE,
     user_id     VARCHAR(255) NOT NULL
 );
 
-CREATE INDEX idx_expense_projections_updated_at ON expense_projections (updated_at);
-CREATE INDEX idx_expense_projections_deleted ON expense_projections (deleted);
-CREATE INDEX idx_expense_projections_category ON expense_projections (category);
-CREATE INDEX idx_expense_projections_user_id ON expense_projections (user_id);
+CREATE INDEX idx_expense_projections_updated_at  ON expense_projections (updated_at);
+CREATE INDEX idx_expense_projections_deleted     ON expense_projections (deleted);
+CREATE INDEX idx_expense_projections_category_id ON expense_projections (category_id);
+CREATE INDEX idx_expense_projections_user_id     ON expense_projections (user_id);
 ```
+
+> **Note:** `category_id` references `categories.id` but is intentionally **not** a foreign key —
+> cross-device sync may deliver an expense event before the corresponding category row has been
+> seeded locally. The frontend resolves `id → (name, icon, color)` at render time.
 
 #### **Table: `expense_events`** (Event Store / Source of Truth)
 
@@ -544,30 +569,64 @@ CREATE TABLE processed_events
 
 #### **Table: `categories`** (User-Configurable Categories)
 
-Per-user expense categories with customizable icons and colors:
+Per-user expense categories with customizable icons and colors. Rows seeded from
+`default_categories` carry a non-NULL `template_key`; user-created categories have
+`template_key = NULL` and a non-NULL `name`. Category names are translated on the
+frontend via i18n when `template_key` is set and `name` is NULL.
 
 ```sql
 CREATE TABLE categories
 (
-    id         VARCHAR(36) PRIMARY KEY,
-    name       VARCHAR(100) NOT NULL,
-    icon       VARCHAR(50),
-    color      VARCHAR(20),
-    sort_order INT          NOT NULL DEFAULT 0,
-    deleted    BOOLEAN      NOT NULL DEFAULT FALSE,
-    created_at BIGINT       NOT NULL,
-    updated_at BIGINT       NOT NULL,
-    user_id    VARCHAR(255) NOT NULL,
-    UNIQUE (name, user_id) -- Category names are unique per user
+    id           VARCHAR(36)  PRIMARY KEY,
+    name         VARCHAR(100),         -- NULL → frontend renders translated template name
+    template_key VARCHAR(50),          -- links to default_categories.template_key
+    icon         VARCHAR(50)  NOT NULL,
+    color        VARCHAR(7)   NOT NULL,
+    sort_order   INT          NOT NULL DEFAULT 0,
+    updated_at   BIGINT       NOT NULL,
+    deleted      BOOLEAN      NOT NULL DEFAULT FALSE,
+    user_id      VARCHAR(255) NOT NULL,
+    CONSTRAINT chk_categories_name_or_template
+        CHECK (name IS NOT NULL OR template_key IS NOT NULL)
+);
+
+-- Active custom names are unique per user (case-sensitive).
+CREATE UNIQUE INDEX idx_categories_name_user
+    ON categories (user_id, name)
+    WHERE deleted = false AND name IS NOT NULL;
+
+-- One row per (user, template) — used as ON CONFLICT target for "reset to defaults".
+CREATE UNIQUE INDEX idx_categories_user_template
+    ON categories (user_id, template_key)
+    WHERE template_key IS NOT NULL;
+```
+
+#### **Table: `default_categories`** (Language-Agnostic Templates)
+
+Read-only template table seeded for new users. `template_key` is a stable,
+language-independent slug; the frontend translates each slug at display time
+via the `categoryTemplates.*` i18n namespace, so no `name` column is stored.
+
+```sql
+CREATE TABLE default_categories
+(
+    template_key VARCHAR(50) PRIMARY KEY,
+    icon         VARCHAR(50) NOT NULL,
+    color        VARCHAR(7)  NOT NULL,
+    sort_order   INT         NOT NULL DEFAULT 0
 );
 ```
+
+Seeded by the repeatable migration `R__Seed_default_categories.sql` so templates
+can evolve (new entries, color/icon tweaks) without piling up `V_` history.
 
 **Why the tables are designed this way:**
 
 - `expense_projections` - Fast queries for current state (read model), filtered by `user_id`
 - `expense_events` - Complete audit trail + sync source (event store), scoped by `user_id`
 - `processed_events` - Prevents duplicate event processing (idempotency)
-- `categories` - User-configurable expense categories, unique name per user
+- `categories` - User-configurable expense categories, unique active name per user
+- `default_categories` - Language-agnostic template table; new users are seeded from it on first access
 
 ### Conflict Resolution
 
@@ -579,15 +638,16 @@ The event with the **highest timestamp** wins. Simple, deterministic, and consis
 
 ```sql
 -- projectFromEvent() - Idempotent upsert with conflict resolution
-INSERT INTO expense_projections (id, description, amount, category, date, updated_at, deleted)
-VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO
+INSERT INTO expense_projections (id, description, amount, currency, category_id, date, updated_at, deleted, user_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO
 UPDATE SET
     description = EXCLUDED.description,
-    amount = EXCLUDED.amount,
-    category = EXCLUDED.category,
-    date = EXCLUDED.date,
-    updated_at = EXCLUDED.updated_at,
-    deleted = EXCLUDED.deleted
+    amount      = EXCLUDED.amount,
+    currency    = EXCLUDED.currency,
+    category_id = EXCLUDED.category_id,
+    date        = EXCLUDED.date,
+    updated_at  = EXCLUDED.updated_at,
+    deleted     = EXCLUDED.deleted
 WHERE EXCLUDED.updated_at > expense_projections.updated_at;
 ```
 
@@ -621,9 +681,11 @@ When a user creates/updates/deletes an expense (Command Side):
 suspend fun createExpense(
     description: String,
     amount: Long,
-    category: String,
+    currency: String,
+    categoryId: UUID,
     date: String
-): ExpenseProjection = withContext(Dispatchers.IO) {
+): ExpenseProjection {
+    val userId = userContextService.currentUserId()
     val expenseId = UUID.randomUUID()
     val now = timeProvider.currentTimeMillis()
 
@@ -631,10 +693,12 @@ suspend fun createExpense(
         id = expenseId,
         description = description,
         amount = amount,
-        category = category,
+        currency = currency,
+        categoryId = categoryId,
         date = date,
         updatedAt = now,
-        deleted = false
+        deleted = false,
+        userId = userId
     )
 
     // BEGIN TRANSACTION
@@ -646,7 +710,7 @@ suspend fun createExpense(
     // COMMIT TRANSACTION
 
     // 3. Return the created projection
-    projectionRepository.findByIdOrNull(expenseId)
+    return projectionRepository.findByIdOrNull(expenseId)
         ?: error("Failed to retrieve created expense projection")
 }
 ```
@@ -959,7 +1023,8 @@ The sync system uses a well-designed component hierarchy:
         "id": "c4f3d7e9-8b2a-4e6c-9d1f-5a8b3c7e2f0d",
         "description": "Coffee",
         "amount": 450,
-        "category": "Food",
+        "currency": "USD",
+        "categoryId": "7f1c2a3b-4d5e-6f70-8192-a3b4c5d6e7f8",
         "date": "2026-01-20T10:00:00Z",
         "updatedAt": 1737475200000,
         "deleted": false
@@ -975,7 +1040,8 @@ The sync system uses a well-designed component hierarchy:
         "id": "c4f3d7e9-8b2a-4e6c-9d1f-5a8b3c7e2f0d",
         "description": "Expensive Coffee",
         "amount": 950,
-        "category": "Food",
+        "currency": "USD",
+        "categoryId": "7f1c2a3b-4d5e-6f70-8192-a3b4c5d6e7f8",
         "date": "2026-01-20T10:00:00Z",
         "updatedAt": 1737475300000,
         "deleted": false
@@ -1179,13 +1245,16 @@ The `expense_projections` table is optimized for fast queries:
 
 ```kotlin
 // Simple, fast query - no joins needed
-suspend fun getAllExpenses(): Flow<ExpenseProjection> {
-    return projectionRepository.findAll()
+fun findAllExpenses(): Flow<ExpenseProjection> = flow {
+    val userId = userContextService.currentUserId()
+    emitAll(projectionRepository.findAllActiveByUserId(userId))
 }
 
-// Direct index access
-suspend fun getExpensesByCategory(category: String): Flow<ExpenseProjection> {
-    return projectionRepository.findByCategory(category)
+// Direct index access by id
+suspend fun findExpenseById(id: UUID): ExpenseProjection? {
+    val userId = userContextService.currentUserId()
+    return projectionRepository.findByIdAndUserId(id, userId)
+        ?.takeUnless { it.deleted }
 }
 ```
 
@@ -2808,15 +2877,16 @@ fun `should handle duplicate operations idempotently`() = runBlocking {
         val expense = commandService.createExpense(
             description = "Test Expense",
             amount = 10000,
-            category = "Food",
+            currency = "USD",
+            categoryId = categoryId,
             date = "2026-01-20T10:00:00Z"
         )
 
         // Sync twice (should apply events only once)
         expenseEventSyncService.performFullSync()
-        val firstSyncExpenses = queryService.getAllExpenses().toList()
+        val firstSyncExpenses = queryService.findAllExpenses().toList()
         expenseEventSyncService.performFullSync()
-        val secondSyncExpenses = queryService.getAllExpenses().toList()
+        val secondSyncExpenses = queryService.findAllExpenses().toList()
 
         // Both syncs should result in same state (idempotent)
         assertEquals(firstSyncExpenses.size, secondSyncExpenses.size)
@@ -2848,7 +2918,7 @@ fun `should apply out-of-order operations correctly`() = runBlocking {
         expenseEventSyncService.performFullSync()
 
         // Should have event2's data (newer timestamp wins)
-        val expenses = queryService.getAllExpenses().toList()
+        val expenses = queryService.findAllExpenses().toList()
         assertEquals(2000L, expenses[0].amount)
     }
 ```

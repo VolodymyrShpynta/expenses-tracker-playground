@@ -8,7 +8,7 @@
 - Monorepo: backend in `expenses-tracker-api`, frontend in `expenses-tracker-frontend/`.
 - **Backend**: Kotlin + Spring Boot WebFlux + Coroutines + R2DBC, with PostgreSQL as the only persisted store.
 - **Frontend**: React 19 + TypeScript + MUI v7 + TanStack Query + Vite. Consumes the backend REST API.
-- Architecture is CQRS + event sourcing: `expense_events` is source of truth, `expense_projections` is query model, `processed_events` is idempotency registry (`expenses-tracker-api/src/main/resources/db/migration/V1__Create_expenses_tables.sql`).
+- Architecture is CQRS + event sourcing: `expense_events` is source of truth, `expense_projections` is query model, `processed_events` is idempotency registry (`expenses-tracker-api/src/main/resources/db/migration/V1__Initial_schema.sql`).
 
 ## Runtime flow you should preserve
 - Write path: HTTP -> `ExpensesController` -> `ExpenseCommandService` -> append event + project read model in one `@Transactional` boundary (`expenses-tracker-api/src/main/kotlin/com/vshpynta/expenses/api/service/ExpenseCommandService.kt`).

@@ -53,7 +53,7 @@ Understanding these flows is critical before modifying any service code.
 | `expense_projections` | Materialized read model                   | UPSERT with last-write-wins (`WHERE EXCLUDED.updated_at > expense_projections.updated_at`) |
 | `processed_events`    | Idempotency registry                      | Prevents duplicate event processing during sync                                            |
 
-Schema defined in `expenses-tracker-api/src/main/resources/db/migration/V1__Create_expenses_tables.sql`.
+Schema defined in `expenses-tracker-api/src/main/resources/db/migration/V1__Initial_schema.sql`. Reference data (default category templates) is seeded by the repeatable migration `R__Seed_default_categories.sql`.
 
 ### Write path (local commands)
 
