@@ -5,17 +5,13 @@ import type {
   SyncResult,
 } from '../types/expense.ts';
 import { fetchWithAuth } from './fetchWithAuth.ts';
+import { expectOk, handleResponse } from './handleResponse.ts';
 
 const BASE = '/api/expenses';
 
 export async function fetchExpenses(): Promise<Expense[]> {
   const res = await fetchWithAuth(BASE);
   return handleResponse<Expense[]>(res);
-}
-
-export async function fetchExpenseById(id: string): Promise<Expense> {
-  const res = await fetchWithAuth(`${BASE}/${id}`);
-  return handleResponse<Expense>(res);
 }
 
 export async function createExpense(req: CreateExpenseRequest): Promise<Expense> {
@@ -41,21 +37,10 @@ export async function updateExpense(
 
 export async function deleteExpense(id: string): Promise<void> {
   const res = await fetchWithAuth(`${BASE}/${id}`, { method: 'DELETE' });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`HTTP ${res.status}: ${body}`);
-  }
+  await expectOk(res);
 }
 
 export async function triggerSync(): Promise<SyncResult> {
   const res = await fetchWithAuth(`${BASE}/sync`, { method: 'POST' });
   return handleResponse<SyncResult>(res);
-}
-
-async function handleResponse<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`HTTP ${res.status}: ${body}`);
-  }
-  return (await res.json()) as T;
 }

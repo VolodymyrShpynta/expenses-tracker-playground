@@ -24,6 +24,7 @@
  *   - `dispatch`    reducer dispatch, consumed by {@link AmountKeypad}.
  */
 import { useMemo, useReducer } from 'react';
+import type { Dispatch } from 'react';
 
 // ---------------------------------------------------------------------------
 // Token model
@@ -162,7 +163,7 @@ export interface UseCalculatorResult {
   hasOperator: boolean;
   /** Final numeric amount of the expression, or null if empty/incomplete. */
   amount: number | null;
-  dispatch: React.Dispatch<CalculatorAction>;
+  dispatch: Dispatch<CalculatorAction>;
 }
 
 export function useCalculator(initialAmount?: number | null): UseCalculatorResult {

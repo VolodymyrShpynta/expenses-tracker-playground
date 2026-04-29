@@ -81,7 +81,11 @@ function ColorPicker({ value, onChange }: ColorPickerProps) {
             '&:hover': { opacity: 0.8 },
           }}
         >
-          {value === color && <CheckIcon sx={{ fontSize: 16, color: '#fff' }} />}
+          {value === color && (
+            <CheckIcon
+              sx={(theme) => ({ fontSize: 16, color: theme.palette.getContrastText(color) })}
+            />
+          )}
         </Box>
       ))}
     </Box>

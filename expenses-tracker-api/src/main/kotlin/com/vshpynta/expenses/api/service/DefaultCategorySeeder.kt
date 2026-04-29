@@ -40,6 +40,23 @@ class DefaultCategorySeeder(
      * Apply (or re-apply) the default category set for the given user.
      * Templated rows are written with `name = null`; the frontend renders
      * the translated label by `template_key`.
+     *
+     * The templates are materialised via `toList()` before any writes are
+     * issued. This is required because `@Transactional` pins a single
+     * R2DBC connection to the coroutine for the duration of the
+     * transaction so that reads and writes share the same rollback
+     * boundary. R2DBC connections are single-cursor: while the source
+     * `Flow` from `findAllOrdered()` is still being collected, the
+     * SELECT cursor is open on that connection, and issuing an upsert
+     * on the same connection would fail with a nested-operation error.
+     * Draining the flow into a `List` first closes the cursor, so the
+     * subsequent upserts can safely reuse the transactional connection.
+     *
+     * The sequential per-row upsert that follows is intentional —
+     * `@Query` doesn't support multi-row VALUES, and this method runs
+     * only on first login and manual reset over a ~12-row template
+     * set, so the round-trip cost is negligible and a single rollback
+     * boundary is preserved.
      */
     @Transactional
     suspend fun seedDefaultCategories(userId: String) {

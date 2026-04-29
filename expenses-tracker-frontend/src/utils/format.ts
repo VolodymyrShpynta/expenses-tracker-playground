@@ -34,11 +34,3 @@ export function formatAmountCompact(cents: number): string {
 export function formatAmountCompactWithCurrency(cents: number, currency: string): string {
   return `${currency} ${formatAmountCompact(cents)}`;
 }
-
-/**
- * Returns a short month-year label from an ISO date string in the active locale.
- */
-export function formatMonthYear(isoDate: string): string {
-  const d = new Date(isoDate);
-  return d.toLocaleDateString(getLocale(), { month: 'short', year: 'numeric' });
-}

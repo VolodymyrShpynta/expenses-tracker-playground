@@ -1,38 +1,8 @@
-const BASE_URL = 'https://open.er-api.com/v6/latest';
-
-interface ExchangeRates {
-  [currency: string]: number;
-}
-
-interface ExchangeRateResponse {
-  result: string;
-  base_code: string;
-  rates: ExchangeRates;
-}
-
 /**
- * Fetches the exchange rate from one currency to another using ExchangeRate-API.
- * Returns the rate (1 unit of `from` = rate units of `to`).
+ * Static catalog of supported currencies plus the derived `CurrencyCode`
+ * type. Live exchange-rate fetching is owned by `hooks/useExchangeRates.ts`,
+ * which keeps the rates in the TanStack Query cache.
  */
-export async function fetchExchangeRate(from: string, to: string): Promise<number> {
-  if (from === to) return 1;
-  const res = await fetch(`${BASE_URL}/${encodeURIComponent(from)}`);
-  if (!res.ok) throw new Error(`Exchange rate fetch failed: ${res.status}`);
-  const data: ExchangeRateResponse = await res.json();
-  if (data.result !== 'success') throw new Error('Exchange rate API returned an error');
-  const rate = data.rates[to];
-  if (rate == null) throw new Error(`No rate found for ${to}`);
-  return rate;
-}
-
-/**
- * Converts an amount from one currency to another.
- * Returns the converted amount (same unit scale as input).
- */
-export async function convertCurrency(amount: number, from: string, to: string): Promise<number> {
-  const rate = await fetchExchangeRate(from, to);
-  return Math.round(amount * rate * 100) / 100;
-}
 
 /**
  * Supported currencies.

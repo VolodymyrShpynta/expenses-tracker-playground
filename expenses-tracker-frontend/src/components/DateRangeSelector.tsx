@@ -1,70 +1,25 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import type { MouseEvent } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import Button from '@mui/material/Button';
-import Popover from '@mui/material/Popover';
-import Slide from '@mui/material/Slide';
-import Grid from '@mui/material/Grid';
-import ButtonBase from '@mui/material/ButtonBase';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
-import AllInclusiveIcon from '@mui/icons-material/AllInclusive';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import TodayIcon from '@mui/icons-material/Today';
-import DateRangeIcon from '@mui/icons-material/DateRange';
-import Filter7Icon from '@mui/icons-material/Filter7';
-import Looks6Icon from '@mui/icons-material/Looks6';
-import { DateCalendar } from '@mui/x-date-pickers';
-import dayjs from 'dayjs';
-import type { Dayjs } from 'dayjs';
-import type { TransitionProps } from '@mui/material/transitions';
-import { forwardRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { PresetKey } from '../utils/dateRange.ts';
 import {
   buildWeekRange,
-  buildMonthRange,
-  buildYearRange,
-  buildTodayRange,
-  buildAllTimeRange,
-  readStoredPreset,
-  savePreset,
-  formatShort,
   formatRange,
-  startOfDay,
-  endOfDay,
+  formatShort,
+  type DateRange,
+  type PresetKey,
 } from '../utils/dateRange.ts';
-import type { DateRange } from '../utils/dateRange.ts';
-
-// ---------------------------------------------------------------------------
-// Slide-up transition for the bottom sheet
-// ---------------------------------------------------------------------------
-
-const SlideUp = forwardRef(function SlideUp(
-  props: TransitionProps & { children: React.ReactElement },
-  ref: React.Ref<unknown>,
-) {
-  return <Slide direction="up" ref={ref} {...props} />;
-});
-
-// ---------------------------------------------------------------------------
-// Calendar style overrides for range highlighting
-// ---------------------------------------------------------------------------
-
-const calendarSx = {
-  width: '100%',
-  '& .MuiPickersCalendarHeader-root': { mt: 1 },
-};
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
+import { PresetGrid } from './date-range/PresetGrid.tsx';
+import { DayPickerPanel } from './date-range/DayPickerPanel.tsx';
+import { RangePickerPanel } from './date-range/RangePickerPanel.tsx';
+import { ResponsivePopover } from './date-range/ResponsivePopover.tsx';
+import { useDateRangeState } from './date-range/useDateRangeState.ts';
 
 interface DateRangeSelectorProps {
   value: DateRange;
@@ -72,30 +27,17 @@ interface DateRangeSelectorProps {
   onPresetChange?: (preset: PresetKey) => void;
 }
 
-type PickerMode = 'none' | 'day' | 'range';
-type RangeStep = 'from' | 'to';
-
 export function DateRangeSelector({ value, onChange, onPresetChange }: DateRangeSelectorProps) {
   const { t: translate, i18n } = useTranslation();
-  const [activePreset, setActivePresetState] = useState<PresetKey>(readStoredPreset);
-  const setActivePreset = useCallback((key: PresetKey) => {
-    setActivePresetState(key);
-    savePreset(key);
-    onPresetChange?.(key);
-  }, [onPresetChange]);
-  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const [pickerAnchorEl, setPickerAnchorEl] = useState<HTMLElement | null>(null);
-  const [pickerMode, setPickerMode] = useState<PickerMode>('none');
-  const [rangeStep, setRangeStep] = useState<RangeStep>('from');
-  const [pendingFrom, setPendingFrom] = useState<Dayjs | null>(null);
-  const [pendingTo, setPendingTo] = useState<Dayjs | null>(null);
-  const [pendingDay, setPendingDay] = useState<Dayjs | null>(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const open = Boolean(anchorEl);
 
-  const handleOpen = (e: React.MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget);
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const open = Boolean(anchorEl);
+  const handleOpen = (e: MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget);
   const handleClose = () => setAnchorEl(null);
+
+  const state = useDateRangeState({ value, onChange, onPresetChange });
 
   // Subtitle shown under each preset card
   const subtitles = useMemo(() => {
@@ -112,368 +54,123 @@ export function DateRangeSelector({ value, onChange, onPresetChange }: DateRange
     };
   }, [value, i18n.language, translate]);
 
-  // Shift logic for arrow navigation
-  const shiftAmount = useCallback((): { unit: 'day' | 'month' | 'year'; count: number } => {
-    switch (activePreset) {
-      case 'today': return { unit: 'day', count: 1 };
-      case 'week': return { unit: 'day', count: 7 };
-      case 'month': return { unit: 'month', count: 1 };
-      case 'year': return { unit: 'year', count: 1 };
-      default: return { unit: 'month', count: 1 };
-    }
-  }, [activePreset]);
-
-  const shift = useCallback(
-    (direction: -1 | 1) => {
-      if (activePreset === 'range' || activePreset === 'all' || activePreset === 'day') return;
-      const from = new Date(value.from);
-      const to = new Date(value.to);
-      const { unit, count } = shiftAmount();
-      const delta = direction * count;
-      if (unit === 'day') {
-        from.setDate(from.getDate() + delta);
-        to.setDate(to.getDate() + delta);
-      } else if (unit === 'month') {
-        from.setMonth(from.getMonth() + delta);
-        from.setDate(1);
-        to.setFullYear(from.getFullYear(), from.getMonth() + 1, 0);
-        to.setHours(23, 59, 59, 999);
-      } else {
-        from.setFullYear(from.getFullYear() + delta);
-        to.setFullYear(to.getFullYear() + delta);
-      }
-      onChange({ from, to });
-    },
-    [value, onChange, activePreset, shiftAmount],
-  );
-
-  const canShift = activePreset !== 'range' && activePreset !== 'all' && activePreset !== 'day';
-
-  const selectPreset = (key: PresetKey) => {
-    setActivePreset(key);
-    switch (key) {
-      case 'week': onChange(buildWeekRange()); handleClose(); break;
-      case 'month': onChange(buildMonthRange()); handleClose(); break;
-      case 'year': onChange(buildYearRange()); handleClose(); break;
-      case 'today': onChange(buildTodayRange()); handleClose(); break;
-      case 'all': onChange(buildAllTimeRange()); handleClose(); break;
-      case 'day':
-        setPickerAnchorEl(anchorEl);
-        handleClose();
-        setPendingDay(dayjs(value.from));
-        setTimeout(() => setPickerMode('day'), 200);
-        break;
-      case 'range':
-        setPickerAnchorEl(anchorEl);
-        handleClose();
-        setPendingFrom(dayjs(value.from));
-        setPendingTo(dayjs(value.to));
-        setRangeStep('from');
-        setTimeout(() => setPickerMode('range'), 200);
-        break;
-    }
+  const handleSelectPreset = (key: PresetKey) => {
+    const anchor = anchorEl;
+    handleClose();
+    state.selectPreset(key, anchor);
   };
-
-  const closePicker = () => {
-    setPickerMode('none');
-    setPickerAnchorEl(null);
-  };
-
-  const handleDayPick = (d: Dayjs | null) => {
-    if (d) setPendingDay(d);
-  };
-
-  const handleDayConfirm = () => {
-    if (pendingDay) {
-      const date = pendingDay.toDate();
-      onChange({ from: startOfDay(date), to: endOfDay(date) });
-    }
-    closePicker();
-  };
-
-  const handleRangeCalendarChange = (d: Dayjs | null) => {
-    if (!d) return;
-    if (rangeStep === 'from') {
-      setPendingFrom(d);
-      // If new "from" is after current "to", reset "to" to same day
-      if (pendingTo && d.isAfter(pendingTo)) setPendingTo(d);
-      setRangeStep('to');
-    } else {
-      // If picked "to" is before "from", swap them
-      if (pendingFrom && d.isBefore(pendingFrom)) {
-        setPendingTo(pendingFrom);
-        setPendingFrom(d);
-      } else {
-        setPendingTo(d);
-      }
-    }
-  };
-
-  const handleRangeConfirm = () => {
-    if (pendingFrom && pendingTo) {
-      onChange({ from: startOfDay(pendingFrom.toDate()), to: endOfDay(pendingTo.toDate()) });
-    }
-    closePicker();
-  };
-
-  // Preset card definitions
-  const presetCards: Array<{
-    key: PresetKey;
-    label: string;
-    icon: React.ReactNode;
-    fullWidth?: boolean;
-  }> = [
-    { key: 'range', label: translate('dateRange.presets.range'), icon: <MoreHorizIcon />, fullWidth: true },
-    { key: 'all', label: translate('dateRange.presets.all'), icon: <AllInclusiveIcon /> },
-    { key: 'day', label: translate('dateRange.presets.day'), icon: <CalendarMonthIcon /> },
-    { key: 'week', label: translate('dateRange.presets.week'), icon: <Filter7Icon /> },
-    { key: 'today', label: translate('dateRange.presets.today'), icon: <TodayIcon /> },
-    { key: 'year', label: translate('dateRange.presets.year'), icon: <Looks6Icon sx={{ transform: 'scaleX(-1)' }} /> },
-    { key: 'month', label: translate('dateRange.presets.month'), icon: <DateRangeIcon /> },
-  ];
-
-  // Shared content for both Popover and Dialog
-  const panelContent = (
-    <>
-      <Typography variant="h6" fontWeight={600} textAlign="center" sx={{ mb: 2 }}>
-        {translate('dateRange.period')}
-      </Typography>
-
-      <Grid container spacing={1}>
-        {presetCards.map((card) => (
-          <Grid key={card.key} size={card.fullWidth ? 12 : 6}>
-            <ButtonBase
-              onClick={() => selectPreset(card.key)}
-              sx={{
-                width: '100%',
-                borderRadius: 2,
-                p: 2,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 0.5,
-                bgcolor: activePreset === card.key ? 'action.selected' : 'action.hover',
-                transition: 'background-color 0.2s',
-                '&:hover': { bgcolor: 'action.selected' },
-              }}
-            >
-              {card.icon}
-              <Typography variant="body2" fontWeight={600}>
-                {card.label}
-              </Typography>
-              {subtitles[card.key] && (
-                <Typography variant="caption" color="text.secondary">
-                  {subtitles[card.key]}
-                </Typography>
-              )}
-            </ButtonBase>
-          </Grid>
-        ))}
-      </Grid>
-    </>
-  );
-
-  // Shared range picker content for both Popover and Dialog
-  const rangePickerContent = (
-    <>
-      <Box sx={{ pt: 2 }}>
-        <Typography variant="h6" fontWeight={600} textAlign="center">
-          {rangeStep === 'from' ? translate('dateRange.selectStart') : translate('dateRange.selectEnd')}
-        </Typography>
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            gap: 1,
-            mt: 1,
-          }}
-        >
-          <Typography
-            variant="body2"
-            fontWeight={rangeStep === 'from' ? 700 : 400}
-            onClick={() => setRangeStep('from')}
-            sx={{
-              cursor: 'pointer',
-              px: 1.5,
-              py: 0.5,
-              borderRadius: 1,
-              bgcolor: rangeStep === 'from' ? 'action.selected' : 'transparent',
-            }}
-          >
-            {pendingFrom ? pendingFrom.format('MMM D, YYYY') : '—'}
-          </Typography>
-          <Typography variant="body2" sx={{ py: 0.5 }}>–</Typography>
-          <Typography
-            variant="body2"
-            fontWeight={rangeStep === 'to' ? 700 : 400}
-            onClick={() => setRangeStep('to')}
-            sx={{
-              cursor: 'pointer',
-              px: 1.5,
-              py: 0.5,
-              borderRadius: 1,
-              bgcolor: rangeStep === 'to' ? 'action.selected' : 'transparent',
-            }}
-          >
-            {pendingTo ? pendingTo.format('MMM D, YYYY') : '—'}
-          </Typography>
-        </Box>
-      </Box>
-      <DateCalendar
-        value={rangeStep === 'from' ? pendingFrom : pendingTo}
-        onChange={handleRangeCalendarChange}
-        sx={calendarSx}
-      />
-      <DialogActions>
-        <Button onClick={closePicker}>{translate('common.cancel')}</Button>
-        <Button
-          variant="contained"
-          onClick={handleRangeConfirm}
-          disabled={!pendingFrom || !pendingTo}
-        >
-          {translate('common.apply')}
-        </Button>
-      </DialogActions>
-    </>
-  );
 
   return (
     <Box sx={{ py: 1 }}>
-      {/* Header bar with arrows + date label */}
-      <Box
+      <DateHeader
+        label={formatRange(value)}
+        canShift={state.canShift}
+        onPrev={() => state.shift(-1)}
+        onNext={() => state.shift(1)}
+        onOpen={handleOpen}
+        prevAriaLabel={translate('dateRange.prevPeriodAria')}
+        nextAriaLabel={translate('dateRange.nextPeriodAria')}
+      />
+
+      <ResponsivePopover
+        open={open}
+        isMobile={isMobile}
+        anchorEl={anchorEl}
+        onClose={handleClose}
+        mobileSheet
+      >
+        <PresetGrid
+          activePreset={state.activePreset}
+          subtitles={subtitles}
+          onSelect={handleSelectPreset}
+        />
+      </ResponsivePopover>
+
+      <ResponsivePopover
+        open={state.pickerMode === 'day'}
+        isMobile={isMobile}
+        anchorEl={state.pickerAnchorEl}
+        onClose={state.closePicker}
+      >
+        <DayPickerPanel
+          pendingDay={state.pendingDay}
+          onPick={state.handleDayPick}
+          onCancel={state.closePicker}
+          onConfirm={state.handleDayConfirm}
+        />
+      </ResponsivePopover>
+
+      <ResponsivePopover
+        open={state.pickerMode === 'range'}
+        isMobile={isMobile}
+        anchorEl={state.pickerAnchorEl}
+        onClose={state.closePicker}
+      >
+        <RangePickerPanel
+          rangeStep={state.rangeStep}
+          pendingFrom={state.pendingFrom}
+          pendingTo={state.pendingTo}
+          onStepChange={state.setRangeStep}
+          onDayPick={state.handleRangeCalendarChange}
+          onCancel={state.closePicker}
+          onConfirm={state.handleRangeConfirm}
+        />
+      </ResponsivePopover>
+    </Box>
+  );
+}
+
+interface DateHeaderProps {
+  label: string;
+  canShift: boolean;
+  onPrev: () => void;
+  onNext: () => void;
+  onOpen: (e: MouseEvent<HTMLElement>) => void;
+  prevAriaLabel: string;
+  nextAriaLabel: string;
+}
+
+function DateHeader({
+  label,
+  canShift,
+  onPrev,
+  onNext,
+  onOpen,
+  prevAriaLabel,
+  nextAriaLabel,
+}: DateHeaderProps) {
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 1,
+      }}
+    >
+      {canShift && (
+        <IconButton onClick={onPrev} aria-label={prevAriaLabel}>
+          <ChevronLeftIcon fontSize="medium" />
+        </IconButton>
+      )}
+      <Typography
+        variant="subtitle1"
+        fontWeight={600}
+        onClick={onOpen}
         sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 1,
+          minWidth: 240,
+          textAlign: 'center',
+          cursor: 'pointer',
+          letterSpacing: '0.02em',
+          '&:hover': { opacity: 0.7 },
         }}
       >
-        {canShift && (
-          <IconButton onClick={() => shift(-1)} aria-label={translate('dateRange.prevPeriodAria')}>
-            <ChevronLeftIcon fontSize="medium" />
-          </IconButton>
-        )}
-        <Typography
-          variant="subtitle1"
-          fontWeight={600}
-          onClick={handleOpen}
-          sx={{
-            minWidth: 240,
-            textAlign: 'center',
-            cursor: 'pointer',
-            letterSpacing: '0.02em',
-            '&:hover': { opacity: 0.7 },
-          }}
-        >
-          {formatRange(value)}
-        </Typography>
-        {canShift && (
-          <IconButton onClick={() => shift(1)} aria-label={translate('dateRange.nextPeriodAria')}>
-            <ChevronRightIcon fontSize="medium" />
-          </IconButton>
-        )}
-      </Box>
-
-      {/* Mobile: bottom sheet dialog */}
-      {isMobile ? (
-        <Dialog
-          open={open}
-          onClose={handleClose}
-          slots={{ transition: SlideUp }}
-          slotProps={{
-            paper: {
-              sx: {
-                position: 'fixed',
-                bottom: 0,
-                m: 0,
-                borderTopLeftRadius: 16,
-                borderTopRightRadius: 16,
-                borderBottomLeftRadius: 0,
-                borderBottomRightRadius: 0,
-                width: '100%',
-                maxWidth: 480,
-                p: 2,
-              },
-            },
-          }}
-          sx={{
-            '& .MuiDialog-container': {
-              alignItems: 'flex-end',
-            },
-          }}
-        >
-          {panelContent}
-        </Dialog>
-      ) : (
-        /* Desktop: popover anchored to the date label */
-        <Popover
-          open={open}
-          anchorEl={anchorEl}
-          onClose={handleClose}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'center' }}
-          slotProps={{ paper: { sx: { p: 2, maxWidth: 420 } } }}
-        >
-          {panelContent}
-        </Popover>
-      )}
-
-      {/* Day picker */}
-      {isMobile ? (
-        <Dialog
-          open={pickerMode === 'day'}
-          onClose={closePicker}
-          sx={{ '& .MuiDialog-paper': { width: '100%', maxWidth: '100%', m: 0, px: 2 } }}
-        >
-          <Typography variant="h6" fontWeight={600} textAlign="center" sx={{ pt: 2 }}>
-            {translate('dateRange.pickDay')}
-          </Typography>
-          <DateCalendar value={pendingDay} onChange={handleDayPick} sx={calendarSx} />
-          <DialogActions>
-            <Button onClick={closePicker}>{translate('common.cancel')}</Button>
-            <Button variant="contained" onClick={handleDayConfirm}>{translate('common.ok')}</Button>
-          </DialogActions>
-        </Dialog>
-      ) : (
-        <Popover
-          open={pickerMode === 'day'}
-          anchorEl={pickerAnchorEl}
-          onClose={closePicker}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'center' }}
-          slotProps={{ paper: { sx: { px: 2, width: 420, maxWidth: '100%' } } }}
-        >
-          <Typography variant="h6" fontWeight={600} textAlign="center" sx={{ pt: 2 }}>
-            {translate('dateRange.pickDay')}
-          </Typography>
-          <DateCalendar value={pendingDay} onChange={handleDayPick} sx={calendarSx} />
-          <DialogActions>
-            <Button onClick={closePicker}>{translate('common.cancel')}</Button>
-            <Button variant="contained" onClick={handleDayConfirm}>{translate('common.ok')}</Button>
-          </DialogActions>
-        </Popover>
-      )}
-
-      {/* Range picker */}
-      {isMobile ? (
-        <Dialog
-          open={pickerMode === 'range'}
-          onClose={closePicker}
-          sx={{ '& .MuiDialog-paper': { width: '100%', maxWidth: '100%', m: 0, px: 2 } }}
-        >
-          {rangePickerContent}
-        </Dialog>
-      ) : (
-        <Popover
-          open={pickerMode === 'range'}
-          anchorEl={pickerAnchorEl}
-          onClose={closePicker}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'center' }}
-          slotProps={{ paper: { sx: { px: 2, width: 420, maxWidth: '100%' } } }}
-        >
-          {rangePickerContent}
-        </Popover>
+        {label}
+      </Typography>
+      {canShift && (
+        <IconButton onClick={onNext} aria-label={nextAriaLabel}>
+          <ChevronRightIcon fontSize="medium" />
+        </IconButton>
       )}
     </Box>
   );

@@ -93,13 +93,6 @@ const FONT_SCALE_FACTOR: Record<FontScale, number> = {
   xlarge: 1.25,
 };
 
-export const FONT_SCALE_LABEL: Record<FontScale, string> = {
-  small: 'Small',
-  medium: 'Medium',
-  large: 'Large',
-  xlarge: 'Extra Large',
-};
-
 export const themeSettings = (mode: PaletteMode, fontScale: FontScale = 'medium') => {
   const isDark = mode === 'dark';
   const f = FONT_SCALE_FACTOR[fontScale];

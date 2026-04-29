@@ -4,6 +4,7 @@ import type {
   UpdateCategoryRequest,
 } from '../types/category.ts';
 import { fetchWithAuth } from './fetchWithAuth.ts';
+import { expectOk, handleResponse } from './handleResponse.ts';
 
 const BASE = '/api/categories';
 
@@ -42,10 +43,7 @@ export async function updateCategory(
 
 export async function deleteCategory(id: string): Promise<void> {
   const res = await fetchWithAuth(`${BASE}/${id}`, { method: 'DELETE' });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`HTTP ${res.status}: ${body}`);
-  }
+  await expectOk(res);
 }
 
 /**
@@ -55,10 +53,7 @@ export async function deleteCategory(id: string): Promise<void> {
  */
 export async function resetCategories(): Promise<void> {
   const res = await fetchWithAuth(`${BASE}/reset`, { method: 'POST' });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`HTTP ${res.status}: ${body}`);
-  }
+  await expectOk(res);
 }
 
 /**
@@ -79,12 +74,4 @@ export async function restoreCategory(id: string): Promise<Category> {
 export async function mergeCategories(sourceId: string, targetId: string): Promise<Category> {
   const res = await fetchWithAuth(`${BASE}/${sourceId}/merge-into/${targetId}`, { method: 'POST' });
   return handleResponse<Category>(res);
-}
-
-async function handleResponse<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`HTTP ${res.status}: ${body}`);
-  }
-  return (await res.json()) as T;
 }

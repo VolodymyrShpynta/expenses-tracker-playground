@@ -1,7 +1,7 @@
-import type React from 'react';
 import { useContext, useState } from 'react';
+import type { SyntheticEvent } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { alpha, useTheme } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
@@ -9,33 +9,13 @@ import Box from '@mui/material/Box';
 import BottomNavigation from '@mui/material/BottomNavigation';
 import BottomNavigationAction from '@mui/material/BottomNavigationAction';
 import Drawer from '@mui/material/Drawer';
-import List from '@mui/material/List';
-import ListItemButton from '@mui/material/ListItemButton';
-import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';
 import IconButton from '@mui/material/IconButton';
-import Collapse from '@mui/material/Collapse';
-import Switch from '@mui/material/Switch';
 import Fab from '@mui/material/Fab';
-import Chip from '@mui/material/Chip';
 import MenuIcon from '@mui/icons-material/Menu';
-import ExpandLess from '@mui/icons-material/ExpandLess';
-import ExpandMore from '@mui/icons-material/ExpandMore';
-import PieChartIcon from '@mui/icons-material/PieChart';
-import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
-import BarChartIcon from '@mui/icons-material/BarChart';
 import AddIcon from '@mui/icons-material/Add';
-import SyncIcon from '@mui/icons-material/Sync';
-import CategoryIcon from '@mui/icons-material/Category';
-import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
-import LogoutIcon from '@mui/icons-material/Logout';
-import FormatSizeIcon from '@mui/icons-material/FormatSize';
-import LanguageIcon from '@mui/icons-material/Language';
 import { useTranslation } from 'react-i18next';
-import type { ParseKeys } from 'i18next';
-import { ColorModeToggleContext, FontScaleContext } from '../theme.ts';
+import { FontScaleContext } from '../theme.ts';
 import { useMainCurrency } from '../hooks/useCurrency.ts';
-import { useAuth } from '../context/AuthContext.tsx';
 import type { CurrencyCode } from '../api/exchange.ts';
 import { AddExpenseDialog } from './AddExpenseDialog.tsx';
 import { ManageCategoriesDialog } from './ManageCategoriesDialog.tsx';
@@ -44,32 +24,9 @@ import { FontSizePickerDialog } from './FontSizePickerDialog.tsx';
 import { LanguagePickerDialog } from './LanguagePickerDialog.tsx';
 import { SUPPORTED_LANGUAGES } from '../i18n';
 import { resolveLanguage } from '../i18n/locale.ts';
-
-const DRAWER_WIDTH = 280;
-
-// `labelKey` is typed via i18next module augmentation (see src/i18n/i18next.d.ts):
-// `ParseKeys` exposes the union of every leaf key in en.json, so a typo in any
-// of the literals below — or in code that calls `translate(item.labelKey)` —
-// is a TypeScript compile error rather than a silent missing-translation
-// fallback at runtime.
-type TranslationKey = ParseKeys;
-
-interface NavItem {
-  labelKey: TranslationKey;
-  path: string;
-  icon: React.ReactNode;
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { labelKey: 'nav.categories', path: '/', icon: <PieChartIcon /> },
-  { labelKey: 'nav.transactions', path: '/transactions', icon: <ReceiptLongIcon /> },
-  { labelKey: 'nav.overview', path: '/overview', icon: <BarChartIcon /> },
-];
-
-function navIndex(pathname: string): number {
-  const idx = NAV_ITEMS.findIndex((n) => n.path === pathname);
-  return idx >= 0 ? idx : 0;
-}
+import { NAV_ITEMS, navIndex } from './layout/navItems.tsx';
+import { DRAWER_WIDTH, drawerPaperSx } from './layout/layoutStyles.ts';
+import { SidebarContent } from './layout/SidebarContent.tsx';
 
 export function Layout() {
   const theme = useTheme();
@@ -78,11 +35,8 @@ export function Layout() {
   const location = useLocation();
   const { t: translate, i18n } = useTranslation();
 
-  const { toggleColorMode } = useContext(ColorModeToggleContext);
   const { fontScale, setFontScale } = useContext(FontScaleContext);
-  const isDark = theme.palette.mode === 'dark';
   const { mainCurrency, setMainCurrency } = useMainCurrency();
-  const { username, logout } = useAuth();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -95,8 +49,8 @@ export function Layout() {
 
   const activeLangCode = resolveLanguage(i18n);
   const activeLangLabel =
-    SUPPORTED_LANGUAGES.find((l) => l.code === activeLangCode)?.code.toUpperCase()
-    ?? activeLangCode.toUpperCase();
+    SUPPORTED_LANGUAGES.find((l) => l.code === activeLangCode)?.code.toUpperCase() ??
+    activeLangCode.toUpperCase();
 
   const activeIdx = navIndex(location.pathname);
 
@@ -105,167 +59,33 @@ export function Layout() {
     setDrawerOpen(false);
   };
 
-  const navItemSx = (isActive: boolean) => ({
-    py: '10px',
-    my: '4px',
-    mx: '12px',
-    borderRadius: '10px',
-    color: 'text.primary',
-    transition: 'background-color 120ms ease, color 120ms ease',
-    '&:hover': {
-      backgroundColor: alpha(theme.palette.primary.main, 0.12),
-      color: 'primary.light',
-    },
-    ...(isActive && {
-      backgroundColor: alpha(theme.palette.primary.main, 0.14),
-      color: 'primary.light',
-      boxShadow: `inset 0 0 0 1.5px ${alpha(theme.palette.primary.main, 0.4)}`,
-      '&:hover': {
-        backgroundColor: alpha(theme.palette.primary.main, 0.2),
-      },
-    }),
-  });
+  // Each settings opener also closes the drawer for a clean mobile flow.
+  const openAndCloseDrawer = (open: () => void) => () => {
+    open();
+    setDrawerOpen(false);
+  };
 
-  const drawerPaperSx = {
-    width: DRAWER_WIDTH,
-    boxSizing: 'border-box',
-    borderRight: 'none',
-    borderTopRightRadius: '6px',
-    borderBottomRightRadius: '6px',
-    backgroundColor: 'background.paper',
-  } as const;
-
-  const renderSectionHeader = (
-    label: string,
-    open: boolean,
-    onToggle: () => void,
-  ) => (
-    <ListItemButton onClick={onToggle} sx={{ mx: '12px', mt: '15px', mb: '4px', borderRadius: '10px', py: '6px' }}>
-      <ListItemText
-        primary={label}
-        slotProps={{ primary: { variant: 'h6', color: 'text.secondary' } }}
-      />
-      {open
-        ? <ExpandLess sx={{ color: 'text.secondary' }} />
-        : <ExpandMore sx={{ color: 'text.secondary' }} />}
-    </ListItemButton>
-  );
-
-  // Sidebar content shared between permanent & temporary drawer
   const sidebarContent = (
-    <Box sx={{ width: DRAWER_WIDTH }}>
-      <Toolbar>
-        <Typography variant="h4" fontWeight={700} noWrap>
-          {translate('appName')}
-        </Typography>
-      </Toolbar>
-      <List>
-        {NAV_ITEMS.map((item, i) => (
-          <ListItemButton
-            key={item.path}
-            selected={i === activeIdx}
-            onClick={() => handleNav(item.path)}
-            sx={navItemSx(i === activeIdx)}
-          >
-            <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>{item.icon}</ListItemIcon>
-            <ListItemText primary={translate(item.labelKey)} />
-          </ListItemButton>
-        ))}
-      </List>
-      {renderSectionHeader(translate('nav.tools'), toolsOpen, () => setToolsOpen((prev) => !prev))}
-      <Collapse in={toolsOpen}>
-        <List
-          disablePadding
-          sx={{
-            ml: '24px',
-            borderLeft: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-          }}
-        >
-          <ListItemButton
-            selected={location.pathname === '/sync'}
-            onClick={() => handleNav('/sync')}
-            sx={navItemSx(location.pathname === '/sync')}
-          >
-            <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}><SyncIcon /></ListItemIcon>
-            <ListItemText primary={translate('nav.sync')} />
-          </ListItemButton>
-        </List>
-      </Collapse>
-      {renderSectionHeader(translate('nav.settings'), settingsOpen, () => setSettingsOpen((prev) => !prev))}
-      <Collapse in={settingsOpen}>
-        <Box
-          sx={{
-            ml: '24px',
-            borderLeft: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-          }}
-        >
-          <ListItemButton
-            onClick={toggleColorMode}
-            sx={{
-              ...navItemSx(false),
-              justifyContent: 'space-between',
-            }}
-          >
-            <ListItemText primary={translate('settings.darkMode')} />
-            <Switch
-              checked={isDark}
-              slotProps={{ input: { 'aria-label': translate('settings.toggleDarkMode') } }}
-              sx={{ mr: -1 }}
-            />
-          </ListItemButton>
-          <ListItemButton
-            onClick={() => { setManageCategoriesOpen(true); setDrawerOpen(false); }}
-            sx={navItemSx(false)}
-          >
-            <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}><CategoryIcon fontSize="small" /></ListItemIcon>
-            <ListItemText primary={translate('settings.manageCategories')} slotProps={{ primary: { noWrap: true } }} />
-          </ListItemButton>
-          <ListItemButton
-            onClick={() => { setCurrencyPickerOpen(true); setDrawerOpen(false); }}
-            sx={navItemSx(false)}
-          >
-            <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}><AttachMoneyIcon fontSize="small" /></ListItemIcon>
-            <ListItemText primary={translate('settings.currency')} />
-            <Chip label={mainCurrency} size="small" variant="outlined" sx={{ ml: 1 }} />
-          </ListItemButton>
-          <ListItemButton
-            onClick={() => { setFontSizePickerOpen(true); setDrawerOpen(false); }}
-            sx={navItemSx(false)}
-          >
-            <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}><FormatSizeIcon fontSize="small" /></ListItemIcon>
-            <ListItemText primary={translate('settings.fontSize')} />
-            <Chip label={translate(`settings.fontScale.${fontScale}`)} size="small" variant="outlined" sx={{ ml: 1 }} />
-          </ListItemButton>
-          <ListItemButton
-            onClick={() => { setLanguagePickerOpen(true); setDrawerOpen(false); }}
-            sx={navItemSx(false)}
-          >
-            <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}><LanguageIcon fontSize="small" /></ListItemIcon>
-            <ListItemText primary={translate('settings.language')} />
-            <Chip label={activeLangLabel} size="small" variant="outlined" sx={{ ml: 1 }} />
-          </ListItemButton>
-        </Box>
-      </Collapse>
-
-      {/* User section */}
-      <Box sx={{ mt: 3, borderTop: `1px solid ${theme.palette.divider}`, pt: 1, pb: 1 }}>
-        <ListItemButton
-          onClick={logout}
-          sx={{ ...navItemSx(false), mx: '12px' }}
-        >
-          <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}><LogoutIcon fontSize="medium" /></ListItemIcon>
-          <ListItemText
-            primary={username}
-            slotProps={{ primary: { noWrap: true, variant: 'body1' } }}
-          />
-        </ListItemButton>
-      </Box>
-    </Box>
+    <SidebarContent
+      activeIdx={activeIdx}
+      currentPath={location.pathname}
+      onNav={handleNav}
+      toolsOpen={toolsOpen}
+      onToggleTools={() => setToolsOpen((prev) => !prev)}
+      settingsOpen={settingsOpen}
+      onToggleSettings={() => setSettingsOpen((prev) => !prev)}
+      mainCurrency={mainCurrency}
+      activeLangLabel={activeLangLabel}
+      fontScale={fontScale}
+      onManageCategories={openAndCloseDrawer(() => setManageCategoriesOpen(true))}
+      onPickCurrency={openAndCloseDrawer(() => setCurrencyPickerOpen(true))}
+      onPickFontSize={openAndCloseDrawer(() => setFontSizePickerOpen(true))}
+      onPickLanguage={openAndCloseDrawer(() => setLanguagePickerOpen(true))}
+    />
   );
 
   return (
     <Box sx={{ display: 'flex', height: '100dvh', flexDirection: 'column' }}>
-      {/* Mobile top bar */}
       {!isDesktop && (
         <Toolbar
           variant="dense"
@@ -287,8 +107,7 @@ export function Layout() {
       )}
 
       <Box sx={{ display: 'flex', flex: 1, minHeight: 0 }}>
-        {/* Desktop sidebar */}
-        {isDesktop && (
+        {isDesktop ? (
           <Drawer
             variant="permanent"
             sx={{
@@ -299,24 +118,18 @@ export function Layout() {
           >
             {sidebarContent}
           </Drawer>
-        )}
-
-        {/* Mobile drawer */}
-        {!isDesktop && (
+        ) : (
           <Drawer
             variant="temporary"
             open={drawerOpen}
             onClose={() => setDrawerOpen(false)}
             slotProps={{ root: { keepMounted: true } }}
-            sx={{
-              '& .MuiDrawer-paper': drawerPaperSx,
-            }}
+            sx={{ '& .MuiDrawer-paper': drawerPaperSx }}
           >
             {sidebarContent}
           </Drawer>
         )}
 
-        {/* Page content */}
         <Box
           component="main"
           sx={{
@@ -330,7 +143,6 @@ export function Layout() {
         </Box>
       </Box>
 
-      {/* FAB — add expense */}
       <Fab
         color="primary"
         aria-label={translate('expenses.addAriaLabel')}
@@ -350,10 +162,7 @@ export function Layout() {
         <AddIcon />
       </Fab>
 
-      <AddExpenseDialog
-        open={addDialogOpen}
-        onClose={() => setAddDialogOpen(false)}
-      />
+      <AddExpenseDialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} />
 
       {manageCategoriesOpen && (
         <ManageCategoriesDialog
@@ -387,11 +196,12 @@ export function Layout() {
         />
       )}
 
-      {/* Mobile bottom nav */}
       {!isDesktop && (
         <BottomNavigation
           value={activeIdx}
-          onChange={(_: React.SyntheticEvent, newValue: number) => handleNav(NAV_ITEMS[newValue].path)}
+          onChange={(_: SyntheticEvent, newValue: number) =>
+            handleNav(NAV_ITEMS[newValue].path)
+          }
           showLabels
           sx={{
             position: 'fixed',
