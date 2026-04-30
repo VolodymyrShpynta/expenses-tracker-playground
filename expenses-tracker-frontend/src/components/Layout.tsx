@@ -22,6 +22,7 @@ import { ManageCategoriesDialog } from './ManageCategoriesDialog.tsx';
 import { CurrencyPickerDialog } from './CurrencyPickerDialog.tsx';
 import { FontSizePickerDialog } from './FontSizePickerDialog.tsx';
 import { LanguagePickerDialog } from './LanguagePickerDialog.tsx';
+import { ExportImportDialog } from './ExportImportDialog.tsx';
 import { SUPPORTED_LANGUAGES } from '../i18n';
 import { resolveLanguage } from '../i18n/locale.ts';
 import { NAV_ITEMS, navIndex } from './layout/navItems.tsx';
@@ -46,6 +47,7 @@ export function Layout() {
   const [currencyPickerOpen, setCurrencyPickerOpen] = useState(false);
   const [fontSizePickerOpen, setFontSizePickerOpen] = useState(false);
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false);
+  const [exportImportOpen, setExportImportOpen] = useState(false);
 
   const activeLangCode = resolveLanguage(i18n);
   const activeLangLabel =
@@ -81,6 +83,7 @@ export function Layout() {
       onPickCurrency={openAndCloseDrawer(() => setCurrencyPickerOpen(true))}
       onPickFontSize={openAndCloseDrawer(() => setFontSizePickerOpen(true))}
       onPickLanguage={openAndCloseDrawer(() => setLanguagePickerOpen(true))}
+      onExportImport={openAndCloseDrawer(() => setExportImportOpen(true))}
     />
   );
 
@@ -193,6 +196,13 @@ export function Layout() {
         <LanguagePickerDialog
           open
           onClose={() => setLanguagePickerOpen(false)}
+        />
+      )}
+
+      {exportImportOpen && (
+        <ExportImportDialog
+          open
+          onClose={() => setExportImportOpen(false)}
         />
       )}
 

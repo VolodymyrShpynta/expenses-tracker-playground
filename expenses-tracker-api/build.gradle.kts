@@ -24,6 +24,7 @@ dependencies {
     implementation(libs.kotlin.reflect)
     implementation(libs.kotlinx.coroutines.reactor)
     implementation(libs.jackson.module.kotlin)
+    implementation(libs.jackson.dataformat.csv)
     implementation(libs.commons.codec)
     implementation(libs.flyway.core)
     implementation(libs.flyway.database.postgresql)

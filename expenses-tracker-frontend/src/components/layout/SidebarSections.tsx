@@ -15,6 +15,7 @@ import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import FormatSizeIcon from '@mui/icons-material/FormatSize';
 import LanguageIcon from '@mui/icons-material/Language';
 import LogoutIcon from '@mui/icons-material/Logout';
+import ImportExportIcon from '@mui/icons-material/ImportExport';
 import { useTranslation } from 'react-i18next';
 import { ColorModeToggleContext, type FontScale } from '../../theme.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
@@ -33,13 +34,15 @@ interface SidebarToolsProps {
   onToggle: () => void;
   onNav: (path: string) => void;
   currentPath: string;
+  onExportImport: () => void;
 }
 
 /**
- * Collapsible "Tools" section. Currently exposes the manual sync route
- * only; designed to grow without re-shaping the parent layout.
+ * Collapsible "Tools" section. Hosts cross-cutting actions that don't
+ * belong with day-to-day navigation: manual sync and the
+ * export/import flow.
  */
-export function SidebarTools({ open, onToggle, onNav, currentPath }: SidebarToolsProps) {
+export function SidebarTools({ open, onToggle, onNav, currentPath, onExportImport }: SidebarToolsProps) {
   const { t: translate } = useTranslation();
   const theme = useTheme();
   return (
@@ -60,6 +63,13 @@ export function SidebarTools({ open, onToggle, onNav, currentPath }: SidebarTool
           >
             <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}><SyncIcon /></ListItemIcon>
             <ListItemText primary={translate('nav.sync')} />
+          </ListItemButton>
+          <ListItemButton
+            onClick={onExportImport}
+            sx={navItemSx(theme, false)}
+          >
+            <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}><ImportExportIcon /></ListItemIcon>
+            <ListItemText primary={translate('nav.exportImport')} />
           </ListItemButton>
         </List>
       </Collapse>

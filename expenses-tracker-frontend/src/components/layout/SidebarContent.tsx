@@ -42,6 +42,7 @@ interface SidebarContentProps {
   onPickCurrency: () => void;
   onPickFontSize: () => void;
   onPickLanguage: () => void;
+  onExportImport: () => void;
 }
 
 export function SidebarContent(props: SidebarContentProps) {
@@ -62,6 +63,7 @@ export function SidebarContent(props: SidebarContentProps) {
     onPickCurrency,
     onPickFontSize,
     onPickLanguage,
+    onExportImport,
   } = props;
 
   return (
@@ -90,6 +92,7 @@ export function SidebarContent(props: SidebarContentProps) {
         onToggle={onToggleTools}
         onNav={onNav}
         currentPath={currentPath}
+        onExportImport={onExportImport}
       />
 
       <SidebarSettings

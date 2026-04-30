@@ -6,6 +6,7 @@
     "overview": "Overview",
     "tools": "Tools",
     "sync": "Sync",
+    "exportImport": "Export & Import",
     "settings": "Settings",
     "openMenu": "Open menu"
   },
@@ -167,5 +168,31 @@
     "amount": "Amount",
     "openCalculator": "Open calculator",
     "searchCurrency": "Search currency…"
+  },
+  "exportImportDialog": {
+    "title": "Export & Import",
+    "formatLabel": "Format",
+    "formatJson": "JSON",
+    "formatCsv": "CSV (zip)",
+    "formatJsonHint": "Lossless. Recommended for moving data between your own devices.",
+    "formatCsvHint": "Spreadsheet-friendly. ZIP holding categories.csv and expenses.csv.",
+    "exportTitle": "Export",
+    "exportBody": "Download a copy of your categories and expenses.",
+    "exportButton": "Download file",
+    "exporting": "Preparing…",
+    "importTitle": "Import",
+    "importBody": "Upload a previously exported file (.json, .zip, or .csv).",
+    "importWarning": "Importing adds to your existing data. Re-importing the same file will create duplicate expenses.",
+    "importButton": "Choose file…",
+    "importing": "Importing…",
+    "importResultTitle": "Import finished",
+    "importResultSummary": "Created {{categories}} categories and {{expenses}} expenses (skipped {{skipped}}).",
+    "importFatalTitle": "Import failed",
+    "importRowError": "{{kind}} ‘{{label}}’: {{message}}",
+    "rowKind": {
+      "category": "Category",
+      "expense": "Expense"
+    },
+    "importMoreErrors": "…and {{count}} more"
   }
 }

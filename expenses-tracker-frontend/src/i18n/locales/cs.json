@@ -6,6 +6,7 @@
     "overview": "Přehled",
     "tools": "Nástroje",
     "sync": "Synchronizace",
+    "exportImport": "Export a import",
     "settings": "Nastavení",
     "openMenu": "Otevřít menu"
   },
@@ -167,5 +168,31 @@
     "amount": "Částka",
     "openCalculator": "Otevřít kalkulačku",
     "searchCurrency": "Hledat měnu…"
+  },
+  "exportImportDialog": {
+    "title": "Export a import",
+    "formatLabel": "Formát",
+    "formatJson": "JSON",
+    "formatCsv": "CSV (zip)",
+    "formatJsonHint": "Bezeztrátový. Doporučeno pro přesun mezi vašimi zařízeními.",
+    "formatCsvHint": "Vhodné pro tabulky. ZIP obsahuje categories.csv a expenses.csv.",
+    "exportTitle": "Export",
+    "exportBody": "Stáhněte si kopii svých kategorií a výdajů.",
+    "exportButton": "Stáhnout soubor",
+    "exporting": "Připravuji…",
+    "importTitle": "Import",
+    "importBody": "Nahrajte dříve exportovaný soubor (.json, .zip nebo .csv).",
+    "importWarning": "Import přidává data k existujícím. Opětovný import stejného souboru vytvoří duplicitní výdaje.",
+    "importButton": "Vybrat soubor…",
+    "importing": "Importuji…",
+    "importResultTitle": "Import dokončen",
+    "importResultSummary": "Vytvořeno {{categories}} kategorií a {{expenses}} výdajů (přeskočeno {{skipped}}).",
+    "importFatalTitle": "Import se nezdařil",
+    "importRowError": "{{kind}} „{{label}}“: {{message}}",
+    "rowKind": {
+      "category": "Kategorie",
+      "expense": "Výdaj"
+    },
+    "importMoreErrors": "…a dalších {{count}}"
   }
 }

@@ -114,3 +114,30 @@ POST {{ExpensesApiUrl}}/api/expenses/sync
 Accept: application/json
 
 ###
+
+### Export Backup - JSON (lossless)
+GET {{ExpensesApiUrl}}/api/data/export?format=json
+Accept: application/json
+
+###
+
+### Export Backup - CSV (ZIP with categories.csv + expenses.csv)
+GET {{ExpensesApiUrl}}/api/data/export?format=csv
+Accept: application/zip
+
+###
+
+### Import Backup - Upload a previously exported file (.json, .zip, or .csv)
+# Note: filename suffix dictates parser (json | csv-zip | csv-only)
+POST {{ExpensesApiUrl}}/api/data/import
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="expenses-tracker-backup.json"
+Content-Type: application/json
+
+< ./expenses-tracker-backup.json
+--WebAppBoundary--
+
+###
+

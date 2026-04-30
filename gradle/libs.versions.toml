@@ -29,6 +29,7 @@ reactor-kotlin-extensions = { module = "io.projectreactor.kotlin:reactor-kotlin-
 
 # Jackson
 jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin" }
+jackson-dataformat-csv = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-csv" }
 
 # Utilities
 commons-codec = { module = "commons-codec:commons-codec", version.ref = "commons-codec" }

@@ -6,6 +6,7 @@
     "overview": "Огляд",
     "tools": "Інструменти",
     "sync": "Синхронізація",
+    "exportImport": "Експорт та імпорт",
     "settings": "Налаштування",
     "openMenu": "Відкрити меню"
   },
@@ -167,5 +168,31 @@
     "amount": "Сума",
     "openCalculator": "Відкрити калькулятор",
     "searchCurrency": "Пошук валюти…"
+  },
+  "exportImportDialog": {
+    "title": "Експорт та імпорт",
+    "formatLabel": "Формат",
+    "formatJson": "JSON",
+    "formatCsv": "CSV (zip)",
+    "formatJsonHint": "Без втрат. Рекомендовано для перенесення між вашими пристроями.",
+    "formatCsvHint": "Для табличних редакторів. ZIP із categories.csv та expenses.csv.",
+    "exportTitle": "Експорт",
+    "exportBody": "Завантажте копію ваших категорій та витрат.",
+    "exportButton": "Завантажити файл",
+    "exporting": "Підготовка…",
+    "importTitle": "Імпорт",
+    "importBody": "Завантажте раніше експортований файл (.json, .zip або .csv).",
+    "importWarning": "Імпорт додає дані до існуючих. Повторний імпорт того ж файла створить дублікати витрат.",
+    "importButton": "Обрати файл…",
+    "importing": "Імпорт…",
+    "importResultTitle": "Імпорт завершено",
+    "importResultSummary": "Створено {{categories}} категорій та {{expenses}} витрат (пропущено {{skipped}}).",
+    "importFatalTitle": "Помилка імпорту",
+    "importRowError": "{{kind}} «{{label}}»: {{message}}",
+    "rowKind": {
+      "category": "Категорія",
+      "expense": "Витрата"
+    },
+    "importMoreErrors": "…та ще {{count}}"
   }
 }
