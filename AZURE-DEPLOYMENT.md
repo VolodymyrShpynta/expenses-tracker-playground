@@ -727,7 +727,7 @@ Create a file `nginx-azure.conf` in the project root:
 $apiFqdn = az containerapp show --name $apiAppName --resource-group $resourceGroup --query properties.configuration.ingress.fqdn -o tsv
 $keycloakFqdn = az containerapp show --name $keycloakAppName --resource-group $resourceGroup --query properties.configuration.ingress.fqdn -o tsv
 
-@"
+$nginxConf = @"
 # =============================================================================
 # Rate limiting zones
 # =============================================================================
@@ -849,7 +849,9 @@ server {
         add_header Cache-Control "public, immutable";
     }
 }
-"@ | Out-File -FilePath "expenses-tracker-frontend/nginx-azure.conf" -Encoding UTF8
+"@
+# Use WriteAllText to avoid the UTF-8 BOM that PowerShell 5.1's Out-File adds — BOM corrupts nginx config.
+[System.IO.File]::WriteAllText("$PWD\expenses-tracker-frontend\nginx-azure.conf", $nginxConf)
 ```
 
 > **Rate limiting & hardening.** The config above mirrors the protections in
@@ -889,7 +891,7 @@ server {
 # Create a Dockerfile variant for Azure that uses the Azure nginx config.
 # Use a single-quoted here-string (@'...'@) so PowerShell doesn't treat the
 # backticks in the comments as escape characters.
-@'
+$dockerfileContent = @'
 FROM node:24-alpine AS builder
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -905,7 +907,9 @@ COPY nginx-azure.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
-'@ | Out-File -FilePath "expenses-tracker-frontend/Dockerfile.azure" -Encoding UTF8
+'@
+# Use WriteAllText to avoid BOM — same reason as nginx-azure.conf.
+[System.IO.File]::WriteAllText("$PWD\expenses-tracker-frontend\Dockerfile.azure", $dockerfileContent)
 
 # Build with an immutable timestamp tag so every push creates a new revision
 $imgTag = (Get-Date -Format "yyyyMMdd-HHmmss")
