@@ -1,0 +1,41 @@
+# Expo
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+# Native
+android/
+ios/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Metro
+.metro-health-check*
+
+# Node
+node_modules/
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# TS build cache
+*.tsbuildinfo
+
+# Coverage
+coverage/
+
+# Local env
+.env*
+!.env.example
