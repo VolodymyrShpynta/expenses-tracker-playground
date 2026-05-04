@@ -30,10 +30,6 @@ export interface UpdateExpenseRequest {
   date?: string;
 }
 
-export interface SyncResult {
-  message: string;
-}
-
 /**
  * Per-category aggregate derived from a list of expenses.
  * Display fields (name, color, icon) are resolved at render time via

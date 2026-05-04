@@ -70,7 +70,6 @@ export function Layout() {
   const sidebarContent = (
     <SidebarContent
       activeIdx={activeIdx}
-      currentPath={location.pathname}
       onNav={handleNav}
       toolsOpen={toolsOpen}
       onToggleTools={() => setToolsOpen((prev) => !prev)}
