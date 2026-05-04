@@ -23,6 +23,7 @@ This guide walks you through deploying the **Expenses Tracker** application to *
 - [Update Existing Deployment](#update-existing-deployment)
 - [Monitoring and Logs](#monitoring-and-logs)
 - [Troubleshooting](#troubleshooting)
+    - [Connect to PostgreSQL from Your Local Machine](#connect-to-postgresql-from-your-local-machine)
 - [Cost Optimization](#cost-optimization)
 - [Clean Up Resources](#clean-up-resources)
 
@@ -1134,12 +1135,12 @@ curl "$frontendUrl/api/expenses" -H "Authorization: Bearer <TOKEN>"
 >
 > 1. **Force a new revision with `--revision-suffix`** (quick fix for an already-tagged `:latest` push):
      >    ```powershell
->    az containerapp update `
+     > az containerapp update `
 >      --name $apiAppName `
->      --resource-group $resourceGroup `
+     > --resource-group $resourceGroup `
 >      --image "$acrName.azurecr.io/expenses-api:latest" `
->      --revision-suffix ("v" + (Get-Date -Format "yyyyMMddHHmmss"))
->    ```
+     > --revision-suffix ("v" + (Get-Date -Format "yyyyMMddHHmmss"))
+     >    ```
 > 2. **Use immutable tags** (recommended — no `--revision-suffix` trick needed). Each build gets a
      > unique tag, so the spec genuinely changes and Container Apps rolls a new revision automatically.
      > See the examples below.
@@ -1293,6 +1294,241 @@ az postgres flexible-server connect `
   --database-name $dbName `
   --querytext "SELECT 1;"
 ```
+
+### Connect to PostgreSQL from Your Local Machine
+
+The database has **no public endpoint** (VNet-integrated, private access only). You cannot connect
+directly from your laptop with tools like pgAdmin or DBeaver. You must run `psql` from *inside*
+the VNet.
+
+> **⚠️ None of the deployed containers (API, Keycloak, Frontend) ship `psql`.**
+> - Keycloak 26.x uses a UBI micro base — **no package manager** at all.
+> - The API uses `amazoncorretto:21-alpine` but runs as non-root — **cannot install packages**.
+>
+> The solution is to deploy a temporary `postgres:17-alpine` container (which has `psql`
+> pre-installed), exec into it, run your queries interactively, then delete it.
+
+#### Prerequisite: Get the Database Hostname
+
+Azure auto-generates a unique prefix for the private DNS A record. Retrieve it once:
+
+```powershell
+$aRecordName = az network private-dns record-set a list `
+  --resource-group $resourceGroup `
+  --zone-name $privateDnsZone `
+  --query "[0].name" -o tsv
+
+$dbHost = "${aRecordName}.${privateDnsZone}"
+Write-Host "DB Host: $dbHost" -ForegroundColor Yellow
+```
+
+#### Option 1: Temporary Debug Container (Interactive `psql`)
+
+Deploy a lightweight temporary container app with `postgres:17-alpine` that simply sleeps.
+Then exec into it for a fully interactive `psql` session. Delete it when done.
+
+**Step 1 — Create the temporary container:**
+
+```powershell
+az containerapp create `
+  --name "db-debug" `
+  --resource-group $resourceGroup `
+  --environment $envName `
+  --image postgres:17-alpine `
+  --cpu 0.25 `
+  --memory 0.5Gi `
+  --min-replicas 1 `
+  --max-replicas 1 `
+  --command "sleep" "infinity" `
+  --env-vars PGPASSWORD="$dbAdminPassword"
+```
+
+**Step 2 — Exec into it and connect:**
+
+```powershell
+az containerapp exec `
+  --name "db-debug" `
+  --resource-group $resourceGroup `
+  --command "/bin/sh"
+```
+
+Then inside the container:
+
+```sh
+# psql is already installed — connect directly:
+psql "host=<DB_HOST> port=5432 dbname=expenses_db user=expensesadmin sslmode=require"
+```
+
+> Replace `<DB_HOST>` with the value from the prerequisite step (e.g.,
+> `dac998a4bddb.expenses-tracker-db.private.postgres.database.azure.com`).
+>
+> The password is already set via `PGPASSWORD` env var, so no prompt appears.
+
+You now have a full interactive `psql` session. Run any queries, `\dt`, `\d table_name`,
+multi-line SQL, etc.
+
+**Step 3 — Clean up when done:**
+
+```powershell
+az containerapp delete --name "db-debug" --resource-group $resourceGroup --yes
+```
+
+> **Cost:** The temporary container uses the Consumption plan (0.25 vCPU, 0.5 GB). At Azure's
+> rates that's ~$0.002/hour — negligible even if you forget to delete it for a day. But do
+> clean up when done to avoid unnecessary charges.
+
+#### Useful `psql` Commands Once Connected
+
+**Navigation & discovery:**
+
+```sql
+-- List all schemas in the database
+\dn
+
+-- List all tables in the current schema (public)
+\dt
+
+-- List tables in a specific schema (e.g., keycloak)
+\dt keycloak.*
+
+-- Switch to a different schema for subsequent commands
+SET search_path TO keycloak;
+\dt
+
+-- Switch back to public schema
+SET search_path TO public;
+
+-- Describe a table (columns, types, constraints)
+\d expense_projections
+\d expense_events
+\d categories
+
+-- List all indexes on a table
+\di+ expense_projections*
+```
+
+**Application tables (public schema):**
+
+| Table                   | Purpose                                    |
+|-------------------------|--------------------------------------------|
+| `expense_projections`   | Read model — current state of each expense |
+| `expense_events`        | Event store — append-only history          |
+| `processed_events`      | Idempotency registry for sync              |
+| `categories`            | User-configurable categories               |
+| `default_categories`    | Template categories seeded for new users   |
+| `flyway_schema_history` | Flyway migration tracking                  |
+
+**Common queries for this app:**
+
+```sql
+-- Count expenses per user
+SELECT user_id, count(*)
+FROM expense_projections
+WHERE deleted = false
+GROUP BY user_id;
+
+-- View recent expenses (newest first)
+SELECT id, description, amount, currency, date, updated_at
+FROM expense_projections
+WHERE deleted = false
+ORDER BY updated_at DESC
+    LIMIT 20;
+
+-- Check uncommitted events (pending sync)
+SELECT event_id, event_type, expense_id, timestamp
+FROM expense_events
+WHERE committed = false
+ORDER BY timestamp DESC;
+
+-- Count events by type
+SELECT event_type, count(*)
+FROM expense_events
+GROUP BY event_type;
+
+-- View categories for a user
+SELECT id, name, template_key, icon, color, sort_order
+FROM categories
+WHERE deleted = false
+  AND user_id = '<USER_ID>'
+ORDER BY sort_order;
+
+-- Check database size
+SELECT pg_size_pretty(pg_database_size(current_database()));
+
+-- Check table sizes
+SELECT relname AS table, pg_size_pretty(pg_total_relation_size(relid)) AS size
+FROM pg_catalog.pg_statio_user_tables
+ORDER BY pg_total_relation_size(relid) DESC;
+```
+
+**Handy psql shortcuts:**
+
+| Command     | Description                         |
+|-------------|-------------------------------------|
+| `\l`        | List all databases                  |
+| `\dn`       | List schemas                        |
+| `\dt`       | List tables (current schema)        |
+| `\d TABLE`  | Describe table structure            |
+| `\di`       | List indexes                        |
+| `\x`        | Toggle expanded (vertical) display  |
+| `\timing`   | Toggle query execution time display |
+| `\q`        | Quit psql                           |
+| `\conninfo` | Show current connection info        |
+| `\! clear`  | Clear the terminal screen           |
+
+#### Option 2: Container Apps Job (Non-Interactive, Scripted Queries)
+
+For automated or scripted queries where you don't need an interactive session (e.g., health
+checks, CI pipelines, one-off data fixes), use a Container Apps Job. It runs a single command
+and exits — same pattern as the Keycloak schema init in
+[Step 3](#step-3-create-azure-database-for-postgresql).
+
+```powershell
+$queryJobYaml = @"
+properties:
+  configuration:
+    triggerType: Manual
+    manualTriggerConfig:
+      parallelism: 1
+      replicaCompletionCount: 1
+    replicaTimeout: 300
+    replicaRetryLimit: 1
+  template:
+    containers:
+    - name: psql
+      image: postgres:17-alpine
+      command: ['/bin/sh', '-c', 'psql "host=$dbHost port=5432 dbname=$dbName user=$dbAdminUser sslmode=require" -c "\\dt"']
+      env:
+      - name: PGPASSWORD
+        value: '$dbAdminPassword'
+      resources:
+        cpu: 0.25
+        memory: 0.5Gi
+"@
+[System.IO.File]::WriteAllText("$PWD\db-query-job.yaml", $queryJobYaml)
+
+az containerapp job create --name "db-query" --resource-group $resourceGroup --environment $envName --yaml db-query-job.yaml
+az containerapp job start --name "db-query" --resource-group $resourceGroup
+
+# Wait and check output
+Start-Sleep -Seconds 30
+az containerapp job execution list --name "db-query" --resource-group $resourceGroup --output table
+
+# View the query output in the job logs
+az containerapp job logs show --name "db-query" --resource-group $resourceGroup
+
+# Clean up
+az containerapp job delete --name "db-query" --resource-group $resourceGroup --yes
+Remove-Item db-query-job.yaml -ErrorAction SilentlyContinue
+```
+
+Change the `-c "\\dt"` part to any SQL you need (e.g., `-c "SELECT count(*) FROM expense_projections;"`).
+
+
+> **Why not `az postgres flexible-server connect`?** That command requires the server to have
+> **public access** enabled. With VNet-integrated private access, it fails because Azure CLI
+> runs on your local machine which is outside the VNet. The approaches above sidestep this by
+> running `psql` from *inside* the VNet.
 
 ---
 
