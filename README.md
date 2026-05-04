@@ -2,20 +2,28 @@
 
 A production-ready, fully reactive **multi-user** expense tracking application with **Keycloak authentication**,
 **conflict-free, idempotent multi-device synchronization**, built with **Spring Boot 4**, **Kotlin Coroutines**,
-**R2DBC**, and **PostgreSQL**. The project includes a **React 19 + TypeScript + MUI v7** frontend for managing
-expenses via a responsive web UI. It implements a complete **Event Sourcing** and **CQRS** architecture with an
-optimized sync engine designed for eventual consistency across multiple devices.
+**R2DBC**, and **PostgreSQL**. The project includes a **React 19 + TypeScript + MUI v7** web frontend and a native
+**Expo + React Native + TypeScript** mobile module that ports the same event-sourcing engine to SQLite and syncs
+across devices via the user's own Google Drive or OneDrive (no backend involvement). It implements a complete
+**Event Sourcing** and **CQRS** architecture with an optimized sync engine designed for eventual consistency
+across multiple devices.
 
 ## 🌟 What Makes This Project Special?
 
 - ✨ **Modern Stack**: Spring Boot 4, Kotlin 2.3.10, Java 21 LTS, PostgreSQL 17
 - 🔐 **Multi-User Auth**: Keycloak (OAuth2 / OpenID Connect) with per-user data isolation
-- 🎨 **React Frontend**: React 19, TypeScript, MUI v7, Vite — responsive for mobile & desktop
-- 🏗️ **Event Sourcing & CQRS**: Proper event-driven architecture with separate read/write models
-- 🔄 **Multi-Device Sync**: Per-user synchronization via shared file (Dropbox, Google Drive)
-- 🛡️ **Battle-Tested**: Comprehensive test suite with Testcontainers and real PostgreSQL
+- 🎨 **React Web Frontend**: React 19, TypeScript, MUI v7, Vite — responsive for mobile & desktop
+- 📱 **Native Mobile App**: Expo SDK 53 + React Native 0.79 + React Native Paper v5 (Material 3) — fully offline-first
+  with its own SQLite event store
+- ☁️ **BYO Cloud Sync**: Mobile app syncs through the user's own Google Drive `appDataFolder` or OneDrive `approot` — no
+  central sync server, no backend dependency
+- 🏗️ **Event Sourcing & CQRS**: Proper event-driven architecture with separate read/write models — the same algorithm
+  runs on the JVM (Kotlin) and in the mobile app (TypeScript), with a byte-identical JSON wire format
+- 🔄 **Multi-Device Sync**: Per-user synchronization via shared file (local filesystem on the backend; cloud-drive on
+  mobile)
+- 🛡️ **Battle-Tested**: Comprehensive test suite with Testcontainers and real PostgreSQL on the backend, plus 56 Vitest
+  unit tests on mobile
 - 🚀 **Fully Reactive**: Non-blocking I/O with Spring WebFlux and Kotlin Coroutines
-- 📱 **Android-Ready**: Designed for easy migration to Android with Room and SQLite
 - 🎯 **Production Quality**: Transaction atomicity, idempotency, conflict resolution, error handling
 
 ## 📑 Table of Contents
@@ -33,6 +41,7 @@ optimized sync engine designed for eventual consistency across multiple devices.
     - [Conflict Resolution](#conflict-resolution)
     - [Sync Workflow](#sync-workflow)
     - [Idempotency Guarantees](#idempotency-guarantees)
+    - [Mobile Sync (TypeScript Port)](#mobile-sync-typescript-port)
 - [Why This Architecture?](#-why-this-architecture)
     - [Event Sourcing Benefits](#event-sourcing-benefits)
     - [CQRS Benefits](#cqrs-benefits)
@@ -52,7 +61,7 @@ optimized sync engine designed for eventual consistency across multiple devices.
 - [Frontend](#-frontend)
 - [API Documentation](#-api-documentation)
 - [Testing](#-testing)
-- [Android Migration Path](#-android-migration-path)
+- [Mobile App (Expo)](#-mobile-app-expo)
 - [Performance Optimization: Batch Processing](#-performance-optimization-batch-processing-recommended)
 - [Troubleshooting](#-troubleshooting)
 - [Copilot Instructions](#-copilot-instructions)
@@ -176,6 +185,24 @@ Each user's data (expenses, categories, sync files) is fully isolated. The sync 
 - **TanStack Query** (`@tanstack/react-query`) - Server state management
 - **keycloak-js** - Keycloak JavaScript adapter (PKCE flow)
 - **@mui/x-charts** - Charting (donut/pie charts for category breakdown)
+
+### Mobile
+
+The mobile app is **fully offline-first** and **does not talk to the backend API**. It has its own SQLite event store
+and syncs across devices via the user's own Google Drive (`appDataFolder`) or OneDrive (`approot`).
+
+- **Expo SDK 55** + **React Native 0.83** + **React 19.2**
+- **TypeScript** (strict + `verbatimModuleSyntax` + `exactOptionalPropertyTypes`)
+- **React Native Paper v5** — Material 3 component library
+- **Expo Router** — file-based routing with typed routes
+- **expo-sqlite** — local event store + projection + idempotency registry (port of the backend's three tables)
+- **TanStack Query** — wraps the local store, mirroring the web frontend's data-fetching layer
+- **expo-auth-session** — OAuth 2.0 + PKCE for Google Drive / OneDrive (no client secret)
+- **expo-secure-store** — Keychain (iOS) / Keystore (Android) for tokens
+- **expo-background-fetch** + **expo-task-manager** — periodic sync when the app is backgrounded
+- **pako** — gzip encode/decode of `sync.json.gz` (byte-identical to the backend's `SyncFileManager` output)
+- **i18next** + **react-i18next** — locale JSON copied at build time from the web frontend
+- **Vitest** — pure-TypeScript unit tests for `src/domain/`, `src/sync/`, and `src/test/` (56 tests)
 
 ---
 
@@ -306,13 +333,51 @@ expenses-tracker-playground/
 │   ├── vite.config.ts             # Vite + /api proxy to backend
 │   ├── tsconfig.json
 │   └── index.html
+├── expenses-tracker-mobile/      # Native mobile app (Expo + React Native)
+│   ├── app/                       # Expo Router file-based screens
+│   │   ├── _layout.tsx            # PaperProvider + i18n + DB + QueryClient
+│   │   └── index.tsx              # Home screen (placeholder)
+│   ├── src/
+│   │   ├── domain/                # Pure TypeScript event-sourcing core
+│   │   │   ├── types.ts           # Mirrors backend Kotlin model 1:1
+│   │   │   ├── mapping.ts         # Event payload ↔ projection
+│   │   │   ├── localStore.ts      # LocalStore interface (DIP boundary)
+│   │   │   ├── projector.ts       # Last-write-wins projection (port of backend)
+│   │   │   ├── commands.ts        # createExpense / updateExpense / deleteExpense
+│   │   │   └── queries.ts         # findAllExpenses / findExpenseById
+│   │   ├── db/                    # expo-sqlite implementation of LocalStore
+│   │   │   ├── schema.ts
+│   │   │   ├── migrations.ts      # PRAGMA user_version migrations
+│   │   │   ├── sqliteLocalStore.ts
+│   │   │   └── databaseProvider.tsx
+│   │   ├── sync/                  # Pure-TS sync engine + cloud-drive adapters
+│   │   │   ├── cloudDriveAdapter.ts   # Provider-agnostic interface (DIP)
+│   │   │   ├── codec.ts               # gzip + JSON encode/decode
+│   │   │   ├── remoteEventApplier.ts  # Idempotency + projection
+│   │   │   ├── syncEngine.ts          # Orchestration (download → apply → upload)
+│   │   │   ├── oauthClient.ts         # Shared PKCE + secure-store + refresh
+│   │   │   ├── googleDriveAdapter.ts  # Drive `appDataFolder` adapter
+│   │   │   ├── oneDriveAdapter.ts     # OneDrive `approot` adapter
+│   │   │   └── backgroundSync.ts      # expo-background-fetch task wiring
+│   │   ├── i18n/                  # i18next bootstrap + locale JSON
+│   │   ├── theme/                 # MD3 light/dark theme
+│   │   ├── test/                  # In-memory fakes + fixtures (Vitest)
+│   │   ├── utils/                 # TimeProvider, logger
+│   │   ├── queryClient.ts         # TanStack Query client + query keys
+│   │   └── types/                 # Shared TS interfaces
+│   ├── scripts/
+│   │   └── copy-locales.mjs       # Mirrors locale JSON from web frontend
+│   ├── app.json                   # Expo config (scheme = expensestracker)
+│   ├── build.gradle.kts           # Gradle shim driving npm via the node plugin
+│   ├── package.json
+│   └── tsconfig.json
 ├── keycloak/
 │   └── realm-export.json          # Pre-configured Keycloak realm for auto-import
 ├── gradle/
 │   ├── libs.versions.toml           # Centralized dependency versions
 │   └── wrapper/
 ├── build.gradle.kts                  # Root build configuration
-├── settings.gradle.kts               # Multi-module configuration (api + frontend)
+├── settings.gradle.kts               # Multi-module configuration (api + frontend + mobile)
 ├── docker-compose.yml                # Container orchestration (postgres, keycloak, api, frontend)
 ├── expenses-tracker-api.http         # HTTP request examples
 └── README.md
@@ -362,78 +427,89 @@ sequenceDiagram
         participant DB as PostgreSQL
     end
 
-    Note over User,DB: 1. Initial Page Load & Authentication (PKCE)
-    User->>Browser: Navigate to http://localhost:3000
-    Browser->>Nginx: GET /
-    Nginx->>Browser: index.html + JS bundle (static files)
-    Browser->>Browser: Mount AuthProvider (React starts in browser)
-    Browser->>Nginx: GET /auth/realms/expenses-tracker/.well-known/openid-configuration
-    Nginx->>KC: Proxy → GET /realms/expenses-tracker/.well-known/openid-configuration
-    KC->>DB: Read realm config (keycloak schema)
-    DB-->>KC: Realm settings, keys, clients
-    KC-->>Nginx: OpenID Connect discovery
-    Nginx-->>Browser: OpenID Connect discovery
-    Browser->>Nginx: Redirect to /auth/realms/expenses-tracker/protocol/openid-connect/auth<br/>(PKCE code_challenge)
-    Nginx->>KC: Proxy → /realms/.../auth
-    KC-->>Nginx: Login page
-    Nginx-->>Browser: Login page
-    User->>Browser: Enter username + password
-    Browser->>Nginx: POST /auth/.../login-actions/authenticate
-    Nginx->>KC: Proxy → POST credentials
-    KC->>DB: Verify credentials (keycloak schema)
-    DB-->>KC: User record + hashed password
-    KC-->>Nginx: Redirect with authorization code
-    Nginx-->>Browser: Redirect with authorization code
-    Browser->>Nginx: POST /auth/.../token (code + code_verifier)
-    Nginx->>KC: Proxy → POST /token
-    KC->>DB: Create session (keycloak schema)
-    KC-->>Nginx: Access token (JWT) + Refresh token
-    Nginx-->>Browser: Access token (JWT) + Refresh token
-
-    Note over User,DB: 2. Authenticated API Request (e.g. Load Categories)
-    Browser->>Nginx: GET /api/categories<br/>Authorization: Bearer {JWT}
-    Nginx->>API: Proxy → GET /api/categories
-    API->>KC: Fetch JWK set (public keys, cached after first call)
-    KC-->>API: RSA/EC public keys
-    API->>API: Validate JWT signature locally<br/>(cached keys, no Keycloak call per request)
-    API->>DB: SELECT COUNT(*) FROM categories WHERE user_id = ?
-    DB-->>API: 0 (new user)
-    API->>DB: INSERT INTO categories ... (seed defaults from default_categories)
-    DB-->>API: 22 rows inserted
-    API->>DB: SELECT * FROM categories WHERE user_id = ? AND deleted = false
-    DB-->>API: Categories list
-    API-->>Nginx: 200 OK [categories JSON]
-    Nginx-->>Browser: Response
-    Browser->>User: Render categories UI
-
-    Note over User,DB: 3. Create Expense
-    User->>Browser: Fill form → Submit
-    Browser->>Nginx: POST /api/expenses<br/>Authorization: Bearer {JWT}
-    Nginx->>API: Proxy → POST /api/expenses
-    API->>DB: INSERT INTO expense_events (append event)
-    API->>DB: UPSERT expense_projections (project read model)
-    DB-->>API: OK (atomic transaction)
-    API-->>Nginx: 201 Created {expense}
-    Nginx-->>Browser: Response
-    Browser->>Browser: Invalidate ['expenses'] query cache
-    Browser->>User: Updated expense list
-
-    Note over User,DB: 4. Token Refresh (transparent)
-    Browser->>Browser: Token expiring soon
-    Browser->>Nginx: POST /auth/.../token (refresh_token grant)
-    Nginx->>KC: Proxy → POST /token
-    KC->>DB: Validate refresh token session
-    KC-->>Nginx: New access token
-    Nginx-->>Browser: New access token
+    Note over User, DB: 1. Initial Page Load & Authentication (PKCE)
+    User ->> Browser: Navigate to http://localhost:3000
+    Browser ->> Nginx: GET /
+    Nginx ->> Browser: index.html + JS bundle (static files)
+    Browser ->> Browser: Mount AuthProvider (React starts in browser)
+    Browser ->> Nginx: GET /auth/realms/expenses-tracker/.well-known/openid-configuration
+    Nginx ->> KC: Proxy → GET /realms/expenses-tracker/.well-known/openid-configuration
+    KC ->> DB: Read realm config (keycloak schema)
+    DB -->> KC: Realm settings, keys, clients
+    KC -->> Nginx: OpenID Connect discovery
+    Nginx -->> Browser: OpenID Connect discovery
+    Browser ->> Nginx: Redirect to /auth/realms/expenses-tracker/protocol/openid-connect/auth<br/>(PKCE code_challenge)
+    Nginx ->> KC: Proxy → /realms/.../auth
+    KC -->> Nginx: Login page
+    Nginx -->> Browser: Login page
+    User ->> Browser: Enter username + password
+    Browser ->> Nginx: POST /auth/.../login-actions/authenticate
+    Nginx ->> KC: Proxy → POST credentials
+    KC ->> DB: Verify credentials (keycloak schema)
+    DB -->> KC: User record + hashed password
+    KC -->> Nginx: Redirect with authorization code
+    Nginx -->> Browser: Redirect with authorization code
+    Browser ->> Nginx: POST /auth/.../token (code + code_verifier)
+    Nginx ->> KC: Proxy → POST /token
+    KC ->> DB: Create session (keycloak schema)
+    KC -->> Nginx: Access token (JWT) + Refresh token
+    Nginx -->> Browser: Access token (JWT) + Refresh token
+    
+    Note over User, DB: 2. Authenticated API Request (e.g. Load Categories)
+    Browser ->> Nginx: GET /api/categories<br/>Authorization: Bearer {JWT}
+    Nginx ->> API: Proxy → GET /api/categories
+    API ->> KC: Fetch JWK set (public keys, cached after first call)
+    KC -->> API: RSA/EC public keys
+    API ->> API: Validate JWT signature locally<br/>(cached keys, no Keycloak call per request)
+    API ->> DB: SELECT COUNT(*) FROM categories WHERE user_id = ?
+    DB -->> API: 0 (new user)
+    API ->> DB: INSERT INTO categories ... (seed defaults from default_categories)
+    DB -->> API: 22 rows inserted
+    API ->> DB: SELECT * FROM categories WHERE user_id = ? AND deleted = false
+    DB -->> API: Categories list
+    API -->> Nginx: 200 OK [categories JSON]
+    Nginx -->> Browser: Response
+    Browser ->> User: Render categories UI
+    
+    Note over User, DB: 3. Create Expense
+    User ->> Browser: Fill form → Submit
+    Browser ->> Nginx: POST /api/expenses<br/>Authorization: Bearer {JWT}
+    Nginx ->> API: Proxy → POST /api/expenses
+    API ->> DB: INSERT INTO expense_events (append event)
+    API ->> DB: UPSERT expense_projections (project read model)
+    DB -->> API: OK (atomic transaction)
+    API -->> Nginx: 201 Created {expense}
+    Nginx -->> Browser: Response
+    Browser ->> Browser: Invalidate ['expenses'] query cache
+    Browser ->> User: Updated expense list
+    
+    Note over User, DB: 4. Token Refresh (transparent)
+    Browser ->> Browser: Token expiring soon
+    Browser ->> Nginx: POST /auth/.../token (refresh_token grant)
+    Nginx ->> KC: Proxy → POST /token
+    KC ->> DB: Validate refresh token session
+    KC -->> Nginx: New access token
+    Nginx -->> Browser: New access token
 ```
 
 **Key points:**
-- **Client vs Server** — The React SPA is served as static files by Nginx but runs entirely **in the user's browser**. After the initial download, all UI rendering and state management happens client-side. The green box is the user's machine; the blue box is server-side infrastructure (Docker containers or cloud).
-- **Shared PostgreSQL** — Both Keycloak and the application use the same PostgreSQL instance but different schemas: Keycloak uses the `keycloak` schema (realm config, users, sessions, credentials), while the application uses the `public` schema (expenses, events, categories).
-- **Local dev** — Vite proxies `/api/*` to `localhost:8080` and `/auth/*` to `localhost:8180` (Keycloak). The browser always uses `localhost:3000` as the origin.
-- **Docker Compose** — Nginx on port 3000 is the single entry point. It proxies `/api/*` → `expenses-api:8080` and `/auth/*` → `keycloak:8180`. All browser traffic (API calls **and** authentication) goes through Nginx.
-- **JWT validation** — The API fetches Keycloak's JWK set (public keys) once on startup via `jwk-set-uri` (container-to-container: `keycloak:8180/auth`) and caches them. Token validation is then done **locally** using cryptographic verification — no Keycloak call per request. The `issuer-uri` matches what `KC_HOSTNAME` pins as the public URL (`localhost:3000/auth` in Docker, configurable in `application.yaml` for dev).
-- **Lazy seeding** — On first API call for a new user, default categories are copied from the `default_categories` template table.
+
+- **Client vs Server** — The React SPA is served as static files by Nginx but runs entirely **in the user's browser**.
+  After the initial download, all UI rendering and state management happens client-side. The green box is the user's
+  machine; the blue box is server-side infrastructure (Docker containers or cloud).
+- **Shared PostgreSQL** — Both Keycloak and the application use the same PostgreSQL instance but different schemas:
+  Keycloak uses the `keycloak` schema (realm config, users, sessions, credentials), while the application uses the
+  `public` schema (expenses, events, categories).
+- **Local dev** — Vite proxies `/api/*` to `localhost:8080` and `/auth/*` to `localhost:8180` (Keycloak). The browser
+  always uses `localhost:3000` as the origin.
+- **Docker Compose** — Nginx on port 3000 is the single entry point. It proxies `/api/*` → `expenses-api:8080` and
+  `/auth/*` → `keycloak:8180`. All browser traffic (API calls **and** authentication) goes through Nginx.
+- **JWT validation** — The API fetches Keycloak's JWK set (public keys) once on startup via `jwk-set-uri` (
+  container-to-container: `keycloak:8180/auth`) and caches them. Token validation is then done **locally** using
+  cryptographic verification — no Keycloak call per request. The `issuer-uri` matches what `KC_HOSTNAME` pins as the
+  public URL (`localhost:3000/auth` in Docker, configurable in `application.yaml` for dev).
+- **Lazy seeding** — On first API call for a new user, default categories are copied from the `default_categories`
+  template table.
 
 ---
 
@@ -577,9 +653,9 @@ frontend via i18n when `template_key` is set and `name` is NULL.
 ```sql
 CREATE TABLE categories
 (
-    id           VARCHAR(36)  PRIMARY KEY,
-    name         VARCHAR(100),         -- NULL → frontend renders translated template name
-    template_key VARCHAR(50),          -- links to default_categories.template_key
+    id           VARCHAR(36) PRIMARY KEY,
+    name         VARCHAR(100), -- NULL → frontend renders translated template name
+    template_key VARCHAR(50),  -- links to default_categories.template_key
     icon         VARCHAR(50)  NOT NULL,
     color        VARCHAR(7)   NOT NULL,
     sort_order   INT          NOT NULL DEFAULT 0,
@@ -972,6 +1048,60 @@ suspend fun processRemoteEvents(remoteEvents: List<EventEntry>) {
 - Each event projected via transactional ExpenseSyncRecorder
 - Automatic retry on next sync for failed events
 - Idempotency ensures safe reprocessing
+
+### Mobile Sync (TypeScript Port)
+
+The mobile module ships a **second implementation of the same algorithm** — written in TypeScript over
+`expo-sqlite` instead of Kotlin over R2DBC — and uses cloud drives instead of the local filesystem. The
+JSON wire format (`sync.json.gz`) is **byte-identical** to what the backend's `SyncFileManager` produces,
+so a self-hosted backend instance and a mobile device that share the same Drive folder converge transparently.
+
+**Module-level mapping (mobile ↔ backend):**
+
+| Mobile (TypeScript)                     | Backend (Kotlin)                                | Responsibility                                  |
+|-----------------------------------------|-------------------------------------------------|-------------------------------------------------|
+| `src/domain/projector.ts`               | `ExpenseProjectionRepository`                   | Last-write-wins UPSERT into the projection      |
+| `src/domain/commands.ts` / `queries.ts` | `ExpenseCommandService` / `ExpenseQueryService` | CQRS write/read split (single SQLite tx)        |
+| `src/sync/syncEngine.ts`                | `ExpenseEventSyncService`                       | Sync orchestration                              |
+| `src/sync/codec.ts`                     | `SyncFileManager` (gzip/JSON)                   | Encode/decode the `sync.json.gz` wire format    |
+| `src/sync/remoteEventApplier.ts`        | `ExpenseSyncProjector`                          | Idempotency check before applying remote events |
+| `src/db/sqliteLocalStore.ts`            | `ExpenseSyncRecorder`                           | Transactional persistence (single tx)           |
+| `src/sync/cloudDriveAdapter.ts`         | `FileOperations`                                | I/O abstraction (DIP boundary)                  |
+| `src/sync/googleDriveAdapter.ts`        | _(none — file-based locally)_                   | Google Drive `appDataFolder` adapter            |
+| `src/sync/oneDriveAdapter.ts`           | _(none — file-based locally)_                   | OneDrive `approot` adapter                      |
+
+**Why `RemoteEventApplier` is still a separate module on mobile**
+
+There is no Spring `@Transactional` proxy on mobile and therefore no self-invocation pitfall to worry about.
+The split is preserved anyway because it (a) keeps the projector unit-testable in isolation with an in-memory
+`LocalStore` fake, (b) keeps the wire-format contract tests symmetric with the backend, and (c) makes
+porting algorithmic changes between the two implementations a 1:1 mechanical translation.
+
+**Cloud-drive flow (single device cycle):**
+
+```
+SyncEngine.performFullSync()
+  1. adapter.getMetadata()      — etag/checksum-based skip
+  2. adapter.download()         → SyncFileCodec.decode → events[]
+        for each event:
+          RemoteEventApplier.apply (processed_events idempotency + projection)
+  3. LocalStore.findUncommittedEvents
+        → SyncFileCodec.encode  → adapter.upload(if-match: etag)
+  4. cache new etag for next cycle
+  5. on 412 Precondition Failed → retry (max 3) — concurrent writer detected
+```
+
+**Concurrency:** the mobile sync engine uses **optimistic eTag** concurrency. Both Drive REST and Microsoft
+Graph return an eTag on the file resource; the engine forwards it as `If-Match` on upload. A `412 Precondition
+Failed` is thrown as `ConcurrencyError`, the engine reloads the file, re-applies remote events on top, and
+retries up to `MAX_RETRIES=3` times. This is stricter than the backend's local-file path (which never has
+concurrent writers on the same machine).
+
+**Conflict resolution:** identical to the backend — last-write-wins by timestamp, strict `>`, soft deletes
+can be superseded by a newer non-deleted update (resurrection).
+
+**Sort order:** identical — `(timestamp ASC, eventId ASC)` so all devices replay events in the same
+deterministic order.
 
 ### Component Architecture
 
@@ -1626,6 +1756,12 @@ The application can be configured via environment variables:
 
 - `SYNC_FILE_PATH` - Path to sync file (default: `./sync-data/sync.json`)
 - `SYNC_FILE_COMPRESSION_ENABLED` - Enable gzip compression (default: `true`)
+
+> The variables above only configure the **backend's** local-filesystem sync path. The mobile module does
+> not read any of them — its sync configuration lives in source as committed constants
+> (`GOOGLE_OAUTH_CLIENT_ID` and `MICROSOFT_OAUTH_CLIENT_ID`, see [Mobile App (Expo)](#-mobile-app-expo)).
+> OAuth tokens themselves are persisted in `expo-secure-store` (Keychain / Keystore) at runtime —
+> never in source.
 
 **Authentication (Keycloak):**
 
@@ -2558,6 +2694,10 @@ curl -X POST http://localhost:8080/api/expenses/sync \
 The frontend is a **React 19 + TypeScript + MUI v7** single-page application with **Keycloak authentication**
 that consumes the backend REST API.
 
+> **Note on cloud-drive sync.** Cloud-drive sync (Google Drive `appDataFolder` / OneDrive `approot`) is a
+> mobile-only feature — see [Mobile App (Expo)](#-mobile-app-expo). The web frontend is a thin online client
+> against the backend API and intentionally does **not** expose a "sync now" trigger.
+
 ### Features
 
 - **Keycloak login** — PKCE authentication flow, auto token refresh, logout
@@ -2783,6 +2923,11 @@ curl -X POST "$API_URL/api/expenses" \
 
 ## 🧪 Testing
 
+> **Mobile module:** the mobile app has its own pure-TypeScript test suite — **56 Vitest tests** covering
+> the projector, codec, sync engine, OAuth client, and remote event applier. Run it with
+> `cd expenses-tracker-mobile && npm test`, or via Gradle: `./gradlew :expenses-tracker-mobile:check`
+> (lint + Vitest + `tsc -b`). The sections below describe the **backend** test suite.
+
 ### Test Coverage
 
 **Comprehensive test suite** covering:
@@ -2952,111 +3097,121 @@ fun `should rollback all steps when expense projection fails`() = runBlocking {
 
 ---
 
-## 📱 Android Migration Path
+## 📱 Mobile App (Expo)
 
-The sync engine is designed for easy Android migration:
+The `expenses-tracker-mobile/` module is a native iOS + Android app built with **Expo SDK 55 + React Native
+0.83 + React Native Paper v5**. It is **fully offline-first** and **never talks to `expenses-tracker-api`** —
+all state lives in a local SQLite database, and multi-device convergence happens through the user's own
+Google Drive `appDataFolder` or OneDrive `approot`.
 
-### Database
+The mobile module is a Gradle subproject (`./gradlew :expenses-tracker-mobile:check` runs lint + Vitest +
+type-check) so it participates in the same monorepo build as the backend and web frontend.
 
-**Current (PostgreSQL):**
+### Running the Mobile App
 
-```sql
-CREATE TABLE expense_projections
-(
-    id          VARCHAR(36) PRIMARY KEY,
-    description VARCHAR(500),
-    amount      BIGINT  NOT NULL,
-    category    VARCHAR(100),
-    date        VARCHAR(50),
-    updated_at  BIGINT  NOT NULL,
-    deleted     BOOLEAN NOT NULL DEFAULT false
-);
+```bash
+cd expenses-tracker-mobile
+
+# First-time install (no special flags needed)
+npm install
+
+# Run the standard checks (lint + Vitest + tsc)
+npm run lint
+npm run typecheck
+npm test
+
+# Start the Expo dev server (requires a simulator or a physical device)
+npm start
 ```
 
-**Android (Room + SQLite):**
+To produce installable builds via EAS (Expo Application Services):
 
-```kotlin
-@Entity(tableName = "expense_projections")
-data class ExpenseProjection(
-    @PrimaryKey val id: String,
-    @ColumnInfo(name = "description") val description: String?,
-    @ColumnInfo(name = "amount") val amount: Long,
-    @ColumnInfo(name = "category") val category: String?,
-    @ColumnInfo(name = "date") val date: String?,
-    @ColumnInfo(name = "updated_at") val updatedAt: Long,
-    @ColumnInfo(name = "deleted") val deleted: Boolean = false
-)
+```bash
+# Android (works from Windows / macOS / Linux — cloud build by default)
+npx eas build --platform android --profile preview
+
+# iOS (requires an Apple developer account and either macOS or EAS cloud)
+npx eas build --platform ios --profile preview
 ```
 
-### Repositories
+### Cloud-Drive Sync — Getting OAuth Client IDs
 
-**Current (R2DBC):**
+The mobile app uses **OAuth 2.0 with PKCE** to talk to Google Drive and OneDrive. There is **no client
+secret** — PKCE replaces it with a per-flow code challenge — so the only thing you need to provide is the
+**Client ID** for each provider. Both client IDs are referenced as constants in source:
 
-```kotlin
-interface ExpenseProjectionRepository : CoroutineCrudRepository<ExpenseProjection, UUID> {
-    @Query(
-        """
-        INSERT INTO expense_projections (id, description, amount, category, date, updated_at, deleted)
-        VALUES (:#{#expense.id}, :#{#expense.description}, :#{#expense.amount}, 
-                :#{#expense.category}, :#{#expense.date}, :#{#expense.updatedAt}, :#{#expense.deleted})
-        ON CONFLICT (id) DO UPDATE SET
-            description = EXCLUDED.description,
-            amount = EXCLUDED.amount,
-            category = EXCLUDED.category,
-            date = EXCLUDED.date,
-            updated_at = EXCLUDED.updated_at,
-            deleted = EXCLUDED.deleted
-        WHERE EXCLUDED.updated_at > expense_projections.updated_at
-    """
-    )
-    suspend fun projectFromEvent(expense: ExpenseProjection): Int
-}
-```
+| Provider     | Constant                    | File                                                                                                               |
+|--------------|-----------------------------|--------------------------------------------------------------------------------------------------------------------|
+| Google Drive | `GOOGLE_OAUTH_CLIENT_ID`    | [`expenses-tracker-mobile/src/sync/googleDriveAdapter.ts`](expenses-tracker-mobile/src/sync/googleDriveAdapter.ts) |
+| OneDrive     | `MICROSOFT_OAUTH_CLIENT_ID` | [`expenses-tracker-mobile/src/sync/oneDriveAdapter.ts`](expenses-tracker-mobile/src/sync/oneDriveAdapter.ts)       |
 
-**Android (Room):**
+Both files ship with a `TODO_REPLACE_WITH_*` placeholder. Replace those values with the IDs you obtain
+from the steps below before running the OAuth flow on a device.
 
-```kotlin
-@Dao
-interface ExpenseProjectionDao {
-    @Query(
-        """
-        INSERT INTO expense_projections (id, description, amount, category, date, updated_at, deleted)
-        VALUES (:id, :description, :amount, :category, :date, :updatedAt, :deleted)
-        ON CONFLICT (id) DO UPDATE SET
-            description = excluded.description,
-            amount = excluded.amount,
-            category = excluded.category,
-            date = excluded.date,
-            updated_at = excluded.updated_at,
-            deleted = excluded.deleted
-        WHERE excluded.updated_at > expense_projections.updated_at
-    """
-    )
-    suspend fun projectFromEvent(
-        id: String, description: String?, amount: Long,
-        category: String?, date: String?, updatedAt: Long, deleted: Boolean
-    ): Int
-}
-```
+The redirect URI used by both adapters is **`expensestracker://redirect`** — derived from the `scheme`
+field in [`expenses-tracker-mobile/app.json`](expenses-tracker-mobile/app.json). The bundle / package
+identifier is **`com.vshpynta.expensestracker`** for both iOS and Android.
 
-### Sync Service
+#### Microsoft (OneDrive)
 
-**Portable:** Same Kotlin coroutine logic works on Android!
+1. Sign in to <https://entra.microsoft.com> and open **App registrations → New registration**.
+2. Choose **Personal Microsoft accounts only** (this matches the `consumers` tenant used by the adapter).
+   If you also need work / school accounts, pick **Accounts in any organizational directory and personal
+   Microsoft accounts** and change the tenant in `oneDriveAdapter.ts` from `consumers` to `common`.
+3. Under **Redirect URI**, select **Mobile and desktop applications** and add
+   `expensestracker://redirect` exactly.
+4. Open **API permissions → Add a permission → Microsoft Graph → Delegated permissions** and add:
+    - `Files.ReadWrite.AppFolder`
+    - `offline_access` (so the app can refresh tokens silently)
+5. Open **Authentication** and turn on **Allow public client flows: Yes** (PKCE is a public-client flow).
+6. Copy the **Application (client) ID** from the **Overview** blade and paste it into
+   `MICROSOFT_OAUTH_CLIENT_ID`.
 
-```kotlin
-// This code works on both platforms!
-suspend fun performFullSync() {
-    val localEvents = collectLocalEvents()
-    appendEventsToFile(localEvents)
-    val remoteEvents = readRemoteEvents()
-    applyRemoteEvents(remoteEvents)
-}
-```
+#### Google (Google Drive)
 
-### File Storage
+1. Sign in to <https://console.cloud.google.com>, create a project (or pick an existing one), and open
+   **APIs & Services → Library → Google Drive API → Enable**.
+2. Open **APIs & Services → OAuth consent screen** and configure the app for **External** users (Testing
+   mode is fine for development).
+3. Open **APIs & Services → Credentials → Create Credentials → OAuth client ID** and create **two**
+   clients — one per platform — using the bundle / package identifier `com.vshpynta.expensestracker`:
+    - **iOS** — Bundle ID `com.vshpynta.expensestracker`.
+    - **Android** — Package name `com.vshpynta.expensestracker` plus the SHA-1 fingerprint of the keystore
+      EAS uses to sign the app (run `npx eas credentials` to retrieve it).
+4. Under **Scopes**, the app only requests `https://www.googleapis.com/auth/drive.appdata` — no broad
+   Drive scope, so your app stays inside Google's lightweight verification path.
+5. Copy the resulting **Client ID** and paste it into `GOOGLE_OAUTH_CLIENT_ID`.
 
-**Current:** Local filesystem  
-**Android:** `getExternalFilesDir()` or cloud SDK (Dropbox, Google Drive)
+#### Are these Client IDs sensitive?
+
+**No — Client IDs are public identifiers under the PKCE flow** and are safe to commit to a public Git
+repository. They identify your app to the OAuth provider but cannot be used to obtain tokens on their
+own (the per-flow code-verifier secret stays on the device). For comparison, the web frontend's Keycloak
+public client ID (`expenses-frontend`) is committed to this repo for the same reason.
+
+**Never commit any of these:**
+
+- OAuth **client secrets** (PKCE removes the need for one — your registration must NOT have one)
+- **Refresh tokens** or **access tokens** (the app stores them in `expo-secure-store`, i.e. iOS Keychain
+  / Android Keystore — _never_ in `AsyncStorage` or in source)
+- **Service-account JSON keys** (not used by this app at all)
+
+If you accidentally leak a token, revoke it from the provider's console and rotate. If you leak a Client
+ID, you do not need to rotate it — but you should still review the registration's permitted redirect
+URIs.
+
+### Key Files
+
+- **[
+  `.github/instructions/expenses-tracker-mobile.instructions.md`](.github/instructions/expenses-tracker-mobile.instructions.md)
+  ** —
+  full coding conventions for this module (RN Paper v5, Expo Router v4, TanStack Query over local store,
+  i18n, time injection, security).
+- **[`expenses-tracker-mobile/src/sync/syncEngine.ts`](expenses-tracker-mobile/src/sync/syncEngine.ts)** —
+  the orchestration loop with retry-on-`ConcurrencyError`.
+- **[`expenses-tracker-mobile/src/sync/oauthClient.ts`](expenses-tracker-mobile/src/sync/oauthClient.ts)** —
+  shared PKCE helper used by both Drive adapters; persists tokens via `expo-secure-store` and serializes
+  refresh requests behind a single in-flight promise.
 
 ---
 
@@ -3239,7 +3394,7 @@ private fun DatabaseClient.GenericExecuteSpec.bindDeleteBatch(
 - ✅ Validating sync architecture (playground/POC)
 - ✅ Batch sizes are small (< 50 items)
 - ✅ Simplicity is priority
-- ✅ Android migration imminent (Room has built-in batching)
+- ✅ Targeting personal use (mobile module already uses single-transaction batching via expo-sqlite)
 
 **Implement Batch Processing When:**
 
@@ -3250,25 +3405,18 @@ private fun DatabaseClient.GenericExecuteSpec.bindDeleteBatch(
 
 ---
 
-### Android Migration Note
+### Mobile Note (expo-sqlite)
 
-**Room provides built-in batch operations:**
+The mobile module uses **expo-sqlite** with `withTransactionAsync` blocks instead of Room. Batching the
+projector's UPSERTs in a single transaction is already enough on mobile, because:
 
-```kotlin
-@Dao
-interface ExpenseProjectionDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(projections: List<ExpenseProjection>)
+- the SQLite database is local (no network round trip per statement),
+- a typical sync batch is small (≤ 100 events for a personal expense tracker),
+- the `RemoteEventApplier` already runs the whole batch inside one `db.withTransactionAsync` call.
 
-    @Transaction
-    suspend fun upsertAll(projections: List<ExpenseProjection>) {
-        // Room optimizes this internally with SQLite batch operations
-        insertAll(projections)
-    }
-}
-```
-
-Room automatically handles batch optimization, so manual batch SQL is less critical on Android.
+If profiling ever shows the per-statement loop is a bottleneck on a constrained device, the same
+multi-row VALUES technique described above translates directly to expo-sqlite — but it has not been
+needed in practice.
 
 ---
 
@@ -3512,8 +3660,10 @@ docker compose up -d
 The project includes a GitHub Actions workflow (`.github/workflows/ci.yml`) that runs on every push to `main` and on all
 pull requests:
 
-1. **Build & Test** — Sets up JDK 21 and Node.js with Gradle caching, then runs `./gradlew build` (includes backend
-   tests with Testcontainers and the frontend build via the Gradle node plugin)
+1. **Build & Test** — Sets up JDK 21 and Node.js with Gradle caching, then runs `./gradlew build`. This builds the
+   backend (incl. Testcontainers tests), the frontend (via the Gradle node plugin), and runs `tsc -b` on the mobile
+   module. Mobile lint + Vitest run via `./gradlew check` (which also re-runs backend tests). Native iOS / Android
+   builds are produced separately through EAS (`eas build`) on demand — they are not part of CI.
 2. **Docker Images** — On `main` branch pushes only, builds Docker images for both the backend API and the frontend to
    validate the Dockerfiles (no push — this is a playground project)
 
@@ -3524,12 +3674,13 @@ pull requests:
 This project includes **GitHub Copilot instruction files** that provide AI coding assistants with project-specific
 context, conventions, and architectural rules. They live in the `.github/` directory:
 
-| File                                                             | Scope                          | Description                                                                                                                                                  |
-|------------------------------------------------------------------|--------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `.github/copilot-instructions.md`                                | Entire workspace               | Project overview, clean code principles (SOLID, DRY, KISS, YAGNI), general coding rules                                                                      |
-| `.github/instructions/expenses-tracker-api.instructions.md`      | `expenses-tracker-api/**`      | Backend-specific rules: Kotlin/Spring Boot conventions, reactive stack patterns, CQRS/event sourcing guidance, testing conventions (AssertJ, Testcontainers) |
-| `.github/instructions/expenses-tracker-frontend.instructions.md` | `expenses-tracker-frontend/**` | Frontend-specific rules: React 19 + TypeScript conventions, MUI v7 practices (slotProps, sx), component/hook patterns, form validation with Zod              |
-| `.github/instructions/test-conventions.instructions.md`          | Test files                     | Testing conventions: naming, structure, assertions, Testcontainers usage                                                                                     |
+| File                                                             | Scope                          | Description                                                                                                                                                                                                                            |
+|------------------------------------------------------------------|--------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `.github/copilot-instructions.md`                                | Entire workspace               | Project overview, clean code principles (SOLID, DRY, KISS, YAGNI), general coding rules                                                                                                                                                |
+| `.github/instructions/expenses-tracker-api.instructions.md`      | `expenses-tracker-api/**`      | Backend-specific rules: Kotlin/Spring Boot conventions, reactive stack patterns, CQRS/event sourcing guidance, testing conventions (AssertJ, Testcontainers)                                                                           |
+| `.github/instructions/expenses-tracker-frontend.instructions.md` | `expenses-tracker-frontend/**` | Frontend-specific rules: React 19 + TypeScript conventions, MUI v7 practices (slotProps, sx), component/hook patterns, form validation with Zod                                                                                        |
+| `.github/instructions/expenses-tracker-mobile.instructions.md`   | `expenses-tracker-mobile/**`   | Mobile-specific rules: Expo SDK 53 + RN Paper v5 + Expo Router v4 conventions, expo-sqlite local store, cloud-drive `CloudDriveAdapter` interface, OAuth via expo-auth-session, security (PKCE / app-private folders / no PII in logs) |
+| `.github/instructions/test-conventions.instructions.md`          | Test files                     | Testing conventions: naming, structure, assertions, Testcontainers usage                                                                                                                                                               |
 
 These files are automatically picked up by Copilot when editing matching files, ensuring AI suggestions follow the
 project's architecture, naming conventions, and best practices.
@@ -3552,6 +3703,13 @@ project's architecture, naming conventions, and best practices.
 - [MUI (Material UI)](https://mui.com/)
 - [TanStack Query](https://tanstack.com/query/latest)
 - [Vite](https://vite.dev/)
+- [Expo](https://docs.expo.dev/)
+- [React Native](https://reactnative.dev/docs/getting-started)
+- [React Native Paper](https://callstack.github.io/react-native-paper/)
+- [Expo Router](https://docs.expo.dev/router/introduction/)
+- [expo-auth-session (PKCE)](https://docs.expo.dev/versions/latest/sdk/auth-session/)
+- [Microsoft Graph — Files.ReadWrite.AppFolder](https://learn.microsoft.com/en-us/graph/api/resources/onedrive)
+- [Google Drive REST — drive.appdata scope](https://developers.google.com/drive/api/guides/appdata)
 
 ### Key Learnings
 
@@ -3561,10 +3719,11 @@ project's architecture, naming conventions, and best practices.
 
 ---
 
-**Built with ❤️ using Spring Boot 4, Kotlin, R2DBC, PostgreSQL, React 19, TypeScript & MUI v7**
+**Built with ❤️ using Spring Boot 4, Kotlin, R2DBC, PostgreSQL, React 19, TypeScript, MUI v7, Expo SDK 55 & React Native
+0.83**
 
 **Version:** 0.0.1-SNAPSHOT  
-**Last Updated:** April 2026  
+**Last Updated:** May 2026  
 **Project Status:** Active Development
 
 ### Tech Stack Versions
@@ -3576,7 +3735,12 @@ project's architecture, naming conventions, and best practices.
 - Flyway: 11.16.0
 - Testcontainers: 1.21.4
 - Gradle: 9.4.0
-- React: 19.2
+- React (web): 19.2
 - TypeScript: 5.9
 - MUI: 7.3
 - Vite: 8.0
+- Expo SDK: 55
+- React Native: 0.83
+- React (mobile): 19.2
+- React Native Paper: 5.14
+- Vitest (mobile): 4.1.5
