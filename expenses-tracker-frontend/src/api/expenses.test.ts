@@ -12,7 +12,6 @@ const {
   createExpense,
   updateExpense,
   deleteExpense,
-  triggerSync,
 } = await import('./expenses.ts');
 
 beforeEach(() => fetchWithAuthMock.mockReset());
@@ -72,15 +71,6 @@ describe('expenses API client', () => {
 
     await expect(deleteExpense('x')).resolves.toBeUndefined();
     expect(fetchWithAuthMock).toHaveBeenCalledWith('/api/expenses/x', { method: 'DELETE' });
-  });
-
-  it('triggerSync POSTs to /api/expenses/sync and returns the result body', async () => {
-    fetchWithAuthMock.mockResolvedValue(jsonRes({ message: 'ok' }));
-
-    const result = await triggerSync();
-
-    expect(fetchWithAuthMock).toHaveBeenCalledWith('/api/expenses/sync', { method: 'POST' });
-    expect(result).toEqual({ message: 'ok' });
   });
 
   it('rejects when the server returns a non-2xx response', async () => {

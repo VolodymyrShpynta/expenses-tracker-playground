@@ -3,7 +3,6 @@ import {
   createExpense,
   updateExpense,
   deleteExpense,
-  triggerSync,
 } from '../api/expenses.ts';
 import type { CreateExpenseRequest, UpdateExpenseRequest } from '../types/expense.ts';
 import { EXPENSES_QUERY_KEY } from './useExpenses.ts';
@@ -29,14 +28,6 @@ export function useDeleteExpense() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteExpense(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: EXPENSES_QUERY_KEY }),
-  });
-}
-
-export function useTriggerSync() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: triggerSync,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: EXPENSES_QUERY_KEY }),
   });
 }

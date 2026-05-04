@@ -9,7 +9,6 @@ import ListItemText from '@mui/material/ListItemText';
 import Collapse from '@mui/material/Collapse';
 import Switch from '@mui/material/Switch';
 import Chip from '@mui/material/Chip';
-import SyncIcon from '@mui/icons-material/Sync';
 import CategoryIcon from '@mui/icons-material/Category';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import FormatSizeIcon from '@mui/icons-material/FormatSize';
@@ -32,17 +31,16 @@ import { navItemSx } from './layoutStyles.ts';
 interface SidebarToolsProps {
   open: boolean;
   onToggle: () => void;
-  onNav: (path: string) => void;
-  currentPath: string;
   onExportImport: () => void;
 }
 
 /**
  * Collapsible "Tools" section. Hosts cross-cutting actions that don't
- * belong with day-to-day navigation: manual sync and the
- * export/import flow.
+ * belong with day-to-day navigation. Currently only the
+ * export/import flow lives here; cloud-drive sync moved to the
+ * mobile module.
  */
-export function SidebarTools({ open, onToggle, onNav, currentPath, onExportImport }: SidebarToolsProps) {
+export function SidebarTools({ open, onToggle, onExportImport }: SidebarToolsProps) {
   const { t: translate } = useTranslation();
   const theme = useTheme();
   return (
@@ -56,14 +54,6 @@ export function SidebarTools({ open, onToggle, onNav, currentPath, onExportImpor
             borderLeft: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
           }}
         >
-          <ListItemButton
-            selected={currentPath === '/sync'}
-            onClick={() => onNav('/sync')}
-            sx={navItemSx(theme, currentPath === '/sync')}
-          >
-            <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}><SyncIcon /></ListItemIcon>
-            <ListItemText primary={translate('nav.sync')} />
-          </ListItemButton>
           <ListItemButton
             onClick={onExportImport}
             sx={navItemSx(theme, false)}

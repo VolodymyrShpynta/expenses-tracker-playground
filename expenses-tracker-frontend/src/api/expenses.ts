@@ -2,7 +2,6 @@ import type {
   Expense,
   CreateExpenseRequest,
   UpdateExpenseRequest,
-  SyncResult,
 } from '../types/expense.ts';
 import { fetchWithAuth } from './fetchWithAuth.ts';
 import { expectOk, handleResponse } from './handleResponse.ts';
@@ -38,9 +37,4 @@ export async function updateExpense(
 export async function deleteExpense(id: string): Promise<void> {
   const res = await fetchWithAuth(`${BASE}/${id}`, { method: 'DELETE' });
   await expectOk(res);
-}
-
-export async function triggerSync(): Promise<SyncResult> {
-  const res = await fetchWithAuth(`${BASE}/sync`, { method: 'POST' });
-  return handleResponse<SyncResult>(res);
 }

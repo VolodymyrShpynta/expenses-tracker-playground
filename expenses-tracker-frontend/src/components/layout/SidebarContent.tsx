@@ -25,7 +25,6 @@ import type { FontScale } from '../../theme.ts';
  */
 interface SidebarContentProps {
   activeIdx: number;
-  currentPath: string;
   onNav: (path: string) => void;
 
   toolsOpen: boolean;
@@ -50,7 +49,6 @@ export function SidebarContent(props: SidebarContentProps) {
   const theme = useTheme();
   const {
     activeIdx,
-    currentPath,
     onNav,
     toolsOpen,
     onToggleTools,
@@ -90,8 +88,6 @@ export function SidebarContent(props: SidebarContentProps) {
       <SidebarTools
         open={toolsOpen}
         onToggle={onToggleTools}
-        onNav={onNav}
-        currentPath={currentPath}
         onExportImport={onExportImport}
       />
 
