@@ -740,7 +740,11 @@ $nginxConf = @"
 # Per-IP zones — each client IP gets its own counter.
 limit_req_zone `$binary_remote_addr zone=general_per_ip:10m rate=10r/s;
 limit_req_zone `$binary_remote_addr zone=api_per_ip:10m     rate=5r/s;
-limit_req_zone `$binary_remote_addr zone=auth_per_ip:10m    rate=3r/s;
+# Two zones for /auth/*: a tight one applied ONLY to credential-submission
+# endpoints (token + login-actions) and a permissive one for generic /auth/*
+# traffic (admin/account SPAs, iframes, JWKS, admin REST API XHRs, etc.).
+limit_req_zone `$binary_remote_addr zone=auth_login_per_ip:10m rate=1r/s;
+limit_req_zone `$binary_remote_addr zone=auth_per_ip:10m       rate=20r/s;
 
 # Global zones — single counter shared by ALL clients. These are a safety net
 # for the backend even when individual clients stay within per-IP limits.
@@ -815,9 +819,46 @@ server {
         proxy_ssl_server_name on;
     }
 
-    # Proxy Keycloak auth requests (preserve /auth/ prefix — Keycloak context path)
+    # Keycloak static assets (theme CSS/JS, fonts, admin-console SPA bundles,
+    # i18n messages JSON). Content-hashed and browser-cached — NOT a brute-
+    # force target, so NO rate limit. The admin console alone loads 100+
+    # chunked JS modules in parallel on first paint; rate-limiting them
+    # would 429 the browser mid-load. `^~` ensures this prefix wins over
+    # the regex location below.
+    location ^~ /auth/resources/ {
+        proxy_pass https://${keycloakFqdn};
+        proxy_set_header Host $keycloakFqdn;
+        proxy_set_header X-Real-IP         `$remote_addr;
+        proxy_set_header X-Forwarded-For   `$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_ssl_server_name on;
+    }
+
+    # Brute-force-sensitive Keycloak endpoints — credential submission only:
+    #   POST /auth/realms/{realm}/protocol/openid-connect/token
+    #   POST /auth/realms/{realm}/login-actions/authenticate
+    # Strict 1 r/s + burst=10 stops credential stuffing without affecting
+    # the rest of /auth/*. Regex locations take priority over plain-prefix
+    # `/auth/` below (but not over `^~ /auth/resources/` above).
+    location ~ ^/auth/realms/[^/]+/(protocol/openid-connect/token|login-actions/authenticate)$ {
+        limit_req zone=auth_login_per_ip burst=10 nodelay;
+        limit_req_status 429;
+
+        proxy_pass https://${keycloakFqdn};
+        proxy_set_header Host $keycloakFqdn;
+        proxy_set_header X-Real-IP         `$remote_addr;
+        proxy_set_header X-Forwarded-For   `$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_ssl_server_name on;
+    }
+
+    # Generic Keycloak proxy: admin console XHRs (serverinfo, realms,
+    # clients...), account console, 3p-cookies/status iframes, JWKS, OIDC
+    # discovery, etc. These are normal SPA traffic that Keycloak itself
+    # authenticates and authorizes — not brute-force targets. 20 r/s +
+    # burst=50 absorbs page-load surges and admin-console navigation churn.
     location /auth/ {
-        limit_req zone=auth_per_ip  burst=5 nodelay;
+        limit_req zone=auth_per_ip burst=50 nodelay;
         limit_req_status 429;
 
         proxy_pass https://${keycloakFqdn};
