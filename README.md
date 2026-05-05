@@ -3124,6 +3124,116 @@ npm test
 npm start
 ```
 
+When `npm start` is running, press:
+
+- `a` — open on Android emulator (or connected device)
+- `i` — open on iOS Simulator (macOS only)
+- `w` — open in a web browser (limited; not the supported target)
+- scan the QR code with the **Expo Go** app on a physical device
+
+#### Setting up a simulator / emulator
+
+You have three options for running the app during development. Pick whichever fits your OS.
+
+**Option 1 — Physical device with Expo Go (easiest, any OS)**
+
+1. Install **Expo Go** from the [App Store](https://apps.apple.com/app/expo-go/id982107779) (iOS) or
+   [Google Play](https://play.google.com/store/apps/details?id=host.exp.exponent) (Android).
+2. Connect the phone to the **same Wi-Fi network** as your dev machine.
+3. Run `npm start` and scan the QR code printed in the terminal (iOS: Camera app; Android: Expo Go's
+   built-in scanner).
+
+> Expo Go is fine for the JS-only parts of this app, but **OAuth via `expo-auth-session` and
+> `expo-secure-store` need a custom dev client**. For full cloud-drive sync testing on a physical
+> device, build a dev client with `npx eas build --profile development --platform <android|ios>`
+> and install the resulting `.apk` / `.ipa`.
+
+**Option 2 — Android emulator (Windows / macOS / Linux)**
+
+1. Install **[Android Studio](https://developer.android.com/studio)**. During the setup wizard,
+   make sure **Android SDK**, **Android SDK Platform-Tools**, and **Android Virtual Device** are
+   selected.
+2. Open Android Studio → **More Actions → Virtual Device Manager → Create Device**. Pick a phone
+   profile (e.g. Pixel 7) and a recent system image (API 34 / Android 14 recommended). Download
+   the image if prompted, then **Finish**.
+3. Set the `ANDROID_HOME` environment variable and add platform-tools to `PATH`:
+    - **Windows (PowerShell, persistent — writes the User registry directly, idempotent):**
+      ```powershell
+      $sdk = "$env:LOCALAPPDATA\Android\Sdk"
+      Set-ItemProperty -Path 'HKCU:\Environment' -Name 'ANDROID_HOME' -Value $sdk
+
+      $userPath = (Get-ItemProperty -Path 'HKCU:\Environment' -Name 'Path' -ErrorAction SilentlyContinue).Path
+      $entries  = if ($userPath) { $userPath -split ';' | Where-Object { $_ -ne '' } } else { @() }
+      foreach ($p in @("$sdk\platform-tools", "$sdk\emulator")) {
+          if ($entries -notcontains $p) { $entries += $p }
+      }
+      Set-ItemProperty -Path 'HKCU:\Environment' -Name 'Path' -Value ($entries -join ';') -Type ExpandString
+      ```
+      Open a **new terminal** afterwards so it picks up the updated `Path`.
+
+      > Why the registry directly? `[Environment]::SetEnvironmentVariable(..., 'User')`
+      > broadcasts a `WM_SETTINGCHANGE` message to every top-level window and can hang for
+      > minutes if any of them is unresponsive. Writing `HKCU:\Environment` is instant and
+      > equivalent for new processes.
+    - **macOS / Linux (`~/.zshrc` or `~/.bashrc`):**
+      ```bash
+      export ANDROID_HOME="$HOME/Library/Android/sdk"   # macOS
+      # export ANDROID_HOME="$HOME/Android/Sdk"         # Linux
+      export PATH="$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator"
+      ```
+4. Verify the toolchain:
+   ```bash
+   adb --version
+   emulator -list-avds
+   ```
+5. Start the emulator (from Android Studio's Device Manager, or `emulator -avd <name>`), run
+   `npm start` from `expenses-tracker-mobile/`, and press `a`.
+
+> Hardware acceleration matters: on Windows enable **Hyper-V** or **WHPX** (Android Studio
+> installs WHPX automatically); on Intel Macs use **HAXM**; on Apple Silicon use the bundled
+> ARM64 system image; on Linux make sure your user is in the `kvm` group.
+
+**Option 3 — iOS Simulator (macOS only)**
+
+1. Install **[Xcode](https://apps.apple.com/app/xcode/id497799835)** from the Mac App Store
+   (large download, ~10 GB).
+2. Open Xcode once and accept the license, then install the command-line tools:
+   ```bash
+   sudo xcode-select --install
+   sudo xcodebuild -license accept
+   ```
+3. Install a simulator runtime: **Xcode → Settings → Platforms → iOS → Get** (or **+** to pick a
+   specific version). iOS 17+ is recommended.
+4. (Optional but recommended) install Watchman for faster Metro file watching:
+   ```bash
+   brew install watchman
+   ```
+5. Verify:
+   ```bash
+   xcrun simctl list devices
+   ```
+6. Run `npm start` from `expenses-tracker-mobile/` and press `i`. Expo will boot the default
+   simulator and install the app.
+
+> iOS Simulator is **not available on Windows or Linux** — there is no legal way to run it
+> outside macOS. From a Windows machine, use the Android emulator locally and rely on
+> `npx eas build --platform ios` (cloud build) when you need an iOS artifact.
+
+#### Verifying the setup
+
+After starting `npm start`, the Metro bundler should print something like:
+
+```
+› Metro waiting on exp://192.168.1.42:8081
+› Press a │ open Android
+› Press i │ open iOS simulator
+```
+
+If `a` reports "No Android connected device found", run `adb devices` — the emulator should
+appear as `emulator-5554   device`. If it shows `unauthorized`, accept the USB-debugging prompt
+on the device; if it shows `offline`, cold-boot the emulator from Android Studio's Device
+Manager.
+
 To produce installable builds via EAS (Expo Application Services):
 
 ```bash

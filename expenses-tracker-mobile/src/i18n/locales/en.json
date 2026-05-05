@@ -13,9 +13,25 @@
     "darkMode": "Dark Mode",
     "toggleDarkMode": "Toggle dark mode",
     "manageCategories": "Manage Categories",
+    "resetCategories": "Reset categories",
+    "resetCategoriesDescription": "Restore the original category list.",
+    "resetSuccess": "Reset done. Archived {{archived}}, seeded {{seeded}}.",
+    "resetError": "Reset failed.",
     "currency": "Currency",
     "fontSize": "Font Size",
     "language": "Language",
+    "exportData": "Export data",
+    "importData": "Import data",
+    "exportImport": "Export & Import",
+    "exportSuccess": "Exported {{count}} events.",
+    "exportError": "Export failed.",
+    "importSuccess": "Import done. Applied {{applied}}, skipped {{skipped}}.",
+    "importError": "Import failed.",
+    "themeMode": {
+      "system": "Follow system",
+      "light": "Light",
+      "dark": "Dark"
+    },
     "fontScale": {
       "small": "Small",
       "medium": "Medium",
@@ -120,6 +136,7 @@
     "createAnywayButton": "Create anyway",
     "restoreButton": "Restore",
     "restoreAndMergeButton": "Restore & merge",
+    "editAriaLabel": "Edit {{name}}",
     "mergeAriaLabel": "Merge {{name}} into another category",
     "mergeTitle": "Merge into another category",
     "mergePickPrompt": "Pick a category to merge <1>{{name}}</1> into. All its expenses will be moved.",
@@ -160,7 +177,14 @@
       "today": "Today",
       "year": "Year",
       "month": "Month"
-    }
+    },
+    "custom": "Custom range…"
+  },
+  "transactions": {
+    "searchPlaceholder": "Search transactions…",
+    "openFilter": "Filter by category",
+    "clearFilters": "Clear filters",
+    "exclude": "Exclude…"
   },
   "calculator": {
     "enterOrUseCalculator": "Enter amount or use calculator",
@@ -180,7 +204,7 @@
     "exportButton": "Download file",
     "exporting": "Preparing…",
     "importTitle": "Import",
-    "importBody": "Upload a previously exported file (.json, .zip, or .csv).",
+    "importBody": "Upload a previously exported file (.json).",
     "importWarning": "Importing adds to your existing data. Re-importing the same file will create duplicate expenses.",
     "importButton": "Choose file…",
     "importing": "Importing…",

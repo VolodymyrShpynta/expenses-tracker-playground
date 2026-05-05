@@ -13,9 +13,25 @@
     "darkMode": "Tmavý režim",
     "toggleDarkMode": "Přepnout tmavý režim",
     "manageCategories": "Spravovat kategorie",
+    "resetCategories": "Resetovat kategorie",
+    "resetCategoriesDescription": "Obnovit původní seznam kategorií.",
+    "resetSuccess": "Resetováno. Archivováno {{archived}}, přidáno {{seeded}}.",
+    "resetError": "Reset se nezdařil.",
     "currency": "Měna",
     "fontSize": "Velikost písma",
     "language": "Jazyk",
+    "exportData": "Exportovat data",
+    "importData": "Importovat data",
+    "exportImport": "Export a import",
+    "exportSuccess": "Exportováno {{count}} událostí.",
+    "exportError": "Export se nezdařil.",
+    "importSuccess": "Import dokončen. Aplikováno {{applied}}, přeskočeno {{skipped}}.",
+    "importError": "Import se nezdařil.",
+    "themeMode": {
+      "system": "Podle systému",
+      "light": "Světlý",
+      "dark": "Tmavý"
+    },
     "fontScale": {
       "small": "Malé",
       "medium": "Střední",
@@ -120,6 +136,7 @@
     "createAnywayButton": "Přesto vytvořit",
     "restoreButton": "Obnovit",
     "restoreAndMergeButton": "Obnovit a sloučit",
+    "editAriaLabel": "Upravit {{name}}",
     "mergeAriaLabel": "Sloučit {{name}} s jinou kategorií",
     "mergeTitle": "Sloučit s jinou kategorií",
     "mergePickPrompt": "Vyberte kategorii, do které chcete sloučit <1>{{name}}</1>. Všechny její výdaje budou přesunuty.",
@@ -160,7 +177,14 @@
       "today": "Dnes",
       "year": "Rok",
       "month": "Měsíc"
-    }
+    },
+    "custom": "Vlastní rozsah…"
+  },
+  "transactions": {
+    "searchPlaceholder": "Hledat transakce…",
+    "openFilter": "Filtr podle kategorie",
+    "clearFilters": "Vymazat filtry",
+    "exclude": "Vyloučit…"
   },
   "calculator": {
     "enterOrUseCalculator": "Zadejte částku nebo použijte kalkulačku",
@@ -180,7 +204,7 @@
     "exportButton": "Stáhnout soubor",
     "exporting": "Připravuji…",
     "importTitle": "Import",
-    "importBody": "Nahrajte dříve exportovaný soubor (.json, .zip nebo .csv).",
+    "importBody": "Nahrajte dříve exportovaný soubor (.json).",
     "importWarning": "Import přidává data k existujícím. Opětovný import stejného souboru vytvoří duplicitní výdaje.",
     "importButton": "Vybrat soubor…",
     "importing": "Importuji…",

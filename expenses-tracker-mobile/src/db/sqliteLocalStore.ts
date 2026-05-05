@@ -14,7 +14,7 @@
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type { LocalStore, TransactionRunner } from '../domain/localStore';
-import type { ExpenseEvent, ExpenseProjection, EventType } from '../domain/types';
+import type { Category, ExpenseEvent, ExpenseProjection, EventType } from '../domain/types';
 
 /** Boolean ↔ INTEGER conversions for SQLite (which has no native BOOLEAN). */
 const toInt = (b: boolean): number => (b ? 1 : 0);
@@ -40,6 +40,32 @@ interface EventRow {
   readonly payload: string;
   readonly committed: number;
   readonly user_id: string;
+}
+
+interface CategoryRow {
+  readonly id: string;
+  readonly name: string | null;
+  readonly template_key: string | null;
+  readonly icon: string;
+  readonly color: string;
+  readonly sort_order: number;
+  readonly updated_at: number;
+  readonly deleted: number;
+  readonly user_id: string;
+}
+
+function rowToCategory(row: CategoryRow): Category {
+  return {
+    id: row.id,
+    icon: row.icon,
+    color: row.color,
+    sortOrder: row.sort_order,
+    updatedAt: row.updated_at,
+    deleted: fromInt(row.deleted),
+    userId: row.user_id,
+    ...(row.name !== null ? { name: row.name } : {}),
+    ...(row.template_key !== null ? { templateKey: row.template_key } : {}),
+  };
 }
 
 function rowToProjection(row: ProjectionRow): ExpenseProjection {
@@ -113,6 +139,17 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
            FROM expense_events
           WHERE committed = 0 AND user_id = ?
           ORDER BY timestamp ASC`,
+        userId,
+      );
+      return rows.map(rowToEvent);
+    },
+
+    async findAllEvents(userId: string): Promise<ReadonlyArray<ExpenseEvent>> {
+      const rows = await db.getAllAsync<EventRow>(
+        `SELECT event_id, timestamp, event_type, expense_id, payload, committed, user_id
+           FROM expense_events
+          WHERE user_id = ?
+          ORDER BY timestamp ASC, event_id ASC`,
         userId,
       );
       return rows.map(rowToEvent);
@@ -192,6 +229,69 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
       return row ? rowToProjection(row) : undefined;
     },
 
+
+    async upsertCategory(category: Category): Promise<void> {
+      await db.runAsync(
+        `INSERT INTO categories
+           (id, name, template_key, icon, color, sort_order, updated_at, deleted, user_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           name         = excluded.name,
+           template_key = excluded.template_key,
+           icon         = excluded.icon,
+           color        = excluded.color,
+           sort_order   = excluded.sort_order,
+           updated_at   = excluded.updated_at,
+           deleted      = excluded.deleted,
+           user_id      = excluded.user_id`,
+        category.id,
+        category.name ?? null,
+        category.templateKey ?? null,
+        category.icon,
+        category.color,
+        category.sortOrder,
+        category.updatedAt,
+        toInt(category.deleted),
+        category.userId,
+      );
+    },
+
+    async findCategoryById(id: string, userId: string): Promise<Category | undefined> {
+      const row = await db.getFirstAsync<CategoryRow>(
+        `SELECT id, name, template_key, icon, color, sort_order,
+                updated_at, deleted, user_id
+           FROM categories
+          WHERE id = ? AND user_id = ?`,
+        id,
+        userId,
+      );
+      return row ? rowToCategory(row) : undefined;
+    },
+
+    async findAllCategories(userId: string): Promise<ReadonlyArray<Category>> {
+      const rows = await db.getAllAsync<CategoryRow>(
+        `SELECT id, name, template_key, icon, color, sort_order,
+                updated_at, deleted, user_id
+           FROM categories
+          WHERE user_id = ?
+          ORDER BY sort_order ASC, updated_at ASC`,
+        userId,
+      );
+      return rows.map(rowToCategory);
+    },
+
+    async softDeleteCategory(id: string, userId: string, updatedAt: number): Promise<number> {
+      const result = await db.runAsync(
+        `UPDATE categories
+            SET deleted = 1, updated_at = ?
+          WHERE id = ? AND user_id = ? AND ? > updated_at`,
+        updatedAt,
+        id,
+        userId,
+        updatedAt,
+      );
+      return result.changes;
+    },
     async findActiveProjections(userId: string): Promise<ReadonlyArray<ExpenseProjection>> {
       const rows = await db.getAllAsync<ProjectionRow>(
         `SELECT id, description, amount, currency, category_id, date,

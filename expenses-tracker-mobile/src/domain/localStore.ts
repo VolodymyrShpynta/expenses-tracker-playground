@@ -10,7 +10,7 @@
  * backend's `ExpenseEventRepository` + `ExpenseProjectionRepository`
  * pair — including the same last-write-wins UPSERT semantics.
  */
-import type { ExpenseEvent, ExpenseProjection } from './types';
+import type { Category, ExpenseEvent, ExpenseProjection } from './types';
 
 /**
  * Atomic transactional unit. Implementations MUST run the closure inside a
@@ -32,6 +32,13 @@ export interface LocalStore {
 
   /** All uncommitted events for the user, ordered by timestamp ASC. */
   findUncommittedEvents(userId: string): Promise<ReadonlyArray<ExpenseEvent>>;
+
+  /**
+   * All events (committed + uncommitted) for the user, ordered by
+   * timestamp ASC. Used by the export flow to materialise the full
+   * history into a sync file the user can share or restore from.
+   */
+  findAllEvents(userId: string): Promise<ReadonlyArray<ExpenseEvent>>;
 
   /** Mark events committed (called after successful sync upload). */
   markEventsCommitted(eventIds: ReadonlyArray<string>): Promise<void>;
@@ -70,4 +77,26 @@ export interface LocalStore {
 
   /** Mark an event as processed (idempotent — second insert is a no-op). */
   recordProcessedEvent(eventId: string): Promise<void>;
+
+  // -- categories ----------------------------------------------------------
+
+  /**
+   * Insert or fully replace a category row. Used both for normal CRUD and
+   * for first-launch seeding of default templates. No last-write-wins —
+   * categories are not event-sourced.
+   */
+  upsertCategory(category: Category): Promise<void>;
+
+  /** Find a single category by id within the user scope. */
+  findCategoryById(id: string, userId: string): Promise<Category | undefined>;
+
+  /**
+   * All categories for the user — including soft-deleted rows. The
+   * `useCategoryLookup` hook needs the full catalog so historic expenses
+   * keep their display fields after a category is archived.
+   */
+  findAllCategories(userId: string): Promise<ReadonlyArray<Category>>;
+
+  /** Soft-delete a category (mirrors the web frontend's `delete` semantics). */
+  softDeleteCategory(id: string, userId: string, updatedAt: number): Promise<number>;
 }

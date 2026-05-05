@@ -13,9 +13,25 @@
     "darkMode": "Темна тема",
     "toggleDarkMode": "Перемкнути темну тему",
     "manageCategories": "Керувати категоріями",
+    "resetCategories": "Скинути категорії",
+    "resetCategoriesDescription": "Відновити стандартний список категорій.",
+    "resetSuccess": "Скинуто. Архівовано {{archived}}, додано {{seeded}}.",
+    "resetError": "Не вдалося скинути.",
     "currency": "Валюта",
     "fontSize": "Розмір шрифту",
     "language": "Мова",
+    "exportData": "Експорт даних",
+    "importData": "Імпорт даних",
+    "exportImport": "Експорт та імпорт",
+    "exportSuccess": "Експортовано {{count}} подій.",
+    "exportError": "Не вдалося експортувати.",
+    "importSuccess": "Імпортовано. Застосовано {{applied}}, пропущено {{skipped}}.",
+    "importError": "Не вдалося імпортувати.",
+    "themeMode": {
+      "system": "За системою",
+      "light": "Світла",
+      "dark": "Темна"
+    },
     "fontScale": {
       "small": "Малий",
       "medium": "Середній",
@@ -120,6 +136,7 @@
     "createAnywayButton": "Все одно створити",
     "restoreButton": "Відновити",
     "restoreAndMergeButton": "Відновити та обʼєднати",
+    "editAriaLabel": "Редагувати {{name}}",
     "mergeAriaLabel": "Обʼєднати {{name}} з іншою категорією",
     "mergeTitle": "Обʼєднати з іншою категорією",
     "mergePickPrompt": "Оберіть категорію, з якою обʼєднати <1>{{name}}</1>. Усі її витрати буде перенесено.",
@@ -160,7 +177,14 @@
       "today": "Сьогодні",
       "year": "Рік",
       "month": "Місяць"
-    }
+    },
+    "custom": "Власний діапазон…"
+  },
+  "transactions": {
+    "searchPlaceholder": "Пошук транзакцій…",
+    "openFilter": "Фільтр за категорією",
+    "clearFilters": "Очистити фільтри",
+    "exclude": "Виключити…"
   },
   "calculator": {
     "enterOrUseCalculator": "Введіть суму або скористайтесь калькулятором",
@@ -180,7 +204,7 @@
     "exportButton": "Завантажити файл",
     "exporting": "Підготовка…",
     "importTitle": "Імпорт",
-    "importBody": "Завантажте раніше експортований файл (.json, .zip або .csv).",
+    "importBody": "Завантажте раніше експортований файл (.json).",
     "importWarning": "Імпорт додає дані до існуючих. Повторний імпорт того ж файла створить дублікати витрат.",
     "importButton": "Обрати файл…",
     "importing": "Імпорт…",
