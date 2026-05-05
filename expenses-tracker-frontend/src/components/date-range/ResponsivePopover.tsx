@@ -1,7 +1,7 @@
 import Dialog from '@mui/material/Dialog';
 import Popover from '@mui/material/Popover';
 import type { ReactNode } from 'react';
-import { SlideUp } from '../transitions/SlideUp.tsx';
+import { SlideUp } from '../transitions/SlideUp';
 
 /**
  * Renders the same content as a slide-up bottom sheet on mobile and as

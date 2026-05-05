@@ -1,10 +1,10 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { useTranslation } from 'react-i18next';
-import { DateRangeSelector } from './DateRangeSelector.tsx';
-import { formatAmountWithCurrency } from '../utils/format.ts';
-import { useDateRange } from '../hooks/useDateRange.ts';
-import type { CurrencyCode } from '../api/exchange.ts';
+import { DateRangeSelector } from './DateRangeSelector';
+import { formatAmountWithCurrency } from '../utils/format';
+import { useDateRange } from '../hooks/useDateRange';
+import type { CurrencyCode } from '../api/exchange';
 
 interface SpendingDateHeaderProps {
   totalSpending: number;

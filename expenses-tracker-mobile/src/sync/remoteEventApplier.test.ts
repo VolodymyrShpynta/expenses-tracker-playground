@@ -7,10 +7,10 @@
  * `ExpenseSyncProjectorTransactionTest` and `RemoteEventProcessorTest`.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { applyRemoteEvents } from './remoteEventApplier.ts';
-import { InMemoryLocalStore } from '../test/inMemoryLocalStore.ts';
-import { TEST_USER_ID } from '../test/fixtures.ts';
-import type { EventEntry } from '../domain/types.ts';
+import { applyRemoteEvents } from './remoteEventApplier';
+import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
+import { TEST_USER_ID } from '../test/fixtures';
+import type { EventEntry } from '../domain/types';
 
 const silentLogger = { warn: () => undefined };
 

@@ -6,7 +6,7 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
 import { Trans, useTranslation } from 'react-i18next';
-import type { NameMatches } from './duplicateMatching.ts';
+import type { NameMatches } from './duplicateMatching';
 
 interface DuplicateNameDialogProps {
   name: string;

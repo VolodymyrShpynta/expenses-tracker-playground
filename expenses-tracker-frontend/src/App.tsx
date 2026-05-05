@@ -1,13 +1,13 @@
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { Route, Routes } from 'react-router-dom';
-import { ColorModeToggleContext, FontScaleContext, useColorTheme } from './theme.ts';
-import { CurrencyContext, useCurrencyProvider } from './hooks/useCurrency.ts';
-import { DateRangeContext, useDateRangeProvider } from './hooks/useDateRange.ts';
-import { LocalizedDateProvider } from './i18n/LocalizedDateProvider.tsx';
-import { Layout } from './components/Layout.tsx';
-import CategoriesPage from './pages/CategoriesPage.tsx';
-import TransactionsPage from './pages/TransactionsPage.tsx';
-import OverviewPage from './pages/OverviewPage.tsx';
+import { ColorModeToggleContext, FontScaleContext, useColorTheme } from './theme';
+import { CurrencyContext, useCurrencyProvider } from './hooks/useCurrency';
+import { DateRangeContext, useDateRangeProvider } from './hooks/useDateRange';
+import { LocalizedDateProvider } from './i18n/LocalizedDateProvider';
+import { Layout } from './components/Layout';
+import CategoriesPage from './pages/CategoriesPage';
+import TransactionsPage from './pages/TransactionsPage';
+import OverviewPage from './pages/OverviewPage';
 
 function AppContent() {
   return (

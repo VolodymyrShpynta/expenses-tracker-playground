@@ -18,9 +18,9 @@
  * against. Splitting projector behaviour from storage matches the backend's
  * `ExpenseSyncProjector` / `ExpenseSyncRecorder` separation.
  */
-import type { LocalStore } from './localStore.ts';
-import { eventEntryToProjection, payloadToProjection } from './mapping.ts';
-import type { EventEntry, ExpensePayload } from './types.ts';
+import type { LocalStore } from './localStore';
+import { eventEntryToProjection, payloadToProjection } from './mapping';
+import type { EventEntry, ExpensePayload } from './types';
 
 /**
  * Apply a payload (e.g. produced by the local command service) to the

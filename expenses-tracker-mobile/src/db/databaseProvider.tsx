@@ -18,10 +18,10 @@ import { View } from 'react-native';
 import { ActivityIndicator, Text } from 'react-native-paper';
 import * as SQLite from 'expo-sqlite';
 
-import type { LocalStore } from '../domain/localStore.ts';
-import { createSqliteLocalStore } from './sqliteLocalStore.ts';
-import { migrate } from './migrations.ts';
-import { DB_NAME } from './schema.ts';
+import type { LocalStore } from '../domain/localStore';
+import { createSqliteLocalStore } from './sqliteLocalStore';
+import { migrate } from './migrations';
+import { DB_NAME } from './schema';
 
 interface DatabaseContextValue {
   readonly store: LocalStore;

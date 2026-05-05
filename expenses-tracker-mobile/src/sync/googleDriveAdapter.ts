@@ -23,13 +23,13 @@
  *
  * NOT covered by Vitest — the OAuth flow needs a real browser.
  */
-import { AuthError, ConcurrencyError } from './cloudDriveAdapter.ts';
+import { AuthError, ConcurrencyError } from './cloudDriveAdapter';
 import type {
   CloudDriveAdapter,
   DownloadResult,
   UploadResult,
-} from './cloudDriveAdapter.ts';
-import { createOAuthClient } from './oauthClient.ts';
+} from './cloudDriveAdapter';
+import { createOAuthClient } from './oauthClient';
 
 /** TODO(setup): replace with the OAuth Client ID from Google Cloud Console. */
 const GOOGLE_OAUTH_CLIENT_ID = 'TODO_REPLACE_WITH_GOOGLE_CLIENT_ID';

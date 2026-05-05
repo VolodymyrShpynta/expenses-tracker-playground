@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import CategoryIcon from '@mui/icons-material/Category';
 import type { SvgIconComponent } from '@mui/icons-material';
-import { useCategoryCatalog } from './useCategories.ts';
-import { ICON_MAP } from '../utils/categoryConfig.ts';
+import { useCategoryCatalog } from './useCategories';
+import { ICON_MAP } from '../utils/categoryConfig';
 
 /**
  * Display fields resolved from a category id.

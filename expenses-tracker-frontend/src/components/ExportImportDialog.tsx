@@ -16,8 +16,8 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import DownloadIcon from '@mui/icons-material/Download';
 import UploadIcon from '@mui/icons-material/Upload';
 import { useTranslation } from 'react-i18next';
-import type { ExportFormat, ImportResult } from '../api/dataExchange.ts';
-import { useExport, useImport } from '../hooks/useDataExchange.ts';
+import type { ExportFormat, ImportResult } from '../api/dataExchange';
+import { useExport, useImport } from '../hooks/useDataExchange';
 
 interface ExportImportDialogProps {
   open: boolean;

@@ -11,7 +11,7 @@
  * rule as `expenses-tracker-api/src/main/resources/db/migration/`.
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { MIGRATIONS } from './schema.ts';
+import { MIGRATIONS } from './schema';
 
 /**
  * Apply pending migrations in order. Returns the new schema version.

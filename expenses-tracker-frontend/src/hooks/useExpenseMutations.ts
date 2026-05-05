@@ -3,9 +3,9 @@ import {
   createExpense,
   updateExpense,
   deleteExpense,
-} from '../api/expenses.ts';
-import type { CreateExpenseRequest, UpdateExpenseRequest } from '../types/expense.ts';
-import { EXPENSES_QUERY_KEY } from './useExpenses.ts';
+} from '../api/expenses';
+import type { CreateExpenseRequest, UpdateExpenseRequest } from '../types/expense';
+import { EXPENSES_QUERY_KEY } from './useExpenses';
 
 export function useCreateExpense() {
   const queryClient = useQueryClient();

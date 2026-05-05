@@ -5,8 +5,8 @@
  * keep these in sync.
  */
 import { describe, expect, it } from 'vitest';
-import { decodeSyncFile, encodeSyncFile, sortEventsDeterministically } from './codec.ts';
-import type { EventEntry, EventSyncFile } from '../domain/types.ts';
+import { decodeSyncFile, encodeSyncFile, sortEventsDeterministically } from './codec';
+import type { EventEntry, EventSyncFile } from '../domain/types';
 
 const event = (id: string, ts: number, payloadId: string): EventEntry => ({
   eventId: id,

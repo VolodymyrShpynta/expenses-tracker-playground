@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fetchWithAuthMock = vi.fn();
-vi.mock('./fetchWithAuth.ts', () => ({
+vi.mock('./fetchWithAuth', () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
 }));
 
@@ -13,7 +13,7 @@ const {
   resetCategories,
   restoreCategory,
   mergeCategories,
-} = await import('./categories.ts');
+} = await import('./categories');
 
 beforeEach(() => fetchWithAuthMock.mockReset());
 afterEach(() => fetchWithAuthMock.mockReset());

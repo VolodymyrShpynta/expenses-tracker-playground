@@ -19,9 +19,9 @@
  *
  * Logging never includes payload contents — same PII rule as the backend.
  */
-import type { LocalStore } from '../domain/localStore.ts';
-import { eventEntryToProjection } from '../domain/mapping.ts';
-import type { EventEntry, EventType } from '../domain/types.ts';
+import type { LocalStore } from '../domain/localStore';
+import { eventEntryToProjection } from '../domain/mapping';
+import type { EventEntry, EventType } from '../domain/types';
 
 export interface ApplyResult {
   /** Events newly applied (excludes already-processed and errored). */

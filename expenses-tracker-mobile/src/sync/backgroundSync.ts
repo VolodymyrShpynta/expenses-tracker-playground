@@ -25,7 +25,7 @@
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
 
-import type { SyncEngine } from './syncEngine.ts';
+import type { SyncEngine } from './syncEngine';
 
 export const SYNC_TASK_NAME = 'expenses-tracker.sync.background';
 

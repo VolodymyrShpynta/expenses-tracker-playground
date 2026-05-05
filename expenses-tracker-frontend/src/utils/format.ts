@@ -2,7 +2,7 @@
  * Formats cents to a localized human-readable amount string.
  * Example (en): 501276 → "5,012.76"; (cs): "5 012,76"
  */
-import { getLocale } from '../i18n/locale.ts';
+import { getLocale } from '../i18n/locale';
 
 export function formatAmount(cents: number): string {
   const value = cents / 100;

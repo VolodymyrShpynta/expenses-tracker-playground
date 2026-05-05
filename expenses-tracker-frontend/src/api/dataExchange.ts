@@ -1,5 +1,5 @@
-import { fetchWithAuth } from './fetchWithAuth.ts';
-import { handleResponse } from './handleResponse.ts';
+import { fetchWithAuth } from './fetchWithAuth';
+import { handleResponse } from './handleResponse';
 
 /**
  * Export file formats supported by the import/export endpoints.

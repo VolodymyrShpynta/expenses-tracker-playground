@@ -22,13 +22,13 @@
  *
  * NOT covered by Vitest — needs a real browser for the OAuth flow.
  */
-import { AuthError, ConcurrencyError } from './cloudDriveAdapter.ts';
+import { AuthError, ConcurrencyError } from './cloudDriveAdapter';
 import type {
   CloudDriveAdapter,
   DownloadResult,
   UploadResult,
-} from './cloudDriveAdapter.ts';
-import { createOAuthClient } from './oauthClient.ts';
+} from './cloudDriveAdapter';
+import { createOAuthClient } from './oauthClient';
 
 /** TODO(setup): replace with the OAuth Client ID from Microsoft Entra. */
 const MICROSOFT_OAUTH_CLIENT_ID = 'TODO_REPLACE_WITH_MICROSOFT_CLIENT_ID';

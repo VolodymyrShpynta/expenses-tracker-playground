@@ -1,6 +1,6 @@
-import { getLocale } from '../../i18n/locale.ts';
-import type { Expense } from '../../types/expense.ts';
-import type { PresetKey } from '../../utils/dateRange.ts';
+import { getLocale } from '../../i18n/locale';
+import type { Expense } from '../../types/expense';
+import type { PresetKey } from '../../utils/dateRange';
 
 /**
  * Pure helpers for grouping transactions by day/month/year. Lives

@@ -36,7 +36,7 @@ import { useTheme, alpha, type Theme } from '@mui/material/styles';
 import BackspaceOutlinedIcon from '@mui/icons-material/BackspaceOutlined';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import type { ReactNode } from 'react';
-import type { CalculatorAction, Operator } from './useCalculator.ts';
+import type { CalculatorAction, Operator } from './useCalculator';
 
 // ---------------------------------------------------------------------------
 // Cell model

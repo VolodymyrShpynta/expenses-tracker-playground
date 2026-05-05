@@ -1,8 +1,8 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { useTranslation } from 'react-i18next';
-import { formatAmountWithCurrency } from '../../utils/format.ts';
-import type { GroupBy } from './groupExpenses.ts';
+import { formatAmountWithCurrency } from '../../utils/format';
+import type { GroupBy } from './groupExpenses';
 
 /**
  * Sticky-style header above each group of transactions. The `day`

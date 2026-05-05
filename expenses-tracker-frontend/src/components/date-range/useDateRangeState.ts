@@ -13,8 +13,8 @@ import {
   startOfDay,
   type DateRange,
   type PresetKey,
-} from '../../utils/dateRange.ts';
-import type { RangeStep } from './RangePickerPanel.tsx';
+} from '../../utils/dateRange';
+import type { RangeStep } from './RangePickerPanel';
 
 export type PickerMode = 'none' | 'day' | 'range';
 

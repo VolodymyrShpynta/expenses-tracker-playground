@@ -8,7 +8,7 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import CheckIcon from '@mui/icons-material/Check';
 import { useTranslation } from 'react-i18next';
-import type { FontScale } from '../theme.ts';
+import type { FontScale } from '../theme';
 
 interface FontSizePickerDialogProps {
   open: boolean;

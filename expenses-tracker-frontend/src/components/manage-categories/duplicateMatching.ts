@@ -1,4 +1,4 @@
-import type { Category } from '../../types/category.ts';
+import type { Category } from '../../types/category';
 
 /**
  * Pure helpers for detecting same-named custom categories. Lives outside

@@ -5,7 +5,7 @@ import DialogActions from '@mui/material/DialogActions';
 import { DateCalendar } from '@mui/x-date-pickers';
 import type { Dayjs } from 'dayjs';
 import { useTranslation } from 'react-i18next';
-import { calendarSx } from './calendarSx.ts';
+import { calendarSx } from './calendarSx';
 
 /** Which side of the range the calendar is currently editing. */
 export type RangeStep = 'from' | 'to';

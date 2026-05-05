@@ -6,8 +6,8 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
 import { Trans, useTranslation } from 'react-i18next';
-import type { Category } from '../../types/category.ts';
-import type { CategoryLookup } from '../../hooks/useCategoryLookup.ts';
+import type { Category } from '../../types/category';
+import type { CategoryLookup } from '../../hooks/useCategoryLookup';
 
 /**
  * Step 2 of the manual merge flow: confirm migrating every expense from

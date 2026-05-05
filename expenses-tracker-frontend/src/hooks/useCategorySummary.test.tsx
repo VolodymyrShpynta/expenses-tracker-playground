@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import type { Expense } from '../types/expense.ts';
-import { useCategorySummary } from './useCategorySummary.ts';
+import type { Expense } from '../types/expense';
+import { useCategorySummary } from './useCategorySummary';
 
 function expense(partial: Partial<Expense> & { id: string; categoryId: string; amount: number; date: string }): Expense {
   return {

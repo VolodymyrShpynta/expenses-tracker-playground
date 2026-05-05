@@ -10,16 +10,16 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import AddIcon from '@mui/icons-material/Add';
 import IconButton from '@mui/material/IconButton';
 import { useTranslation } from 'react-i18next';
-import { useExpenses } from '../hooks/useExpenses.ts';
-import { useConvertedExpenses } from '../hooks/useExchangeRates.ts';
-import { useCategorySummary } from '../hooks/useCategorySummary.ts';
-import { useCategoryLookup } from '../hooks/useCategoryLookup.ts';
-import { CategoryDonutChart } from '../components/CategoryDonutChart.tsx';
-import { SpendingDateHeader } from '../components/SpendingDateHeader.tsx';
-import { useMainCurrency } from '../hooks/useCurrency.ts';
-import { useDateRange } from '../hooks/useDateRange.ts';
-import { formatAmountCompactWithCurrency } from '../utils/format.ts';
-import { AddExpenseDialog } from '../components/AddExpenseDialog.tsx';
+import { useExpenses } from '../hooks/useExpenses';
+import { useConvertedExpenses } from '../hooks/useExchangeRates';
+import { useCategorySummary } from '../hooks/useCategorySummary';
+import { useCategoryLookup } from '../hooks/useCategoryLookup';
+import { CategoryDonutChart } from '../components/CategoryDonutChart';
+import { SpendingDateHeader } from '../components/SpendingDateHeader';
+import { useMainCurrency } from '../hooks/useCurrency';
+import { useDateRange } from '../hooks/useDateRange';
+import { formatAmountCompactWithCurrency } from '../utils/format';
+import { AddExpenseDialog } from '../components/AddExpenseDialog';
 
 export default function CategoriesPage() {
   const { t: translate } = useTranslation();

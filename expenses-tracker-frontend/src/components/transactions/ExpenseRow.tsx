@@ -6,9 +6,9 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import { useTranslation } from 'react-i18next';
-import type { Expense } from '../../types/expense.ts';
-import type { CategoryLookup } from '../../hooks/useCategoryLookup.ts';
-import { formatAmountWithCurrency } from '../../utils/format.ts';
+import type { Expense } from '../../types/expense';
+import type { CategoryLookup } from '../../hooks/useCategoryLookup';
+import { formatAmountWithCurrency } from '../../utils/format';
 
 /**
  * Single transaction row in the list. Tapping anywhere on the row opens

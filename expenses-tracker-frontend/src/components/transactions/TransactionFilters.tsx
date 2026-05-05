@@ -7,8 +7,8 @@ import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import { useTranslation } from 'react-i18next';
 import type { MouseEvent } from 'react';
-import { CategoryPickerDialog } from '../CategoryPickerDialog.tsx';
-import type { CategoryLookup } from '../../hooks/useCategoryLookup.ts';
+import { CategoryPickerDialog } from '../CategoryPickerDialog';
+import type { CategoryLookup } from '../../hooks/useCategoryLookup';
 
 /**
  * Filter bar for the transactions list: search-by-description plus a

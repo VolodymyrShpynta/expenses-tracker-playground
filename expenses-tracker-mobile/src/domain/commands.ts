@@ -17,10 +17,10 @@
  * `userId`, `id`, and `eventId` are passed in via `IdGenerator` so tests
  * can inject deterministic ids — same DI principle as `TimeProvider`.
  */
-import type { LocalStore } from './localStore.ts';
-import { payloadToProjection } from './mapping.ts';
-import type { ExpenseEvent, ExpensePayload, ExpenseProjection, EventType } from './types.ts';
-import type { TimeProvider } from '../utils/time.ts';
+import type { LocalStore } from './localStore';
+import { payloadToProjection } from './mapping';
+import type { ExpenseEvent, ExpensePayload, ExpenseProjection, EventType } from './types';
+import type { TimeProvider } from '../utils/time';
 
 export interface IdGenerator {
   /** Returns a fresh UUIDv4 string (lowercase, 36 chars). */

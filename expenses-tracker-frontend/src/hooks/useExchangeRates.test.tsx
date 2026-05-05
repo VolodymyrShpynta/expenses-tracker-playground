@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { waitFor } from '@testing-library/react';
-import type { Expense } from '../types/expense.ts';
-import { renderHookWithQuery } from '../test/renderHookWithQuery.tsx';
+import type { Expense } from '../types/expense';
+import { renderHookWithQuery } from '../test/renderHookWithQuery';
 
 const useMainCurrencyMock = vi.fn();
-vi.mock('./useCurrency.ts', () => ({
+vi.mock('./useCurrency', () => ({
   useMainCurrency: () => useMainCurrencyMock(),
 }));
 
-const { useExchangeRates, useConvertedExpenses } = await import('./useExchangeRates.ts');
+const { useExchangeRates, useConvertedExpenses } = await import('./useExchangeRates');
 
 const fetchMock = vi.fn();
 

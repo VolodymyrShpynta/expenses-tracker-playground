@@ -1,4 +1,4 @@
-import { getLocale } from '../i18n/locale.ts';
+import { getLocale } from '../i18n/locale';
 
 export interface DateRange {
   from: Date;

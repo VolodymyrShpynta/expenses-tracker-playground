@@ -3,10 +3,10 @@
  * scopes by userId.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createExpenseQueryService } from './queries.ts';
-import { projectPayload } from './projector.ts';
-import { InMemoryLocalStore } from '../test/inMemoryLocalStore.ts';
-import { TEST_USER_ID, makePayload } from '../test/fixtures.ts';
+import { createExpenseQueryService } from './queries';
+import { projectPayload } from './projector';
+import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
+import { TEST_USER_ID, makePayload } from '../test/fixtures';
 
 describe('ExpenseQueryService', () => {
   let store: InMemoryLocalStore;

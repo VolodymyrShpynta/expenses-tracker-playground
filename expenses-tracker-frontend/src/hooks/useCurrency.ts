@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useState } from 'react';
-import type { CurrencyCode } from '../api/exchange.ts';
-import { useAuth } from '../context/AuthContext.tsx';
+import type { CurrencyCode } from '../api/exchange';
+import { useAuth } from '../context/AuthContext';
 
 const STORAGE_KEY_PREFIX = 'expenses-tracker-main-currency';
 const DEFAULT_CURRENCY: CurrencyCode = 'USD';

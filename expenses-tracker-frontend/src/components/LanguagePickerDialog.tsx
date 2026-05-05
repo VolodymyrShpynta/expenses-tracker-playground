@@ -10,7 +10,7 @@ import Typography from '@mui/material/Typography';
 import CheckIcon from '@mui/icons-material/Check';
 import { useTranslation } from 'react-i18next';
 import { SUPPORTED_LANGUAGES, type LanguageCode } from '../i18n';
-import { resolveLanguage } from '../i18n/locale.ts';
+import { resolveLanguage } from '../i18n/locale';
 
 interface LanguagePickerDialogProps {
   open: boolean;

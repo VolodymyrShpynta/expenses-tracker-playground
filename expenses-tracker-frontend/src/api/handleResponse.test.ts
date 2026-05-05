@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { expectOk, handleResponse } from './handleResponse.ts';
+import { expectOk, handleResponse } from './handleResponse';
 
 function jsonResponse<T>(body: T, init?: ResponseInit): Response {
   return new Response(JSON.stringify(body), {

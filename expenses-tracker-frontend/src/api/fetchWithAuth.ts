@@ -1,4 +1,4 @@
-import keycloak from '../config/keycloak.ts';
+import keycloak from '../config/keycloak';
 import i18n from '../i18n';
 
 /**

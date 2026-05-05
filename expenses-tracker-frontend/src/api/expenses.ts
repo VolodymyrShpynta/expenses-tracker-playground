@@ -2,9 +2,9 @@ import type {
   Expense,
   CreateExpenseRequest,
   UpdateExpenseRequest,
-} from '../types/expense.ts';
-import { fetchWithAuth } from './fetchWithAuth.ts';
-import { expectOk, handleResponse } from './handleResponse.ts';
+} from '../types/expense';
+import { fetchWithAuth } from './fetchWithAuth';
+import { expectOk, handleResponse } from './handleResponse';
 
 const BASE = '/api/expenses';
 

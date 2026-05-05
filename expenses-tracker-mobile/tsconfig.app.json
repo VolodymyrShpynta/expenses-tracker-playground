@@ -5,7 +5,6 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
@@ -18,10 +17,7 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
-    "exactOptionalPropertyTypes": true,
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    "exactOptionalPropertyTypes": true
   },
   "include": [
     "src/**/*",

@@ -10,7 +10,7 @@ import TodayIcon from '@mui/icons-material/Today';
 import DateRangeIcon from '@mui/icons-material/DateRange';
 import Filter7Icon from '@mui/icons-material/Filter7';
 import Looks6Icon from '@mui/icons-material/Looks6';
-import type { PresetKey } from '../../utils/dateRange.ts';
+import type { PresetKey } from '../../utils/dateRange';
 
 interface PresetCard {
   key: PresetKey;

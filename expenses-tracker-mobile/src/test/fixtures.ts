@@ -3,9 +3,9 @@
  * convenience factory for building a fresh `ExpensePayload` /
  * `ExpenseProjection`. Keeps the test bodies focused on Given/When/Then.
  */
-import type { ExpensePayload, ExpenseProjection } from '../domain/types.ts';
-import type { TimeProvider } from '../utils/time.ts';
-import type { IdGenerator } from '../domain/commands.ts';
+import type { ExpensePayload, ExpenseProjection } from '../domain/types';
+import type { TimeProvider } from '../utils/time';
+import type { IdGenerator } from '../domain/commands';
 
 export const TEST_USER_ID = 'user-test-1';
 

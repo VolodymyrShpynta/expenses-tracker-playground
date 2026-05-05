@@ -13,8 +13,8 @@
  * This file deliberately lives under `src/test/` so production code
  * cannot import it. The interface contract is `LocalStore`.
  */
-import type { LocalStore } from '../domain/localStore.ts';
-import type { ExpenseEvent, ExpenseProjection } from '../domain/types.ts';
+import type { LocalStore } from '../domain/localStore';
+import type { ExpenseEvent, ExpenseProjection } from '../domain/types';
 
 interface State {
   events: ExpenseEvent[];

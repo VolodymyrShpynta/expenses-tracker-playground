@@ -21,12 +21,12 @@
 import {
   ConcurrencyError,
   type CloudDriveAdapter,
-} from './cloudDriveAdapter.ts';
-import { decodeSyncFile, encodeSyncFile, sortEventsDeterministically } from './codec.ts';
-import { applyRemoteEvents, type ApplyResult } from './remoteEventApplier.ts';
-import type { LocalStore } from '../domain/localStore.ts';
-import { jsonToPayload } from '../domain/mapping.ts';
-import type { EventEntry, EventSyncFile, EventType, ExpenseEvent } from '../domain/types.ts';
+} from './cloudDriveAdapter';
+import { decodeSyncFile, encodeSyncFile, sortEventsDeterministically } from './codec';
+import { applyRemoteEvents, type ApplyResult } from './remoteEventApplier';
+import type { LocalStore } from '../domain/localStore';
+import { jsonToPayload } from '../domain/mapping';
+import type { EventEntry, EventSyncFile, EventType, ExpenseEvent } from '../domain/types';
 
 /** Bound on automatic retries when the remote etag has moved under us. */
 const MAX_RETRIES = 3;

@@ -2,11 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
 const useAuthMock = vi.fn();
-vi.mock('../context/AuthContext.tsx', () => ({
+vi.mock('../context/AuthContext', () => ({
   useAuth: () => useAuthMock(),
 }));
 
-const { useDateRangeProvider } = await import('./useDateRange.ts');
+const { useDateRangeProvider } = await import('./useDateRange');
 
 describe('useDateRangeProvider', () => {
   it('initialises preset from "year" when nothing is stored', () => {

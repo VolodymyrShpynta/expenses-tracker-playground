@@ -2,8 +2,8 @@
  * Mapping tests — `payloadToProjection` and `eventEntryToProjection`.
  */
 import { describe, expect, it } from 'vitest';
-import { eventEntryToProjection, payloadToProjection } from './mapping.ts';
-import { TEST_USER_ID } from '../test/fixtures.ts';
+import { eventEntryToProjection, payloadToProjection } from './mapping';
+import { TEST_USER_ID } from '../test/fixtures';
 
 describe('payloadToProjection', () => {
   it('should convert a fully-populated payload to a projection', () => {

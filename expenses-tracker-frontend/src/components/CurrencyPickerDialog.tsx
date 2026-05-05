@@ -14,8 +14,8 @@ import Typography from '@mui/material/Typography';
 import SearchIcon from '@mui/icons-material/Search';
 import CheckIcon from '@mui/icons-material/Check';
 import { useTranslation } from 'react-i18next';
-import { SUPPORTED_CURRENCIES } from '../api/exchange.ts';
-import type { CurrencyCode } from '../api/exchange.ts';
+import { SUPPORTED_CURRENCIES } from '../api/exchange';
+import type { CurrencyCode } from '../api/exchange';
 
 interface CurrencyPickerDialogProps {
   open: boolean;

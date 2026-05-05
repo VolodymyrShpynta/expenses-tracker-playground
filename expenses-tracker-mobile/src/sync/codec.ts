@@ -22,7 +22,7 @@
  * "expected" missing files; that's `null` from the adapter's `download`.)
  */
 import { gzip, ungzip } from 'pako';
-import type { EventEntry, EventSyncFile } from '../domain/types.ts';
+import type { EventEntry, EventSyncFile } from '../domain/types';
 
 const TEXT_ENCODER = new TextEncoder();
 const TEXT_DECODER = new TextDecoder('utf-8');

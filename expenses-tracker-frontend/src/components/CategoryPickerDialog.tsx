@@ -15,9 +15,9 @@ import CircularProgress from '@mui/material/CircularProgress';
 import SearchIcon from '@mui/icons-material/Search';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
-import { useCategories } from '../hooks/useCategories.ts';
-import { useCategoryLookup } from '../hooks/useCategoryLookup.ts';
-import type { Category } from '../types/category.ts';
+import { useCategories } from '../hooks/useCategories';
+import { useCategoryLookup } from '../hooks/useCategoryLookup';
+import type { Category } from '../types/category';
 
 interface CategoryPickerDialogProps {
   open: boolean;

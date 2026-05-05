@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // Replace `fetchWithAuth` so we can assert the URL/method/body without
 // pulling Keycloak into tests.
 const fetchWithAuthMock = vi.fn();
-vi.mock('./fetchWithAuth.ts', () => ({
+vi.mock('./fetchWithAuth', () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
 }));
 
@@ -12,7 +12,7 @@ const {
   createExpense,
   updateExpense,
   deleteExpense,
-} = await import('./expenses.ts');
+} = await import('./expenses');
 
 beforeEach(() => fetchWithAuthMock.mockReset());
 afterEach(() => fetchWithAuthMock.mockReset());

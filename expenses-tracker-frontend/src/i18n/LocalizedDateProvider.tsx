@@ -15,7 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { enUS, ukUA, csCZ } from '@mui/x-date-pickers/locales';
-import { resolveLanguage } from './locale.ts';
+import { resolveLanguage } from './locale';
 
 const PICKER_LOCALE_TEXT = {
   en: enUS.components.MuiLocalizationProvider.defaultProps.localeText,

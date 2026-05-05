@@ -6,8 +6,8 @@
  * returns `undefined` for a soft-deleted expense even when the row still
  * exists physically (resurrection path).
  */
-import type { LocalStore } from './localStore.ts';
-import type { ExpenseProjection } from './types.ts';
+import type { LocalStore } from './localStore';
+import type { ExpenseProjection } from './types';
 
 export interface QueryServiceDeps {
   readonly store: LocalStore;

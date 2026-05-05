@@ -10,7 +10,7 @@
  * backend's `ExpenseEventRepository` + `ExpenseProjectionRepository`
  * pair — including the same last-write-wins UPSERT semantics.
  */
-import type { ExpenseEvent, ExpenseProjection } from './types.ts';
+import type { ExpenseEvent, ExpenseProjection } from './types';
 
 /**
  * Atomic transactional unit. Implementations MUST run the closure inside a

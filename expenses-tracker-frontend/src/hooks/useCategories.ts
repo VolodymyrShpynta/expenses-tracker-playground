@@ -8,9 +8,9 @@ import {
   resetCategories,
   restoreCategory,
   mergeCategories,
-} from '../api/categories.ts';
-import { EXPENSES_QUERY_KEY } from './useExpenses.ts';
-import type { Category, CreateCategoryRequest, UpdateCategoryRequest } from '../types/category.ts';
+} from '../api/categories';
+import { EXPENSES_QUERY_KEY } from './useExpenses';
+import type { Category, CreateCategoryRequest, UpdateCategoryRequest } from '../types/category';
 
 export const CATEGORIES_QUERY_KEY = ['categories'] as const;
 

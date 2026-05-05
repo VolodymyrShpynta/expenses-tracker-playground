@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { Expense } from '../types/expense.ts';
-import { useMainCurrency } from './useCurrency.ts';
+import type { Expense } from '../types/expense';
+import { useMainCurrency } from './useCurrency';
 
 const BASE_URL = 'https://open.er-api.com/v6/latest';
 

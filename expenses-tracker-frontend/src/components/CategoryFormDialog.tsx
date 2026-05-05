@@ -13,9 +13,9 @@ import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
 import CheckIcon from '@mui/icons-material/Check';
 import { useTranslation } from 'react-i18next';
-import { AVAILABLE_ICONS, AVAILABLE_COLORS, getIconByKey } from '../utils/categoryConfig.ts';
-import type { IconOption } from '../utils/categoryConfig.ts';
-import { FIELD_LIMITS } from '../utils/fieldLimits.ts';
+import { AVAILABLE_ICONS, AVAILABLE_COLORS, getIconByKey } from '../utils/categoryConfig';
+import type { IconOption } from '../utils/categoryConfig';
+import { FIELD_LIMITS } from '../utils/fieldLimits';
 
 interface IconPickerProps {
   value: string;

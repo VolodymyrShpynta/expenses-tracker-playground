@@ -15,7 +15,7 @@ import {
   type CloudDriveAdapter,
   type DownloadResult,
   type UploadResult,
-} from '../sync/cloudDriveAdapter.ts';
+} from '../sync/cloudDriveAdapter';
 
 export class InMemoryCloudDriveAdapter implements CloudDriveAdapter {
   private signedIn = true;

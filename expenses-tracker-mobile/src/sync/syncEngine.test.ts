@@ -9,13 +9,13 @@
  *   - Optimistic-concurrency conflict triggers a retry.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createSyncEngine } from './syncEngine.ts';
-import { encodeSyncFile } from './codec.ts';
-import { ConcurrencyError } from './cloudDriveAdapter.ts';
-import { InMemoryLocalStore } from '../test/inMemoryLocalStore.ts';
-import { InMemoryCloudDriveAdapter } from '../test/inMemoryCloudDriveAdapter.ts';
-import { TEST_USER_ID } from '../test/fixtures.ts';
-import type { EventEntry, ExpenseEvent } from '../domain/types.ts';
+import { createSyncEngine } from './syncEngine';
+import { encodeSyncFile } from './codec';
+import { ConcurrencyError } from './cloudDriveAdapter';
+import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
+import { InMemoryCloudDriveAdapter } from '../test/inMemoryCloudDriveAdapter';
+import { TEST_USER_ID } from '../test/fixtures';
+import type { EventEntry, ExpenseEvent } from '../domain/types';
 
 const makeLocalEvent = (
   eventId: string,
@@ -184,7 +184,7 @@ describe('SyncEngine.performFullSync', () => {
     await engine.performFullSync();
 
     // Decode what we wrote back and assert ordering.
-    const { decodeSyncFile } = await import('./codec.ts');
+    const { decodeSyncFile } = await import('./codec');
     const lastBytes = adapter.peekBytes();
     expect(lastBytes).not.toBeNull();
     const decoded = decodeSyncFile(lastBytes!, true);

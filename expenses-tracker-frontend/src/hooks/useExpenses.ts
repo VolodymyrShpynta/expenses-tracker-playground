@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchExpenses } from '../api/expenses.ts';
-import type { Expense } from '../types/expense.ts';
+import { fetchExpenses } from '../api/expenses';
+import type { Expense } from '../types/expense';
 
 export const EXPENSES_QUERY_KEY = ['expenses'] as const;
 

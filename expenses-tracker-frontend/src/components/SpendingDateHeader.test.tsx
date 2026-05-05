@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
-vi.mock('../i18n/locale.ts', () => ({
+vi.mock('../i18n/locale', () => ({
   // Lock locale so the rendered amount string is deterministic.
   getLocale: () => 'en-US',
 }));
@@ -13,7 +13,7 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-vi.mock('../hooks/useDateRange.ts', () => ({
+vi.mock('../hooks/useDateRange', () => ({
   useDateRange: () => ({
     dateRange: { from: new Date(2026, 0, 1), to: new Date(2026, 0, 31) },
     setDateRange: vi.fn(),
@@ -24,11 +24,11 @@ vi.mock('../hooks/useDateRange.ts', () => ({
 
 // DateRangeSelector pulls in MUI date pickers; replace with a noop so the
 // component test stays focused on SpendingDateHeader's own logic.
-vi.mock('./DateRangeSelector.tsx', () => ({
+vi.mock('./DateRangeSelector', () => ({
   DateRangeSelector: () => <div data-testid="date-range-selector" />,
 }));
 
-const { SpendingDateHeader } = await import('./SpendingDateHeader.tsx');
+const { SpendingDateHeader } = await import('./SpendingDateHeader');
 
 describe('SpendingDateHeader', () => {
   it('renders the localized total spending with currency prefix', () => {

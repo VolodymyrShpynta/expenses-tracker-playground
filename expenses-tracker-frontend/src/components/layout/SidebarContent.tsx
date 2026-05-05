@@ -7,14 +7,14 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import { useTheme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
-import { NAV_ITEMS } from './navItems.tsx';
-import { DRAWER_WIDTH, navItemSx } from './layoutStyles.ts';
+import { NAV_ITEMS } from './navItems';
+import { DRAWER_WIDTH, navItemSx } from './layoutStyles';
 import {
   SidebarSettings,
   SidebarTools,
   SidebarUserSection,
-} from './SidebarSections.tsx';
-import type { FontScale } from '../../theme.ts';
+} from './SidebarSections';
+import type { FontScale } from '../../theme';
 
 /**
  * Pure-render assembly of the sidebar (header, primary nav, Tools and

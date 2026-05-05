@@ -2,10 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import CategoryIcon from '@mui/icons-material/Category';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
-import type { Category } from '../types/category.ts';
+import type { Category } from '../types/category';
 
 const useCategoryCatalogMock = vi.fn();
-vi.mock('./useCategories.ts', () => ({
+vi.mock('./useCategories', () => ({
   useCategoryCatalog: () => useCategoryCatalogMock(),
 }));
 
@@ -17,7 +17,7 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-const { useCategoryLookup } = await import('./useCategoryLookup.ts');
+const { useCategoryLookup } = await import('./useCategoryLookup');
 
 function category(partial: Partial<Category> & { id: string }): Category {
   return {

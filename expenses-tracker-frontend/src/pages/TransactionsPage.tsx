@@ -6,21 +6,21 @@ import List from '@mui/material/List';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import { useTranslation } from 'react-i18next';
-import { useExpenses } from '../hooks/useExpenses.ts';
-import { useExchangeRates } from '../hooks/useExchangeRates.ts';
-import { useCategoryLookup } from '../hooks/useCategoryLookup.ts';
-import { SpendingDateHeader } from '../components/SpendingDateHeader.tsx';
-import { useDateRange } from '../hooks/useDateRange.ts';
-import type { Expense } from '../types/expense.ts';
-import { AddExpenseDialog } from '../components/AddExpenseDialog.tsx';
-import { useMainCurrency } from '../hooks/useCurrency.ts';
+import { useExpenses } from '../hooks/useExpenses';
+import { useExchangeRates } from '../hooks/useExchangeRates';
+import { useCategoryLookup } from '../hooks/useCategoryLookup';
+import { SpendingDateHeader } from '../components/SpendingDateHeader';
+import { useDateRange } from '../hooks/useDateRange';
+import type { Expense } from '../types/expense';
+import { AddExpenseDialog } from '../components/AddExpenseDialog';
+import { useMainCurrency } from '../hooks/useCurrency';
 import {
   groupExpenses,
   presetToGroupBy,
-} from '../components/transactions/groupExpenses.ts';
-import { TransactionFilters } from '../components/transactions/TransactionFilters.tsx';
-import { ExpenseGroupHeader } from '../components/transactions/ExpenseGroupHeader.tsx';
-import { ExpenseRow } from '../components/transactions/ExpenseRow.tsx';
+} from '../components/transactions/groupExpenses';
+import { TransactionFilters } from '../components/transactions/TransactionFilters';
+import { ExpenseGroupHeader } from '../components/transactions/ExpenseGroupHeader';
+import { ExpenseRow } from '../components/transactions/ExpenseRow';
 
 export default function TransactionsPage() {
   const { t: translate } = useTranslation();

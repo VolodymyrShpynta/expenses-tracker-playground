@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('../i18n/locale.ts', () => ({
+vi.mock('../i18n/locale', () => ({
   // Lock locale so toLocaleString output is deterministic across CI/dev machines.
   getLocale: () => 'en-US',
 }));
@@ -10,7 +10,7 @@ const {
   formatAmountWithCurrency,
   formatAmountCompact,
   formatAmountCompactWithCurrency,
-} = await import('./format.ts');
+} = await import('./format');
 
 describe('formatAmount', () => {
   it('renders cents with two decimals and grouping separators', () => {

@@ -5,7 +5,7 @@ import {
   AVAILABLE_ICONS,
   ICON_MAP,
   getIconByKey,
-} from './categoryConfig.ts';
+} from './categoryConfig';
 
 describe('ICON_MAP', () => {
   it('exposes a non-empty catalog of MUI icons keyed by stable string ids', () => {

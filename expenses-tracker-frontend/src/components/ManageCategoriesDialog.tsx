@@ -24,22 +24,22 @@ import {
   useResetCategories,
   useRestoreCategory,
   useMergeCategories,
-} from '../hooks/useCategories.ts';
-import { useCategoryLookup } from '../hooks/useCategoryLookup.ts';
-import { CategoryFormDialog } from './CategoryFormDialog.tsx';
-import { CategoryPickerDialog } from './CategoryPickerDialog.tsx';
-import type { Category } from '../types/category.ts';
-import { CategoryRow } from './manage-categories/CategoryRow.tsx';
-import { DeleteCategoryConfirmDialog } from './manage-categories/DeleteCategoryConfirmDialog.tsx';
-import { ResetCategoriesConfirmDialog } from './manage-categories/ResetCategoriesConfirmDialog.tsx';
-import { DuplicateNameDialog } from './manage-categories/DuplicateNameDialog.tsx';
-import { MergeCategoriesConfirmDialog } from './manage-categories/MergeCategoriesConfirmDialog.tsx';
-import { MergeArchivedConfirmDialog } from './manage-categories/MergeArchivedConfirmDialog.tsx';
+} from '../hooks/useCategories';
+import { useCategoryLookup } from '../hooks/useCategoryLookup';
+import { CategoryFormDialog } from './CategoryFormDialog';
+import { CategoryPickerDialog } from './CategoryPickerDialog';
+import type { Category } from '../types/category';
+import { CategoryRow } from './manage-categories/CategoryRow';
+import { DeleteCategoryConfirmDialog } from './manage-categories/DeleteCategoryConfirmDialog';
+import { ResetCategoriesConfirmDialog } from './manage-categories/ResetCategoriesConfirmDialog';
+import { DuplicateNameDialog } from './manage-categories/DuplicateNameDialog';
+import { MergeCategoriesConfirmDialog } from './manage-categories/MergeCategoriesConfirmDialog';
+import { MergeArchivedConfirmDialog } from './manage-categories/MergeArchivedConfirmDialog';
 import {
   findDuplicateCustoms,
   type NameMatches,
-} from './manage-categories/duplicateMatching.ts';
-import { useArchivedSiblings } from './manage-categories/useArchivedSiblings.ts';
+} from './manage-categories/duplicateMatching';
+import { useArchivedSiblings } from './manage-categories/useArchivedSiblings';
 
 interface ManageCategoriesDialogProps {
   open: boolean;

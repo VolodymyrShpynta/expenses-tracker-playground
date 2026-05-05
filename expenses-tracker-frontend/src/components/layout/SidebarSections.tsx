@@ -16,10 +16,10 @@ import LanguageIcon from '@mui/icons-material/Language';
 import LogoutIcon from '@mui/icons-material/Logout';
 import ImportExportIcon from '@mui/icons-material/ImportExport';
 import { useTranslation } from 'react-i18next';
-import { ColorModeToggleContext, type FontScale } from '../../theme.ts';
-import { useAuth } from '../../context/AuthContext.tsx';
-import { SectionHeader } from './SectionHeader.tsx';
-import { navItemSx } from './layoutStyles.ts';
+import { ColorModeToggleContext, type FontScale } from '../../theme';
+import { useAuth } from '../../context/AuthContext';
+import { SectionHeader } from './SectionHeader';
+import { navItemSx } from './layoutStyles';
 
 /**
  * The three collapsible/non-collapsible blocks at the bottom of the

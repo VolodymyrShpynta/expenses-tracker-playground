@@ -3,7 +3,7 @@
  * `ExpenseMapper` Kotlin object — single source of truth for shape
  * conversions so callers (commands, sync recorder) never map by hand.
  */
-import type { EventEntry, ExpensePayload, ExpenseProjection } from './types.ts';
+import type { EventEntry, ExpensePayload, ExpenseProjection } from './types';
 
 /**
  * Convert an `ExpensePayload` to an `ExpenseProjection` row.

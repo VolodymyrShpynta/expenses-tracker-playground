@@ -2,9 +2,9 @@ import type {
   Category,
   CreateCategoryRequest,
   UpdateCategoryRequest,
-} from '../types/category.ts';
-import { fetchWithAuth } from './fetchWithAuth.ts';
-import { expectOk, handleResponse } from './handleResponse.ts';
+} from '../types/category';
+import { fetchWithAuth } from './fetchWithAuth';
+import { expectOk, handleResponse } from './handleResponse';
 
 const BASE = '/api/categories';
 

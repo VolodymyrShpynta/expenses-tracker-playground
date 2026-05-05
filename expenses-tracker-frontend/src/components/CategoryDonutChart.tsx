@@ -2,9 +2,9 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 import { PieChart } from '@mui/x-charts/PieChart';
-import type { CategorySummary } from '../types/expense.ts';
-import type { CategoryLookup } from '../hooks/useCategoryLookup.ts';
-import { formatAmountCompactWithCurrency, formatAmountWithCurrency } from '../utils/format.ts';
+import type { CategorySummary } from '../types/expense';
+import type { CategoryLookup } from '../hooks/useCategoryLookup';
+import { formatAmountCompactWithCurrency, formatAmountWithCurrency } from '../utils/format';
 
 interface CategoryDonutChartProps {
   categories: CategorySummary[];

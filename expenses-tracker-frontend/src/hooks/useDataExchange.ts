@@ -5,9 +5,9 @@ import {
   uploadExport,
   type ExportFormat,
   type ImportResult,
-} from '../api/dataExchange.ts';
-import { EXPENSES_QUERY_KEY } from './useExpenses.ts';
-import { CATEGORIES_QUERY_KEY } from './useCategories.ts';
+} from '../api/dataExchange';
+import { EXPENSES_QUERY_KEY } from './useExpenses';
+import { CATEGORIES_QUERY_KEY } from './useCategories';
 
 /**
  * Triggers an export download in the chosen format. The mutation success

@@ -6,9 +6,9 @@
  * convention from `.github/instructions/test-conventions.instructions.md`.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { projectPayload, softDelete } from './projector.ts';
-import { InMemoryLocalStore } from '../test/inMemoryLocalStore.ts';
-import { TEST_USER_ID, makePayload } from '../test/fixtures.ts';
+import { projectPayload, softDelete } from './projector';
+import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
+import { TEST_USER_ID, makePayload } from '../test/fixtures';
 
 describe('projector — last-write-wins', () => {
   let store: InMemoryLocalStore;

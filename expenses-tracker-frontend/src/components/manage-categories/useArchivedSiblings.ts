@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import type { Category } from '../../types/category.ts';
-import type { CategoryLookup } from '../../hooks/useCategoryLookup.ts';
-import { normalizeName } from './duplicateMatching.ts';
+import type { Category } from '../../types/category';
+import type { CategoryLookup } from '../../hooks/useCategoryLookup';
+import { normalizeName } from './duplicateMatching';
 
 /**
  * For every active row, the list of *other* catalog rows (active or

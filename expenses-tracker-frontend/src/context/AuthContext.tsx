@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type Keycloak from 'keycloak-js';
-import keycloak from '../config/keycloak.ts';
+import keycloak from '../config/keycloak';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import Typography from '@mui/material/Typography';

@@ -2,16 +2,16 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
-import type { CurrencyCode } from '../../api/exchange.ts';
+import type { CurrencyCode } from '../../api/exchange';
 import {
   useCreateExpense,
   useDeleteExpense,
   useUpdateExpense,
-} from '../../hooks/useExpenseMutations.ts';
-import { useMainCurrency } from '../../hooks/useCurrency.ts';
-import type { CategoryLookup } from '../../hooks/useCategoryLookup.ts';
-import type { Expense } from '../../types/expense.ts';
-import { useCalculator } from '../amount-keypad/useCalculator.ts';
+} from '../../hooks/useExpenseMutations';
+import { useMainCurrency } from '../../hooks/useCurrency';
+import type { CategoryLookup } from '../../hooks/useCategoryLookup';
+import type { Expense } from '../../types/expense';
+import { useCalculator } from '../amount-keypad/useCalculator';
 
 interface UseExpenseFormOptions {
   expense?: Expense;

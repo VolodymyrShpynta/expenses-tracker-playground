@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../i18n/locale.ts', () => ({
+vi.mock('../i18n/locale', () => ({
   getLocale: () => 'en-US',
 }));
 
@@ -16,7 +16,7 @@ const {
   readStoredPreset,
   savePreset,
   startOfDay,
-} = await import('./dateRange.ts');
+} = await import('./dateRange');
 
 describe('startOfDay / endOfDay', () => {
   it('startOfDay zeroes the time portion', () => {

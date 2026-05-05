@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { Expense, CategorySummary } from '../types/expense.ts';
+import type { Expense, CategorySummary } from '../types/expense';
 
 interface DateRange {
   from: Date;

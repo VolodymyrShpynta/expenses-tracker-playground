@@ -6,14 +6,14 @@
  * `ExpenseCommandServiceTransactionTest` covers.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createExpenseCommandService } from './commands.ts';
-import { createExpenseQueryService } from './queries.ts';
-import { InMemoryLocalStore } from '../test/inMemoryLocalStore.ts';
+import { createExpenseCommandService } from './commands';
+import { createExpenseQueryService } from './queries';
+import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
 import {
   TEST_USER_ID,
   sequenceIds,
   sequenceTime,
-} from '../test/fixtures.ts';
+} from '../test/fixtures';
 
 function buildService(opts: { ids: string[]; times: number[] }) {
   const store = new InMemoryLocalStore();

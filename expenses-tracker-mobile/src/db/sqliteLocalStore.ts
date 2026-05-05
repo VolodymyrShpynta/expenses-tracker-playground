@@ -13,8 +13,8 @@
  * `src/test/inMemoryLocalStore.ts` (which mirrors the same semantics).
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
-import type { LocalStore, TransactionRunner } from '../domain/localStore.ts';
-import type { ExpenseEvent, ExpenseProjection, EventType } from '../domain/types.ts';
+import type { LocalStore, TransactionRunner } from '../domain/localStore';
+import type { ExpenseEvent, ExpenseProjection, EventType } from '../domain/types';
 
 /** Boolean ↔ INTEGER conversions for SQLite (which has no native BOOLEAN). */
 const toInt = (b: boolean): number => (b ? 1 : 0);

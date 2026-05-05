@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useState } from 'react';
-import type { DateRange, PresetKey } from '../utils/dateRange.ts';
-import { buildRangeForPreset, readStoredPreset, savePreset } from '../utils/dateRange.ts';
-import { useAuth } from '../context/AuthContext.tsx';
+import type { DateRange, PresetKey } from '../utils/dateRange';
+import { buildRangeForPreset, readStoredPreset, savePreset } from '../utils/dateRange';
+import { useAuth } from '../context/AuthContext';
 
 interface DateRangeContextValue {
   dateRange: DateRange;

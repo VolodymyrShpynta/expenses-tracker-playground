@@ -14,12 +14,12 @@ import {
   formatShort,
   type DateRange,
   type PresetKey,
-} from '../utils/dateRange.ts';
-import { PresetGrid } from './date-range/PresetGrid.tsx';
-import { DayPickerPanel } from './date-range/DayPickerPanel.tsx';
-import { RangePickerPanel } from './date-range/RangePickerPanel.tsx';
-import { ResponsivePopover } from './date-range/ResponsivePopover.tsx';
-import { useDateRangeState } from './date-range/useDateRangeState.ts';
+} from '../utils/dateRange';
+import { PresetGrid } from './date-range/PresetGrid';
+import { DayPickerPanel } from './date-range/DayPickerPanel';
+import { RangePickerPanel } from './date-range/RangePickerPanel';
+import { ResponsivePopover } from './date-range/ResponsivePopover';
+import { useDateRangeState } from './date-range/useDateRangeState';
 
 interface DateRangeSelectorProps {
   value: DateRange;

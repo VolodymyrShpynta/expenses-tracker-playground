@@ -2,11 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
 const useAuthMock = vi.fn();
-vi.mock('../context/AuthContext.tsx', () => ({
+vi.mock('../context/AuthContext', () => ({
   useAuth: () => useAuthMock(),
 }));
 
-const { useCurrencyProvider } = await import('./useCurrency.ts');
+const { useCurrencyProvider } = await import('./useCurrency');
 
 describe('useCurrencyProvider', () => {
   it('defaults to USD when nothing is stored', () => {
