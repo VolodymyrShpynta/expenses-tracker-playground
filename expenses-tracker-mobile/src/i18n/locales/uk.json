@@ -10,7 +10,7 @@
     "openMenu": "Відкрити меню"
   },
   "settings": {
-    "darkMode": "Темна тема",
+    "darkMode": "Режим теми",
     "toggleDarkMode": "Перемкнути темну тему",
     "manageCategories": "Керувати категоріями",
     "resetCategories": "Скинути категорії",
@@ -183,8 +183,8 @@
   "transactions": {
     "searchPlaceholder": "Пошук транзакцій…",
     "openFilter": "Фільтр за категорією",
-    "clearFilters": "Очистити фільтри",
-    "exclude": "Виключити…"
+    "add": "Додати…",
+    "removeFilter": "Прибрати фільтр: {{name}}"
   },
   "calculator": {
     "enterOrUseCalculator": "Введіть суму або скористайтесь калькулятором",

@@ -10,7 +10,7 @@
     "openMenu": "Otevřít menu"
   },
   "settings": {
-    "darkMode": "Tmavý režim",
+    "darkMode": "Režim tématu",
     "toggleDarkMode": "Přepnout tmavý režim",
     "manageCategories": "Spravovat kategorie",
     "resetCategories": "Resetovat kategorie",
@@ -183,8 +183,8 @@
   "transactions": {
     "searchPlaceholder": "Hledat transakce…",
     "openFilter": "Filtr podle kategorie",
-    "clearFilters": "Vymazat filtry",
-    "exclude": "Vyloučit…"
+    "add": "Přidat…",
+    "removeFilter": "Odebrat filtr: {{name}}"
   },
   "calculator": {
     "enterOrUseCalculator": "Zadejte částku nebo použijte kalkulačku",

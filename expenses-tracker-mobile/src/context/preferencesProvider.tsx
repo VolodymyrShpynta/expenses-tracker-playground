@@ -122,7 +122,12 @@ export function PreferencesProvider({ children }: PreferencesProviderProps) {
   const setPreset = useCallback(
     (key: PresetKey) => {
       setPresetState(key);
-      setDateRangeState(buildRangeForPreset(key));
+      // Picker-driven presets ('range' / 'day') set the date range
+      // themselves once the user confirms; rebuilding here would clobber
+      // that pick. Window-style presets snap to a derived range.
+      if (key !== 'range' && key !== 'day') {
+        setDateRangeState(buildRangeForPreset(key));
+      }
       void AsyncStorage.setItem(`${PRESET_KEY}:${userId}`, key).catch((e) =>
         console.warn('Failed to save preset', e),
       );

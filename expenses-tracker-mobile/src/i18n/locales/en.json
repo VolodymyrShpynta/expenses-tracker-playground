@@ -10,7 +10,7 @@
     "openMenu": "Open menu"
   },
   "settings": {
-    "darkMode": "Dark Mode",
+    "darkMode": "Theme Mode",
     "toggleDarkMode": "Toggle dark mode",
     "manageCategories": "Manage Categories",
     "resetCategories": "Reset categories",
@@ -183,8 +183,8 @@
   "transactions": {
     "searchPlaceholder": "Search transactions…",
     "openFilter": "Filter by category",
-    "clearFilters": "Clear filters",
-    "exclude": "Exclude…"
+    "add": "Add…",
+    "removeFilter": "Remove filter: {{name}}"
   },
   "calculator": {
     "enterOrUseCalculator": "Enter amount or use calculator",

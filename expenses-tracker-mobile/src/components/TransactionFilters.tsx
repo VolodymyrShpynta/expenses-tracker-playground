@@ -2,27 +2,30 @@
  * Filter row for the transactions screen.
  *
  *   [ search box                  ]  [ ⚙ ]
- *   [chip] [chip] [chip] …                (active filters, dismissible)
+ *   [chip] [chip] [chip] … [+ Add]       (active filters, dismissible on tap)
  *
- * State for `query`, `selectedCategoryIds` and `unselectedCategoryIds` is
- * lifted to the screen so the parent can wire it into the expense filter.
+ * State for `query` and `includeIds` is lifted to the screen so the
+ * parent can wire it into the expense filter.
  *
  * The category picker is rendered here (not at the screen level) because
  * `AppDialog` uses RN's `Modal` under the hood, which portals to the
  * root window — so the picker can sit anywhere in the tree.
  *
- * The two chip lists mirror the web frontend's "include / exclude" model:
- * if the user explicitly selects categories, only those match; otherwise
- * they may exclude one or more, and everything else passes.
+ * Mirrors the web frontend: include-only filtering — tapping a chip (or
+ * its inline X) removes it. The picker only offers categories that have
+ * expenses in the current date range and aren't already selected.
  */
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import {
   Chip,
   IconButton,
+  Text,
   TextInput,
+  TouchableRipple,
   useTheme,
 } from 'react-native-paper';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
 import { CategoryAvatar } from './CategoryAvatar';
@@ -33,33 +36,23 @@ export interface TransactionFiltersProps {
   readonly query: string;
   readonly onQueryChange: (q: string) => void;
   readonly includeIds: ReadonlyArray<string>;
-  readonly excludeIds: ReadonlyArray<string>;
+  readonly availableCategoryIds: ReadonlySet<string>;
   readonly onAddInclude: (id: string) => void;
-  readonly onAddExclude: (id: string) => void;
   readonly onRemoveInclude: (id: string) => void;
-  readonly onRemoveExclude: (id: string) => void;
-  readonly onClearAll: () => void;
 }
-
-type Mode = 'include' | 'exclude' | null;
 
 export function TransactionFilters({
   query,
   onQueryChange,
   includeIds,
-  excludeIds,
+  availableCategoryIds,
   onAddInclude,
-  onAddExclude,
   onRemoveInclude,
-  onRemoveExclude,
-  onClearAll,
 }: TransactionFiltersProps) {
   const { t: translate } = useTranslation();
   const theme = useTheme();
   const lookup = useCategoryLookup();
-  const [pickerMode, setPickerMode] = useState<Mode>(null);
-
-  const hasFilters = includeIds.length > 0 || excludeIds.length > 0 || query.length > 0;
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   return (
     <View style={{ paddingHorizontal: 12, paddingBottom: 4 }}>
@@ -76,62 +69,88 @@ export function TransactionFilters({
         <IconButton
           icon="filter-variant"
           accessibilityLabel={translate('transactions.openFilter')}
-          onPress={() => setPickerMode('include')}
+          disabled={availableCategoryIds.size === 0}
+          onPress={() => setPickerOpen(true)}
         />
-        {hasFilters ? (
-          <IconButton
-            icon="close"
-            accessibilityLabel={translate('transactions.clearFilters')}
-            onPress={onClearAll}
-          />
-        ) : null}
       </View>
 
-      {(includeIds.length > 0 || excludeIds.length > 0) && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 6 }}>
+      {includeIds.length > 0 && (
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: 6,
+            paddingVertical: 6,
+          }}
+        >
           {includeIds.map((id) => {
             const r = lookup.resolve(id);
+            // Custom inline chip instead of RN Paper's `Chip` for selected
+            // filters: Paper's `Chip` positions its close button with
+            // `position: 'absolute'` under a column-flex Surface, which
+            // interacts badly with our wrapping parent and renders the X
+            // below the pill. Laying out [avatar][label][×] in a single
+            // flex row sidesteps that entire absolute-positioning path.
             return (
-              <Chip
+              <TouchableRipple
                 key={`inc-${id}`}
-                onClose={() => onRemoveInclude(id)}
-                avatar={
-                  <View style={{ marginLeft: 4 }}>
-                    <CategoryAvatar iconName={r.iconName} color={r.color} size={20} />
-                  </View>
-                }
-                style={{ backgroundColor: theme.colors.secondaryContainer }}
+                onPress={() => onRemoveInclude(id)}
+                borderless
+                accessibilityRole="button"
+                accessibilityLabel={translate('transactions.removeFilter', {
+                  name: r.name,
+                })}
+                style={{
+                  backgroundColor: theme.colors.secondaryContainer,
+                  borderRadius: 16,
+                  paddingLeft: 4,
+                  paddingRight: 8,
+                  paddingVertical: 4,
+                }}
               >
-                {r.name}
-              </Chip>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <CategoryAvatar iconName={r.iconName} color={r.color} size={24} />
+                  <Text
+                    variant="labelLarge"
+                    style={{ color: theme.colors.onSecondaryContainer }}
+                  >
+                    {r.name}
+                  </Text>
+                  <MaterialIcons
+                    name="close"
+                    size={16}
+                    color={theme.colors.onSecondaryContainer}
+                  />
+                </View>
+              </TouchableRipple>
             );
           })}
-          {excludeIds.map((id) => {
-            const r = lookup.resolve(id);
-            return (
-              <Chip
-                key={`exc-${id}`}
-                onClose={() => onRemoveExclude(id)}
-                icon="minus-circle-outline"
-                style={{ backgroundColor: theme.colors.errorContainer }}
-              >
-                {r.name}
-              </Chip>
-            );
-          })}
-          <Chip icon="plus" onPress={() => setPickerMode('exclude')} mode="outlined">
-            {translate('transactions.exclude')}
-          </Chip>
-        </ScrollView>
+          {availableCategoryIds.size > 0 && (
+            <Chip
+              icon="plus"
+              onPress={() => setPickerOpen(true)}
+              mode="outlined"
+            >
+              {translate('transactions.add')}
+            </Chip>
+          )}
+        </View>
       )}
 
       <CategoryPickerDialog
-        visible={pickerMode !== null}
-        onDismiss={() => setPickerMode(null)}
+        visible={pickerOpen}
+        onDismiss={() => setPickerOpen(false)}
+        availableIds={availableCategoryIds}
         onPick={(id) => {
-          if (pickerMode === 'include') onAddInclude(id);
-          else if (pickerMode === 'exclude') onAddExclude(id);
-          setPickerMode(null);
+          onAddInclude(id);
+          setPickerOpen(false);
         }}
       />
     </View>

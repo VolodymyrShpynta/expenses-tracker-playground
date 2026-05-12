@@ -9,14 +9,32 @@ export interface DateRange {
   to: Date;
 }
 
-export type PresetKey = 'all' | 'today' | 'week' | 'month' | 'year';
+/**
+ * Period presets exposed by the date-range selector.
+ *
+ *   - `range` / `day` are picker-driven: the user picks the dates via a
+ *     calendar modal, so they have no implicit "current" range. We use
+ *     month/today as the hydration fallback when only the key is
+ *     persisted (matches the web frontend behaviour).
+ *   - The rest snap to a window relative to *now*.
+ */
+export type PresetKey =
+  | 'range'
+  | 'all'
+  | 'day'
+  | 'week'
+  | 'today'
+  | 'year'
+  | 'month';
 
 export const VALID_PRESETS: ReadonlyArray<PresetKey> = [
+  'range',
   'all',
-  'today',
+  'day',
   'week',
-  'month',
+  'today',
   'year',
+  'month',
 ];
 
 function startOfDay(d: Date): Date {
@@ -79,6 +97,13 @@ export function buildRangeForPreset(key: PresetKey): DateRange {
       return buildAllTimeRange();
     case 'year':
       return buildYearRange();
+    // Picker-driven presets have no implicit window — fall back to a
+    // sensible default for hydration, the picker will overwrite it once
+    // the user confirms.
+    case 'day':
+      return buildTodayRange();
+    case 'range':
+      return buildMonthRange();
   }
 }
 
@@ -87,6 +112,11 @@ export function formatRange(range: DateRange, locale: string): string {
   const from = range.from.toLocaleDateString(locale, opts).toUpperCase();
   const to = range.to.toLocaleDateString(locale, opts).toUpperCase();
   return `${from} – ${to}`;
+}
+
+/** Short "day month" label (e.g. "May 1") for preset subtitles. */
+export function formatShort(d: Date, locale: string): string {
+  return d.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
 }
 
 /**
@@ -108,15 +138,16 @@ export function presetToGroupBy(preset: PresetKey): GroupBy {
 
 /**
  * Shift a range one period earlier ('prev') or later ('next') based on
- * the active preset. 'all' returns the input unchanged — there is no
- * previous all-time. Returned ranges are normalised with start/end of day.
+ * the active preset. Presets without a natural period (`all`, `range`,
+ * `day`) return the input unchanged — the header hides the chevrons in
+ * those cases. Returned ranges are normalised with start/end of day.
  */
 export function shiftRange(
   range: DateRange,
   preset: PresetKey,
   direction: 'prev' | 'next',
 ): DateRange {
-  if (preset === 'all') return range;
+  if (preset === 'all' || preset === 'range' || preset === 'day') return range;
   const sign = direction === 'prev' ? -1 : 1;
   const from = new Date(range.from);
   const to = new Date(range.to);

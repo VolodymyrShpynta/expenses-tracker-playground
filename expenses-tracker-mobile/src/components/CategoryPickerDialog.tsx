@@ -26,12 +26,19 @@ export interface CategoryPickerDialogProps {
   readonly visible: boolean;
   readonly onDismiss: () => void;
   readonly onPick: (categoryId: string) => void;
+  /**
+   * Optional whitelist of category IDs to show. When omitted, all
+   * categories are shown. Used by the transactions filter to restrict
+   * choices to categories that actually have expenses in range.
+   */
+  readonly availableIds?: ReadonlySet<string>;
 }
 
 export function CategoryPickerDialog({
   visible,
   onDismiss,
   onPick,
+  availableIds,
 }: CategoryPickerDialogProps) {
   const { t: translate } = useTranslation();
   const theme = useTheme();
@@ -41,9 +48,12 @@ export function CategoryPickerDialog({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const rows = categories.map((c) => ({ id: c.id, ...lookup.resolve(c.id) }));
+    const source = availableIds
+      ? categories.filter((c) => availableIds.has(c.id))
+      : categories;
+    const rows = source.map((c) => ({ id: c.id, ...lookup.resolve(c.id) }));
     return q ? rows.filter((r) => r.name.toLowerCase().includes(q)) : rows;
-  }, [categories, lookup, query]);
+  }, [categories, lookup, query, availableIds]);
 
   const handleDismiss = (): void => {
     setQuery('');

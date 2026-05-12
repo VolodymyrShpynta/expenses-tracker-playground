@@ -8,7 +8,7 @@
  * expenses (we compute totals in the user's main currency via
  * `useExchangeRates`, falling back to raw amounts when rates haven't loaded).
  */
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import {
   ActivityIndicator,
@@ -18,7 +18,7 @@ import {
   useTheme,
 } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
-import { useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { SpendingHeader } from '../../src/components/SpendingHeader';
 import { CategoryAvatar } from '../../src/components/CategoryAvatar';
@@ -36,16 +36,38 @@ import type { ExpenseProjection } from '../../src/domain/types';
 export default function TransactionsScreen() {
   const { t: translate, i18n } = useTranslation();
   const theme = useTheme();
+  const router = useRouter();
   const params = useLocalSearchParams<{ categoryId?: string }>();
-  const initialCategoryId = typeof params.categoryId === 'string' ? params.categoryId : undefined;
+  const incomingCategoryId =
+    typeof params.categoryId === 'string' && params.categoryId.length > 0
+      ? params.categoryId
+      : undefined;
 
   const [includeIds, setIncludeIds] = useState<string[]>(
-    initialCategoryId ? [initialCategoryId] : [],
+    incomingCategoryId ? [incomingCategoryId] : [],
   );
-  const [excludeIds, setExcludeIds] = useState<string[]>([]);
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<ExpenseProjection | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+
+  /**
+   * Apply an incoming `categoryId` route param whenever the screen gains
+   * focus. We can't rely on the `useState` initializer above (like the web
+   * frontend does) because Expo Router's tab navigator keeps tab screens
+   * mounted across tab switches — so the initializer only ever runs once.
+   * `useFocusEffect` is the React Navigation pattern designed exactly for
+   * "the screen just became active": it fires on every focus and we clear
+   * the param afterwards so re-tapping the same category re-applies.
+   */
+  useFocusEffect(
+    useCallback(() => {
+      if (!incomingCategoryId) return;
+      setIncludeIds((prev) =>
+        prev.includes(incomingCategoryId) ? prev : [...prev, incomingCategoryId],
+      );
+      router.setParams({ categoryId: '' });
+    }, [incomingCategoryId, router]),
+  );
 
   const { expenses, loading } = useExpenses();
   const { dateRange, preset } = useDateRange();
@@ -53,17 +75,36 @@ export default function TransactionsScreen() {
   const lookup = useCategoryLookup();
   const { convert } = useExchangeRates();
 
-  const filtered = useMemo(() => {
+  const inRange = useMemo(() => {
     const fromMs = dateRange.from.getTime();
     const toMs = dateRange.to.getTime();
+    return expenses.filter((e) => {
+      if (!e.date) return false;
+      const t = new Date(e.date).getTime();
+      return t >= fromMs && t <= toMs;
+    });
+  }, [expenses, dateRange]);
+
+  /**
+   * Categories that the filter picker can offer: any category that has at
+   * least one expense in the current date range, minus the ones already
+   * selected. Mirrors the web frontend's "unselectedCategories" set.
+   */
+  const availableCategoryIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of inRange) {
+      if (e.categoryId && !includeIds.includes(e.categoryId)) {
+        set.add(e.categoryId);
+      }
+    }
+    return set;
+  }, [inRange, includeIds]);
+
+  const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return expenses
+    return inRange
       .filter((e) => {
-        if (!e.date) return false;
-        const t = new Date(e.date).getTime();
-        if (t < fromMs || t > toMs) return false;
         if (includeIds.length > 0 && (!e.categoryId || !includeIds.includes(e.categoryId))) return false;
-        if (e.categoryId && excludeIds.includes(e.categoryId)) return false;
         if (q) {
           const haystack = `${e.description ?? ''} ${lookup.resolve(e.categoryId).name}`.toLowerCase();
           if (!haystack.includes(q)) return false;
@@ -76,7 +117,7 @@ export default function TransactionsScreen() {
         const db = b.date ? new Date(b.date).getTime() : 0;
         return db - da;
       });
-  }, [expenses, dateRange, includeIds, excludeIds, query, lookup]);
+  }, [inRange, includeIds, query, lookup]);
 
   const grandTotal = useMemo(
     () => filtered.reduce((sum, e) => sum + convert(e.amount, e.currency), 0),
@@ -107,20 +148,11 @@ export default function TransactionsScreen() {
             query={query}
             onQueryChange={setQuery}
             includeIds={includeIds}
-            excludeIds={excludeIds}
+            availableCategoryIds={availableCategoryIds}
             onAddInclude={(id) =>
               setIncludeIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
             }
-            onAddExclude={(id) =>
-              setExcludeIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
-            }
             onRemoveInclude={(id) => setIncludeIds((prev) => prev.filter((x) => x !== id))}
-            onRemoveExclude={(id) => setExcludeIds((prev) => prev.filter((x) => x !== id))}
-            onClearAll={() => {
-              setIncludeIds([]);
-              setExcludeIds([]);
-              setQuery('');
-            }}
           />
 
           {groups.length === 0 ? (
