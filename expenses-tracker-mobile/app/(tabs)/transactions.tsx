@@ -172,7 +172,7 @@ export default function TransactionsScreen() {
                 <View
                   style={{
                     paddingHorizontal: 16,
-                    paddingVertical: 6,
+                    paddingVertical: 8,
                     flexDirection: 'row',
                     justifyContent: 'space-between',
                     alignItems: 'baseline',
@@ -181,10 +181,22 @@ export default function TransactionsScreen() {
                       : 'rgba(0,0,0,0.03)',
                   }}
                 >
-                  <Text variant="labelLarge" style={{ color: theme.colors.onSurfaceVariant }}>
+                  {/*
+                   * Day group header is intentionally heavier than each
+                   * transaction row below: bolder weight + primary text
+                   * color so the eye lands on the date / day total first,
+                   * then scans the items underneath.
+                   */}
+                  <Text
+                    variant="titleMedium"
+                    style={{ color: theme.colors.onSurface, fontWeight: '700' }}
+                  >
                     {g.label}
                   </Text>
-                  <Text variant="labelLarge" style={{ color: theme.colors.onSurfaceVariant }}>
+                  <Text
+                    variant="titleMedium"
+                    style={{ color: theme.colors.onSurface, fontWeight: '700' }}
+                  >
                     {formatAmountWithCurrency(
                       g.expenses.reduce((s, e) => s + convert(e.amount, e.currency), 0),
                       mainCurrency,
@@ -209,7 +221,7 @@ export default function TransactionsScreen() {
                       >
                         <CategoryAvatar iconName={resolved.iconName} color={resolved.color} />
                         <View style={{ flex: 1, minWidth: 0 }}>
-                          <Text variant="bodyLarge" numberOfLines={1}>
+                          <Text variant="bodyMedium" numberOfLines={1}>
                             {e.description || resolved.name}
                           </Text>
                           <Text
@@ -221,7 +233,7 @@ export default function TransactionsScreen() {
                           </Text>
                         </View>
                         <View style={{ minWidth: 90, alignItems: 'flex-end' }}>
-                          <Text variant="bodyLarge" style={{ fontWeight: '700' }}>
+                          <Text variant="bodyMedium">
                             {showConverted
                               ? formatAmountWithCurrency(convertedAmount, mainCurrency, i18n.language)
                               : formatAmountWithCurrency(e.amount, e.currency, i18n.language)}
