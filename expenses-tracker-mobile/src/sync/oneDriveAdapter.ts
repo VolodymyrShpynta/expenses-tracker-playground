@@ -30,8 +30,8 @@ import type {
 } from './cloudDriveAdapter';
 import { createOAuthClient } from './oauthClient';
 
-/** TODO(setup): replace with the OAuth Client ID from Microsoft Entra. */
-const MICROSOFT_OAUTH_CLIENT_ID = 'TODO_REPLACE_WITH_MICROSOFT_CLIENT_ID';
+/** The OAuth Client ID from Microsoft Entra. */
+const MICROSOFT_OAUTH_CLIENT_ID = '40df9657-2c0c-4673-8124-21f3add3715c';
 
 const SYNC_FILE_NAME = 'sync.json.gz';
 

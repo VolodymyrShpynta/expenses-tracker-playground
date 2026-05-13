@@ -3273,7 +3273,10 @@ identifier is **`com.vshpynta.expensestracker`** for both iOS and Android.
 4. Open **API permissions → Add a permission → Microsoft Graph → Delegated permissions** and add:
     - `Files.ReadWrite.AppFolder`
     - `offline_access` (so the app can refresh tokens silently)
-5. Open **Authentication** and turn on **Allow public client flows: Yes** (PKCE is a public-client flow).
+5. Open **Authentication (Preview) → Settings** tab and toggle **Allow public client flows** to
+   **Enabled**, then click **Save** (PKCE is a public-client flow). In the classic Authentication
+   experience the same toggle lives at the bottom of the page under **Advanced settings → Allow public
+   client flows: Yes**.
 6. Copy the **Application (client) ID** from the **Overview** blade and paste it into
    `MICROSOFT_OAUTH_CLIENT_ID`.
 
@@ -3291,6 +3294,185 @@ identifier is **`com.vshpynta.expensestracker`** for both iOS and Android.
 4. Under **Scopes**, the app only requests `https://www.googleapis.com/auth/drive.appdata` — no broad
    Drive scope, so your app stays inside Google's lightweight verification path.
 5. Copy the resulting **Client ID** and paste it into `GOOGLE_OAUTH_CLIENT_ID`.
+
+#### Will other users be able to use my app registration?
+
+**Yes — that's the whole point.** An app registration in Entra ID (or in Google Cloud) is just a
+**public identity** for your app. It is *not* tied to your personal OneDrive / Drive — it's a record
+that says "an app named `vs-expenses-tracker` exists, here's its client ID, here's where it's allowed
+to redirect after login, and here are the permissions it can ask for."
+
+When another user installs your mobile app:
+
+1. The app opens the system browser to Microsoft's (or Google's) login page, passing **your client
+   ID** + the redirect URI `expensestracker://redirect` + the requested scopes.
+2. The user signs in with **their own** Microsoft / Google account.
+3. The provider shows a consent screen: *"vs-expenses-tracker wants to access files it creates in your
+   OneDrive."*
+4. After they consent, the provider redirects back to the app with an auth code.
+5. The app exchanges the code (plus the PKCE verifier) for an access token + refresh token. The tokens
+   belong to **that user**, scoped to **their** drive's app folder (`approot` / `appDataFolder`).
+   Users cannot see each other's data, and you as the app owner have no access to anyone else's data
+   either.
+
+The **only thing shared** between users is the client ID — that's why it is safe to commit.
+
+##### Who can sign in — the "Supported account types" setting
+
+For Microsoft / Entra registrations specifically, **who** is allowed to sign in depends on the
+**Supported account types** option you picked at registration time:
+
+| Setting in Entra                                                  | Who can log in                                                                    | Tenant in `oneDriveAdapter.ts` |
+|-------------------------------------------------------------------|-----------------------------------------------------------------------------------|--------------------------------|
+| **Personal Microsoft accounts only**                              | Only `@outlook.com`, `@hotmail.com`, `@live.com`, Xbox, etc. (NOT work / school)  | `consumers`                    |
+| **Accounts in any org directory and personal Microsoft accounts** | Anyone — personal + any company / school Microsoft 365 tenant                     | `common`                       |
+| **Accounts in any organizational directory only**                 | Any work / school tenant, no personal accounts                                    | `organizations`                |
+| **Accounts in this organizational directory only**                | Only users in *your* tenant — single-tenant app                                   | `<your-tenant-id>`             |
+
+The default in the registration steps above is **Personal Microsoft accounts only** (matches
+`consumers`). If you want users with only a work / school Microsoft account to sign in too, pick
+**"Any org directory + personal"** and change the tenant constant in
+[`expenses-tracker-mobile/src/sync/oneDriveAdapter.ts`](expenses-tracker-mobile/src/sync/oneDriveAdapter.ts)
+from `consumers` to `common`.
+
+##### "Unverified publisher" warning
+
+Until you complete [Publisher
+Verification](https://learn.microsoft.com/en-us/entra/identity-platform/publisher-verification-overview),
+users other than you will see a yellow *"unverified app"* warning on the Microsoft consent screen.
+It is not blocking — for personal use or small-scale testing it is harmless — but for a wider release
+you would want to verify your publisher domain.
+
+#### How the `expensestracker://redirect` URI actually works
+
+This is the part of OAuth that feels like magic until you see what is happening under the hood. The
+short version: **Microsoft does not redirect to anything on the internet. It tells the device's OS to
+open a URL with a custom scheme, and the OS routes that URL to your app.**
+
+```
+┌──────────────┐                                  ┌──────────────────┐
+│  Mobile App  │ ── 1. open browser ────────────► │   System         │
+│  (Expo)      │                                  │   Browser        │
+└──────────────┘                                  └──────────────────┘
+       ▲                                                   │
+       │                                                   │ 2. user signs in
+       │                                                   │    + consents
+       │                                                   ▼
+       │                                          ┌──────────────────┐
+       │                                          │ login.microsoft  │
+       │                                          │ online.com       │
+       │                                          └──────────────────┘
+       │                                                   │
+       │                                                   │ 3. HTTP 302 Redirect:
+       │                                                   │    Location: expensestracker://redirect?code=...
+       │                                                   ▼
+       │                                          ┌──────────────────┐
+       │                                          │  Browser tries   │
+       │                                          │  to open URL     │
+       │                                          └──────────────────┘
+       │                                                   │
+       │                                                   │ 4. OS sees scheme
+       │                                                   │    "expensestracker://"
+       │                                                   │    and looks up
+       │                                                   │    which app owns it
+       │                                                   ▼
+       │                                          ┌──────────────────┐
+       └─── 5. OS hands URL to app ◄───────────── │   Android / iOS  │
+                                                  │   scheme handler │
+                                                  └──────────────────┘
+```
+
+Two pieces make this work:
+
+##### 1. The app *claims* the scheme at install time
+
+In [`expenses-tracker-mobile/app.json`](expenses-tracker-mobile/app.json):
+
+```json
+{
+  "expo": {
+    "scheme": "expensestracker"
+  }
+}
+```
+
+When Expo / EAS builds the native binaries, this scheme is compiled into the platform manifests:
+
+- **Android** — into `AndroidManifest.xml` as an `<intent-filter>`:
+  ```xml
+  <intent-filter>
+    <action android:name="android.intent.action.VIEW"/>
+    <category android:name="android.intent.category.DEFAULT"/>
+    <category android:name="android.intent.category.BROWSABLE"/>
+    <data android:scheme="expensestracker"/>
+  </intent-filter>
+  ```
+- **iOS** — into `Info.plist` as a `CFBundleURLTypes` entry:
+  ```xml
+  <key>CFBundleURLSchemes</key>
+  <array><string>expensestracker</string></array>
+  ```
+
+When the app is installed, the OS registers this claim in a system-wide *scheme → app* table.
+
+##### 2. Microsoft *records* the redirect URI as a plain string
+
+When you registered the app in Entra, you added `expensestracker://redirect` to the redirect URIs
+list. Microsoft's auth server stores this string verbatim. During step 3 of the flow it just emits
+an HTTP 302:
+
+```
+HTTP/1.1 302 Found
+Location: expensestracker://redirect?code=ABC123&state=xyz
+```
+
+Microsoft has no idea what `expensestracker://` is. It does not "look up where your app lives" — it
+just trusts that whoever registered the app knows what they are doing and emits the URL as-is.
+
+##### The handoff
+
+The browser receives the 302 and tries to navigate to `expensestracker://redirect?code=...`. Since
+the scheme is not `http` / `https`, the browser asks the OS:
+
+- **Android** fires `Intent.ACTION_VIEW`; the OS consults its scheme table and launches the app
+  registered for `expensestracker`, passing the full URL as intent data.
+- **iOS** invokes `application:openURL:options:` on the app registered for that scheme.
+
+In React Native / Expo this surfaces as a `Linking` event. The
+[`expo-auth-session`](https://docs.expo.dev/versions/latest/sdk/auth-session/) library (configured
+via [`expenses-tracker-mobile/src/sync/oauthClient.ts`](expenses-tracker-mobile/src/sync/oauthClient.ts))
+subscribes to that event, parses the URL, extracts `code` + `state`, and resolves the awaiting
+promise. The app then exchanges the code (plus its PKCE verifier) for tokens and finishes the
+flow.
+
+##### Why this is secure
+
+You might wonder: *"What if a malicious app also claims `expensestracker://`?"* That is exactly why
+**PKCE** is required for public clients.
+
+- At the **start** of the flow, the app generates a random `code_verifier` and sends only its
+  SHA-256 hash (`code_challenge`) to Microsoft.
+- The `code_verifier` **never leaves the originating app's memory**.
+- At the **end** of the flow, the app must present the original `code_verifier` to exchange the
+  auth code for tokens.
+
+A hostile app that intercepts the redirect URL gets the auth code but cannot compute the verifier
+(SHA-256 is one-way), so the code is useless to it.
+
+For even stronger guarantees you can switch to **Android App Links** / **iOS Universal Links** —
+real `https://yourdomain.com/redirect` URLs that the OS verifies against `assetlinks.json` /
+`apple-app-site-association` files hosted on your domain. That eliminates scheme hijacking entirely
+but requires you to own a domain. Custom-scheme + PKCE is the standard pattern that both Microsoft
+and Google explicitly recommend for native apps without their own backend.
+
+##### Common failure modes (and what they confirm about the model)
+
+| Symptom                                            | Likely cause                                                                       |
+|----------------------------------------------------|------------------------------------------------------------------------------------|
+| Browser shows *"Can't open page — unknown protocol"* | App not installed, or `scheme` in `app.json` doesn't match what's registered     |
+| Microsoft shows error `AADSTS50011`                | The redirect URI string doesn't match the registration **exactly** (e.g. trailing `/`) |
+| App opens but the auth promise never resolves      | `expo-auth-session` listener not wired up, or the app was killed during the flow   |
+| Two apps both claim `expensestracker://`           | OS shows an app picker (Android) or uses install order (iOS) — pick a unique scheme |
 
 #### Are these Client IDs sensitive?
 
