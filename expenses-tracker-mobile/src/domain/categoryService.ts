@@ -1,25 +1,39 @@
 /**
- * Category service — CRUD operations over the local `categories` table.
+ * Category service — event-sourced CRUD over the local `categories` table.
  *
- * Categories are reference data, not event-sourced — there is no event
- * store table for them. This mirrors the backend's `CategoryService`
- * (which writes directly through `CategoryRepository`).
+ * Each mutating method:
+ *   1. Builds a fresh `CategoryPayload` with `updatedAt = time.nowMs()`.
+ *   2. Inside a single SQLite transaction:
+ *        a. Appends the event to `category_events`.
+ *        b. Projects (or soft-deletes) the row in `categories`.
  *
- * `userId`, `id`, and time are passed in via `IdGenerator` / `TimeProvider`
- * so tests can pin them deterministically.
+ * Mirrors `ExpenseCommandService` — including the strict-`>` LWW rule
+ * inside `projectCategoryFromEvent`. The transactional boundary is
+ * enforced by `LocalStore.transaction`; do NOT split steps 2a and 2b
+ * across separate transactions or sync conflict resolution breaks.
+ *
+ * NOTE: the backend's `CategoryService` mutates the `categories` table
+ * directly (no events) — categories there are not part of the sync file.
+ * Mobile takes the event-sourced route so cloud-drive sync converges
+ * categories across devices the same way it converges expenses.
+ *
+ * `id` and time are passed in via `IdGenerator` / `TimeProvider` so tests
+ * can pin them deterministically.
  */
 import type { LocalStore } from './localStore';
-import type { Category } from './types';
+import { categoryPayloadToCategory } from './mapping';
+import type { Category, CategoryEvent, CategoryPayload, EventType } from './types';
 import type { ExpenseCommandService, IdGenerator } from './commands';
 import type { ExpenseQueryService } from './queries';
 import type { TimeProvider } from '../utils/time';
-import { DEFAULT_CATEGORY_TEMPLATES } from './defaultCategories';
+import { DEFAULT_CATEGORY_TEMPLATES, defaultTemplateId } from './defaultCategories';
 
 export interface CategoryServiceDeps {
   readonly store: LocalStore;
   readonly time: TimeProvider;
   readonly ids: IdGenerator;
-  readonly userId: string;
+  /** JSON serializer (injected so tests can pin formatting). Default: JSON.stringify. */
+  readonly serializePayload?: (payload: CategoryPayload) => string;
 }
 
 export interface CreateCategoryCommand {
@@ -38,9 +52,9 @@ export interface UpdateCategoryCommand {
 
 export interface CategoryService {
   /**
-   * Find every category for the user — including soft-deleted rows. The
-   * UI splits "active" vs "archived" client-side so the lookup hook can
-   * keep historic expenses' display fields stable.
+   * Find every category — including soft-deleted rows. The UI splits
+   * "active" vs "archived" client-side so the lookup hook can keep
+   * historic expenses' display fields stable.
    */
   findAllCategories(): Promise<ReadonlyArray<Category>>;
 
@@ -73,69 +87,179 @@ export interface CategoryService {
   ): Promise<{ readonly movedExpenses: number }>;
 
   /**
-   * Soft-delete every active category for the user, then re-seed the
-   * defaults. Existing expenses keep pointing at the (now archived) old
-   * category rows so their display data stays intact via
-   * `useCategoryLookup`.
+   * Soft-delete every active category, then re-seed the defaults.
+   * Existing expenses keep pointing at the (now archived) old category
+   * rows so their display data stays intact via `useCategoryLookup`.
    */
   resetToDefaults(): Promise<{ readonly archived: number; readonly seeded: number }>;
 
   /**
    * Seed default category templates on first launch. Idempotent — does
-   * nothing if any category already exists for the user.
+   * nothing if any category already exists.
    */
   seedDefaultsIfEmpty(): Promise<number>;
 }
 
 export function createCategoryService(deps: CategoryServiceDeps): CategoryService {
-  const { store, time, ids, userId } = deps;
+  const { store, time, ids, serializePayload = JSON.stringify } = deps;
+
+  /**
+   * Append a category event inside the current transaction. Caller is
+   * responsible for wrapping the call in `store.transaction(...)`.
+   */
+  async function appendCategoryEventInTx(
+    eventType: EventType,
+    categoryId: string,
+    payload: CategoryPayload,
+  ): Promise<CategoryEvent> {
+    const event: CategoryEvent = {
+      eventId: ids.newUuid(),
+      timestamp: time.nowMs(),
+      eventType,
+      categoryId,
+      payload: serializePayload(payload),
+      committed: false,
+    };
+    await store.appendCategoryEvent(event);
+    return event;
+  }
+
+  function buildPayload(
+    id: string,
+    now: number,
+    fields: {
+      readonly name?: string;
+      readonly templateKey?: string;
+      readonly icon: string;
+      readonly color: string;
+      readonly sortOrder: number;
+      readonly deleted: boolean;
+    },
+  ): CategoryPayload {
+    return {
+      id,
+      icon: fields.icon,
+      color: fields.color,
+      sortOrder: fields.sortOrder,
+      updatedAt: now,
+      deleted: fields.deleted,
+      ...(fields.name !== undefined ? { name: fields.name } : {}),
+      ...(fields.templateKey !== undefined ? { templateKey: fields.templateKey } : {}),
+    };
+  }
+
+  /** Atomically append a CREATED/UPDATED event and LWW-project it. */
+  async function recordCreateOrUpdate(
+    eventType: 'CREATED' | 'UPDATED',
+    payload: CategoryPayload,
+  ): Promise<Category> {
+    return store.transaction(async () => {
+      await appendCategoryEventInTx(eventType, payload.id, payload);
+      const category = categoryPayloadToCategory(payload);
+      await store.projectCategoryFromEvent(category);
+      return category;
+    });
+  }
+
+  /**
+   * Atomically append a DELETED event and soft-delete the row. Reads the
+   * latest `existing` row inside the transaction to embed the last-known
+   * payload in the event (so peers can resolve resurrection conflicts).
+   *
+   * Returns `true` when the soft-delete affected a row, `false` when the
+   * row was already gone or had a newer `updated_at`.
+   */
+  async function recordDelete(existing: Category): Promise<boolean> {
+    const now = time.nowMs();
+    const payload = buildPayload(existing.id, now, {
+      icon: existing.icon,
+      color: existing.color,
+      sortOrder: existing.sortOrder,
+      deleted: true,
+      ...(existing.name !== undefined ? { name: existing.name } : {}),
+      ...(existing.templateKey !== undefined
+        ? { templateKey: existing.templateKey }
+        : {}),
+    });
+    return store.transaction(async () => {
+      await appendCategoryEventInTx('DELETED', existing.id, payload);
+      const changes = await store.softDeleteCategory(existing.id, now);
+      return changes > 0;
+    });
+  }
+
+  /**
+   * Build the CREATED payload for a default template seed row.
+   *
+   * The category id is derived deterministically from `templateKey` (see
+   * `defaultTemplateId`) so peer devices converge on the same row when
+   * their seed CREATED events meet via cloud-drive sync or file import.
+   */
+  function seedTemplatePayload(
+    template: (typeof DEFAULT_CATEGORY_TEMPLATES)[number],
+  ): CategoryPayload {
+    return buildPayload(defaultTemplateId(template.templateKey), time.nowMs(), {
+      templateKey: template.templateKey,
+      icon: template.icon,
+      color: template.color,
+      sortOrder: template.sortOrder,
+      deleted: false,
+    });
+  }
 
   return {
-    findAllCategories: () => store.findAllCategories(userId),
+    findAllCategories: () => store.findAllCategories(),
 
     async createCategory(cmd) {
-      const now = time.nowMs();
-      const category: Category = {
-        id: ids.newUuid(),
+      const payload = buildPayload(ids.newUuid(), time.nowMs(), {
         name: cmd.name,
         icon: cmd.icon,
         color: cmd.color,
         sortOrder: cmd.sortOrder ?? 0,
-        updatedAt: now,
         deleted: false,
-        userId,
-      };
-      await store.upsertCategory(category);
-      return category;
+      });
+      return recordCreateOrUpdate('CREATED', payload);
     },
 
     async updateCategory(id, cmd) {
-      const existing = await store.findCategoryById(id, userId);
+      const existing = await store.findCategoryById(id);
       if (!existing || existing.deleted) return undefined;
 
-      const next: Category = {
-        ...existing,
-        updatedAt: time.nowMs(),
-        ...(cmd.name !== undefined ? { name: cmd.name } : {}),
-        ...(cmd.icon !== undefined ? { icon: cmd.icon } : {}),
-        ...(cmd.color !== undefined ? { color: cmd.color } : {}),
-        ...(cmd.sortOrder !== undefined ? { sortOrder: cmd.sortOrder } : {}),
-      };
-      await store.upsertCategory(next);
-      return next;
+      const name = cmd.name ?? existing.name;
+      const payload = buildPayload(id, time.nowMs(), {
+        icon: cmd.icon ?? existing.icon,
+        color: cmd.color ?? existing.color,
+        sortOrder: cmd.sortOrder ?? existing.sortOrder,
+        deleted: false,
+        ...(name !== undefined ? { name } : {}),
+        ...(existing.templateKey !== undefined
+          ? { templateKey: existing.templateKey }
+          : {}),
+      });
+      return recordCreateOrUpdate('UPDATED', payload);
     },
 
     async deleteCategory(id) {
-      const changes = await store.softDeleteCategory(id, userId, time.nowMs());
-      return changes > 0;
+      const existing = await store.findCategoryById(id);
+      if (!existing || existing.deleted) return false;
+      return recordDelete(existing);
     },
 
     async restoreCategory(id) {
-      const existing = await store.findCategoryById(id, userId);
+      const existing = await store.findCategoryById(id);
       if (!existing) return undefined;
-      const next: Category = { ...existing, deleted: false, updatedAt: time.nowMs() };
-      await store.upsertCategory(next);
-      return next;
+
+      const payload = buildPayload(id, time.nowMs(), {
+        icon: existing.icon,
+        color: existing.color,
+        sortOrder: existing.sortOrder,
+        deleted: false,
+        ...(existing.name !== undefined ? { name: existing.name } : {}),
+        ...(existing.templateKey !== undefined
+          ? { templateKey: existing.templateKey }
+          : {}),
+      });
+      return recordCreateOrUpdate('UPDATED', payload);
     },
 
     async mergeCategories(sourceId, targetId, expenseQueries, expenseCommands) {
@@ -145,49 +269,32 @@ export function createCategoryService(deps: CategoryServiceDeps): CategoryServic
       for (const e of toMove) {
         await expenseCommands.updateExpense(e.id, { categoryId: targetId });
       }
-      await store.softDeleteCategory(sourceId, userId, time.nowMs());
+      const source = await store.findCategoryById(sourceId);
+      if (source && !source.deleted) {
+        await recordDelete(source);
+      }
       return { movedExpenses: toMove.length };
     },
 
     async resetToDefaults() {
-      const existing = await store.findAllCategories(userId);
+      const existing = await store.findAllCategories();
       const active = existing.filter((c) => !c.deleted);
-      const now = time.nowMs();
       for (const c of active) {
-        await store.softDeleteCategory(c.id, userId, now);
+        await recordDelete(c);
       }
       // Re-seed unconditionally: `seedDefaultsIfEmpty` would skip because
       // archived rows still exist, so we mirror its body here.
       for (const template of DEFAULT_CATEGORY_TEMPLATES) {
-        await store.upsertCategory({
-          id: ids.newUuid(),
-          templateKey: template.templateKey,
-          icon: template.icon,
-          color: template.color,
-          sortOrder: template.sortOrder,
-          updatedAt: time.nowMs(),
-          deleted: false,
-          userId,
-        });
+        await recordCreateOrUpdate('CREATED', seedTemplatePayload(template));
       }
       return { archived: active.length, seeded: DEFAULT_CATEGORY_TEMPLATES.length };
     },
 
     async seedDefaultsIfEmpty() {
-      const existing = await store.findAllCategories(userId);
+      const existing = await store.findAllCategories();
       if (existing.length > 0) return 0;
-      const now = time.nowMs();
       for (const template of DEFAULT_CATEGORY_TEMPLATES) {
-        await store.upsertCategory({
-          id: ids.newUuid(),
-          templateKey: template.templateKey,
-          icon: template.icon,
-          color: template.color,
-          sortOrder: template.sortOrder,
-          updatedAt: now,
-          deleted: false,
-          userId,
-        });
+        await recordCreateOrUpdate('CREATED', seedTemplatePayload(template));
       }
       return DEFAULT_CATEGORY_TEMPLATES.length;
     },

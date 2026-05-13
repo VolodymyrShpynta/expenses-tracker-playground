@@ -37,7 +37,30 @@
       "medium": "Середній",
       "large": "Великий",
       "xlarge": "Дуже великий"
-    }
+    },
+    "sync": "Хмарна синхронізація",
+    "syncDescription": "Синхронізуйте витрати між пристроями через власний хмарний диск."
+  },
+  "syncDialog": {
+    "title": "Хмарна синхронізація",
+    "provider": "Провайдер",
+    "providers": {
+      "none": "Вимкнено",
+      "onedrive": "OneDrive",
+      "googledrive": "Google Drive"
+    },
+    "signIn": "Увійти",
+    "signOut": "Вийти",
+    "signingIn": "Вхід…",
+    "syncNow": "Синхронізувати",
+    "syncing": "Синхронізація…",
+    "lastSynced": "Останнє синхронізування {{when}}",
+    "neverSynced": "Ще не синхронізовано",
+    "statusSuccess": "Синхронізовано. Застосовано {{applied}}, надіслано {{uploaded}}.",
+    "statusError": "Помилка синхронізації: {{message}}",
+    "signInPrompt": "Увійдіть, щоб увімкнути синхронізацію.",
+    "notConfigured": "Спочатку оберіть хмарного провайдера.",
+    "googleDisabled": "Google Drive ще не налаштований — заповніть GOOGLE_OAUTH_CLIENT_ID."
   },
   "common": {
     "save": "Зберегти",

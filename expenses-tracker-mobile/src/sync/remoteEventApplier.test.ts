@@ -9,7 +9,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { applyRemoteEvents } from './remoteEventApplier';
 import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
-import { TEST_USER_ID } from '../test/fixtures';
 import type { EventEntry } from '../domain/types';
 
 const silentLogger = { warn: () => undefined };
@@ -20,14 +19,12 @@ const makeEvent = (overrides: Partial<EventEntry> & {
 }): EventEntry => ({
   timestamp: overrides.timestamp ?? 100,
   eventType: overrides.eventType ?? 'CREATED',
-  userId: overrides.userId ?? TEST_USER_ID,
   payload: overrides.payload ?? {
     id: overrides.expenseId,
     amount: 1000,
     currency: 'USD',
     updatedAt: overrides.timestamp ?? 100,
     deleted: false,
-    userId: TEST_USER_ID,
   },
   ...overrides,
 });
@@ -44,7 +41,7 @@ describe('applyRemoteEvents', () => {
     const result = await applyRemoteEvents(store, [e], silentLogger);
 
     expect(result).toEqual({ applied: 1, skipped: 0, errors: 0 });
-    expect(await store.findProjectionById('x1', TEST_USER_ID)).toBeDefined();
+    expect(await store.findProjectionById('x1')).toBeDefined();
     expect(await store.isEventProcessed('e1')).toBe(true);
   });
 
@@ -64,7 +61,7 @@ describe('applyRemoteEvents', () => {
     const result = await applyRemoteEvents(store, [e], silentLogger);
     expect(result).toEqual({ applied: 0, skipped: 1, errors: 0 });
     // No projection — confirms the event was skipped, not applied.
-    expect(await store.findProjectionById('x1', TEST_USER_ID)).toBeUndefined();
+    expect(await store.findProjectionById('x1')).toBeUndefined();
   });
 
   it('handles UPDATED with last-write-wins (newer overwrites older)', async () => {
@@ -78,7 +75,6 @@ describe('applyRemoteEvents', () => {
         currency: 'USD',
         updatedAt: 100,
         deleted: false,
-        userId: TEST_USER_ID,
       },
     });
     const updated = makeEvent({
@@ -92,12 +88,11 @@ describe('applyRemoteEvents', () => {
         currency: 'EUR',
         updatedAt: 200,
         deleted: false,
-        userId: TEST_USER_ID,
       },
     });
 
     await applyRemoteEvents(store, [created, updated], silentLogger);
-    const row = await store.findProjectionById('x1', TEST_USER_ID);
+    const row = await store.findProjectionById('x1');
     expect(row?.amount).toBe(5000);
     expect(row?.currency).toBe('EUR');
   });
@@ -113,7 +108,6 @@ describe('applyRemoteEvents', () => {
         currency: 'EUR',
         updatedAt: 200,
         deleted: false,
-        userId: TEST_USER_ID,
       },
     });
     const stale = makeEvent({
@@ -127,12 +121,11 @@ describe('applyRemoteEvents', () => {
         currency: 'USD',
         updatedAt: 100,
         deleted: false,
-        userId: TEST_USER_ID,
       },
     });
 
     await applyRemoteEvents(store, [created, stale], silentLogger);
-    const row = await store.findProjectionById('x1', TEST_USER_ID);
+    const row = await store.findProjectionById('x1');
     expect(row?.amount).toBe(5000);
     // The stale event was still recorded as processed (so we never retry it).
     expect(await store.isEventProcessed('e2')).toBe(true);
@@ -155,12 +148,11 @@ describe('applyRemoteEvents', () => {
         currency: 'USD',
         updatedAt: 200,
         deleted: true,
-        userId: TEST_USER_ID,
       },
     });
 
     await applyRemoteEvents(store, [created, deleted], silentLogger);
-    const row = await store.findProjectionById('x1', TEST_USER_ID);
+    const row = await store.findProjectionById('x1');
     expect(row?.deleted).toBe(true);
   });
 

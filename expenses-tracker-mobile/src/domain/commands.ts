@@ -14,8 +14,8 @@
  * recreate the consistency hazard the backend's `@Transactional` annotation
  * prevents.
  *
- * `userId`, `id`, and `eventId` are passed in via `IdGenerator` so tests
- * can inject deterministic ids — same DI principle as `TimeProvider`.
+ * `id` and `eventId` are passed in via `IdGenerator` so tests can inject
+ * deterministic ids — same DI principle as `TimeProvider`.
  */
 import type { LocalStore } from './localStore';
 import { payloadToProjection } from './mapping';
@@ -31,7 +31,6 @@ export interface CommandServiceDeps {
   readonly store: LocalStore;
   readonly time: TimeProvider;
   readonly ids: IdGenerator;
-  readonly userId: string;
   /** JSON serializer (injected so tests can pin formatting). Default: JSON.stringify. */
   readonly serializePayload?: (payload: ExpensePayload) => string;
 }
@@ -59,7 +58,7 @@ export interface ExpenseCommandService {
 }
 
 export function createExpenseCommandService(deps: CommandServiceDeps): ExpenseCommandService {
-  const { store, time, ids, userId, serializePayload = JSON.stringify } = deps;
+  const { store, time, ids, serializePayload = JSON.stringify } = deps;
 
   async function appendEventInTx(
     eventType: EventType,
@@ -73,7 +72,6 @@ export function createExpenseCommandService(deps: CommandServiceDeps): ExpenseCo
       expenseId,
       payload: serializePayload(payload),
       committed: false,
-      userId,
     };
     await store.appendEvent(event);
     return event;
@@ -92,13 +90,12 @@ export function createExpenseCommandService(deps: CommandServiceDeps): ExpenseCo
         date: cmd.date,
         updatedAt: now,
         deleted: false,
-        userId,
       };
 
       const projection = await store.transaction(async () => {
         await appendEventInTx('CREATED', expenseId, payload);
         await store.projectFromEvent(payloadToProjection(payload));
-        const stored = await store.findProjectionById(expenseId, userId);
+        const stored = await store.findProjectionById(expenseId);
         if (!stored) {
           throw new Error(`Failed to retrieve created expense projection: ${expenseId}`);
         }
@@ -109,7 +106,7 @@ export function createExpenseCommandService(deps: CommandServiceDeps): ExpenseCo
     },
 
     async updateExpense(id, cmd) {
-      const existing = await store.findProjectionById(id, userId);
+      const existing = await store.findProjectionById(id);
       if (!existing) return undefined;
 
       const now = time.nowMs();
@@ -125,7 +122,6 @@ export function createExpenseCommandService(deps: CommandServiceDeps): ExpenseCo
         currency: cmd.currency ?? existing.currency,
         updatedAt: now,
         deleted: false,
-        userId,
         ...(description !== undefined ? { description } : {}),
         ...(categoryId !== undefined ? { categoryId } : {}),
         ...(date !== undefined ? { date } : {}),
@@ -134,12 +130,12 @@ export function createExpenseCommandService(deps: CommandServiceDeps): ExpenseCo
       return store.transaction(async () => {
         await appendEventInTx('UPDATED', id, payload);
         await store.projectFromEvent(payloadToProjection(payload));
-        return store.findProjectionById(id, userId);
+        return store.findProjectionById(id);
       });
     },
 
     async deleteExpense(id) {
-      const existing = await store.findProjectionById(id, userId);
+      const existing = await store.findProjectionById(id);
       if (!existing) return false;
 
       const now = time.nowMs();
@@ -152,7 +148,6 @@ export function createExpenseCommandService(deps: CommandServiceDeps): ExpenseCo
         currency: existing.currency,
         updatedAt: now,
         deleted: true,
-        userId,
         ...(existing.description !== undefined ? { description: existing.description } : {}),
         ...(existing.categoryId !== undefined ? { categoryId: existing.categoryId } : {}),
         ...(existing.date !== undefined ? { date: existing.date } : {}),

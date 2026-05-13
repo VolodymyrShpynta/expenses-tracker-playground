@@ -8,7 +8,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { projectPayload, softDelete } from './projector';
 import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
-import { TEST_USER_ID, makePayload } from '../test/fixtures';
+import { makePayload } from '../test/fixtures';
 
 describe('projector — last-write-wins', () => {
   let store: InMemoryLocalStore;
@@ -28,7 +28,7 @@ describe('projector — last-write-wins', () => {
 
     // Then: Row is inserted
     expect(rows).toBe(1);
-    const stored = await store.findProjectionById(id, TEST_USER_ID);
+    const stored = await store.findProjectionById(id);
     expect(stored?.description).toBe('Coffee');
     expect(stored?.amount).toBe(350);
     expect(stored?.deleted).toBe(false);
@@ -47,7 +47,7 @@ describe('projector — last-write-wins', () => {
 
     // Then: Update applied
     expect(rows).toBe(1);
-    const stored = await store.findProjectionById(id, TEST_USER_ID);
+    const stored = await store.findProjectionById(id);
     expect(stored?.description).toBe('New');
     expect(stored?.amount).toBe(999);
     expect(stored?.updatedAt).toBe(2000);
@@ -66,7 +66,7 @@ describe('projector — last-write-wins', () => {
 
     // Then: Update is rejected
     expect(rows).toBe(0);
-    const stored = await store.findProjectionById(id, TEST_USER_ID);
+    const stored = await store.findProjectionById(id);
     expect(stored?.description).toBe('Newer');
     expect(stored?.updatedAt).toBe(2000);
   });
@@ -84,7 +84,7 @@ describe('projector — last-write-wins', () => {
 
     // Then: Original is kept (matches backend SQL `WHERE EXCLUDED.updated_at > …`)
     expect(rows).toBe(0);
-    const stored = await store.findProjectionById(id, TEST_USER_ID);
+    const stored = await store.findProjectionById(id);
     expect(stored?.description).toBe('First');
   });
 
@@ -99,7 +99,7 @@ describe('projector — last-write-wins', () => {
 
     // Then: No-op (equal timestamp rejected by the strict-> rule)
     expect(rows).toBe(0);
-    const stored = await store.findProjectionById(id, TEST_USER_ID);
+    const stored = await store.findProjectionById(id);
     expect(stored?.amount).toBe(500);
   });
 
@@ -111,7 +111,7 @@ describe('projector — last-write-wins', () => {
     await projectPayload(store, makePayload({ id, updatedAt: 3000, amount: 300 }));
 
     // Then: Latest timestamp wins
-    const stored = await store.findProjectionById(id, TEST_USER_ID);
+    const stored = await store.findProjectionById(id);
     expect(stored?.amount).toBe(300);
     expect(stored?.updatedAt).toBe(3000);
   });
@@ -124,7 +124,7 @@ describe('projector — last-write-wins', () => {
     await projectPayload(store, makePayload({ id, updatedAt: 2000, amount: 200 }));
 
     // Then: t=3000 row remains, all older writes were rejected
-    const stored = await store.findProjectionById(id, TEST_USER_ID);
+    const stored = await store.findProjectionById(id);
     expect(stored?.amount).toBe(300);
     expect(stored?.updatedAt).toBe(3000);
   });
@@ -142,7 +142,7 @@ describe('projector — last-write-wins', () => {
 
     // Then: Soft-deleted
     expect(rows).toBe(1);
-    const stored = await store.findProjectionById(id, TEST_USER_ID);
+    const stored = await store.findProjectionById(id);
     expect(stored?.deleted).toBe(true);
   });
 
@@ -159,7 +159,7 @@ describe('projector — last-write-wins', () => {
 
     // Then: Rejected — the row remains alive
     expect(rows).toBe(0);
-    const stored = await store.findProjectionById(id, TEST_USER_ID);
+    const stored = await store.findProjectionById(id);
     expect(stored?.deleted).toBe(false);
   });
 
@@ -176,7 +176,7 @@ describe('projector — last-write-wins', () => {
 
     // Then: Rejected — the row stays deleted
     expect(rows).toBe(0);
-    const stored = await store.findProjectionById(id, TEST_USER_ID);
+    const stored = await store.findProjectionById(id);
     expect(stored?.deleted).toBe(true);
   });
 
@@ -193,7 +193,7 @@ describe('projector — last-write-wins', () => {
 
     // Then: Row is alive again
     expect(rows).toBe(1);
-    const stored = await store.findProjectionById(id, TEST_USER_ID);
+    const stored = await store.findProjectionById(id);
     expect(stored?.deleted).toBe(false);
     expect(stored?.description).toBe('Resurrected');
   });
@@ -208,7 +208,7 @@ describe('projector — last-write-wins', () => {
     await projectPayload(store, makePayload({ id, updatedAt: 2400, description: 'Device B' }));
 
     // Then: The newer wall-clock wins regardless of arrival order
-    const stored = await store.findProjectionById(id, TEST_USER_ID);
+    const stored = await store.findProjectionById(id);
     expect(stored?.description).toBe('Device A');
     expect(stored?.updatedAt).toBe(2500);
   });
@@ -231,7 +231,7 @@ describe('projector — last-write-wins', () => {
     await projectPayload(store, payload);
 
     // Then: All fields round-trip
-    const stored = await store.findProjectionById(id, TEST_USER_ID);
+    const stored = await store.findProjectionById(id);
     expect(stored).toEqual({
       id,
       description: 'Annual subscription',
@@ -241,7 +241,6 @@ describe('projector — last-write-wins', () => {
       date: '2026-03-15T12:00:00Z',
       updatedAt: 1234567890,
       deleted: false,
-      userId: TEST_USER_ID,
     });
   });
 });
@@ -263,7 +262,7 @@ describe('projector — softDelete (mark-as-deleted helper)', () => {
 
     // Then: Marked deleted
     expect(rows).toBe(1);
-    const stored = await store.findProjectionById(id, TEST_USER_ID);
+    const stored = await store.findProjectionById(id);
     expect(stored?.deleted).toBe(true);
     expect(stored?.updatedAt).toBe(2000);
   });
@@ -278,7 +277,7 @@ describe('projector — softDelete (mark-as-deleted helper)', () => {
 
     // Then: Rejected
     expect(rows).toBe(0);
-    const stored = await store.findProjectionById(id, TEST_USER_ID);
+    const stored = await store.findProjectionById(id);
     expect(stored?.deleted).toBe(false);
   });
 
@@ -328,7 +327,7 @@ describe('projector — softDelete (mark-as-deleted helper)', () => {
     // Then: updatedAt is bumped (the row stays deleted, but the timestamp
     // moves forward — this matters for the resurrection rule).
     expect(rows).toBe(1);
-    const stored = await store.findProjectionById(id, TEST_USER_ID);
+    const stored = await store.findProjectionById(id);
     expect(stored?.deleted).toBe(true);
     expect(stored?.updatedAt).toBe(2000);
   });

@@ -3,10 +3,9 @@
  * `useCurrencyProvider` / `useDateRangeProvider`, persisting the user's
  * preferences in `AsyncStorage` (the RN counterpart of `localStorage`).
  *
- * Storage keys are namespaced by `userId` so reinstalling under a fresh
- * id starts from defaults. Mobile is offline-only and currently does
- * **not** convert across currencies — `mainCurrency` is the single
- * reporting currency rendered everywhere.
+ * Mobile is offline-only and currently does **not** convert across
+ * currencies — `mainCurrency` is the single reporting currency rendered
+ * everywhere.
  */
 import {
   createContext,
@@ -18,7 +17,6 @@ import {
 import type { ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { useUserId } from './appServicesProvider';
 import {
   buildRangeForPreset,
   VALID_PRESETS,
@@ -66,7 +64,6 @@ export interface PreferencesProviderProps {
 }
 
 export function PreferencesProvider({ children }: PreferencesProviderProps) {
-  const userId = useUserId();
   const [mainCurrency, setMainCurrencyState] = useState<string>(DEFAULT_CURRENCY);
   const [preset, setPresetState] = useState<PresetKey>(DEFAULT_PRESET);
   const [dateRange, setDateRangeState] = useState<DateRange>(() =>
@@ -82,10 +79,10 @@ export function PreferencesProvider({ children }: PreferencesProviderProps) {
     (async () => {
       try {
         const [storedCurrency, storedPreset, storedTheme, storedFont] = await Promise.all([
-          AsyncStorage.getItem(`${CURRENCY_KEY}:${userId}`),
-          AsyncStorage.getItem(`${PRESET_KEY}:${userId}`),
-          AsyncStorage.getItem(`${THEME_KEY}:${userId}`),
-          AsyncStorage.getItem(`${FONT_SCALE_KEY}:${userId}`),
+          AsyncStorage.getItem(CURRENCY_KEY),
+          AsyncStorage.getItem(PRESET_KEY),
+          AsyncStorage.getItem(THEME_KEY),
+          AsyncStorage.getItem(FONT_SCALE_KEY),
         ]);
         if (cancelled) return;
         if (storedCurrency) setMainCurrencyState(storedCurrency);
@@ -107,16 +104,16 @@ export function PreferencesProvider({ children }: PreferencesProviderProps) {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, []);
 
   const setMainCurrency = useCallback(
     (code: string) => {
       setMainCurrencyState(code);
-      void AsyncStorage.setItem(`${CURRENCY_KEY}:${userId}`, code).catch((e) =>
+      void AsyncStorage.setItem(CURRENCY_KEY, code).catch((e) =>
         console.warn('Failed to save currency', e),
       );
     },
-    [userId],
+    [],
   );
 
   const setPreset = useCallback(
@@ -128,11 +125,11 @@ export function PreferencesProvider({ children }: PreferencesProviderProps) {
       if (key !== 'range' && key !== 'day') {
         setDateRangeState(buildRangeForPreset(key));
       }
-      void AsyncStorage.setItem(`${PRESET_KEY}:${userId}`, key).catch((e) =>
+      void AsyncStorage.setItem(PRESET_KEY, key).catch((e) =>
         console.warn('Failed to save preset', e),
       );
     },
-    [userId],
+    [],
   );
 
   const setDateRange = useCallback((range: DateRange) => {
@@ -142,21 +139,21 @@ export function PreferencesProvider({ children }: PreferencesProviderProps) {
   const setThemeMode = useCallback(
     (mode: ThemeMode) => {
       setThemeModeState(mode);
-      void AsyncStorage.setItem(`${THEME_KEY}:${userId}`, mode).catch((e) =>
+      void AsyncStorage.setItem(THEME_KEY, mode).catch((e) =>
         console.warn('Failed to save themeMode', e),
       );
     },
-    [userId],
+    [],
   );
 
   const setFontScale = useCallback(
     (s: FontScaleKey) => {
       setFontScaleState(s);
-      void AsyncStorage.setItem(`${FONT_SCALE_KEY}:${userId}`, s).catch((e) =>
+      void AsyncStorage.setItem(FONT_SCALE_KEY, s).catch((e) =>
         console.warn('Failed to save fontScale', e),
       );
     },
-    [userId],
+    [],
   );
 
   return (

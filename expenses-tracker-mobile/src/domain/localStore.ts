@@ -10,7 +10,7 @@
  * backend's `ExpenseEventRepository` + `ExpenseProjectionRepository`
  * pair — including the same last-write-wins UPSERT semantics.
  */
-import type { Category, ExpenseEvent, ExpenseProjection } from './types';
+import type { Category, CategoryEvent, ExpenseEvent, ExpenseProjection } from './types';
 
 /**
  * Atomic transactional unit. Implementations MUST run the closure inside a
@@ -30,15 +30,15 @@ export interface LocalStore {
   /** Append a new event to the event store. */
   appendEvent(event: ExpenseEvent): Promise<void>;
 
-  /** All uncommitted events for the user, ordered by timestamp ASC. */
-  findUncommittedEvents(userId: string): Promise<ReadonlyArray<ExpenseEvent>>;
+  /** All uncommitted events, ordered by timestamp ASC. */
+  findUncommittedEvents(): Promise<ReadonlyArray<ExpenseEvent>>;
 
   /**
-   * All events (committed + uncommitted) for the user, ordered by
-   * timestamp ASC. Used by the export flow to materialise the full
-   * history into a sync file the user can share or restore from.
+   * All events (committed + uncommitted), ordered by timestamp ASC.
+   * Used by the export flow to materialise the full history into a sync
+   * file the user can share or restore from.
    */
-  findAllEvents(userId: string): Promise<ReadonlyArray<ExpenseEvent>>;
+  findAllEvents(): Promise<ReadonlyArray<ExpenseEvent>>;
 
   /** Mark events committed (called after successful sync upload). */
   markEventsCommitted(eventIds: ReadonlyArray<string>): Promise<void>;
@@ -64,11 +64,11 @@ export interface LocalStore {
    */
   markAsDeleted(id: string, updatedAt: number): Promise<number>;
 
-  /** Find a projection by id within the user scope. Returns undefined if absent. */
-  findProjectionById(id: string, userId: string): Promise<ExpenseProjection | undefined>;
+  /** Find a projection by id. Returns undefined if absent. */
+  findProjectionById(id: string): Promise<ExpenseProjection | undefined>;
 
-  /** Stream all active (non-deleted) projections for the user. */
-  findActiveProjections(userId: string): Promise<ReadonlyArray<ExpenseProjection>>;
+  /** Stream all active (non-deleted) projections. */
+  findActiveProjections(): Promise<ReadonlyArray<ExpenseProjection>>;
 
   // -- processed_events (idempotency registry) -----------------------------
 
@@ -81,22 +81,49 @@ export interface LocalStore {
   // -- categories ----------------------------------------------------------
 
   /**
-   * Insert or fully replace a category row. Used both for normal CRUD and
-   * for first-launch seeding of default templates. No last-write-wins —
-   * categories are not event-sourced.
+   * UPSERT a category with last-write-wins. Mirrors `projectFromEvent` but
+   * targets the `categories` table. Returns the number of rows affected
+   * (`0` when the existing category has a strictly greater-or-equal
+   * `updatedAt`).
+   *
+   * Used by both the local command path (where the fresh `updatedAt`
+   * trivially wins) and the remote-apply path (where LWW resolves
+   * cross-device conflicts).
    */
-  upsertCategory(category: Category): Promise<void>;
+  projectCategoryFromEvent(category: Category): Promise<number>;
 
-  /** Find a single category by id within the user scope. */
-  findCategoryById(id: string, userId: string): Promise<Category | undefined>;
+  /** Find a single category by id. */
+  findCategoryById(id: string): Promise<Category | undefined>;
 
   /**
-   * All categories for the user — including soft-deleted rows. The
-   * `useCategoryLookup` hook needs the full catalog so historic expenses
-   * keep their display fields after a category is archived.
+   * All categories — including soft-deleted rows. The `useCategoryLookup`
+   * hook needs the full catalog so historic expenses keep their display
+   * fields after a category is archived.
    */
-  findAllCategories(userId: string): Promise<ReadonlyArray<Category>>;
+  findAllCategories(): Promise<ReadonlyArray<Category>>;
 
-  /** Soft-delete a category (mirrors the web frontend's `delete` semantics). */
-  softDeleteCategory(id: string, userId: string, updatedAt: number): Promise<number>;
+  /**
+   * Soft-delete a category only when `updatedAt` is strictly newer than
+   * the stored value. Mirrors `markAsDeleted` for expenses — only
+   * transitions to deleted, never resurrects.
+   */
+  softDeleteCategory(id: string, updatedAt: number): Promise<number>;
+
+  // -- category_events -----------------------------------------------------
+
+  /** Append a new category event to the event store. */
+  appendCategoryEvent(event: CategoryEvent): Promise<void>;
+
+  /** All uncommitted category events, ordered by timestamp ASC. */
+  findUncommittedCategoryEvents(): Promise<ReadonlyArray<CategoryEvent>>;
+
+  /**
+   * All category events (committed + uncommitted), ordered by timestamp
+   * ASC. Used by the export flow to materialise the full history into a
+   * sync file the user can share or restore from.
+   */
+  findAllCategoryEvents(): Promise<ReadonlyArray<CategoryEvent>>;
+
+  /** Mark category events committed (called after successful sync upload). */
+  markCategoryEventsCommitted(eventIds: ReadonlyArray<string>): Promise<void>;
 }

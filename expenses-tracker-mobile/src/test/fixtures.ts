@@ -7,8 +7,6 @@ import type { ExpensePayload, ExpenseProjection } from '../domain/types';
 import type { TimeProvider } from '../utils/time';
 import type { IdGenerator } from '../domain/commands';
 
-export const TEST_USER_ID = 'user-test-1';
-
 /** Time provider that walks a fixed sequence of timestamps. */
 export function sequenceTime(timestamps: number[]): TimeProvider {
   let i = 0;
@@ -52,7 +50,6 @@ export function makePayload(overrides: Partial<ExpensePayload> & { id: string; u
     categoryId: 'cat-1',
     date: '2026-01-01T08:00:00Z',
     deleted: false,
-    userId: TEST_USER_ID,
     ...overrides,
   };
 }
@@ -67,7 +64,6 @@ export function makeProjection(
     categoryId: 'cat-1',
     date: '2026-01-01T08:00:00Z',
     deleted: false,
-    userId: TEST_USER_ID,
     ...overrides,
   };
 }

@@ -1,15 +1,17 @@
 /**
  * Pure-TypeScript domain types for the mobile event-sourcing core.
  *
- * Field names and JSON shape are byte-identical to the backend's Kotlin
- * domain types (`expenses-tracker-api/src/main/kotlin/.../model/`). This is
- * NOT accidental — the on-disk `sync.json[.gz]` format is the contract that
- * lets the backend and any number of mobile devices converge through the
- * same Drive/OneDrive folder.
+ * Field names and JSON shape stay close to the backend's Kotlin domain
+ * types (`expenses-tracker-api/src/main/kotlin/.../model/`), but the
+ * mobile module deliberately omits the `userId` field that the backend
+ * uses for multi-tenant scoping: a mobile install serves a single human
+ * user, so the column would always be a constant and carrying it across
+ * the sync file actively breaks cross-device sync (each device's
+ * per-install UUID would not match the imported events').
  *
- * If you rename a field here, you MUST rename the matching field in the
- * Kotlin DTO and bump the sync-file format. There is intentionally no
- * shared package — the JSON wire format is the single source of truth.
+ * If you add a field here, mirror it on the Kotlin DTO when the change
+ * affects the sync-file format. There is intentionally no shared
+ * package — the JSON wire format is the single source of truth.
  */
 
 /** Stable, language-independent slug shared with backend (`EventType.kt`). */
@@ -17,9 +19,9 @@ export const EVENT_TYPES = ['CREATED', 'UPDATED', 'DELETED'] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
 /**
- * Body of an expense event. Mirrors `ExpensePayload.kt` exactly.
- * Optional fields use `?` (omitted from JSON when undefined) to match
- * `@JsonInclude(NON_NULL)` on the Kotlin side.
+ * Body of an expense event. Mirrors `ExpensePayload.kt` minus the
+ * backend-only `userId` field. Optional fields use `?` (omitted from JSON
+ * when undefined) to match `@JsonInclude(NON_NULL)` on the Kotlin side.
  */
 export interface ExpensePayload {
   /** UUID, stored as a 36-char string for cross-platform portability. */
@@ -36,8 +38,6 @@ export interface ExpensePayload {
   /** Epoch milliseconds — basis for last-write-wins. */
   readonly updatedAt: number;
   readonly deleted?: boolean;
-  /** Keycloak `sub` claim on backend; cloud-account subject id on mobile. */
-  readonly userId?: string;
 }
 
 /**
@@ -54,7 +54,6 @@ export interface ExpenseProjection {
   readonly date?: string;
   readonly updatedAt: number;
   readonly deleted: boolean;
-  readonly userId: string;
 }
 
 /**
@@ -69,7 +68,6 @@ export interface ExpenseEvent {
   readonly expenseId: string;
   readonly payload: string;
   readonly committed: boolean;
-  readonly userId: string;
 }
 
 /**
@@ -83,13 +81,18 @@ export interface EventEntry {
   readonly eventType: EventType;
   readonly expenseId: string;
   readonly payload: ExpensePayload;
-  readonly userId?: string;
 }
 
-/** Sync file schema — mirrors `EventSyncFile.kt`. */
+/**
+ * Sync file schema — the wire format shared between mobile devices via
+ * the user's own cloud drive. Both `events` and `categoryEvents` are
+ * required arrays (possibly empty); `snapshot` is the only truly
+ * optional field. The codec normalizes malformed input to this shape.
+ */
 export interface EventSyncFile {
   readonly snapshot?: SyncFileSnapshot;
   readonly events: ReadonlyArray<EventEntry>;
+  readonly categoryEvents: ReadonlyArray<CategoryEventEntry>;
 }
 
 export interface SyncFileSnapshot {
@@ -98,10 +101,12 @@ export interface SyncFileSnapshot {
 }
 
 /**
- * User-configurable category. Mirrors `Category.kt`. Reference data only —
- * categories are NOT projected through the event store yet (kept consistent
- * with backend, where category mutations happen via direct SQL through
- * `CategoryService`).
+ * User-configurable category.
+ *
+ * Categories are event-sourced on mobile (the backend mutates its own
+ * `categories` table directly — but the backend has its own local-file
+ * sync and never reads mobile's sync files, so there's no shared
+ * contract to align with).
  */
 export interface Category {
   readonly id: string;
@@ -112,5 +117,46 @@ export interface Category {
   readonly sortOrder: number;
   readonly updatedAt: number;
   readonly deleted: boolean;
-  readonly userId: string;
+}
+
+/**
+ * Body of a category event. Same field set as `Category` minus the
+ * always-on `deleted` flag (defaults to `false` to match `ExpensePayload`).
+ */
+export interface CategoryPayload {
+  readonly id: string;
+  readonly name?: string;
+  readonly templateKey?: string;
+  readonly icon: string;
+  readonly color: string;
+  readonly sortOrder: number;
+  readonly updatedAt: number;
+  readonly deleted?: boolean;
+}
+
+/**
+ * Append-only event-log row in the local SQLite `category_events` table.
+ * Payload is stored as serialized JSON text (verbatim wire shape of
+ * `CategoryPayload`). Mirrors `ExpenseEvent`.
+ */
+export interface CategoryEvent {
+  readonly eventId: string;
+  readonly timestamp: number;
+  readonly eventType: EventType;
+  readonly categoryId: string;
+  readonly payload: string;
+  readonly committed: boolean;
+}
+
+/**
+ * Category event entry as it appears inside the sync file. Differs from
+ * `CategoryEvent` only in that the payload is parsed JSON (not a string).
+ * Mirrors `EventEntry`.
+ */
+export interface CategoryEventEntry {
+  readonly eventId: string;
+  readonly timestamp: number;
+  readonly eventType: EventType;
+  readonly categoryId: string;
+  readonly payload: CategoryPayload;
 }

@@ -11,7 +11,6 @@ import type { ExpenseProjection } from './types';
 
 export interface QueryServiceDeps {
   readonly store: LocalStore;
-  readonly userId: string;
 }
 
 export interface ExpenseQueryService {
@@ -21,19 +20,19 @@ export interface ExpenseQueryService {
 }
 
 export function createExpenseQueryService(deps: QueryServiceDeps): ExpenseQueryService {
-  const { store, userId } = deps;
+  const { store } = deps;
 
   return {
-    findAllExpenses: () => store.findActiveProjections(userId),
+    findAllExpenses: () => store.findActiveProjections(),
 
     async findExpenseById(id) {
-      const projection = await store.findProjectionById(id, userId);
+      const projection = await store.findProjectionById(id);
       if (!projection || projection.deleted) return undefined;
       return projection;
     },
 
     async exists(id) {
-      const projection = await store.findProjectionById(id, userId);
+      const projection = await store.findProjectionById(id);
       return projection !== undefined && !projection.deleted;
     },
   };

@@ -1,7 +1,8 @@
 /**
  * Root layout — mounts the global providers in order:
  *   GestureHandler → SafeArea → I18next → Database → QueryClient
- *      → AppServices (userId + domain services) → Preferences
+ *      → AppServices (domain services) → Preferences
+ *      → Sync (cloud-drive engine, depends on store + queryClient)
  *      → ThemedPaper (consumes themeMode/fontScale prefs)
  *      → Stack
  *
@@ -22,6 +23,7 @@ import { DatabaseProvider } from '../src/db/databaseProvider';
 import { queryClient } from '../src/queryClient';
 import { AppServicesProvider } from '../src/context/appServicesProvider';
 import { PreferencesProvider, useThemeMode } from '../src/context/preferencesProvider';
+import { SyncProvider } from '../src/context/syncProvider';
 import { ThemedPaperProvider } from '../src/theme/ThemedPaperProvider';
 
 export default function RootLayout() {
@@ -40,13 +42,15 @@ export default function RootLayout() {
             <QueryClientProvider client={queryClient}>
               <AppServicesProvider>
                 <PreferencesProvider>
-                  <ThemedPaperProvider>
-                    <ThemedStatusBar />
-                    <Stack>
-                      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                      <Stack.Screen name="settings" />
-                    </Stack>
-                  </ThemedPaperProvider>
+                  <SyncProvider>
+                    <ThemedPaperProvider>
+                      <ThemedStatusBar />
+                      <Stack>
+                        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                        <Stack.Screen name="settings" />
+                      </Stack>
+                    </ThemedPaperProvider>
+                  </SyncProvider>
                 </PreferencesProvider>
               </AppServicesProvider>
             </QueryClientProvider>

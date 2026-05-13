@@ -19,6 +19,16 @@
  */
 import * as AuthSession from 'expo-auth-session';
 import * as SecureStore from 'expo-secure-store';
+import * as WebBrowser from 'expo-web-browser';
+
+// Required for Android: when the OAuth provider redirects back via the
+// custom scheme (`expensestracker://redirect`), Chrome Custom Tabs hands
+// the URL off to the OS as a deep link. Without this call the deep link
+// reaches Expo Router and renders the not-found screen instead of
+// resolving the in-flight `AuthRequest.promptAsync()` promise. Must run
+// at module top level so it executes during the cold start triggered by
+// the redirect.
+WebBrowser.maybeCompleteAuthSession();
 
 /** Refresh `REFRESH_LEEWAY_MS` before actual expiry to avoid 401s in flight. */
 const REFRESH_LEEWAY_MS = 60_000;

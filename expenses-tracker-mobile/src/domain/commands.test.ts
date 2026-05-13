@@ -10,7 +10,6 @@ import { createExpenseCommandService } from './commands';
 import { createExpenseQueryService } from './queries';
 import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
 import {
-  TEST_USER_ID,
   sequenceIds,
   sequenceTime,
 } from '../test/fixtures';
@@ -21,9 +20,8 @@ function buildService(opts: { ids: string[]; times: number[] }) {
     store,
     time: sequenceTime(opts.times),
     ids: sequenceIds(opts.ids),
-    userId: TEST_USER_ID,
   });
-  const queries = createExpenseQueryService({ store, userId: TEST_USER_ID });
+  const queries = createExpenseQueryService({ store });
   return { store, commands, queries };
 }
 
@@ -63,7 +61,6 @@ describe('ExpenseCommandService — createExpense', () => {
     expect(events[0]?.eventId).toBe('evt-1');
     expect(events[0]?.expenseId).toBe('exp-1');
     expect(events[0]?.committed).toBe(false);
-    expect(events[0]?.userId).toBe(TEST_USER_ID);
   });
 
   it('should serialize the payload to JSON inside the event', async () => {
@@ -83,7 +80,6 @@ describe('ExpenseCommandService — createExpense', () => {
     expect(parsed.id).toBe('exp-1');
     expect(parsed.amount).toBe(350);
     expect(parsed.deleted).toBe(false);
-    expect(parsed.userId).toBe(TEST_USER_ID);
   });
 });
 

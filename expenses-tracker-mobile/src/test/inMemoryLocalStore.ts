@@ -14,13 +14,19 @@
  * cannot import it. The interface contract is `LocalStore`.
  */
 import type { LocalStore } from '../domain/localStore';
-import type { Category, ExpenseEvent, ExpenseProjection } from '../domain/types';
+import type {
+  Category,
+  CategoryEvent,
+  ExpenseEvent,
+  ExpenseProjection,
+} from '../domain/types';
 
 interface State {
   events: ExpenseEvent[];
   projections: Map<string, ExpenseProjection>;
   processedEvents: Set<string>;
   categories: Map<string, Category>;
+  categoryEvents: CategoryEvent[];
 }
 
 function snapshot(state: State): State {
@@ -29,6 +35,7 @@ function snapshot(state: State): State {
     projections: new Map(state.projections),
     processedEvents: new Set(state.processedEvents),
     categories: new Map(state.categories),
+    categoryEvents: [...state.categoryEvents],
   };
 }
 
@@ -40,6 +47,11 @@ function restore(target: State, source: State): void {
   for (const id of source.processedEvents) target.processedEvents.add(id);
   target.categories.clear();
   for (const [key, value] of source.categories) target.categories.set(key, value);
+  target.categoryEvents.splice(
+    0,
+    target.categoryEvents.length,
+    ...source.categoryEvents,
+  );
 }
 
 export class InMemoryLocalStore implements LocalStore {
@@ -48,6 +60,7 @@ export class InMemoryLocalStore implements LocalStore {
     projections: new Map(),
     processedEvents: new Set(),
     categories: new Map(),
+    categoryEvents: [],
   };
 
   /** Test helper — wipes everything in the same dependency order the SQLite
@@ -57,6 +70,7 @@ export class InMemoryLocalStore implements LocalStore {
     this.state.events.length = 0;
     this.state.projections.clear();
     this.state.categories.clear();
+    this.state.categoryEvents.length = 0;
   }
 
   // -- Test introspection helpers -----------------------------------------
@@ -69,6 +83,16 @@ export class InMemoryLocalStore implements LocalStore {
   /** All projections regardless of deleted state (test-only). */
   allProjections(): ReadonlyArray<ExpenseProjection> {
     return [...this.state.projections.values()];
+  }
+
+  /** All category events ever appended (test-only). */
+  allCategoryEvents(): ReadonlyArray<CategoryEvent> {
+    return [...this.state.categoryEvents];
+  }
+
+  /** All categories regardless of deleted state (test-only). */
+  allCategories(): ReadonlyArray<Category> {
+    return [...this.state.categories.values()];
   }
 
   // -- LocalStore implementation ------------------------------------------
@@ -87,15 +111,14 @@ export class InMemoryLocalStore implements LocalStore {
     this.state.events.push(event);
   }
 
-  async findUncommittedEvents(userId: string): Promise<ReadonlyArray<ExpenseEvent>> {
+  async findUncommittedEvents(): Promise<ReadonlyArray<ExpenseEvent>> {
     return this.state.events
-      .filter((e) => !e.committed && e.userId === userId)
+      .filter((e) => !e.committed)
       .sort((a, b) => a.timestamp - b.timestamp);
   }
 
-  async findAllEvents(userId: string): Promise<ReadonlyArray<ExpenseEvent>> {
+  async findAllEvents(): Promise<ReadonlyArray<ExpenseEvent>> {
     return this.state.events
-      .filter((e) => e.userId === userId)
       .slice()
       .sort((a, b) => {
         if (a.timestamp !== b.timestamp) return a.timestamp - b.timestamp;
@@ -132,17 +155,12 @@ export class InMemoryLocalStore implements LocalStore {
 
   async findProjectionById(
     id: string,
-    userId: string,
   ): Promise<ExpenseProjection | undefined> {
-    const found = this.state.projections.get(id);
-    if (!found || found.userId !== userId) return undefined;
-    return found;
+    return this.state.projections.get(id);
   }
 
-  async findActiveProjections(userId: string): Promise<ReadonlyArray<ExpenseProjection>> {
-    return [...this.state.projections.values()].filter(
-      (p) => !p.deleted && p.userId === userId,
-    );
+  async findActiveProjections(): Promise<ReadonlyArray<ExpenseProjection>> {
+    return [...this.state.projections.values()].filter((p) => !p.deleted);
   }
 
   async isEventProcessed(eventId: string): Promise<boolean> {
@@ -153,27 +171,78 @@ export class InMemoryLocalStore implements LocalStore {
     this.state.processedEvents.add(eventId);
   }
 
-  async upsertCategory(category: Category): Promise<void> {
+  async projectCategoryFromEvent(category: Category): Promise<number> {
+    const existing = this.state.categories.get(category.id);
+    // Strict `>` matches the SQLite SQL: WHERE EXCLUDED.updated_at > categories.updated_at
+    if (existing && category.updatedAt <= existing.updatedAt) {
+      return 0;
+    }
+    // Mirror the SQLite partial unique index on `template_key`
+    // (active rows only): inserting a *new* row whose template_key collides
+    // with another active row must fail, just as it would in production.
+    // Updates to the existing row (same id) are allowed because the
+    // `ON CONFLICT(id) DO UPDATE` path on SQLite does not trigger the
+    // INSERT-side uniqueness check.
+    if (!existing && category.templateKey !== undefined && !category.deleted) {
+      for (const other of this.state.categories.values()) {
+        if (
+          other.id !== category.id &&
+          other.templateKey === category.templateKey &&
+          !other.deleted
+        ) {
+          throw new Error(
+            `UNIQUE constraint failed: categories.template_key (${category.templateKey})`,
+          );
+        }
+      }
+    }
     this.state.categories.set(category.id, category);
+    return 1;
   }
 
-  async findCategoryById(id: string, userId: string): Promise<Category | undefined> {
-    const found = this.state.categories.get(id);
-    if (!found || found.userId !== userId) return undefined;
-    return found;
+  async findCategoryById(id: string): Promise<Category | undefined> {
+    return this.state.categories.get(id);
   }
 
-  async findAllCategories(userId: string): Promise<ReadonlyArray<Category>> {
-    return [...this.state.categories.values()]
-      .filter((c) => c.userId === userId)
-      .sort((a, b) => a.sortOrder - b.sortOrder || a.updatedAt - b.updatedAt);
+  async findAllCategories(): Promise<ReadonlyArray<Category>> {
+    return [...this.state.categories.values()].sort(
+      (a, b) => a.sortOrder - b.sortOrder || a.updatedAt - b.updatedAt,
+    );
   }
 
-  async softDeleteCategory(id: string, userId: string, updatedAt: number): Promise<number> {
+  async softDeleteCategory(id: string, updatedAt: number): Promise<number> {
     const existing = this.state.categories.get(id);
-    if (!existing || existing.userId !== userId) return 0;
+    if (!existing) return 0;
     if (updatedAt <= existing.updatedAt) return 0;
     this.state.categories.set(id, { ...existing, deleted: true, updatedAt });
     return 1;
+  }
+
+  async appendCategoryEvent(event: CategoryEvent): Promise<void> {
+    this.state.categoryEvents.push(event);
+  }
+
+  async findUncommittedCategoryEvents(): Promise<ReadonlyArray<CategoryEvent>> {
+    return this.state.categoryEvents
+      .filter((e) => !e.committed)
+      .sort((a, b) => a.timestamp - b.timestamp);
+  }
+
+  async findAllCategoryEvents(): Promise<ReadonlyArray<CategoryEvent>> {
+    return this.state.categoryEvents
+      .slice()
+      .sort((a, b) => {
+        if (a.timestamp !== b.timestamp) return a.timestamp - b.timestamp;
+        return a.eventId < b.eventId ? -1 : a.eventId > b.eventId ? 1 : 0;
+      });
+  }
+
+  async markCategoryEventsCommitted(eventIds: ReadonlyArray<string>): Promise<void> {
+    const set = new Set(eventIds);
+    this.state.categoryEvents.forEach((event, idx) => {
+      if (set.has(event.eventId)) {
+        this.state.categoryEvents[idx] = { ...event, committed: true };
+      }
+    });
   }
 }

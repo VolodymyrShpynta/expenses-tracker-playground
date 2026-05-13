@@ -42,7 +42,15 @@ export function ExportImportDialog({ visible, onDismiss, onShowStatus }: ExportI
   const onExport = async () => {
     try {
       const r = await exportData.mutateAsync();
-      onShowStatus(translate('settings.exportSuccess', { count: r.eventCount }));
+      // Total events surfaced to the user includes both expense and
+      // category history — they're projected onto the same on-disk file
+      // and re-imported as one unit, so the user-facing count should
+      // reflect everything that was actually exported.
+      onShowStatus(
+        translate('settings.exportSuccess', {
+          count: r.eventCount + r.categoryEventCount,
+        }),
+      );
     } catch (e) {
       onShowStatus(translate('settings.exportError'));
       console.warn('Export failed', e);

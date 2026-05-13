@@ -14,7 +14,13 @@
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type { LocalStore, TransactionRunner } from '../domain/localStore';
-import type { Category, ExpenseEvent, ExpenseProjection, EventType } from '../domain/types';
+import type {
+  Category,
+  CategoryEvent,
+  ExpenseEvent,
+  ExpenseProjection,
+  EventType,
+} from '../domain/types';
 
 /** Boolean ↔ INTEGER conversions for SQLite (which has no native BOOLEAN). */
 const toInt = (b: boolean): number => (b ? 1 : 0);
@@ -29,7 +35,6 @@ interface ProjectionRow {
   readonly date: string | null;
   readonly updated_at: number;
   readonly deleted: number;
-  readonly user_id: string;
 }
 
 interface EventRow {
@@ -39,7 +44,15 @@ interface EventRow {
   readonly expense_id: string;
   readonly payload: string;
   readonly committed: number;
-  readonly user_id: string;
+}
+
+interface CategoryEventRow {
+  readonly event_id: string;
+  readonly timestamp: number;
+  readonly event_type: string;
+  readonly category_id: string;
+  readonly payload: string;
+  readonly committed: number;
 }
 
 interface CategoryRow {
@@ -51,7 +64,6 @@ interface CategoryRow {
   readonly sort_order: number;
   readonly updated_at: number;
   readonly deleted: number;
-  readonly user_id: string;
 }
 
 function rowToCategory(row: CategoryRow): Category {
@@ -62,7 +74,6 @@ function rowToCategory(row: CategoryRow): Category {
     sortOrder: row.sort_order,
     updatedAt: row.updated_at,
     deleted: fromInt(row.deleted),
-    userId: row.user_id,
     ...(row.name !== null ? { name: row.name } : {}),
     ...(row.template_key !== null ? { templateKey: row.template_key } : {}),
   };
@@ -77,7 +88,6 @@ function rowToProjection(row: ProjectionRow): ExpenseProjection {
     currency: row.currency,
     updatedAt: row.updated_at,
     deleted: fromInt(row.deleted),
-    userId: row.user_id,
     ...(row.description !== null ? { description: row.description } : {}),
     ...(row.category_id !== null ? { categoryId: row.category_id } : {}),
     ...(row.date !== null ? { date: row.date } : {}),
@@ -92,7 +102,17 @@ function rowToEvent(row: EventRow): ExpenseEvent {
     expenseId: row.expense_id,
     payload: row.payload,
     committed: fromInt(row.committed),
-    userId: row.user_id,
+  };
+}
+
+function rowToCategoryEvent(row: CategoryEventRow): CategoryEvent {
+  return {
+    eventId: row.event_id,
+    timestamp: row.timestamp,
+    eventType: row.event_type as EventType,
+    categoryId: row.category_id,
+    payload: row.payload,
+    committed: fromInt(row.committed),
   };
 }
 
@@ -121,36 +141,32 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
     async appendEvent(event: ExpenseEvent): Promise<void> {
       await db.runAsync(
         `INSERT INTO expense_events
-           (event_id, timestamp, event_type, expense_id, payload, committed, user_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+           (event_id, timestamp, event_type, expense_id, payload, committed)
+         VALUES (?, ?, ?, ?, ?, ?)`,
         event.eventId,
         event.timestamp,
         event.eventType,
         event.expenseId,
         event.payload,
         toInt(event.committed),
-        event.userId,
       );
     },
 
-    async findUncommittedEvents(userId: string): Promise<ReadonlyArray<ExpenseEvent>> {
+    async findUncommittedEvents(): Promise<ReadonlyArray<ExpenseEvent>> {
       const rows = await db.getAllAsync<EventRow>(
-        `SELECT event_id, timestamp, event_type, expense_id, payload, committed, user_id
+        `SELECT event_id, timestamp, event_type, expense_id, payload, committed
            FROM expense_events
-          WHERE committed = 0 AND user_id = ?
+          WHERE committed = 0
           ORDER BY timestamp ASC`,
-        userId,
       );
       return rows.map(rowToEvent);
     },
 
-    async findAllEvents(userId: string): Promise<ReadonlyArray<ExpenseEvent>> {
+    async findAllEvents(): Promise<ReadonlyArray<ExpenseEvent>> {
       const rows = await db.getAllAsync<EventRow>(
-        `SELECT event_id, timestamp, event_type, expense_id, payload, committed, user_id
+        `SELECT event_id, timestamp, event_type, expense_id, payload, committed
            FROM expense_events
-          WHERE user_id = ?
           ORDER BY timestamp ASC, event_id ASC`,
-        userId,
       );
       return rows.map(rowToEvent);
     },
@@ -174,8 +190,8 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
       // (matches the backend's `ExpenseProjectionRepository.projectFromEvent`).
       const result = await db.runAsync(
         `INSERT INTO expense_projections
-           (id, description, amount, currency, category_id, date, updated_at, deleted, user_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+           (id, description, amount, currency, category_id, date, updated_at, deleted)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            description = excluded.description,
            amount      = excluded.amount,
@@ -183,8 +199,7 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
            category_id = excluded.category_id,
            date        = excluded.date,
            updated_at  = excluded.updated_at,
-           deleted     = excluded.deleted,
-           user_id     = excluded.user_id
+           deleted     = excluded.deleted
          WHERE excluded.updated_at > expense_projections.updated_at`,
         projection.id,
         projection.description ?? null,
@@ -194,7 +209,6 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
         projection.date ?? null,
         projection.updatedAt,
         toInt(projection.deleted),
-        projection.userId,
       );
       return result.changes;
     },
@@ -216,25 +230,26 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
 
     async findProjectionById(
       id: string,
-      userId: string,
     ): Promise<ExpenseProjection | undefined> {
       const row = await db.getFirstAsync<ProjectionRow>(
         `SELECT id, description, amount, currency, category_id, date,
-                updated_at, deleted, user_id
+                updated_at, deleted
            FROM expense_projections
-          WHERE id = ? AND user_id = ?`,
+          WHERE id = ?`,
         id,
-        userId,
       );
       return row ? rowToProjection(row) : undefined;
     },
 
 
-    async upsertCategory(category: Category): Promise<void> {
-      await db.runAsync(
+    async projectCategoryFromEvent(category: Category): Promise<number> {
+      // Last-write-wins UPSERT with strict `>` on `updated_at`. Mirrors
+      // `projectFromEvent` above so cross-device sync converges to the
+      // same final state regardless of arrival order.
+      const result = await db.runAsync(
         `INSERT INTO categories
-           (id, name, template_key, icon, color, sort_order, updated_at, deleted, user_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+           (id, name, template_key, icon, color, sort_order, updated_at, deleted)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            name         = excluded.name,
            template_key = excluded.template_key,
@@ -242,8 +257,8 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
            color        = excluded.color,
            sort_order   = excluded.sort_order,
            updated_at   = excluded.updated_at,
-           deleted      = excluded.deleted,
-           user_id      = excluded.user_id`,
+           deleted      = excluded.deleted
+         WHERE excluded.updated_at > categories.updated_at`,
         category.id,
         category.name ?? null,
         category.templateKey ?? null,
@@ -252,54 +267,49 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
         category.sortOrder,
         category.updatedAt,
         toInt(category.deleted),
-        category.userId,
       );
+      return result.changes;
     },
 
-    async findCategoryById(id: string, userId: string): Promise<Category | undefined> {
+    async findCategoryById(id: string): Promise<Category | undefined> {
       const row = await db.getFirstAsync<CategoryRow>(
         `SELECT id, name, template_key, icon, color, sort_order,
-                updated_at, deleted, user_id
+                updated_at, deleted
            FROM categories
-          WHERE id = ? AND user_id = ?`,
+          WHERE id = ?`,
         id,
-        userId,
       );
       return row ? rowToCategory(row) : undefined;
     },
 
-    async findAllCategories(userId: string): Promise<ReadonlyArray<Category>> {
+    async findAllCategories(): Promise<ReadonlyArray<Category>> {
       const rows = await db.getAllAsync<CategoryRow>(
         `SELECT id, name, template_key, icon, color, sort_order,
-                updated_at, deleted, user_id
+                updated_at, deleted
            FROM categories
-          WHERE user_id = ?
           ORDER BY sort_order ASC, updated_at ASC`,
-        userId,
       );
       return rows.map(rowToCategory);
     },
 
-    async softDeleteCategory(id: string, userId: string, updatedAt: number): Promise<number> {
+    async softDeleteCategory(id: string, updatedAt: number): Promise<number> {
       const result = await db.runAsync(
         `UPDATE categories
             SET deleted = 1, updated_at = ?
-          WHERE id = ? AND user_id = ? AND ? > updated_at`,
+          WHERE id = ? AND ? > updated_at`,
         updatedAt,
         id,
-        userId,
         updatedAt,
       );
       return result.changes;
     },
-    async findActiveProjections(userId: string): Promise<ReadonlyArray<ExpenseProjection>> {
+    async findActiveProjections(): Promise<ReadonlyArray<ExpenseProjection>> {
       const rows = await db.getAllAsync<ProjectionRow>(
         `SELECT id, description, amount, currency, category_id, date,
-                updated_at, deleted, user_id
+                updated_at, deleted
            FROM expense_projections
-          WHERE user_id = ? AND deleted = 0
+          WHERE deleted = 0
           ORDER BY date DESC, updated_at DESC`,
-        userId,
       );
       return rows.map(rowToProjection);
     },
@@ -317,6 +327,54 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
         `INSERT OR IGNORE INTO processed_events (event_id) VALUES (?)`,
         eventId,
       );
+    },
+
+    async appendCategoryEvent(event: CategoryEvent): Promise<void> {
+      await db.runAsync(
+        `INSERT INTO category_events
+           (event_id, timestamp, event_type, category_id, payload, committed)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        event.eventId,
+        event.timestamp,
+        event.eventType,
+        event.categoryId,
+        event.payload,
+        toInt(event.committed),
+      );
+    },
+
+    async findUncommittedCategoryEvents(): Promise<ReadonlyArray<CategoryEvent>> {
+      const rows = await db.getAllAsync<CategoryEventRow>(
+        `SELECT event_id, timestamp, event_type, category_id, payload, committed
+           FROM category_events
+          WHERE committed = 0
+          ORDER BY timestamp ASC`,
+      );
+      return rows.map(rowToCategoryEvent);
+    },
+
+    async findAllCategoryEvents(): Promise<ReadonlyArray<CategoryEvent>> {
+      const rows = await db.getAllAsync<CategoryEventRow>(
+        `SELECT event_id, timestamp, event_type, category_id, payload, committed
+           FROM category_events
+          ORDER BY timestamp ASC, event_id ASC`,
+      );
+      return rows.map(rowToCategoryEvent);
+    },
+
+    async markCategoryEventsCommitted(eventIds: ReadonlyArray<string>): Promise<void> {
+      if (eventIds.length === 0) return;
+      // Same chunked bulk-update as `markEventsCommitted` — stays under
+      // SQLite's default 999 host-parameter limit.
+      const CHUNK = 500;
+      for (let i = 0; i < eventIds.length; i += CHUNK) {
+        const chunk = eventIds.slice(i, i + CHUNK);
+        const placeholders = chunk.map(() => '?').join(',');
+        await db.runAsync(
+          `UPDATE category_events SET committed = 1 WHERE event_id IN (${placeholders})`,
+          ...chunk,
+        );
+      }
     },
   };
 }

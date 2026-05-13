@@ -26,6 +26,30 @@ export interface DefaultCategoryTemplate {
  */
 export const ORPHAN_CATEGORY_COLOR = '#78909c';
 
+/**
+ * Deterministic category id for a default-template seed row.
+ *
+ * Why deterministic instead of `newUuid()`?
+ *   Every install seeds the same set of templates on first launch. With
+ *   random UUIDs, two devices end up with two *different* rows that share
+ *   the same `template_key` (`'food'`, `'car'`, ...). When the devices
+ *   later sync, the incoming `CREATED` event carries the remote id, which
+ *   does NOT match the local id — so the UPSERT's `ON CONFLICT(id)` clause
+ *   does not trigger and SQLite attempts a fresh INSERT, which then fails
+ *   the unique constraint on `template_key`.
+ *
+ *   Deriving the id from the `template_key` makes the seed id identical on
+ *   every device. The CREATED events from both sides converge on the same
+ *   row id, the UPSERT routes through `ON CONFLICT(id) DO UPDATE`, and
+ *   last-write-wins resolves the (cosmetic) icon/color differences.
+ *
+ * The `default-` prefix is namespace-clear and cannot collide with random
+ * UUIDs (which are hyphenated hex), so user-created categories remain safe.
+ */
+export function defaultTemplateId(templateKey: string): string {
+  return `default-${templateKey}`;
+}
+
 export const DEFAULT_CATEGORY_TEMPLATES: ReadonlyArray<DefaultCategoryTemplate> = [
   { templateKey: 'beauty', icon: 'Face', color: '#00bcd4', sortOrder: 0 },
   { templateKey: 'car', icon: 'DirectionsCar', color: '#9e9e9e', sortOrder: 1 },

@@ -1,6 +1,5 @@
 /**
- * Application context — wires the per-user domain services on top of
- * `LocalStore` and the persisted `userId`.
+ * Application context — wires the domain services on top of `LocalStore`.
  *
  * Composed in `app/_layout.tsx` after `DatabaseProvider`. Screens consume
  * services through TanStack Query hooks (`src/hooks/`), never directly.
@@ -29,10 +28,8 @@ import {
   type CategoryService,
 } from '../domain/categoryService';
 import { systemTime } from '../utils/time';
-import { getOrCreateUserId } from '../utils/userId';
 
 interface AppServicesContextValue {
-  readonly userId: string;
   readonly expenseCommands: ExpenseCommandService;
   readonly expenseQueries: ExpenseQueryService;
   readonly categories: CategoryService;
@@ -55,24 +52,21 @@ export function AppServicesProvider({ children }: AppServicesProviderProps) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const userId = await getOrCreateUserId();
       const expenseCommands = createExpenseCommandService({
         store,
         time: systemTime,
         ids: idGenerator,
-        userId,
       });
-      const expenseQueries = createExpenseQueryService({ store, userId });
+      const expenseQueries = createExpenseQueryService({ store });
       const categories = createCategoryService({
         store,
         time: systemTime,
         ids: idGenerator,
-        userId,
       });
       // Seed default templates on first launch — idempotent.
       await categories.seedDefaultsIfEmpty();
       if (cancelled) return;
-      setValue({ userId, expenseCommands, expenseQueries, categories });
+      setValue({ expenseCommands, expenseQueries, categories });
     })();
     return () => {
       cancelled = true;
@@ -96,8 +90,4 @@ export function useAppServices(): AppServicesContextValue {
     throw new Error('useAppServices must be used inside <AppServicesProvider>');
   }
   return ctx;
-}
-
-export function useUserId(): string {
-  return useAppServices().userId;
 }

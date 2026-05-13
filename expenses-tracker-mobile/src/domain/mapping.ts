@@ -3,21 +3,23 @@
  * `ExpenseMapper` Kotlin object — single source of truth for shape
  * conversions so callers (commands, sync recorder) never map by hand.
  */
-import type { EventEntry, ExpensePayload, ExpenseProjection } from './types';
+import type {
+  Category,
+  CategoryEventEntry,
+  CategoryPayload,
+  EventEntry,
+  ExpensePayload,
+  ExpenseProjection,
+} from './types';
 
 /**
  * Convert an `ExpensePayload` to an `ExpenseProjection` row.
- * Throws if `userId` is missing — projections require a user scope.
  *
  * Mirrors `ExpenseMapper.toProjection()` in the backend, including the
  * default `currency = "USD"` and `amount = 0` fallbacks (which only fire
  * for partial payloads — full create/update flows always set them).
  */
 export function payloadToProjection(payload: ExpensePayload): ExpenseProjection {
-  if (!payload.userId) {
-    throw new Error('userId is required for projection');
-  }
-
   // Build the projection without including `description`/`categoryId`/`date`
   // when the payload omits them, so `exactOptionalPropertyTypes` stays happy.
   const projection: ExpenseProjection = {
@@ -26,7 +28,6 @@ export function payloadToProjection(payload: ExpensePayload): ExpenseProjection 
     currency: payload.currency ?? 'USD',
     updatedAt: payload.updatedAt,
     deleted: payload.deleted ?? false,
-    userId: payload.userId,
     ...(payload.description !== undefined ? { description: payload.description } : {}),
     ...(payload.categoryId !== undefined ? { categoryId: payload.categoryId } : {}),
     ...(payload.date !== undefined ? { date: payload.date } : {}),
@@ -34,18 +35,9 @@ export function payloadToProjection(payload: ExpensePayload): ExpenseProjection 
   return projection;
 }
 
-/**
- * Convert an `EventEntry` to an `ExpenseProjection`.
- *
- * Falls back to the event-level `userId` when the embedded payload omits
- * one — mirrors `ExpenseMapper.EventEntry.toProjection()`.
- */
+/** Convert an `EventEntry` to an `ExpenseProjection`. */
 export function eventEntryToProjection(entry: EventEntry): ExpenseProjection {
-  const effective: ExpensePayload =
-    entry.payload.userId === undefined && entry.userId !== undefined
-      ? { ...entry.payload, userId: entry.userId }
-      : entry.payload;
-  return payloadToProjection(effective);
+  return payloadToProjection(entry.payload);
 }
 
 /**
@@ -56,4 +48,35 @@ export function eventEntryToProjection(entry: EventEntry): ExpenseProjection {
  */
 export function jsonToPayload(json: string): ExpensePayload {
   return JSON.parse(json) as ExpensePayload;
+}
+
+/**
+ * Convert a `CategoryPayload` to a `Category` row.
+ *
+ * Mirrors `payloadToProjection` for the category aggregate.
+ */
+export function categoryPayloadToCategory(payload: CategoryPayload): Category {
+  return {
+    id: payload.id,
+    icon: payload.icon,
+    color: payload.color,
+    sortOrder: payload.sortOrder,
+    updatedAt: payload.updatedAt,
+    deleted: payload.deleted ?? false,
+    ...(payload.name !== undefined ? {name: payload.name} : {}),
+    ...(payload.templateKey !== undefined ? {templateKey: payload.templateKey} : {}),
+  };
+}
+
+/** Convert a `CategoryEventEntry` to a `Category` row. */
+export function categoryEventEntryToCategory(entry: CategoryEventEntry): Category {
+  return categoryPayloadToCategory(entry.payload);
+}
+
+/**
+ * Parse a JSON string produced by `JSON.stringify(CategoryPayload)` back
+ * into a `CategoryPayload`. Mirrors `jsonToPayload` for categories.
+ */
+export function jsonToCategoryPayload(json: string): CategoryPayload {
+  return JSON.parse(json) as CategoryPayload;
 }

@@ -3193,6 +3193,57 @@ You have three options for running the app during development. Pick whichever fi
 > installs WHPX automatically); on Intel Macs use **HAXM**; on Apple Silicon use the bundled
 > ARM64 system image; on Linux make sure your user is in the `kvm` group.
 
+##### Recommended AVD configuration (stability)
+
+The default AVD wizard picks values tuned for "smallest possible footprint", not "stable for
+daily dev work". The Android Studio emulator is notoriously fragile on Windows; the settings
+below eliminate the most common crash / freeze causes. Pick these explicitly when creating
+the device (or **Edit Device** an existing one — then **Wipe Data** so the new values take
+effect instead of being shadowed by the old userdata image).
+
+| Setting                   | Default      | Recommended                                             | Why                                                                                                                                                                                                      |
+|---------------------------|--------------|---------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Device profile**        | Pixel 9 / 10 | **Pixel 7**                                             | Most battle-tested profile; what most Expo / RN guides assume.                                                                                                                                           |
+| **API level**             | Latest       | **34** (Android 14)                                     | Expo SDK 55 / RN 0.83 cap `targetSdk` at 35. Preview API images (37+) are explicitly unstable.                                                                                                           |
+| **Services**              | Google Play  | **Google APIs**                                         | The Play image runs Play Services + Play Store auto-updaters in the background — #1 cause of random freezes. You don't need Play Store for `npx expo run:android`.                                       |
+| **ABI**                   | x86_64       | **x86_64** (Intel/AMD) or **arm64-v8a** (Apple Silicon) | Match the host architecture exactly.                                                                                                                                                                     |
+| **Preferred ABI**         | Optimal      | **x86_64** (or arm64-v8a)                               | "Optimal" lets the emulator translate cross-arch binaries via `libndk_translation`. Translation is slow *and* a known crash source. Force the host arch to disable it.                                   |
+| **Default boot**          | Quick        | **Cold**                                                | Quick boot uses a snapshot; snapshot restore is the #1 source of "started, then froze" and "Metro can't connect" reports. Cold boots take 20–40 s but are far more reliable.                             |
+| **Graphics acceleration** | Automatic    | **Hardware — GLES 2.0**                                 | "Automatic" sometimes picks ANGLE-on-D3D on Windows and crashes on driver updates. Explicit is deterministic. (Fall back to **SwiftShader / software** if you get GPU crashes — slower but bulletproof.) |
+| **RAM**                   | 1.5–2 GB     | **4 GB**                                                | 2 GB is heavily swap-bound on API 34; apps get killed under memory pressure and the emulator surfaces it as "process terminated".                                                                        |
+| **VM heap size**          | 228 MB       | **512 MB**                                              | API-24 era default. Hermes + debugger needs 384+ MB; OOM kills look like emulator crashes.                                                                                                               |
+| **CPU cores**             | 2            | **4**                                                   | Don't exceed half your host's physical cores.                                                                                                                                                            |
+| **Internal storage**      | 2 GB         | **6 GB**                                                | RN dev clients + Metro cache + a couple of APK rebuilds fill 2 GB fast.                                                                                                                                  |
+
+After clicking **Finish**: right-click the AVD → **Wipe Data**. Without this the existing
+userdata image keeps the old RAM / heap settings.
+
+###### Host-level tips (Windows)
+
+These matter at least as much as the AVD settings themselves:
+
+- **Exclude the AVD + SDK directories from Windows Defender real-time scanning** —
+  `%USERPROFILE%\.android\avd\` and `%LOCALAPPDATA%\Android\Sdk\`. Defender locking the qcow2
+  disk image mid-write produces a silent *"emulator process terminated"* with no useful log.
+- **Don't run Docker Desktop and the emulator at the same time** unless Docker is fully on
+  the WSL2 backend — both want the Hyper-V hypervisor, and the loser crashes.
+- **Keep emulator + platform-tools current** — `sdkmanager --update`. Pre-33.x emulator
+  binaries crash on Windows 11 24H2.
+
+###### If the AOSP emulator still misbehaves
+
+Three escalation paths in order of effort:
+
+1. **Physical Android device over USB** (gold standard). Enable Developer Options →
+   USB Debugging, connect, then `adb reverse tcp:8081 tcp:8081` so Metro speaks to the
+   device over USB regardless of Wi-Fi. Restarting the phone is far cheaper than restarting
+   an emulator.
+2. **Genymotion Personal** (free for non-commercial use). Runs on VirtualBox instead of
+   WHPX / Hyper-V and is dramatically more stable on Windows. Pairs cleanly with Android
+   Studio's `adb`.
+3. **EAS preview build + same physical device** — `npx eas build --profile preview
+   --platform android`, install the APK. Useful for reproducing release-mode bugs.
+
 **Option 3 — iOS Simulator (macOS only)**
 
 1. Install **[Xcode](https://apps.apple.com/app/xcode/id497799835)** from the Mac App Store
@@ -3244,6 +3295,74 @@ npx eas build --platform android --profile preview
 npx eas build --platform ios --profile preview
 ```
 
+#### Building a local dev client with `npx expo run:android`
+
+`npm start` + Expo Go covers most JS-only work, but features that need native modules
+(cloud-drive OAuth, `expo-secure-store`, background sync) require a **dev client** built
+locally. From `expenses-tracker-mobile/`:
+
+```bash
+npx expo run:android   # generates android/, runs Gradle, installs APK on device/emulator
+```
+
+This invokes the full Android NDK + CMake + Kotlin/Gradle pipeline and has three host-level
+prerequisites beyond the SDK / emulator setup above.
+
+**1. JDK 17–21 (NOT JDK 22+)** — AGP 8.12 (bundled with Expo SDK 55 / RN 0.83) only supports
+JDK 17–21. On JDK 22+ the CMake configure tasks fail with
+`WARNING: A restricted method in java.lang.System has been called`. Microsoft Build of OpenJDK
+21 LTS, Eclipse Temurin 21, Azul Zulu 21, Android Studio's bundled JBR 21 all work. Set
+`JAVA_HOME` to the JDK 21 install root and reopen your terminal. The backend uses Gradle
+toolchains (`gradle/libs.versions.toml: java = "21"`) and is unaffected by the global JDK.
+
+**2. Windows: enable Win32 long path support** — RN's autolinked CMake codegen embeds
+absolute source paths inside the build directory, producing object-file paths of ~380 chars.
+The default Windows MAX_PATH of 260 will fail the build with
+`ninja: error: Stat(...): Filename longer than 260 characters`. Two steps are needed:
+
+- Set the registry flag once (admin / UAC required):
+  ```powershell
+  Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile','-Command',
+    "Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' LongPathsEnabled 1 -Type DWord"
+  ```
+- Enable long-path support in git as well (no admin):
+  ```powershell
+  git config --global core.longpaths true
+  ```
+
+**3. Windows: replace Android SDK's bundled `ninja.exe`** — the registry flag is necessary
+but **not sufficient**: each process must also declare `longPathAware` in its application
+manifest. The `ninja.exe` shipped with Android SDK `cmake/3.22.1/` is version 1.10.2 (2020)
+and lacks that manifest entry, so Windows continues to enforce MAX_PATH on it regardless of
+the registry. Replace it with ninja 1.11+ (kitware-built binaries from
+[ninja-build releases](https://github.com/ninja-build/ninja/releases)):
+
+```powershell
+$bin = "$env:LOCALAPPDATA\Android\Sdk\cmake\3.22.1\bin"
+Copy-Item "$bin\ninja.exe" "$bin\ninja.exe.bak"
+Invoke-WebRequest 'https://github.com/ninja-build/ninja/releases/download/v1.12.1/ninja-win.zip' `
+  -OutFile "$env:TEMP\ninja-win.zip"
+Expand-Archive "$env:TEMP\ninja-win.zip" -DestinationPath "$env:TEMP\ninja" -Force
+Copy-Item "$env:TEMP\ninja\ninja.exe" "$bin\ninja.exe" -Force
+```
+
+Verify with:
+
+```powershell
+& "$env:LOCALAPPDATA\Android\Sdk\cmake\3.22.1\bin\ninja.exe" --version   # should print 1.12.1+
+```
+
+After changing any of the above, clean stale CMake artifacts before the next build:
+
+```powershell
+cd expenses-tracker-mobile\android
+Remove-Item -Recurse -Force app\.cxx, app\build -ErrorAction SilentlyContinue
+.\gradlew.bat --stop
+```
+
+> macOS / Linux are unaffected by points 2 and 3 — their filesystems have no 260-char limit.
+> The JDK version requirement (point 1) applies to every host OS.
+
 ### Cloud-Drive Sync — Getting OAuth Client IDs
 
 The mobile app uses **OAuth 2.0 with PKCE** to talk to Google Drive and OneDrive. There is **no client
@@ -3261,6 +3380,31 @@ from the steps below before running the OAuth flow on a device.
 The redirect URI used by both adapters is **`expensestracker://redirect`** — derived from the `scheme`
 field in [`expenses-tracker-mobile/app.json`](expenses-tracker-mobile/app.json). The bundle / package
 identifier is **`com.vshpynta.expensestracker`** for both iOS and Android.
+
+> ⚠️ **You cannot test the OAuth flow in Expo Go.** Expo Go ignores the app's custom `scheme` and
+> generates a sandbox redirect URI like `exp://192.168.x.x:8081/--/redirect`, which neither Microsoft
+> nor Google will accept. You must run the app in a **development build** (or production build) so
+> that the native binary owns the `expensestracker` scheme:
+>
+> ```powershell
+> cd expenses-tracker-mobile
+> # one-time — already added to package.json:
+> # npx expo install expo-dev-client
+>
+> # Android (requires Android SDK / emulator / USB-connected device):
+> npx expo run:android
+>
+> # iOS (requires macOS + Xcode):
+> npx expo run:ios
+>
+> # Or build a dev client in the cloud and install the resulting .apk / .ipa:
+> npx eas build --profile development --platform android
+> ```
+>
+> Inside a dev build, `AuthSession.makeRedirectUri({ scheme: 'expensestracker', path: 'redirect' })`
+> correctly returns `expensestracker://redirect`. The sign-in dialog in **Settings → Cloud sync** logs
+> the live value as `[oauth] redirectUri = …` to Metro so you can verify before talking to the
+> provider's redirect-URI registration.
 
 #### Microsoft (OneDrive)
 
@@ -3322,12 +3466,12 @@ The **only thing shared** between users is the client ID — that's why it is sa
 For Microsoft / Entra registrations specifically, **who** is allowed to sign in depends on the
 **Supported account types** option you picked at registration time:
 
-| Setting in Entra                                                  | Who can log in                                                                    | Tenant in `oneDriveAdapter.ts` |
-|-------------------------------------------------------------------|-----------------------------------------------------------------------------------|--------------------------------|
-| **Personal Microsoft accounts only**                              | Only `@outlook.com`, `@hotmail.com`, `@live.com`, Xbox, etc. (NOT work / school)  | `consumers`                    |
-| **Accounts in any org directory and personal Microsoft accounts** | Anyone — personal + any company / school Microsoft 365 tenant                     | `common`                       |
-| **Accounts in any organizational directory only**                 | Any work / school tenant, no personal accounts                                    | `organizations`                |
-| **Accounts in this organizational directory only**                | Only users in *your* tenant — single-tenant app                                   | `<your-tenant-id>`             |
+| Setting in Entra                                                  | Who can log in                                                                   | Tenant in `oneDriveAdapter.ts` |
+|-------------------------------------------------------------------|----------------------------------------------------------------------------------|--------------------------------|
+| **Personal Microsoft accounts only**                              | Only `@outlook.com`, `@hotmail.com`, `@live.com`, Xbox, etc. (NOT work / school) | `consumers`                    |
+| **Accounts in any org directory and personal Microsoft accounts** | Anyone — personal + any company / school Microsoft 365 tenant                    | `common`                       |
+| **Accounts in any organizational directory only**                 | Any work / school tenant, no personal accounts                                   | `organizations`                |
+| **Accounts in this organizational directory only**                | Only users in *your* tenant — single-tenant app                                  | `<your-tenant-id>`             |
 
 The default in the registration steps above is **Personal Microsoft accounts only** (matches
 `consumers`). If you want users with only a work / school Microsoft account to sign in too, pick
@@ -3467,12 +3611,12 @@ and Google explicitly recommend for native apps without their own backend.
 
 ##### Common failure modes (and what they confirm about the model)
 
-| Symptom                                            | Likely cause                                                                       |
-|----------------------------------------------------|------------------------------------------------------------------------------------|
-| Browser shows *"Can't open page — unknown protocol"* | App not installed, or `scheme` in `app.json` doesn't match what's registered     |
-| Microsoft shows error `AADSTS50011`                | The redirect URI string doesn't match the registration **exactly** (e.g. trailing `/`) |
-| App opens but the auth promise never resolves      | `expo-auth-session` listener not wired up, or the app was killed during the flow   |
-| Two apps both claim `expensestracker://`           | OS shows an app picker (Android) or uses install order (iOS) — pick a unique scheme |
+| Symptom                                              | Likely cause                                                                           |
+|------------------------------------------------------|----------------------------------------------------------------------------------------|
+| Browser shows *"Can't open page — unknown protocol"* | App not installed, or `scheme` in `app.json` doesn't match what's registered           |
+| Microsoft shows error `AADSTS50011`                  | The redirect URI string doesn't match the registration **exactly** (e.g. trailing `/`) |
+| App opens but the auth promise never resolves        | `expo-auth-session` listener not wired up, or the app was killed during the flow       |
+| Two apps both claim `expensestracker://`             | OS shows an app picker (Android) or uses install order (iOS) — pick a unique scheme    |
 
 #### Are these Client IDs sensitive?
 

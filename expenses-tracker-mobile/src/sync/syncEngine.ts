@@ -1,14 +1,20 @@
 /**
- * Sync engine — orchestrates the full sync cycle.
+ * Sync engine — orchestrates the full sync cycle for both expense and
+ * category aggregates.
  *
  * Direct port of the backend's `ExpenseEventSyncService.performFullSync`,
  * adapted for cloud drives instead of a local file path:
  *
  *   1. Download the remote sync file (skip if etag unchanged since last sync).
- *   2. Decode + apply all events through `applyRemoteEvents` (idempotent).
- *   3. Collect local uncommitted events; merge into the file payload;
- *      upload with `If-Match` set to the etag we downloaded.
+ *   2. Decode + apply all events through `applyRemoteEvents` and
+ *      `applyRemoteCategoryEvents` (both idempotent).
+ *   3. Collect local uncommitted events + category events; merge into the
+ *      file payload; upload with `If-Match` set to the etag we downloaded.
  *   4. Mark uploaded events committed locally and cache the new etag.
+ *
+ * Order on apply: categories first, then expenses. New category rows must
+ * exist before any expense referencing them is projected, otherwise the
+ * UI shows orphan placeholders until the next refresh.
  *
  * Concurrency control: the upload uses optimistic eTag concurrency. If the
  * remote eTag has moved (another device wrote between our download and
@@ -22,11 +28,24 @@ import {
   ConcurrencyError,
   type CloudDriveAdapter,
 } from './cloudDriveAdapter';
-import { decodeSyncFile, encodeSyncFile, sortEventsDeterministically } from './codec';
+import {
+  decodeSyncFile,
+  encodeSyncFile,
+  sortCategoryEventsDeterministically,
+  sortEventsDeterministically,
+} from './codec';
 import { applyRemoteEvents, type ApplyResult } from './remoteEventApplier';
+import { applyRemoteCategoryEvents } from './remoteCategoryEventApplier';
 import type { LocalStore } from '../domain/localStore';
-import { jsonToPayload } from '../domain/mapping';
-import type { EventEntry, EventSyncFile, EventType, ExpenseEvent } from '../domain/types';
+import { jsonToCategoryPayload, jsonToPayload } from '../domain/mapping';
+import type {
+  CategoryEvent,
+  CategoryEventEntry,
+  EventEntry,
+  EventSyncFile,
+  EventType,
+  ExpenseEvent,
+} from '../domain/types';
 
 /** Bound on automatic retries when the remote etag has moved under us. */
 const MAX_RETRIES = 3;
@@ -34,15 +53,18 @@ const MAX_RETRIES = 3;
 export interface SyncEngineDeps {
   readonly store: LocalStore;
   readonly adapter: CloudDriveAdapter;
-  readonly userId: string;
   /** Optional: defaults to `true` (matches backend default). */
   readonly compressed?: boolean;
 }
 
 export interface SyncResult {
   readonly remote: ApplyResult;
-  /** Number of local events uploaded this cycle. */
+  /** Apply result for the category-aggregate sub-stream. */
+  readonly remoteCategories: ApplyResult;
+  /** Number of local expense events uploaded this cycle. */
   readonly uploadedLocal: number;
+  /** Number of local category events uploaded this cycle. */
+  readonly uploadedLocalCategories: number;
   /** Whether we actually downloaded — false when the etag was cached and unchanged. */
   readonly downloadedRemote: boolean;
   /** Number of cycle retries due to optimistic-concurrency conflicts. */
@@ -54,12 +76,12 @@ export interface SyncEngine {
 }
 
 /**
- * Build a SyncEngine bound to one (`store`, `adapter`, `userId`) tuple.
- * Construct one per signed-in user and reuse for the lifetime of the
- * session — the closure caches the last-known eTag in memory.
+ * Build a SyncEngine bound to one (`store`, `adapter`) pair.
+ * Construct one per app session and reuse for its lifetime — the closure
+ * caches the last-known eTag in memory.
  */
 export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
-  const { store, adapter, userId, compressed = true } = deps;
+  const { store, adapter, compressed = true } = deps;
   // Last-known etag for the file in cloud storage. Lets us short-circuit
   // download when the remote hasn't moved.
   let cachedEtag: string | undefined;
@@ -89,7 +111,9 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     const downloaded = await adapter.download();
     let downloadedRemote = false;
     let remote: ApplyResult = { applied: 0, skipped: 0, errors: 0 };
+    let remoteCategories: ApplyResult = { applied: 0, skipped: 0, errors: 0 };
     let baseEvents: ReadonlyArray<EventEntry> = [];
+    let baseCategoryEvents: ReadonlyArray<CategoryEventEntry> = [];
     let baseSnapshot: EventSyncFile['snapshot'];
     let etag: string | undefined;
 
@@ -101,35 +125,52 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       // merge step, so decode but skip apply.
       const file = decodeSyncFile(downloaded.bytes, compressed);
       baseEvents = file.events;
+      baseCategoryEvents = file.categoryEvents;
       baseSnapshot = file.snapshot;
       etag = downloaded.etag;
     } else {
       const file = decodeSyncFile(downloaded.bytes, compressed);
       baseEvents = file.events;
+      baseCategoryEvents = file.categoryEvents;
       baseSnapshot = file.snapshot;
       etag = downloaded.etag;
       downloadedRemote = true;
+      // Apply categories BEFORE expenses so any expense projection that
+      // references a brand-new category sees the row in place.
+      remoteCategories = await applyRemoteCategoryEvents(store, baseCategoryEvents);
       remote = await applyRemoteEvents(store, file.events);
     }
 
     // ---- 2. Collect local uncommitted events --------------------------
-    const localUncommitted = await store.findUncommittedEvents(userId);
+    const localUncommitted = await store.findUncommittedEvents();
+    const localUncommittedCategories =
+      await store.findUncommittedCategoryEvents();
 
     // No new local events AND the remote was already applied (or no file
     // existed) → nothing to upload. Cache the etag and exit.
-    if (localUncommitted.length === 0) {
+    if (
+      localUncommitted.length === 0 &&
+      localUncommittedCategories.length === 0
+    ) {
       cachedEtag = etag;
       return {
         remote,
+        remoteCategories,
         uploadedLocal: 0,
+        uploadedLocalCategories: 0,
         downloadedRemote,
       };
     }
 
     // ---- 3. Build the new file payload --------------------------------
     const newEntries = localUncommitted.map(toEventEntry);
+    const newCategoryEntries = localUncommittedCategories.map(toCategoryEventEntry);
     const merged: EventSyncFile = {
       events: sortEventsDeterministically([...baseEvents, ...newEntries]),
+      categoryEvents: sortCategoryEventsDeterministically([
+        ...baseCategoryEvents,
+        ...newCategoryEntries,
+      ]),
       ...(baseSnapshot !== undefined ? { snapshot: baseSnapshot } : {}),
     };
     const bytes = encodeSyncFile(merged, compressed);
@@ -143,12 +184,21 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       : await adapter.upload(bytes);
 
     // ---- 5. Mark uploaded events committed locally --------------------
-    await store.markEventsCommitted(localUncommitted.map((e) => e.eventId));
+    if (localUncommitted.length > 0) {
+      await store.markEventsCommitted(localUncommitted.map((e) => e.eventId));
+    }
+    if (localUncommittedCategories.length > 0) {
+      await store.markCategoryEventsCommitted(
+        localUncommittedCategories.map((e) => e.eventId),
+      );
+    }
     cachedEtag = upload.etag;
 
     return {
       remote,
+      remoteCategories,
       uploadedLocal: localUncommitted.length,
+      uploadedLocalCategories: localUncommittedCategories.length,
       downloadedRemote,
     };
   }
@@ -167,6 +217,21 @@ function toEventEntry(event: ExpenseEvent): EventEntry {
     eventType,
     expenseId: event.expenseId,
     payload: jsonToPayload(event.payload),
-    userId: event.userId,
+  };
+}
+
+/**
+ * Convert a stored `CategoryEvent` (payload as JSON string) to the wire
+ * `CategoryEventEntry` shape (payload as object). Mirrors `toEventEntry`
+ * for the category aggregate.
+ */
+function toCategoryEventEntry(event: CategoryEvent): CategoryEventEntry {
+  const eventType: EventType = event.eventType;
+  return {
+    eventId: event.eventId,
+    timestamp: event.timestamp,
+    eventType,
+    categoryId: event.categoryId,
+    payload: jsonToCategoryPayload(event.payload),
   };
 }

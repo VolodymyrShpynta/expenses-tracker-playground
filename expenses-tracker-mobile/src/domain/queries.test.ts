@@ -1,12 +1,11 @@
 /**
- * Query-side tests — verifies the read path hides soft-deleted rows and
- * scopes by userId.
+ * Query-side tests — verifies the read path hides soft-deleted rows.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createExpenseQueryService } from './queries';
 import { projectPayload } from './projector';
 import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
-import { TEST_USER_ID, makePayload } from '../test/fixtures';
+import { makePayload } from '../test/fixtures';
 
 describe('ExpenseQueryService', () => {
   let store: InMemoryLocalStore;
@@ -14,7 +13,7 @@ describe('ExpenseQueryService', () => {
 
   beforeEach(() => {
     store = new InMemoryLocalStore();
-    queries = createExpenseQueryService({ store, userId: TEST_USER_ID });
+    queries = createExpenseQueryService({ store });
   });
 
   it('should return only active expenses from findAllExpenses', async () => {
@@ -52,17 +51,5 @@ describe('ExpenseQueryService', () => {
     // Then
     expect(found?.id).toBe('x');
     expect(await queries.exists('x')).toBe(true);
-  });
-
-  it('should not leak expenses from other users', async () => {
-    // Given: An expense for a different user
-    await projectPayload(
-      store,
-      makePayload({ id: 'foreign', updatedAt: 1, userId: 'other-user' }),
-    );
-
-    // Then: Current user's queries see nothing
-    expect(await queries.findExpenseById('foreign')).toBeUndefined();
-    expect(await queries.findAllExpenses()).toHaveLength(0);
   });
 });

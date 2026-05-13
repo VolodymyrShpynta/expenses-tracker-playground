@@ -37,7 +37,30 @@
       "medium": "Medium",
       "large": "Large",
       "xlarge": "Extra Large"
-    }
+    },
+    "sync": "Cloud sync",
+    "syncDescription": "Sync expenses across devices via your own cloud drive."
+  },
+  "syncDialog": {
+    "title": "Cloud sync",
+    "provider": "Provider",
+    "providers": {
+      "none": "Disabled",
+      "onedrive": "OneDrive",
+      "googledrive": "Google Drive"
+    },
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "signingIn": "Signing in…",
+    "syncNow": "Sync now",
+    "syncing": "Syncing…",
+    "lastSynced": "Last synced {{when}}",
+    "neverSynced": "Never synced",
+    "statusSuccess": "Synced. Applied {{applied}}, uploaded {{uploaded}}.",
+    "statusError": "Sync failed: {{message}}",
+    "signInPrompt": "Sign in to enable sync.",
+    "notConfigured": "Choose a cloud provider first.",
+    "googleDisabled": "Google Drive is not configured yet — set GOOGLE_OAUTH_CLIENT_ID first."
   },
   "common": {
     "save": "Save",

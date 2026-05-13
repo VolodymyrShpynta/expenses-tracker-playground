@@ -28,6 +28,7 @@ import { ThemedButton as Button } from '../src/components/ThemedButton';
 import { AppDialog } from '../src/components/AppDialog';
 import { CategoryAvatar } from '../src/components/CategoryAvatar';
 import { ExportImportDialog } from '../src/components/ExportImportDialog';
+import { SyncCloudDialog } from '../src/components/SyncCloudDialog';
 import { ThemeModePickerDialog } from '../src/components/ThemeModePickerDialog';
 import { FontSizePickerDialog } from '../src/components/FontSizePickerDialog';
 import { CurrencyPickerDialog as CurrencyPickerDialogV2 } from '../src/components/CurrencyPickerDialog';
@@ -66,6 +67,7 @@ export default function SettingsScreen() {
   const [themeOpen, setThemeOpen] = useState(false);
   const [fontOpen, setFontOpen] = useState(false);
   const [exchangeOpen, setExchangeOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
   const showStatus = (msg: string) => {
@@ -120,6 +122,13 @@ export default function SettingsScreen() {
             left={(props) => <List.Icon {...props} icon="swap-vertical" />}
             onPress={() => setExchangeOpen(true)}
           />
+          <Divider />
+          <List.Item
+            title={translate('settings.sync')}
+            description={translate('settings.syncDescription')}
+            left={(props) => <List.Icon {...props} icon="cloud-sync-outline" />}
+            onPress={() => setSyncOpen(true)}
+          />
         </List.Section>
 
         {statusMsg ? (
@@ -171,6 +180,11 @@ export default function SettingsScreen() {
       <ExportImportDialog
         visible={exchangeOpen}
         onDismiss={() => setExchangeOpen(false)}
+        onShowStatus={showStatus}
+      />
+      <SyncCloudDialog
+        visible={syncOpen}
+        onDismiss={() => setSyncOpen(false)}
         onShowStatus={showStatus}
       />
     </>

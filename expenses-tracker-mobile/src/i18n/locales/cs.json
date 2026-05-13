@@ -37,7 +37,30 @@
       "medium": "Střední",
       "large": "Velké",
       "xlarge": "Velmi velké"
-    }
+    },
+    "sync": "Synchronizace cloudu",
+    "syncDescription": "Synchronizujte výdaje mezi zařízeními přes vlastní cloudový disk."
+  },
+  "syncDialog": {
+    "title": "Synchronizace cloudu",
+    "provider": "Poskytovatel",
+    "providers": {
+      "none": "Vypnuto",
+      "onedrive": "OneDrive",
+      "googledrive": "Google Drive"
+    },
+    "signIn": "Přihlásit se",
+    "signOut": "Odhlásit se",
+    "signingIn": "Přihlašování…",
+    "syncNow": "Synchronizovat",
+    "syncing": "Synchronizace…",
+    "lastSynced": "Naposledy synchronizováno {{when}}",
+    "neverSynced": "Nikdy synchronizováno",
+    "statusSuccess": "Synchronizováno. Aplikováno {{applied}}, nahráno {{uploaded}}.",
+    "statusError": "Synchronizace selhala: {{message}}",
+    "signInPrompt": "Pro synchronizaci se přihlaste.",
+    "notConfigured": "Nejprve vyberte poskytovatele cloudu.",
+    "googleDisabled": "Google Drive ještě není nastaven — doplňte GOOGLE_OAUTH_CLIENT_ID."
   },
   "common": {
     "save": "Uložit",
