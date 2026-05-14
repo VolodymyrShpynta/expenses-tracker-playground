@@ -170,7 +170,8 @@ export function createCategoryService(deps: CategoryServiceDeps): CategoryServic
    * row was already gone or had a newer `updated_at`.
    */
   async function recordDelete(existing: Category): Promise<boolean> {
-    const now = time.nowMs();
+    // See `updateExpense` for the rationale on bumping above existing.
+    const now = Math.max(time.nowMs(), existing.updatedAt + 1);
     const payload = buildPayload(existing.id, now, {
       icon: existing.icon,
       color: existing.color,
@@ -226,7 +227,12 @@ export function createCategoryService(deps: CategoryServiceDeps): CategoryServic
       if (!existing || existing.deleted) return undefined;
 
       const name = cmd.name ?? existing.name;
-      const payload = buildPayload(id, time.nowMs(), {
+      // Cap above the existing row's updatedAt so the strict-`>` LWW
+      // UPSERT inside `projectCategoryFromEvent` never silently drops
+      // this write — see `ExpenseCommandService.updateExpense` for the
+      // full rationale (synced-from-faster-clock-peer scenario).
+      const now = Math.max(time.nowMs(), existing.updatedAt + 1);
+      const payload = buildPayload(id, now, {
         icon: cmd.icon ?? existing.icon,
         color: cmd.color ?? existing.color,
         sortOrder: cmd.sortOrder ?? existing.sortOrder,
@@ -249,7 +255,9 @@ export function createCategoryService(deps: CategoryServiceDeps): CategoryServic
       const existing = await store.findCategoryById(id);
       if (!existing) return undefined;
 
-      const payload = buildPayload(id, time.nowMs(), {
+      // See `updateCategory` for the rationale on bumping above existing.
+      const now = Math.max(time.nowMs(), existing.updatedAt + 1);
+      const payload = buildPayload(id, now, {
         icon: existing.icon,
         color: existing.color,
         sortOrder: existing.sortOrder,

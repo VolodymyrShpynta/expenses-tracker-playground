@@ -109,7 +109,15 @@ export function createExpenseCommandService(deps: CommandServiceDeps): ExpenseCo
       const existing = await store.findProjectionById(id);
       if (!existing) return undefined;
 
-      const now = time.nowMs();
+      // Cap above the existing projection's updatedAt so the strict-`>` LWW
+      // UPSERT in `projectFromEvent` never silently drops this write. This
+      // bites whenever `existing.updatedAt` was set by a synced event whose
+      // author had a faster clock than ours (or in the same millisecond as
+      // a previous local write): `time.nowMs()` alone would lose the race
+      // and the projection would keep its stale fields — for example a
+      // merged category would not be reassigned. We still log the wall-
+      // clock value as the event's own `timestamp` inside `appendEventInTx`.
+      const now = Math.max(time.nowMs(), existing.updatedAt + 1);
       // Resolve optional fields with command-overrides-existing precedence.
       // Spread-conditional pattern keeps `exactOptionalPropertyTypes` happy:
       // omit the key entirely when the resolved value is `undefined`.
@@ -138,7 +146,9 @@ export function createExpenseCommandService(deps: CommandServiceDeps): ExpenseCo
       const existing = await store.findProjectionById(id);
       if (!existing) return false;
 
-      const now = time.nowMs();
+      // See `updateExpense` for the rationale — same LWW skip vector
+      // applies to `markAsDeleted`, so cap above existing.updatedAt.
+      const now = Math.max(time.nowMs(), existing.updatedAt + 1);
       // DELETED events still carry the last-known payload so peers can
       // resolve resurrection conflicts. Spread-conditional pattern handles
       // optional fields under `exactOptionalPropertyTypes`.

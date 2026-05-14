@@ -50,9 +50,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   label: {
-    fontSize: 14,
-    lineHeight: 14,
-    marginVertical: 8,
+    fontSize: 16,
+    lineHeight: 16,
+    marginVertical: 12,
     fontWeight: '700',
     letterSpacing: 0.5,
     textTransform: 'uppercase',

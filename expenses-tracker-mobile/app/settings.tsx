@@ -43,6 +43,7 @@ import {
   useUpdateCategory,
 } from '../src/hooks/useCategories';
 import { useCategoryLookup } from '../src/hooks/useCategoryLookup';
+import { useExpenses } from '../src/hooks/useExpenses';
 import {
   useFontScale,
   useMainCurrency,
@@ -271,6 +272,7 @@ function ManageCategoriesDialog({
   const theme = useTheme();
   const { categories: active } = useCategories();
   const { categories: catalog } = useCategoryCatalog();
+  const { expenses } = useExpenses();
   const lookup = useCategoryLookup();
   const deleteCategory = useDeleteCategory();
   const restoreCategory = useRestoreCategory();
@@ -278,14 +280,68 @@ function ManageCategoriesDialog({
   const resetCategories = useResetCategoriesToDefaults();
   const [editing, setEditing] = useState<Category | 'new' | null>(null);
   const [mergeSource, setMergeSource] = useState<Category | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Category | null>(null);
+  // Set when a Restore tap hit the partial unique index (name or
+  // template_key) collision — we open a confirmation dialog instead of
+  // letting the raw SQLite error bubble up.
+  const [restoreConflict, setRestoreConflict] = useState<
+    { archived: Category; activeDuplicates: ReadonlyArray<Category> } | null
+  >(null);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
-  const archived = catalog.filter((c) => c.deleted);
+  // Only surface archived categories the user can meaningfully restore:
+  // those still referenced by at least one active expense. Hides merged
+  // categories (their expenses were reassigned to the merge target) and
+  // empty-when-deleted categories — the user can just recreate those.
+  // The underlying rows stay in the DB (event log + projection); if a
+  // remote sync later attaches an expense to one, it reappears here
+  // automatically.
+  const usedCategoryIds = new Set(
+    expenses.map((e) => e.categoryId).filter((id): id is string => id != null),
+  );
+  const archived = catalog.filter((c) => c.deleted && usedCategoryIds.has(c.id));
+
+  // Active rows that would collide with `archived` on restore. Matches
+  // the SQL partial unique indexes (`idx_categories_name`,
+  // `idx_categories_template`) so we catch every constraint that
+  // `projectCategoryFromEvent` would otherwise hit.
+  const findActiveDuplicates = (target: Category): ReadonlyArray<Category> => {
+    const targetName = lookup.resolve(target.id).name.trim().toLowerCase();
+    return active.filter((c) => {
+      if (target.templateKey && c.templateKey === target.templateKey) return true;
+      if (target.name && c.name === target.name) return true;
+      // Fallback: same displayed name (case-insensitive). Covers the user
+      // scenario "templated row archived, custom row created with the
+      // same visible name".
+      const candidateName = lookup.resolve(c.id).name.trim().toLowerCase();
+      return targetName.length > 0 && candidateName === targetName;
+    });
+  };
+
+  const handleRestore = async (target: Category): Promise<void> => {
+    const duplicates = findActiveDuplicates(target);
+    if (duplicates.length > 0) {
+      setRestoreConflict({ archived: target, activeDuplicates: duplicates });
+      return;
+    }
+    try {
+      await restoreCategory.mutateAsync(target.id);
+    } catch (e) {
+      console.warn('Restore failed', e);
+    }
+  };
 
   return (
     <>
       <AppDialog
-        visible={visible && editing === null && mergeSource === null && !resetConfirmOpen}
+        visible={
+          visible &&
+          editing === null &&
+          mergeSource === null &&
+          pendingDelete === null &&
+          restoreConflict === null &&
+          !resetConfirmOpen
+        }
         onDismiss={onDismiss}
         title={translate('categoryDialog.manageTitle')}
       >
@@ -326,7 +382,8 @@ function ManageCategoriesDialog({
                         <IconButton
                           icon="delete-outline"
                           size={20}
-                          onPress={() => void deleteCategory.mutateAsync(c.id)}
+                          accessibilityLabel={translate('categoryDialog.deleteAriaLabel', { name: r.name })}
+                          onPress={() => setPendingDelete(c)}
                         />
                       </View>
                     </TouchableRipple>
@@ -363,7 +420,7 @@ function ManageCategoriesDialog({
                         <IconButton
                           icon="restore"
                           size={20}
-                          onPress={() => void restoreCategory.mutateAsync(c.id)}
+                          onPress={() => void handleRestore(c)}
                         />
                       </View>
                     );
@@ -436,6 +493,90 @@ function ManageCategoriesDialog({
           </Button>
         </Dialog.Actions>
       </AppDialog>
+
+      <AppDialog
+        visible={pendingDelete !== null}
+        onDismiss={() => setPendingDelete(null)}
+        title={translate('categoryDialog.deleteTitle')}
+        showCloseButton={false}
+      >
+        <Dialog.Content>
+          {/* Strip the <1>/</1> tags from the legacy <Trans>-style key so
+              the bold marker doesn't leak into the rendered text. */}
+          <Text style={{ marginBottom: 8 }}>
+            {pendingDelete
+              ? translate('categoryDialog.deleteConfirm', {
+                  name: lookup.resolve(pendingDelete.id).name,
+                }).replace(/<\/?\d+>/g, '')
+              : ''}
+          </Text>
+          <Text variant="bodySmall">{translate('categoryDialog.deleteNote')}</Text>
+        </Dialog.Content>
+        <Dialog.Actions>
+          <Button onPress={() => setPendingDelete(null)}>{translate('common.cancel')}</Button>
+          <Button
+            mode="contained"
+            onPress={async () => {
+              const target = pendingDelete;
+              setPendingDelete(null);
+              if (!target) return;
+              try {
+                await deleteCategory.mutateAsync(target.id);
+              } catch (e) {
+                console.warn('Delete failed', e);
+              }
+            }}
+          >
+            {translate('common.delete')}
+          </Button>
+        </Dialog.Actions>
+      </AppDialog>
+
+      <AppDialog
+        visible={restoreConflict !== null}
+        onDismiss={() => setRestoreConflict(null)}
+        title={translate('categoryDialog.restoreConflictTitle')}
+        showCloseButton={false}
+      >
+        <Dialog.Content>
+          <Text>
+            {restoreConflict
+              ? translate('categoryDialog.restoreConflictBody', {
+                  name: lookup.resolve(restoreConflict.archived.id).name,
+                })
+              : ''}
+          </Text>
+        </Dialog.Content>
+        <Dialog.Actions>
+          <Button onPress={() => setRestoreConflict(null)}>{translate('common.cancel')}</Button>
+          <Button
+            mode="contained"
+            onPress={async () => {
+              const conflict = restoreConflict;
+              setRestoreConflict(null);
+              if (!conflict) return;
+              try {
+                // Merge each active duplicate INTO the archived row first
+                // so the partial unique indexes (`idx_categories_name`,
+                // `idx_categories_template`) only see one candidate when
+                // the restore flips `deleted` back to 0. `mergeCategories`
+                // soft-deletes the source, which clears the constraint.
+                for (const dup of conflict.activeDuplicates) {
+                  await mergeCategories.mutateAsync({
+                    sourceId: dup.id,
+                    targetId: conflict.archived.id,
+                  });
+                }
+                await restoreCategory.mutateAsync(conflict.archived.id);
+              } catch (e) {
+                console.warn('Restore & merge failed', e);
+              }
+            }}
+          >
+            {translate('categoryDialog.restoreAndMergeButton')}
+          </Button>
+        </Dialog.Actions>
+      </AppDialog>
     </>
   );
 }
@@ -454,39 +595,66 @@ function MergeCategoryDialog({
   const lookup = useCategoryLookup();
   const sourceName = lookup.resolve(source.id).name;
   const targets = categories.filter((c) => c.id !== source.id);
+  // Two-step flow: pick a target, then confirm. We hide the picker
+  // while the confirmation dialog is visible so stacked Paper Dialogs
+  // don't fight over the backdrop / focus trap.
+  const [pendingTarget, setPendingTarget] = useState<Category | null>(null);
+  const pendingTargetName = pendingTarget
+    ? lookup.resolve(pendingTarget.id).name
+    : '';
 
   return (
     <Portal>
-      <Dialog visible onDismiss={onDismiss} style={{ maxHeight: '85%' }}>
-        <Dialog.Title>{translate('categoryDialog.mergeTitle')}</Dialog.Title>
-        <Dialog.Content>
-          <Text variant="bodyMedium" style={{ marginBottom: 8 }}>
-            {translate('categoryDialog.mergePickPrompt', { name: sourceName }).replace(/<\/?\d+>/g, '')}
-          </Text>
-        </Dialog.Content>
-        <Dialog.ScrollArea style={{ paddingHorizontal: 0 }}>
-          <ScrollView>
-            {targets.map((c) => {
-              const r = lookup.resolve(c.id);
-              return (
-                <TouchableRipple
-                  key={c.id}
-                  onPress={() => onConfirm(c.id)}
-                  style={{ paddingHorizontal: 24, paddingVertical: 10 }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <CategoryAvatar iconName={r.iconName} color={r.color} />
-                    <Text variant="bodyLarge">{r.name}</Text>
-                  </View>
-                </TouchableRipple>
-              );
-            })}
-          </ScrollView>
-        </Dialog.ScrollArea>
-        <Dialog.Actions>
-          <Button onPress={onDismiss}>{translate('common.cancel')}</Button>
-        </Dialog.Actions>
-      </Dialog>
+      {pendingTarget === null ? (
+        <Dialog visible onDismiss={onDismiss} style={{ maxHeight: '85%' }}>
+          <Dialog.Title>{translate('categoryDialog.mergeTitle')}</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={{ marginBottom: 8 }}>
+              {translate('categoryDialog.mergePickPrompt', { name: sourceName }).replace(/<\/?\d+>/g, '')}
+            </Text>
+          </Dialog.Content>
+          <Dialog.ScrollArea style={{ paddingHorizontal: 0 }}>
+            <ScrollView>
+              {targets.map((c) => {
+                const r = lookup.resolve(c.id);
+                return (
+                  <TouchableRipple
+                    key={c.id}
+                    onPress={() => setPendingTarget(c)}
+                    style={{ paddingHorizontal: 24, paddingVertical: 10 }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <CategoryAvatar iconName={r.iconName} color={r.color} />
+                      <Text variant="bodyLarge">{r.name}</Text>
+                    </View>
+                  </TouchableRipple>
+                );
+              })}
+            </ScrollView>
+          </Dialog.ScrollArea>
+          <Dialog.Actions>
+            <Button onPress={onDismiss}>{translate('common.cancel')}</Button>
+          </Dialog.Actions>
+        </Dialog>
+      ) : (
+        <Dialog visible onDismiss={() => setPendingTarget(null)}>
+          <Dialog.Title>{translate('categoryDialog.mergeConfirmTitle')}</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">
+              {translate('categoryDialog.mergeConfirmBody', {
+                source: sourceName,
+                target: pendingTargetName,
+              }).replace(/<\/?\d+>/g, '')}
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setPendingTarget(null)}>{translate('common.cancel')}</Button>
+            <Button mode="contained" onPress={() => onConfirm(pendingTarget.id)}>
+              {translate('categoryDialog.mergeButton')}
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      )}
     </Portal>
   );
 }
@@ -506,11 +674,14 @@ function CategoryFormDialog({
   const updateCategory = useUpdateCategory();
   const restoreCategory = useRestoreCategory();
   const { categories: catalog } = useCategoryCatalog();
+  const lookup = useCategoryLookup();
 
-  // For templated rows the displayed label comes from i18n; the user
-  // overrides it by typing a name, so we start with an empty string for
-  // those (matches the web frontend's "clear override" semantics).
-  const [name, setName] = useState(category?.name ?? '');
+  // When editing, prefill the field with the currently displayed label so
+  // the user sees what they're editing — templated rows resolve through
+  // i18n via `useCategoryLookup` (mirrors the web frontend).
+  const [name, setName] = useState(
+    category ? (category.name ?? lookup.resolve(category.id).name) : '',
+  );
   const [iconKey, setIconKey] = useState(category?.icon ?? ICON_KEYS[0]!);
   const [color, setColor] = useState(category?.color ?? AVAILABLE_COLORS[0]!);
   const [submitting, setSubmitting] = useState(false);

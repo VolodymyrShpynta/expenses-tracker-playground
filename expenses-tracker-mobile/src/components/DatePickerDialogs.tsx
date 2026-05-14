@@ -348,10 +348,10 @@ function useCalendarTheme(): MD3Theme {
       ...theme,
       colors: {
         ...theme.colors,
-        // Soft mint plate (same tone as the calculator's operator
-        // buttons) so the weekday row and chevron buttons separate
-        // clearly from the off-white dialog background.
-        surface: theme.colors.secondaryContainer,
+        // Soft blue plate (matches the brand's primary container) so
+        // the weekday row and chevron buttons separate clearly from
+        // the off-white dialog background.
+        surface: theme.colors.primaryContainer,
         // Pure black so DayName.tsx's hard-coded 0.7 opacity still
         // renders a readable mid-gray, and IconButton's chevrons (which
         // default to onSurfaceVariant) are fully visible.

@@ -101,6 +101,10 @@ export function AmountKeypad({
   // Render via flexbox: each row is a horizontal flex; equals cell uses
   // absolute positioning to span 2 rows. Keeps RN layout simple.
   const cellGap = 6;
+  // Per-cell vertical size. The dialog now extends past the bottom tab
+  // bar (rendered via Portal) so we can afford a chunkier hit target;
+  // bump this if buttons should grow further.
+  const cellHeight = 68;
   const rowFlex = (rowIdx: number): ViewStyle => ({
     width: '100%' as DimensionValue,
     flexDirection: 'row',
@@ -124,14 +128,14 @@ export function AmountKeypad({
                 disabled={disabled || cell.disabled}
                 style={({ pressed }) => ({
                   flex: 1,
-                  minHeight: 56 * heightFactor + (heightFactor > 1 ? cellGap : 0),
+                  minHeight: cellHeight * heightFactor + (heightFactor > 1 ? cellGap : 0),
                   alignItems: 'center',
                   justifyContent: 'center',
                   borderRadius: 12,
                   backgroundColor: pressed ? palette.bgPressed : palette.bg,
                   opacity: disabled || cell.disabled ? 0.5 : 1,
                   // Equals spans into the row below; pull a bit so it visually fills both.
-                  ...(isEquals ? { marginBottom: -(56 + cellGap) } : {}),
+                  ...(isEquals ? { marginBottom: -(cellHeight + cellGap) } : {}),
                 })}
               >
                 {typeof cell.label === 'string' ? (

@@ -172,27 +172,71 @@ export default function TransactionsScreen() {
                 <View
                   style={{
                     paddingHorizontal: 16,
-                    paddingVertical: 8,
+                    paddingTop: 10,
+                    paddingBottom: 8,
                     flexDirection: 'row',
                     justifyContent: 'space-between',
-                    alignItems: 'baseline',
+                    alignItems: 'center',
                     backgroundColor: theme.dark
-                      ? 'rgba(255,255,255,0.03)'
-                      : 'rgba(0,0,0,0.03)',
+                      ? 'rgba(255,255,255,0.05)'
+                      : 'rgba(0,0,0,0.05)',
+                    borderBottomWidth: 1,
+                    borderBottomColor: theme.colors.outlineVariant,
                   }}
                 >
                   {/*
-                   * Day group header is intentionally heavier than each
-                   * transaction row below: bolder weight + primary text
-                   * color so the eye lands on the date / day total first,
-                   * then scans the items underneath.
+                   * Day variant mirrors the web ExpenseGroupHeader: large
+                   * day-of-month on the left, weekday + month/year stacked
+                   * on the right. Day number and weekday use `onSurface`
+                   * (full contrast) so the header reads as the anchor of
+                   * the group; month/year is the secondary line. Coarser
+                   * groupings keep the single-line label from `groupLabel`.
                    */}
-                  <Text
-                    variant="titleMedium"
-                    style={{ color: theme.colors.onSurface, fontWeight: '700' }}
-                  >
-                    {g.label}
-                  </Text>
+                  {groupBy === 'day' ? (
+                    <View
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 30,
+                          fontWeight: '500',
+                          lineHeight: 32,
+                          color: theme.colors.onSurface,
+                        }}
+                      >
+                        {g.date.getDate().toString().padStart(2, '0')}
+                      </Text>
+                      <View>
+                        <Text
+                          variant="labelMedium"
+                          style={{
+                            color: theme.colors.onSurface,
+                            fontWeight: '700',
+                            lineHeight: 16,
+                          }}
+                        >
+                          {g.date.toLocaleDateString(i18n.language, { weekday: 'long' }).toUpperCase()}
+                        </Text>
+                        <Text
+                          variant="labelSmall"
+                          style={{
+                            color: theme.colors.onSurfaceVariant,
+                            fontWeight: '600',
+                            lineHeight: 16,
+                          }}
+                        >
+                          {g.date.toLocaleDateString(i18n.language, { month: 'long', year: 'numeric' }).toUpperCase()}
+                        </Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <Text
+                      variant="titleMedium"
+                      style={{ color: theme.colors.onSurface, fontWeight: '700' }}
+                    >
+                      {g.label}
+                    </Text>
+                  )}
                   <Text
                     variant="titleMedium"
                     style={{ color: theme.colors.onSurface, fontWeight: '700' }}

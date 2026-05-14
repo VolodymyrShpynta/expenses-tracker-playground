@@ -21,10 +21,12 @@ import {
 } from 'react-native';
 import {
   HelperText,
+  Portal,
   Text,
   TextInput,
   useTheme,
 } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
 import { ThemedButton } from './ThemedButton';
@@ -85,6 +87,7 @@ function AddExpenseDialogContent({
 }: AddExpenseDialogContentProps) {
   const { t: translate, i18n } = useTranslation();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const lookup = useCategoryLookup();
   const { mainCurrency } = useMainCurrency();
   const createExpense = useCreateExpense();
@@ -210,16 +213,14 @@ function AddExpenseDialogContent({
   return (
     <>
       {overlayVisible ? (
-        // Bottom-sheet overlay rendered *inside* the host tab screen.
-        //
-        // We deliberately do NOT use RN's <Modal>: <Modal> mounts in a
-        // separate native window that sits above the entire activity —
-        // including the bottom tab bar — which forces us to manually
-        // reserve space for the tabs and creates platform-specific
-        // inset bugs. By rendering an absolute overlay inside the
-        // tab screen, the navigator's layout already excludes the tab
-        // bar from our frame, so the sheet bottoms out exactly at the
-        // top of the tabs with no measurement required.
+        // Bottom-sheet overlay rendered through Paper's <Portal>, which
+        // teleports the children up to the root PaperProvider — above the
+        // bottom tab bar — so the sheet can extend all the way to the
+        // bottom of the screen and give the keypad more room. We still
+        // avoid RN's <Modal> because it mounts in a separate native
+        // window and brings platform-specific inset bugs; <Portal> is a
+        // pure JS teleport that keeps us in the same React tree.
+        <Portal>
         <Pressable
           style={[styles.overlay, { backgroundColor: theme.colors.backdrop }]}
           onPress={onDismiss}
@@ -236,7 +237,14 @@ function AddExpenseDialogContent({
               accessible={false}
               style={[
                 styles.sheet,
-                { backgroundColor: theme.colors.background },
+                {
+                  backgroundColor: theme.colors.background,
+                  // Pad the bottom by the system gesture/home-indicator
+                  // inset so the OK button isn't crushed under the
+                  // navigation handle now that the sheet extends past
+                  // the (previously protective) tab bar.
+                  paddingBottom: insets.bottom,
+                },
               ]}
             >
               <ScrollView
@@ -350,6 +358,7 @@ function AddExpenseDialogContent({
             </Pressable>
           </KeyboardAvoidingView>
         </Pressable>
+        </Portal>
       ) : null}
 
       <CategoryPickerDialog
@@ -392,10 +401,10 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     justifyContent: 'flex-end',
-    // Sit above the tab screen's content but stay within its frame
-    // (i.e. below the bottom tab bar, which the navigator renders
-    // outside this view). Background color is set inline from
-    // `theme.colors.backdrop` so it reacts to light/dark mode.
+    // Rendered through <Portal> so it fills the entire window — covering
+    // the bottom tab bar — and gives the keypad maximum vertical room.
+    // Background color is set inline from `theme.colors.backdrop` so it
+    // reacts to light/dark mode.
     zIndex: 10,
     elevation: 10,
   },
