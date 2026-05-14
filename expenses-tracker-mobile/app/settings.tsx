@@ -181,7 +181,6 @@ export default function SettingsScreen() {
       <ExportImportDialog
         visible={exchangeOpen}
         onDismiss={() => setExchangeOpen(false)}
-        onShowStatus={showStatus}
       />
       <SyncCloudDialog
         visible={syncOpen}

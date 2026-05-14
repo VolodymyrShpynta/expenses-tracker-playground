@@ -1,704 +1,591 @@
 /**
- * Data-exchange tests — covers the file-based "export / restore from
- * sync" flow that lives behind the `useExportData` / `useImportData`
- * hooks.
+ * Data-exchange tests — covers the user-facing snapshot export / import
+ * flow that lives behind the `useExportData` / `useImportData` hooks.
  *
- * Restores rely on the same idempotent applier pipeline that the cloud
- * sync uses, so these scenarios mirror the user-visible promises:
- *   - Exporting then importing the same bytes is a no-op.
- *   - Importing a file from another device merges its events in.
- *   - Re-importing the same file is safe (idempotent).
- *   - Gzip-compressed files are auto-detected on import.
- *   - DELETED events propagate through a restore.
- *   - Categories are restored BEFORE expenses (foreign-key ordering).
- *   - A bad event in the file does not abort the whole restore.
+ * Wire format is the cross-platform JSON snapshot (same shape as the
+ * web frontend's export). These tests pin the user-visible promises:
+ *   - Export reads the projection tables and emits a portable JSON.
+ *   - A file exported from the web frontend imports cleanly.
+ *   - Importing categories is idempotent (matched by templateKey / name).
+ *   - Importing expenses always creates new rows (no de-dupe by design).
+ *   - Unknown category labels referenced by an expense are auto-created.
+ *   - Malformed / wrong-shape files surface as `fatal` without aborting.
+ *   - Per-row failures accumulate in `errors` without aborting the batch.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
+
 import {
   applyImportedBytes,
   buildExportFile,
-  isGzipped,
+  EXPORT_FILE_VERSION,
+  type ExportFile,
 } from './dataExchange';
-import { decodeSyncFile, encodeSyncFile } from './codec';
 import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
+import { fixedTime, sequenceIds, sequenceTime } from '../test/fixtures';
 import { createCategoryService } from '../domain/categoryService';
 import { createExpenseCommandService, type IdGenerator } from '../domain/commands';
 import {
   DEFAULT_CATEGORY_TEMPLATES,
   defaultTemplateId,
 } from '../domain/defaultCategories';
-import { sequenceIds, sequenceTime } from '../test/fixtures';
 import type { TimeProvider } from '../utils/time';
-import type {
-  CategoryEvent,
-  EventSyncFile,
-  ExpenseEvent,
-} from '../domain/types';
+
+const TEXT_ENCODER = new TextEncoder();
+const TEXT_DECODER = new TextDecoder('utf-8');
 
 // ---------------------------------------------------------------------------
-// Builders
+// Helpers
 // ---------------------------------------------------------------------------
 
-function expenseEvent(
-  overrides: Partial<ExpenseEvent> & {
-    eventId: string;
-    expenseId: string;
-    timestamp: number;
-  },
-): ExpenseEvent {
-  const payload = JSON.stringify({
-    id: overrides.expenseId,
-    amount: 1000,
-    currency: 'USD',
-    updatedAt: overrides.timestamp,
-    deleted: false,
-  });
-  return {
-    eventType: 'CREATED',
-    payload,
-    committed: false,
-    ...overrides,
-  };
+/** Monotonically-incrementing time provider — saves hand-counting ticks. */
+function monotonicTime(start = 1_000_000): TimeProvider {
+  let t = start;
+  return { nowMs: () => t++ };
 }
 
-function categoryEvent(
-  overrides: Partial<CategoryEvent> & {
-    eventId: string;
-    categoryId: string;
-    timestamp: number;
-  },
-): CategoryEvent {
-  const payload = JSON.stringify({
-    id: overrides.categoryId,
-    name: 'Food',
-    icon: 'food',
-    color: '#FF0000',
-    sortOrder: 0,
-    updatedAt: overrides.timestamp,
-    deleted: false,
-  });
-  return {
-    eventType: 'CREATED',
-    payload,
-    committed: false,
-    ...overrides,
-  };
+/** Generates `${prefix}-0`, `${prefix}-1`, ... on demand. */
+function sequentialIds(prefix: string): IdGenerator {
+  let n = 0;
+  return { newUuid: () => `${prefix}-${n++}` };
 }
 
-// ---------------------------------------------------------------------------
-// isGzipped
-// ---------------------------------------------------------------------------
+interface TestEnv {
+  store: InMemoryLocalStore;
+  categories: ReturnType<typeof createCategoryService>;
+  expenseCommands: ReturnType<typeof createExpenseCommandService>;
+}
 
-describe('isGzipped', () => {
-  it('returns true for the gzip magic-byte prefix', () => {
-    expect(isGzipped(new Uint8Array([0x1f, 0x8b, 0x08, 0x00]))).toBe(true);
-  });
+/** Build a fresh store wired to the real category + expense services. */
+function buildEnv(prefix = 'env'): TestEnv {
+  const store = new InMemoryLocalStore();
+  const time = monotonicTime();
+  const ids = sequentialIds(prefix);
+  const categories = createCategoryService({ store, time, ids });
+  const expenseCommands = createExpenseCommandService({ store, time, ids });
+  return { store, categories, expenseCommands };
+}
 
-  it('returns false for plain JSON bytes', () => {
-    expect(isGzipped(new TextEncoder().encode('{"events":[]}'))).toBe(false);
-  });
-
-  it('returns false for inputs shorter than 2 bytes', () => {
-    expect(isGzipped(new Uint8Array([]))).toBe(false);
-    expect(isGzipped(new Uint8Array([0x1f]))).toBe(false);
-  });
-});
+function decodeFile(bytes: Uint8Array): ExportFile {
+  return JSON.parse(TEXT_DECODER.decode(bytes)) as ExportFile;
+}
 
 // ---------------------------------------------------------------------------
 // buildExportFile
 // ---------------------------------------------------------------------------
 
 describe('buildExportFile', () => {
-  let store: InMemoryLocalStore;
+  it('produces an empty snapshot from an empty store', async () => {
+    const store = new InMemoryLocalStore();
 
-  beforeEach(() => {
-    store = new InMemoryLocalStore();
+    const payload = await buildExportFile({ store, time: fixedTime(1_700_000_000_000) });
+
+    expect(payload.categoryCount).toBe(0);
+    expect(payload.expenseCount).toBe(0);
+    const file = decodeFile(payload.bytes);
+    expect(file.version).toBe(EXPORT_FILE_VERSION);
+    expect(file.categories).toEqual([]);
+    expect(file.expenses).toEqual([]);
+    expect(file.exportedAt).toBe('2023-11-14T22:13:20.000Z');
   });
 
-  it('exports zero counts and a round-trippable empty file from an empty store', async () => {
-    // Given: An empty store
-    // When: Building the export
-    const payload = await buildExportFile(store);
+  it('exports categories sorted by sortOrder with the wire-format fields', async () => {
+    const env = buildEnv('seed');
+    await env.categories.seedDefaultsIfEmpty();
 
-    // Then: Counts are zero, but the bytes still decode to an empty file
-    expect(payload.eventCount).toBe(0);
-    expect(payload.categoryEventCount).toBe(0);
-    const decoded = decodeSyncFile(payload.bytes, false);
-    expect(decoded.events).toEqual([]);
-    expect(decoded.categoryEvents).toEqual([]);
+    const payload = await buildExportFile({ store: env.store, time: fixedTime(0) });
+    const file = decodeFile(payload.bytes);
+
+    expect(file.categories).toHaveLength(DEFAULT_CATEGORY_TEMPLATES.length);
+    // Sort order is preserved on the wire.
+    const sortOrders = file.categories.map((c) => c.sortOrder);
+    expect(sortOrders).toEqual([...sortOrders].sort((a, b) => a - b));
+    // Templated rows carry templateKey and a null `name`.
+    expect(file.categories[0]).toMatchObject({
+      name: null,
+      templateKey: DEFAULT_CATEGORY_TEMPLATES[0]!.templateKey,
+    });
   });
 
-  it('exports both committed and uncommitted events', async () => {
-    // Given: One uncommitted event and one already-committed event
-    await store.appendEvent(expenseEvent({ eventId: 'e-uncommitted', expenseId: 'x1', timestamp: 100 }));
-    await store.appendEvent(expenseEvent({ eventId: 'e-committed', expenseId: 'x2', timestamp: 200 }));
-    await store.markEventsCommitted(['e-committed']);
+  it('excludes soft-deleted categories but still resolves their label on existing expenses', async () => {
+    const env = buildEnv('rm');
+    const food = await env.categories.createCategory({ name: 'Food', icon: 'i', color: '#000' });
+    await env.expenseCommands.createExpense({
+      description: 'Bread',
+      amount: 250,
+      currency: 'EUR',
+      categoryId: food.id,
+      date: '2026-01-01T00:00:00Z',
+    });
+    await env.categories.deleteCategory(food.id);
 
-    // When
-    const payload = await buildExportFile(store);
+    const payload = await buildExportFile({ store: env.store, time: fixedTime(0) });
+    const file = decodeFile(payload.bytes);
 
-    // Then: Both events are included — export is the FULL history.
-    expect(payload.eventCount).toBe(2);
-    const decoded = decodeSyncFile(payload.bytes, false);
-    expect(decoded.events.map((e) => e.eventId).sort()).toEqual([
-      'e-committed',
-      'e-uncommitted',
-    ]);
+    expect(file.categories.find((c) => c.name === 'Food')).toBeUndefined();
+    // Expense still resolves to "Food" via the soft-deleted row.
+    expect(file.expenses).toHaveLength(1);
+    expect(file.expenses[0]?.category).toBe('Food');
   });
 
-  it('exports events sorted by timestamp ASC (deterministic order)', async () => {
-    // Given: Events appended out of order
-    await store.appendEvent(expenseEvent({ eventId: 'e-late', expenseId: 'x1', timestamp: 300 }));
-    await store.appendEvent(expenseEvent({ eventId: 'e-early', expenseId: 'x2', timestamp: 100 }));
-    await store.appendEvent(expenseEvent({ eventId: 'e-mid', expenseId: 'x3', timestamp: 200 }));
+  it('omits soft-deleted expenses from the snapshot', async () => {
+    const env = buildEnv('exp');
+    const cat = await env.categories.createCategory({ name: 'X', icon: 'i', color: '#000' });
+    await env.expenseCommands.createExpense({
+      description: 'Keep',
+      amount: 100,
+      currency: 'USD',
+      categoryId: cat.id,
+      date: '2026-01-01T00:00:00Z',
+    });
+    const drop = await env.expenseCommands.createExpense({
+      description: 'Drop',
+      amount: 200,
+      currency: 'USD',
+      categoryId: cat.id,
+      date: '2026-01-01T00:00:00Z',
+    });
+    await env.expenseCommands.deleteExpense(drop.id);
 
-    // When
-    const payload = await buildExportFile(store);
+    const payload = await buildExportFile({ store: env.store, time: fixedTime(0) });
+    const file = decodeFile(payload.bytes);
 
-    // Then
-    const decoded = decodeSyncFile(payload.bytes, false);
-    expect(decoded.events.map((e) => e.eventId)).toEqual(['e-early', 'e-mid', 'e-late']);
+    expect(file.expenses).toHaveLength(1);
+    expect(file.expenses[0]?.description).toBe('Keep');
+    expect(file.expenses[0]?.amountMinor).toBe(100);
   });
 
-  it('exports both expense and category event logs together', async () => {
-    await store.appendEvent(expenseEvent({ eventId: 'e1', expenseId: 'x1', timestamp: 100 }));
-    await store.appendCategoryEvent(categoryEvent({ eventId: 'ce1', categoryId: 'c1', timestamp: 50 }));
+  it('falls back to the template slug, then "Uncategorized" for expense labels', async () => {
+    const env = buildEnv('lbl');
+    await env.categories.seedDefaultsIfEmpty();
+    const foodId = defaultTemplateId('food');
+    await env.expenseCommands.createExpense({
+      description: 'Bread',
+      amount: 100,
+      currency: 'USD',
+      categoryId: foodId,
+      date: '2026-01-01T00:00:00Z',
+    });
+    // Expense with an unknown / removed category id.
+    await env.expenseCommands.createExpense({
+      description: 'Orphan',
+      amount: 999,
+      currency: 'USD',
+      categoryId: 'no-such-cat',
+      date: '2026-01-01T00:00:00Z',
+    });
 
-    const payload = await buildExportFile(store);
+    const payload = await buildExportFile({ store: env.store, time: fixedTime(0) });
+    const file = decodeFile(payload.bytes);
 
-    expect(payload.eventCount).toBe(1);
-    expect(payload.categoryEventCount).toBe(1);
-    const decoded = decodeSyncFile(payload.bytes, false);
-    expect(decoded.events[0]?.eventId).toBe('e1');
-    expect(decoded.categoryEvents[0]?.eventId).toBe('ce1');
+    const bread = file.expenses.find((e) => e.description === 'Bread');
+    const orphan = file.expenses.find((e) => e.description === 'Orphan');
+    expect(bread?.category).toBe('food'); // template slug, no user name yet
+    expect(orphan?.category).toBe('Uncategorized');
   });
 
-  it('parses event payloads back into objects (not JSON strings)', async () => {
-    // Given: An event whose stored payload is a JSON string
-    await store.appendEvent(expenseEvent({ eventId: 'e1', expenseId: 'x1', timestamp: 100 }));
+  it('produces pretty-printed JSON (matches the web export format)', async () => {
+    const store = new InMemoryLocalStore();
 
-    // When
-    const payload = await buildExportFile(store);
+    const payload = await buildExportFile({ store, time: fixedTime(0) });
+    const text = TEXT_DECODER.decode(payload.bytes);
 
-    // Then: The wire format carries the payload as an object, not a string
-    const decoded = decodeSyncFile(payload.bytes, false);
-    expect(typeof decoded.events[0]?.payload).toBe('object');
-    expect(decoded.events[0]?.payload.id).toBe('x1');
-    expect(decoded.events[0]?.payload.amount).toBe(1000);
-  });
-
-  it('produces uncompressed bytes (so users can inspect the file)', async () => {
-    await store.appendEvent(expenseEvent({ eventId: 'e1', expenseId: 'x1', timestamp: 100 }));
-
-    const payload = await buildExportFile(store);
-
-    expect(isGzipped(payload.bytes)).toBe(false);
-    // First byte must be '{' — readable JSON.
-    expect(payload.bytes[0]).toBe('{'.charCodeAt(0));
+    expect(text).toContain('\n  "version": 1');
   });
 });
 
 // ---------------------------------------------------------------------------
-// applyImportedBytes — restore-from-sync
+// applyImportedBytes
 // ---------------------------------------------------------------------------
 
 describe('applyImportedBytes', () => {
-  let store: InMemoryLocalStore;
+  let env: TestEnv;
 
   beforeEach(() => {
-    store = new InMemoryLocalStore();
+    env = buildEnv('imp');
   });
 
-  it('restores events from an exported file into an empty store', async () => {
-    // Given: A "source" store and an exported file
-    const source = new InMemoryLocalStore();
-    await source.appendEvent(expenseEvent({ eventId: 'e1', expenseId: 'x1', timestamp: 100 }));
-    await source.appendCategoryEvent(categoryEvent({ eventId: 'ce1', categoryId: 'c1', timestamp: 50 }));
-    const { bytes } = await buildExportFile(source);
+  function fileBytes(file: ExportFile): Uint8Array {
+    return TEXT_ENCODER.encode(JSON.stringify(file));
+  }
 
-    // When: Importing into a fresh store
-    const result = await applyImportedBytes(store, bytes);
+  function makeFile(overrides: Partial<ExportFile> = {}): ExportFile {
+    return {
+      version: EXPORT_FILE_VERSION,
+      exportedAt: '2026-01-01T00:00:00Z',
+      categories: [],
+      expenses: [],
+      ...overrides,
+    };
+  }
 
-    // Then: Both events are applied
-    expect(result.applied).toBe(2); // 1 expense + 1 category
-    expect(result.skipped).toBe(0);
-    expect(result.errors).toBe(0);
-    expect(await store.findProjectionById('x1')).toBeDefined();
-    expect(await store.findCategoryById('c1')).toBeDefined();
-  });
-
-  it('is idempotent — re-importing the same file is a no-op', async () => {
-    // Given: A file with one expense and one category event
-    const source = new InMemoryLocalStore();
-    await source.appendEvent(expenseEvent({ eventId: 'e1', expenseId: 'x1', timestamp: 100 }));
-    await source.appendCategoryEvent(categoryEvent({ eventId: 'ce1', categoryId: 'c1', timestamp: 50 }));
-    const { bytes } = await buildExportFile(source);
-
-    await applyImportedBytes(store, bytes);
-
-    // When: Re-importing
-    const second = await applyImportedBytes(store, bytes);
-
-    // Then: Every event is skipped via processed_events
-    expect(second.applied).toBe(0);
-    expect(second.skipped).toBe(2);
-    expect(second.errors).toBe(0);
-  });
-
-  it('round-trips: export from device A, restore into device B', async () => {
-    // Given: Device A has both expense and category history
-    const deviceA = new InMemoryLocalStore();
-    await deviceA.appendCategoryEvent(categoryEvent({ eventId: 'ce1', categoryId: 'cat-food', timestamp: 100 }));
-    await deviceA.appendEvent(expenseEvent({ eventId: 'e1', expenseId: 'exp-1', timestamp: 200 }));
-    await deviceA.appendEvent(expenseEvent({ eventId: 'e2', expenseId: 'exp-2', timestamp: 300 }));
-
-    // When: Export from A and import into B
-    const { bytes } = await buildExportFile(deviceA);
-    const result = await applyImportedBytes(store, bytes);
-
-    // Then: B's projections match the events restored from A
-    expect(result.applied).toBe(3);
-    expect(await store.findProjectionById('exp-1')).toBeDefined();
-    expect(await store.findProjectionById('exp-2')).toBeDefined();
-    expect(await store.findCategoryById('cat-food')).toBeDefined();
-  });
-
-  it('merges two devices via export → import', async () => {
-    // Given: Device A and Device B each have distinct events (appended +
-    // projected, mirroring what the command service does locally)
-    const deviceA = new InMemoryLocalStore();
-    await deviceA.appendEvent(expenseEvent({ eventId: 'eA', expenseId: 'xA', timestamp: 100 }));
-    await deviceA.projectFromEvent({
-      id: 'xA',
-      amount: 1000,
-      currency: 'USD',
-      updatedAt: 100,
-      deleted: false,
-    });
-
-    const deviceB = new InMemoryLocalStore();
-    await deviceB.appendEvent(expenseEvent({ eventId: 'eB', expenseId: 'xB', timestamp: 200 }));
-    await deviceB.projectFromEvent({
-      id: 'xB',
-      amount: 1000,
-      currency: 'USD',
-      updatedAt: 200,
-      deleted: false,
-    });
-
-    // When: Each device imports the other's export
-    const aBytes = (await buildExportFile(deviceA)).bytes;
-    const bBytes = (await buildExportFile(deviceB)).bytes;
-    await applyImportedBytes(deviceA, bBytes);
-    await applyImportedBytes(deviceB, aBytes);
-
-    // Then: Both devices end up with both expenses
-    expect((await deviceA.findActiveProjections()).map((p) => p.id).sort()).toEqual([
-      'xA',
-      'xB',
-    ]);
-    expect((await deviceB.findActiveProjections()).map((p) => p.id).sort()).toEqual([
-      'xA',
-      'xB',
-    ]);
-  });
-
-  it('auto-detects and decompresses a gzipped file', async () => {
-    // Given: A file encoded with gzip
-    const file: EventSyncFile = {
-      events: [
-        {
-          eventId: 'e1',
-          timestamp: 100,
-          eventType: 'CREATED',
-          expenseId: 'x1',
-          payload: {
-            id: 'x1',
-            amount: 1000,
-            currency: 'USD',
-            updatedAt: 100,
-            deleted: false,
+  it('imports a fresh snapshot — categories created, expenses created', async () => {
+    const bytes = fileBytes(
+      makeFile({
+        categories: [
+          { name: 'Groceries', icon: 'ShoppingCart', color: '#abc', sortOrder: 0, templateKey: null },
+        ],
+        expenses: [
+          {
+            date: '2026-02-01T10:00:00Z',
+            description: 'Bread',
+            amountMinor: 250,
+            currency: 'EUR',
+            category: 'Groceries',
           },
+        ],
+      }),
+    );
+
+    const summary = await applyImportedBytes(bytes, {
+      categoryService: env.categories,
+      expenseCommands: env.expenseCommands,
+    });
+
+    expect(summary.fatal).toBeUndefined();
+    expect(summary.categoriesCreated).toBe(1);
+    expect(summary.expensesCreated).toBe(1);
+    expect(summary.skipped).toBe(0);
+    expect(summary.errors).toEqual([]);
+    const all = await env.categories.findAllCategories();
+    expect(all.map((c) => c.name)).toContain('Groceries');
+    const expenses = await env.store.findActiveProjections();
+    expect(expenses).toHaveLength(1);
+    expect(expenses[0]?.description).toBe('Bread');
+    expect(expenses[0]?.amount).toBe(250);
+    expect(expenses[0]?.currency).toBe('EUR');
+  });
+
+  it('matches templated categories by templateKey (no duplicate created)', async () => {
+    // Mobile has seeded the default templates; the file refers to "food"
+    // by templateKey + null name (the web frontend's emitted shape).
+    await env.categories.seedDefaultsIfEmpty();
+    const beforeCount = (await env.categories.findAllCategories()).length;
+
+    const bytes = fileBytes(
+      makeFile({
+        categories: [
+          { name: null, icon: 'ShoppingCart', color: '#5b8def', sortOrder: 9, templateKey: 'food' },
+        ],
+        expenses: [
+          {
+            date: '2026-02-01T00:00:00Z',
+            description: 'Bread',
+            amountMinor: 100,
+            currency: 'USD',
+            category: 'food',
+          },
+        ],
+      }),
+    );
+
+    const summary = await applyImportedBytes(bytes, {
+      categoryService: env.categories,
+      expenseCommands: env.expenseCommands,
+    });
+
+    expect(summary.categoriesCreated).toBe(0); // matched by templateKey, not created
+    expect(summary.expensesCreated).toBe(1);
+    const after = await env.categories.findAllCategories();
+    expect(after).toHaveLength(beforeCount);
+    // Expense was assigned to the existing seed row.
+    const expenses = await env.store.findActiveProjections();
+    expect(expenses[0]?.categoryId).toBe(defaultTemplateId('food'));
+  });
+
+  it('matches custom categories by case-insensitive name (no duplicate created)', async () => {
+    await env.categories.createCategory({ name: 'Groceries', icon: 'i', color: '#000' });
+
+    const bytes = fileBytes(
+      makeFile({
+        categories: [
+          { name: 'groceries', icon: 'X', color: '#fff', sortOrder: 0, templateKey: null },
+        ],
+      }),
+    );
+
+    const summary = await applyImportedBytes(bytes, {
+      categoryService: env.categories,
+      expenseCommands: env.expenseCommands,
+    });
+
+    expect(summary.categoriesCreated).toBe(0);
+    expect(summary.skipped).toBe(0);
+    const all = (await env.categories.findAllCategories()).filter((c) => !c.deleted);
+    expect(all.filter((c) => c.name?.toLowerCase() === 'groceries')).toHaveLength(1);
+  });
+
+  it('auto-creates a fresh category when an expense references an unknown label', async () => {
+    const bytes = fileBytes(
+      makeFile({
+        expenses: [
+          {
+            date: '2026-02-01T00:00:00Z',
+            description: 'Mystery',
+            amountMinor: 100,
+            currency: 'USD',
+            category: 'NewCat',
+          },
+        ],
+      }),
+    );
+
+    const summary = await applyImportedBytes(bytes, {
+      categoryService: env.categories,
+      expenseCommands: env.expenseCommands,
+    });
+
+    expect(summary.fatal).toBeUndefined();
+    expect(summary.categoriesCreated).toBe(1); // auto-created via resolver
+    expect(summary.expensesCreated).toBe(1);
+    const created = (await env.categories.findAllCategories()).find((c) => c.name === 'NewCat');
+    expect(created).toBeDefined();
+    const expenses = await env.store.findActiveProjections();
+    expect(expenses[0]?.categoryId).toBe(created?.id);
+  });
+
+  it('re-importing the same snapshot duplicates expenses but not categories', async () => {
+    const bytes = fileBytes(
+      makeFile({
+        categories: [
+          { name: 'X', icon: 'i', color: '#000', sortOrder: 0, templateKey: null },
+        ],
+        expenses: [
+          {
+            date: '2026-02-01T00:00:00Z',
+            description: 'A',
+            amountMinor: 100,
+            currency: 'USD',
+            category: 'X',
+          },
+        ],
+      }),
+    );
+
+    await applyImportedBytes(bytes, {
+      categoryService: env.categories,
+      expenseCommands: env.expenseCommands,
+    });
+    const second = await applyImportedBytes(bytes, {
+      categoryService: env.categories,
+      expenseCommands: env.expenseCommands,
+    });
+
+    // Category matched by name on the second pass.
+    expect(second.categoriesCreated).toBe(0);
+    expect(second.expensesCreated).toBe(1);
+    const expenses = await env.store.findActiveProjections();
+    expect(expenses).toHaveLength(2); // duplicates by design
+  });
+
+  it('skips templated categories whose template is unknown locally', async () => {
+    // No seed; the file references an unknown template slug.
+    const bytes = fileBytes(
+      makeFile({
+        categories: [
+          { name: null, icon: 'i', color: '#000', sortOrder: 0, templateKey: 'unknown-template' },
+        ],
+      }),
+    );
+
+    const summary = await applyImportedBytes(bytes, {
+      categoryService: env.categories,
+      expenseCommands: env.expenseCommands,
+    });
+
+    expect(summary.fatal).toBeUndefined();
+    expect(summary.categoriesCreated).toBe(0);
+    expect(summary.skipped).toBe(1);
+    expect(summary.errors).toEqual([]);
+  });
+
+  it('round-trips: export from one device, import into another', async () => {
+    // Source device — seeded + one custom category + two expenses.
+    const source = buildEnv('src');
+    await source.categories.seedDefaultsIfEmpty();
+    const custom = await source.categories.createCategory({
+      name: 'Квартира',
+      icon: 'Home',
+      color: '#abc',
+    });
+    await source.expenseCommands.createExpense({
+      description: 'Хліб',
+      amount: 5000,
+      currency: 'UAH',
+      categoryId: defaultTemplateId('food'),
+      date: '2026-03-01T00:00:00Z',
+    });
+    await source.expenseCommands.createExpense({
+      description: 'Електрика',
+      amount: 120000,
+      currency: 'UAH',
+      categoryId: custom.id,
+      date: '2026-03-02T00:00:00Z',
+    });
+
+    const exported = await buildExportFile({ store: source.store, time: fixedTime(0) });
+
+    // Target device — also seeded (so templates align).
+    await env.categories.seedDefaultsIfEmpty();
+    const summary = await applyImportedBytes(exported.bytes, {
+      categoryService: env.categories,
+      expenseCommands: env.expenseCommands,
+    });
+
+    expect(summary.fatal).toBeUndefined();
+    expect(summary.errors).toEqual([]);
+    expect(summary.categoriesCreated).toBe(1); // only the custom one
+    expect(summary.expensesCreated).toBe(2);
+    const expenses = await env.store.findActiveProjections();
+    expect(expenses.map((e) => e.description).sort()).toEqual(['Електрика', 'Хліб']);
+    const foodExpense = expenses.find((e) => e.description === 'Хліб');
+    expect(foodExpense?.categoryId).toBe(defaultTemplateId('food'));
+  });
+
+  it('imports a web-frontend snapshot byte-for-byte', async () => {
+    // Subset of a real `expenses-tracker-export-*.json` from the web app.
+    const webExport: ExportFile = {
+      version: 1,
+      exportedAt: '2026-05-14T22:51:48.428Z',
+      categories: [
+        { name: null, icon: 'ShoppingCart', color: '#5b8def', sortOrder: 9, templateKey: 'food' },
+        { name: null, icon: 'DirectionsCar', color: '#616161', sortOrder: 1, templateKey: 'car' },
+        { name: 'Квартира НА', icon: 'Home', color: '#c8e6c9', sortOrder: 23, templateKey: null },
+      ],
+      expenses: [
+        {
+          date: '2025-02-06T16:39:20.000Z',
+          description: 'Кауфланд і пенні',
+          amountMinor: 175000,
+          currency: 'CZK',
+          category: 'food',
+        },
+        {
+          date: '2025-02-08T15:39:35.000Z',
+          description: 'Газ і 40л бензину',
+          amountMinor: 230200,
+          currency: 'CZK',
+          category: 'car',
         },
       ],
-      categoryEvents: [],
     };
-    const gzipped = encodeSyncFile(file, true);
-    expect(isGzipped(gzipped)).toBe(true);
+    await env.categories.seedDefaultsIfEmpty();
 
-    // When
-    const result = await applyImportedBytes(store, gzipped);
+    const summary = await applyImportedBytes(fileBytes(webExport), {
+      categoryService: env.categories,
+      expenseCommands: env.expenseCommands,
+    });
 
-    // Then: Decoded transparently — caller never had to pick the format
-    expect(result.applied).toBe(1);
-    expect(await store.findProjectionById('x1')).toBeDefined();
+    expect(summary.fatal).toBeUndefined();
+    expect(summary.errors).toEqual([]);
+    expect(summary.expensesCreated).toBe(2);
+    // Templated rows from the web didn't duplicate; the custom row was created.
+    expect(summary.categoriesCreated).toBe(1);
+    const expenses = await env.store.findActiveProjections();
+    expect(expenses.map((e) => e.description).sort()).toEqual([
+      'Газ і 40л бензину',
+      'Кауфланд і пенні',
+    ]);
+    // Templated expenses resolved to the seeded default rows.
+    expect(expenses.find((e) => e.description === 'Кауфланд і пенні')?.categoryId).toBe(
+      defaultTemplateId('food'),
+    );
   });
 
-  it('propagates DELETED events on restore (soft-deleted on the target)', async () => {
-    // Given: Source has an expense with both a CREATED and a later DELETED event
-    const source = new InMemoryLocalStore();
-    await source.appendEvent({
-      eventId: 'e-create',
-      timestamp: 100,
-      eventType: 'CREATED',
-      expenseId: 'x1',
-      payload: JSON.stringify({
-        id: 'x1',
-        amount: 1000,
-        currency: 'USD',
-        updatedAt: 100,
-        deleted: false,
+  it('reports malformed JSON as a fatal error', async () => {
+    const summary = await applyImportedBytes(TEXT_ENCODER.encode('not json'), {
+      categoryService: env.categories,
+      expenseCommands: env.expenseCommands,
+    });
+
+    expect(summary.fatal).toMatch(/Malformed JSON/);
+    expect(summary.categoriesCreated).toBe(0);
+    expect(summary.expensesCreated).toBe(0);
+  });
+
+  it('reports an unsupported version as a fatal error', async () => {
+    const bytes = TEXT_ENCODER.encode(
+      JSON.stringify({ version: 99, exportedAt: '', categories: [], expenses: [] }),
+    );
+
+    const summary = await applyImportedBytes(bytes, {
+      categoryService: env.categories,
+      expenseCommands: env.expenseCommands,
+    });
+
+    expect(summary.fatal).toMatch(/Unsupported export version/);
+  });
+
+  it('reports a missing categories / expenses array as a fatal error', async () => {
+    const bytes = TEXT_ENCODER.encode(
+      JSON.stringify({ version: 1, exportedAt: '', categories: [] }), // expenses missing
+    );
+
+    const summary = await applyImportedBytes(bytes, {
+      categoryService: env.categories,
+      expenseCommands: env.expenseCommands,
+    });
+
+    expect(summary.fatal).toMatch(/missing categories or expenses/);
+  });
+
+  it('does not abort the import when a single row fails', async () => {
+    // Stub createExpense so the second call throws.
+    let calls = 0;
+    const original = env.expenseCommands.createExpense.bind(env.expenseCommands);
+    env.expenseCommands.createExpense = async (cmd) => {
+      calls++;
+      if (calls === 2) throw new Error('boom');
+      return original(cmd);
+    };
+    const bytes = fileBytes(
+      makeFile({
+        categories: [
+          { name: 'X', icon: 'i', color: '#000', sortOrder: 0, templateKey: null },
+        ],
+        expenses: [
+          {
+            date: '2026-01-01T00:00:00Z',
+            description: 'ok-1',
+            amountMinor: 100,
+            currency: 'USD',
+            category: 'X',
+          },
+          {
+            date: '2026-01-01T00:00:00Z',
+            description: 'bad',
+            amountMinor: 200,
+            currency: 'USD',
+            category: 'X',
+          },
+          {
+            date: '2026-01-01T00:00:00Z',
+            description: 'ok-2',
+            amountMinor: 300,
+            currency: 'USD',
+            category: 'X',
+          },
+        ],
       }),
-      committed: false,
-    });
-    await source.appendEvent({
-      eventId: 'e-delete',
-      timestamp: 200,
-      eventType: 'DELETED',
-      expenseId: 'x1',
-      payload: JSON.stringify({
-        id: 'x1',
-        amount: 1000,
-        currency: 'USD',
-        updatedAt: 200,
-        deleted: true,
-      }),
-      committed: false,
-    });
-    const { bytes } = await buildExportFile(source);
-
-    // When
-    await applyImportedBytes(store, bytes);
-
-    // Then: Row exists but is soft-deleted; not visible to active queries.
-    const row = await store.findProjectionById('x1');
-    expect(row?.deleted).toBe(true);
-    expect(await store.findActiveProjections()).toHaveLength(0);
-  });
-
-  it('applies categories before expenses (so referencing rows project cleanly)', async () => {
-    // Given: A file whose category event is sorted AFTER the expense by id.
-    // The applier still has to process categories first.
-    const source = new InMemoryLocalStore();
-    await source.appendEvent(
-      expenseEvent({ eventId: 'a-expense', expenseId: 'x1', timestamp: 200 }),
     );
-    await source.appendCategoryEvent(
-      categoryEvent({ eventId: 'z-category', categoryId: 'c-late', timestamp: 100 }),
-    );
-    const { bytes } = await buildExportFile(source);
 
-    // Track invocation order on the target store.
-    const order: string[] = [];
-    const origCat = store.projectCategoryFromEvent.bind(store);
-    store.projectCategoryFromEvent = async (c) => {
-      order.push('category');
-      return origCat(c);
-    };
-    const origExp = store.projectFromEvent.bind(store);
-    store.projectFromEvent = async (p) => {
-      order.push('expense');
-      return origExp(p);
-    };
+    const summary = await applyImportedBytes(bytes, {
+      categoryService: env.categories,
+      expenseCommands: env.expenseCommands,
+    });
 
-    // When
-    await applyImportedBytes(store, bytes);
-
-    // Then: All category projections happen before any expense projection
-    const firstExpenseIdx = order.indexOf('expense');
-    const lastCategoryIdx = order.lastIndexOf('category');
-    expect(firstExpenseIdx).toBeGreaterThan(lastCategoryIdx);
+    expect(summary.expensesCreated).toBe(2);
+    expect(summary.skipped).toBe(1);
+    expect(summary.errors).toHaveLength(1);
+    expect(summary.errors[0]).toMatchObject({ kind: 'expense', label: 'bad', message: 'boom' });
+    const expenses = await env.store.findActiveProjections();
+    expect(expenses.map((e) => e.description).sort()).toEqual(['ok-1', 'ok-2']);
   });
 
-  it('imports an empty exported file as a no-op', async () => {
-    const source = new InMemoryLocalStore();
-    const { bytes } = await buildExportFile(source);
-
-    const result = await applyImportedBytes(store, bytes);
-
-    expect(result).toEqual({ applied: 0, skipped: 0, errors: 0 });
-  });
-
-  it('isolates per-event failures — one bad event does not abort the restore', async () => {
-    // Given: Two valid + one event whose projection-write will throw
-    const source = new InMemoryLocalStore();
-    await source.appendEvent(expenseEvent({ eventId: 'e-ok-1', expenseId: 'good-1', timestamp: 100 }));
-    await source.appendEvent(expenseEvent({ eventId: 'e-bad', expenseId: 'fail', timestamp: 200 }));
-    await source.appendEvent(expenseEvent({ eventId: 'e-ok-2', expenseId: 'good-2', timestamp: 300 }));
-    const { bytes } = await buildExportFile(source);
-
-    // Stub the target store so any expense with id 'fail' throws on project.
-    const original = store.projectFromEvent.bind(store);
-    store.projectFromEvent = async (p) => {
-      if (p.id === 'fail') throw new Error('boom');
-      return original(p);
-    };
-
-    // When
-    const result = await applyImportedBytes(store, bytes);
-
-    // Then: Two applied, one errored — the good events are still in.
-    expect(result.applied).toBe(2);
-    expect(result.errors).toBe(1);
-    expect(await store.findProjectionById('good-1')).toBeDefined();
-    expect(await store.findProjectionById('good-2')).toBeDefined();
-    expect(await store.findProjectionById('fail')).toBeUndefined();
-  });
-
-  it('records imported events in the idempotency registry', async () => {
-    const source = new InMemoryLocalStore();
-    await source.appendEvent(expenseEvent({ eventId: 'e1', expenseId: 'x1', timestamp: 100 }));
-    await source.appendCategoryEvent(categoryEvent({ eventId: 'ce1', categoryId: 'c1', timestamp: 50 }));
-    const { bytes } = await buildExportFile(source);
-
-    await applyImportedBytes(store, bytes);
-
-    expect(await store.isEventProcessed('e1')).toBe(true);
-    expect(await store.isEventProcessed('ce1')).toBe(true);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Default-template seed sync — regression coverage
-// ---------------------------------------------------------------------------
-//
-// Two fresh devices both seed the same set of default category templates
-// on first launch. They each emit their own `CREATED` event for, say,
-// the `food` template. When device A exports and device B imports (or
-// vice-versa), the incoming `CREATED` events must converge onto B's
-// existing seed rows. The seed ids are derived deterministically from
-// `template_key` (see `defaultTemplateId`) for exactly that reason —
-// random per-device UUIDs would create id collisions on the unique
-// `template_key` index.
-
-describe('default-template seed sync (two-device regression)', () => {
-  /**
-   * Seed the default templates on a fresh `InMemoryLocalStore` using the
-   * real `categoryService`. `timeStart` controls the LWW timestamp so the
-   * two devices can be ordered against each other in tests.
-   */
-  async function seedDefaultsOn(timeStart: number): Promise<InMemoryLocalStore> {
-    const store = new InMemoryLocalStore();
-    const count = DEFAULT_CATEGORY_TEMPLATES.length;
-    // Each template consumes one id (the eventId) and two timestamp ticks
-    // (buildPayload `updatedAt`, then `appendCategoryEventInTx` timestamp).
-    const ids = Array.from({ length: count }, (_, i) => `evt-${timeStart}-${i}`);
-    const times = Array.from({ length: count * 2 }, (_, i) => timeStart + i);
-    const service = createCategoryService({
-      store,
-      time: sequenceTime(times),
-      ids: sequenceIds(ids),
-    });
-    const seeded = await service.seedDefaultsIfEmpty();
-    expect(seeded).toBe(count);
-    return store;
-  }
-
-  it('does not raise UNIQUE constraint failures when two devices import each other', async () => {
-    // Given: Two devices that both seeded the default templates locally
-    const deviceA = await seedDefaultsOn(1_000);
-    const deviceB = await seedDefaultsOn(5_000);
-
-    // And: Their seed rows share template ids derived from `template_key`
-    const aFood = (await deviceA.findAllCategories()).find(
-      (c) => c.templateKey === 'food',
-    );
-    const bFood = (await deviceB.findAllCategories()).find(
-      (c) => c.templateKey === 'food',
-    );
-    expect(aFood?.id).toBeDefined();
-    expect(aFood?.id).toBe(bFood?.id);
-
-    // When: Each device imports the other's export
-    const { bytes: aBytes } = await buildExportFile(deviceA);
-    const { bytes: bBytes } = await buildExportFile(deviceB);
-    const aResult = await applyImportedBytes(deviceA, bBytes);
-    const bResult = await applyImportedBytes(deviceB, aBytes);
-
-    // Then: Every event applies cleanly — no constraint violations
-    expect(aResult.errors).toBe(0);
-    expect(bResult.errors).toBe(0);
-
-    // And: Both devices still have exactly one row per template
-    const aCount = (await deviceA.findAllCategories()).filter(
-      (c) => c.templateKey !== undefined,
-    ).length;
-    const bCount = (await deviceB.findAllCategories()).filter(
-      (c) => c.templateKey !== undefined,
-    ).length;
-    expect(aCount).toBe(DEFAULT_CATEGORY_TEMPLATES.length);
-    expect(bCount).toBe(DEFAULT_CATEGORY_TEMPLATES.length);
-  });
-
-  it('keeps the newer LWW version when devices disagree on template metadata', async () => {
-    // Given: Device A seeded first; device B seeded later (newer updatedAt)
-    const deviceA = await seedDefaultsOn(1_000);
-    const deviceB = await seedDefaultsOn(5_000);
-
-    // When: A imports B's events (B is strictly newer)
-    const { bytes } = await buildExportFile(deviceB);
-    const result = await applyImportedBytes(deviceA, bytes);
-
-    // Then: All events are recorded (no errors), and A's rows reflect B's
-    // newer `updated_at` thanks to last-write-wins.
-    expect(result.errors).toBe(0);
-    const aFood = (await deviceA.findAllCategories()).find(
-      (c) => c.templateKey === 'food',
-    );
-    const bFood = (await deviceB.findAllCategories()).find(
-      (c) => c.templateKey === 'food',
-    );
-    expect(aFood?.updatedAt).toBe(bFood?.updatedAt);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// User scenario — rename a default category on a fresh device, then sync
-// ---------------------------------------------------------------------------
-//
-// Reproduces the end-to-end flow:
-//   1. Device A is wiped, boots, seeds defaults, creates three expenses
-//      against `food`, then syncs.
-//   2. Device B is wiped, boots, seeds defaults, renames `food` to
-//      "Groceries" with a new icon, and creates one expense against
-//      `food`.
-//   3. Devices sync: B sees A's three expenses (under the renamed
-//      category), A sees the rename and B's new expense.
-//
-// Without deterministic template ids, A's `food` row and B's `food` row
-// would carry different UUIDs — A's expenses would land orphaned and the
-// shared seed CREATED events would hit UNIQUE(`template_key`).
-
-describe('user scenario — rename + sync converges to the same view on both devices', () => {
-  /**
-   * Monotonically-incrementing time provider. Each `nowMs()` returns the
-   * next integer starting at `start`. Used to build realistic event
-   * timestamps without hand-counting ticks.
-   */
-  function monotonicTime(start: number): TimeProvider {
-    let t = start;
-    return { nowMs: () => t++ };
-  }
-
-  /** Generates `${prefix}-0`, `${prefix}-1`, ... ids on demand. */
-  function sequentialIds(prefix: string): IdGenerator {
-    let n = 0;
-    return { newUuid: () => `${prefix}-${n++}` };
-  }
-
-  it('renamed category and synced expenses converge on both devices', async () => {
-    const foodId = defaultTemplateId('food');
-
-    // --- Device A: seed defaults + create three `food` expenses --------
-    const deviceA = new InMemoryLocalStore();
-    const categoriesA = createCategoryService({
-      store: deviceA,
-      time: monotonicTime(1_000_000),
-      ids: sequentialIds('A-cat'),
-    });
-    const expensesA = createExpenseCommandService({
-      store: deviceA,
-      time: monotonicTime(1_500_000),
-      ids: sequentialIds('A-exp'),
-    });
-    await categoriesA.seedDefaultsIfEmpty();
-    await expensesA.createExpense({
-      description: 'Coffee',
-      amount: 350,
-      currency: 'USD',
-      categoryId: foodId,
-      date: '2026-05-13',
-    });
-    await expensesA.createExpense({
-      description: 'Lunch',
-      amount: 1200,
-      currency: 'USD',
-      categoryId: foodId,
-      date: '2026-05-13',
-    });
-    await expensesA.createExpense({
-      description: 'Snacks',
-      amount: 450,
-      currency: 'USD',
-      categoryId: foodId,
-      date: '2026-05-13',
-    });
-
-    // --- Device B: seed defaults + rename `food` + new expense ---------
-    // B's clock is strictly after A's so B's rename is the newest event.
-    const deviceB = new InMemoryLocalStore();
-    const categoriesB = createCategoryService({
-      store: deviceB,
-      time: monotonicTime(3_000_000),
-      ids: sequentialIds('B-cat'),
-    });
-    const expensesB = createExpenseCommandService({
-      store: deviceB,
-      time: monotonicTime(3_500_000),
-      ids: sequentialIds('B-exp'),
-    });
-    await categoriesB.seedDefaultsIfEmpty();
-    const renamed = await categoriesB.updateCategory(foodId, {
-      name: 'Groceries',
-      icon: 'ShoppingBasket',
-      color: '#4caf50',
-    });
-    expect(renamed?.name).toBe('Groceries');
-    await expensesB.createExpense({
-      description: 'Farmers market',
-      amount: 2200,
-      currency: 'USD',
-      categoryId: foodId,
-      date: '2026-05-14',
-    });
-
-    // --- Sync: A → B then B → A (full convergence) --------------------
-    const aBytes = (await buildExportFile(deviceA)).bytes;
-    const bBytes = (await buildExportFile(deviceB)).bytes;
-    const aIntoB = await applyImportedBytes(deviceB, aBytes);
-    const bIntoA = await applyImportedBytes(deviceA, bBytes);
-    expect(aIntoB.errors).toBe(0);
-    expect(bIntoA.errors).toBe(0);
-
-    // --- Then: Both devices show the rename + all four expenses -------
-    for (const [label, device] of [
-      ['A', deviceA],
-      ['B', deviceB],
-    ] as const) {
-      const food = await device.findCategoryById(foodId);
-      expect(food, `${label}.food row`).toBeDefined();
-      expect(food?.name, `${label}.food.name`).toBe('Groceries');
-      expect(food?.icon, `${label}.food.icon`).toBe('ShoppingBasket');
-      expect(food?.deleted, `${label}.food.deleted`).toBe(false);
-
-      const projections = await device.findActiveProjections();
-      expect(projections, `${label}.activeProjections`).toHaveLength(4);
-      expect(
-        projections.every((p) => p.categoryId === foodId),
-        `${label}.allReferenceFood`,
-      ).toBe(true);
-
-      const descriptions = projections.map((p) => p.description).sort();
-      expect(descriptions, `${label}.descriptions`).toEqual([
-        'Coffee',
-        'Farmers market',
-        'Lunch',
-        'Snacks',
-      ]);
-    }
-
-    // --- And: The full default catalog is present on both -------------
-    const expectedTemplateCount = DEFAULT_CATEGORY_TEMPLATES.length;
-    for (const [label, device] of [
-      ['A', deviceA],
-      ['B', deviceB],
-    ] as const) {
-      const templateRows = (await device.findAllCategories()).filter(
-        (c) => c.templateKey !== undefined && !c.deleted,
-      );
-      expect(templateRows, `${label}.templateCount`).toHaveLength(
-        expectedTemplateCount,
-      );
-    }
+  // Pin the deterministic test fixtures stay reachable through their
+  // imports even after refactors — the rest of the test files in this
+  // repo rely on them and any rename should fail loudly here too.
+  it('reuses the deterministic test fixtures', () => {
+    expect(sequenceTime).toBeTypeOf('function');
+    expect(sequenceIds).toBeTypeOf('function');
   });
 });
