@@ -5,6 +5,9 @@
  *   - When `ifMatch` is set and disagrees with the current etag, the
  *     adapter throws `ConcurrencyError` (mirrors Drive REST `412
  *     Precondition Failed` and Graph's `If-Match` semantics).
+ *   - When `download({ ifNoneMatch })` is called with an etag that
+ *     matches the current one, returns `{ kind: 'not-modified', etag }`
+ *     without transferring bytes — mirrors a 304 response.
  *
  * The adapter is intentionally simplified — no auth flow, no network — so
  * `SyncEngine` tests can focus on orchestration logic.
@@ -13,7 +16,7 @@ import {
   AuthError,
   ConcurrencyError,
   type CloudDriveAdapter,
-  type DownloadResult,
+  type DownloadOutcome,
   type UploadResult,
 } from '../sync/cloudDriveAdapter';
 
@@ -26,6 +29,8 @@ export class InMemoryCloudDriveAdapter implements CloudDriveAdapter {
   public uploadCount = 0;
   /** Number of downloads performed — useful for assertions. */
   public downloadCount = 0;
+  /** Number of downloads that returned `not-modified` (saved bandwidth). */
+  public notModifiedCount = 0;
 
   async isSignedIn(): Promise<boolean> {
     return this.signedIn;
@@ -39,11 +44,15 @@ export class InMemoryCloudDriveAdapter implements CloudDriveAdapter {
     this.signedIn = false;
   }
 
-  async download(): Promise<DownloadResult | null> {
+  async download(opts?: { ifNoneMatch?: string }): Promise<DownloadOutcome> {
     if (!this.signedIn) throw new AuthError('not signed in');
     this.downloadCount += 1;
-    if (this.bytes === null || this.etag === null) return null;
-    return { bytes: this.bytes, etag: this.etag };
+    if (this.bytes === null || this.etag === null) return { kind: 'absent' };
+    if (opts?.ifNoneMatch !== undefined && opts.ifNoneMatch === this.etag) {
+      this.notModifiedCount += 1;
+      return { kind: 'not-modified', etag: this.etag };
+    }
+    return { kind: 'modified', bytes: this.bytes, etag: this.etag };
   }
 
   async upload(bytes: Uint8Array, ifMatch?: string): Promise<UploadResult> {

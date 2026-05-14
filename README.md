@@ -1081,15 +1081,22 @@ porting algorithmic changes between the two implementations a 1:1 mechanical tra
 
 ```
 SyncEngine.performFullSync()
-  1. adapter.getMetadata()      — etag/checksum-based skip
-  2. adapter.download()         → SyncFileCodec.decode → events[]
-        for each event:
-          RemoteEventApplier.apply (processed_events idempotency + projection)
-  3. LocalStore.findUncommittedEvents
+  1. adapter.download({ ifNoneMatch: cachedEtag })
+        kind = 'not-modified' → cache hit, skip remote-event processing
+        kind = 'absent'       → first sync, no remote file yet
+        kind = 'modified'     → SyncFileCodec.decode → events[]
+             for each event:
+                RemoteEventApplier.apply (processed_events idempotency + projection)
+  2. LocalStore.findUncommittedEvents
         → SyncFileCodec.encode  → adapter.upload(if-match: etag)
-  4. cache new etag for next cycle
-  5. on 412 Precondition Failed → retry (max 3) — concurrent writer detected
+  3. cache new etag for next cycle (and persist it across cold starts — see below)
+  4. on 412 Precondition Failed → retry (max 3) — concurrent writer detected
 ```
+
+> **Note:** the engine never calls a separate `getMetadata()` probe before `download()`. The adapter folds
+> the eTag check into the same request (Google Drive: HTTP `If-None-Match`; OneDrive: a single metadata
+> round-trip whose response includes the eTag, so a cache hit never touches `/content`). This keeps the
+> idle-sync round-trip count to one.
 
 **Concurrency:** the mobile sync engine uses **optimistic eTag** concurrency. Both Drive REST and Microsoft
 Graph return an eTag on the file resource; the engine forwards it as `If-Match` on upload. A `412 Precondition
@@ -1102,6 +1109,75 @@ can be superseded by a newer non-deleted update (resurrection).
 
 **Sort order:** identical — `(timestamp ASC, eventId ASC)` so all devices replay events in the same
 deterministic order.
+
+#### Automatic Sync Triggers, Throttling, and Bandwidth
+
+The mobile module fires sync automatically — components and hooks **never call `engine.performFullSync()`
+directly**. Every trigger goes through a single `AutoSyncCoordinator` (`src/sync/autoSyncCoordinator.ts`)
+that enforces an in-flight guard (one sync at a time) and a 30-second minimum gap between auto-syncs. The
+manual "Sync now" button passes `{ force: true }` to bypass the throttle.
+
+**Trigger sources:**
+
+| Trigger           | Fires when                                                  | Coordinator call                          |
+|-------------------|-------------------------------------------------------------|-------------------------------------------|
+| Cold start        | `signedIn && autoSyncEnabled` becomes `true` on mount       | `requestSync('cold-start')`               |
+| Foreground        | `AppState` transitions `background\|inactive → active`      | `requestSync('app-active')`               |
+| After local write | Mutation hooks call `notifyLocalWrite()` on success         | `notifyLocalWrite()` (debounced)          |
+| App backgrounded  | `AppState` transitions `active → background\|inactive`      | `flush('background-flush')`               |
+| Net reconnect     | NetInfo reports offline → online                            | `requestSync('net-reconnect')`            |
+| Manual button     | "Sync now" in `SyncCloudDialog`                             | `requestSync('manual', { force: true })`  |
+
+The user controls auto-sync via a toggle in `SyncCloudDialog` (persisted under
+`expenses-tracker-sync-auto-enabled`, default on). When it's off, every row above except the manual button
+is silenced and any pending after-write debounce is cancelled.
+
+After-write debounce constants (in `autoSyncCoordinator.ts`):
+
+- `QUIET_DEBOUNCE_MS = 15_000` — 15 s of quiet collapses a burst of edits into one upload.
+- `CEILING_MS = 60_000` — a continuous edit stream still uploads at least once a minute.
+- `MIN_AUTO_INTERVAL_MS = 30_000` — hard floor between two consecutive auto-syncs.
+
+NetInfo is **soft-imported**: if `@react-native-community/netinfo` is not installed, the net-reconnect
+trigger silently no-ops and the other four still work.
+
+**Conditional download (`If-None-Match` → 304):**
+
+Auto-sync triggers fire frequently — cold start, foreground return, and net reconnect can all hit within
+seconds of app launch. To keep the network footprint small, the engine **never blindly downloads** the sync
+file. `CloudDriveAdapter.download(opts?)` returns a discriminated union:
+
+```ts
+type DownloadOutcome =
+  | { kind: 'modified';     bytes: Uint8Array; etag: string }
+  | { kind: 'not-modified'; etag: string }   // bandwidth saver — no body
+  | { kind: 'absent' };                       // first sync, file missing
+```
+
+When nothing local is pending and a cached eTag exists, the engine calls
+`download({ ifNoneMatch: cachedEtag })`. Google Drive sends HTTP `If-None-Match` and the server returns
+`304 Not Modified`; OneDrive compares the eTag during the metadata round-trip it already needs for the item
+id, and a cache hit never touches `/content`. When local writes are pending the engine downloads
+unconditionally, because it needs the bytes for the merge step anyway. In-memory test adapters expose a
+`notModifiedCount` counter so engine tests can assert the short-circuit fires.
+
+**Persisted eTag across cold starts:**
+
+The cached eTag survives process restart. `SyncProvider` hydrates the per-provider key
+`expenses-tracker-sync-etag:<provider>` from `AsyncStorage` and seeds the engine via
+`SyncEngineDeps.initialEtag`. The engine reports updates back through `onEtagChange`, which writes
+fire-and-forget to `AsyncStorage` — it deliberately **does not** update React state, since a state update on
+every sync would rebuild the engine `useMemo` and reset the coordinator's 30-second throttle. On sign-out
+the persisted entry is cleared, so a subsequent sign-in to a different account on the same provider never
+reuses the previous account's validator. The engine also reports `undefined` whenever it invalidates the
+cache (concurrency conflict, remote file disappeared), so the persisted copy is dropped at the same moment.
+
+The first sync after install still does one unconditional download — there is nothing to revalidate
+against. Every subsequent cold start should short-circuit at 304.
+
+> See [`.github/instructions/expenses-tracker-mobile.instructions.md`](.github/instructions/expenses-tracker-mobile.instructions.md)
+> for the canonical version of these tables, the full wiring (`syncProvider.tsx` / `useAutoSync.ts` /
+> `autoSyncSignal.ts`), and the rationale behind each design choice.
 
 ### Component Architecture
 

@@ -16,7 +16,7 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { Dialog, Divider, List, Text, useTheme } from 'react-native-paper';
+import { Dialog, Divider, IconButton, List, Switch, Text, useTheme } from 'react-native-paper';
 
 import { AppDialog } from './AppDialog';
 import { ThemedButton as Button } from './ThemedButton';
@@ -45,9 +45,15 @@ export function SyncCloudDialog({ visible, onDismiss, onShowStatus }: SyncCloudD
     lastSyncedAt,
     lastResult,
     lastError,
+    autoSyncEnabled,
+    setAutoSyncEnabled,
   } = useSync();
 
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Tap-to-open popup explaining when auto-sync actually runs. Mirrors
+  // the iOS "(i) info button" pattern — more discoverable on mobile than
+  // a long-press tooltip, and works the same on Android.
+  const [autoSyncInfoOpen, setAutoSyncInfoOpen] = useState(false);
   const googleDisabled = provider === 'googledrive' && !providerConfigured;
 
   const onSignIn = async () => {
@@ -78,7 +84,7 @@ export function SyncCloudDialog({ visible, onDismiss, onShowStatus }: SyncCloudD
   return (
     <>
       <AppDialog
-        visible={visible && !pickerOpen}
+        visible={visible && !pickerOpen && !autoSyncInfoOpen}
         onDismiss={onDismiss}
         title={translate('syncDialog.title')}
       >
@@ -88,6 +94,28 @@ export function SyncCloudDialog({ visible, onDismiss, onShowStatus }: SyncCloudD
             description={translate(`syncDialog.providers.${provider}`)}
             left={(props) => <List.Icon {...props} icon="cloud-outline" />}
             onPress={() => setPickerOpen(true)}
+          />
+
+          <List.Item
+            title={translate('syncDialog.autoSync')}
+            description={translate('syncDialog.autoSyncDescription')}
+            left={(props) => <List.Icon {...props} icon="autorenew" />}
+            right={() => (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <IconButton
+                  icon="information-outline"
+                  size={20}
+                  onPress={() => setAutoSyncInfoOpen(true)}
+                  accessibilityLabel={translate('syncDialog.autoSyncInfo')}
+                />
+                <Switch
+                  value={autoSyncEnabled}
+                  onValueChange={(v) => void setAutoSyncEnabled(v)}
+                  accessibilityLabel={translate('syncDialog.autoSync')}
+                />
+              </View>
+            )}
+            onPress={() => void setAutoSyncEnabled(!autoSyncEnabled)}
           />
 
           <Divider style={{ marginVertical: 12 }} />
@@ -160,6 +188,18 @@ export function SyncCloudDialog({ visible, onDismiss, onShowStatus }: SyncCloudD
           setPickerOpen(false);
         }}
       />
+
+      <AppDialog
+        visible={autoSyncInfoOpen}
+        onDismiss={() => setAutoSyncInfoOpen(false)}
+        title={translate('syncDialog.autoSync')}
+      >
+        <Dialog.Content>
+          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+            {translate('syncDialog.autoSyncDescriptionFull')}
+          </Text>
+        </Dialog.Content>
+      </AppDialog>
     </>
   );
 }
@@ -186,29 +226,24 @@ function SyncStatusFooter({
     );
   }
 
-  if (lastApplied !== null && lastUploaded !== null) {
-    return (
-      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-        {translate('syncDialog.statusSuccess', {
-          applied: lastApplied,
-          uploaded: lastUploaded,
-        })}
-      </Text>
-    );
-  }
-
-  if (lastSyncedAt !== null) {
-    const when = new Date(lastSyncedAt).toLocaleString();
-    return (
-      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-        {translate('syncDialog.lastSynced', { when })}
-      </Text>
-    );
-  }
+  const timestampLine =
+    lastSyncedAt !== null
+      ? translate('syncDialog.lastSynced', { when: new Date(lastSyncedAt).toLocaleString() })
+      : translate('syncDialog.neverSynced');
 
   return (
-    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-      {translate('syncDialog.neverSynced')}
-    </Text>
+    <>
+      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+        {timestampLine}
+      </Text>
+      {lastApplied !== null && lastUploaded !== null && (
+        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+          {translate('syncDialog.statusSuccess', {
+            applied: lastApplied,
+            uploaded: lastUploaded,
+          })}
+        </Text>
+      )}
+    </>
   );
 }

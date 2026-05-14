@@ -34,10 +34,24 @@ import { createOneDriveAdapter } from '../sync/oneDriveAdapter';
 import { createGoogleDriveAdapter } from '../sync/googleDriveAdapter';
 import { createSyncEngine, type SyncEngine, type SyncResult } from '../sync/syncEngine';
 import type { CloudDriveAdapter } from '../sync/cloudDriveAdapter';
+import {
+  createAutoSyncCoordinator,
+  type AutoSyncCoordinator,
+} from '../sync/autoSyncCoordinator';
 import { CATEGORIES_QUERY_KEY, EXPENSES_QUERY_KEY } from '../queryClient';
+import { useAutoSync } from './useAutoSync';
 
 const PROVIDER_KEY = 'expenses-tracker-sync-provider';
 const LAST_SYNCED_KEY = 'expenses-tracker-sync-last-synced';
+const AUTO_SYNC_ENABLED_KEY = 'expenses-tracker-sync-auto-enabled';
+/**
+ * Per-provider cache validator persisted in AsyncStorage. Seeds the
+ * engine's `cachedEtag` so the first sync after a cold start can
+ * revalidate with `If-None-Match` instead of redownloading. Key per
+ * provider so switching providers doesn't trash the other one's cache.
+ */
+const ETAG_KEY_PREFIX = 'expenses-tracker-sync-etag:';
+const etagKey = (p: SyncProviderKey): string => `${ETAG_KEY_PREFIX}${p}`;
 
 /** Sentinel for the unconfigured Google client id. */
 const GOOGLE_PLACEHOLDER = 'TODO_REPLACE_WITH_GOOGLE_CLIENT_ID';
@@ -60,6 +74,13 @@ export interface SyncContextValue {
   readonly lastSyncedAt: number | null;
   readonly lastResult: SyncResult | null;
   readonly lastError: string | null;
+  /**
+   * Whether automatic sync triggers (cold start, foreground, after-write
+   * debounce, app-background flush, net reconnect) fire. Defaults to
+   * `true`. The manual "Sync now" button still works either way.
+   */
+  readonly autoSyncEnabled: boolean;
+  readonly setAutoSyncEnabled: (v: boolean) => Promise<void>;
 }
 
 const SyncContext = createContext<SyncContextValue | null>(null);
@@ -83,6 +104,22 @@ export function SyncProvider({ children }: SyncProviderProps) {
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const [lastResult, setLastResult] = useState<SyncResult | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
+  // Whether auto-sync triggers are enabled. Persisted, defaults to true
+  // (preserves the behaviour from before the toggle existed).
+  const [autoSyncEnabled, setAutoSyncEnabledState] = useState<boolean>(true);
+  // Per-provider cache validator. State (not ref) so the engine memo
+  // reacts when the value changes — but writes from `onEtagChange` go
+  // ONLY to `AsyncStorage`, never to this state. Reasons:
+  //  - The engine's in-closure `cachedEtag` is already the live source
+  //    of truth during a session, so state would just mirror it.
+  //  - Setting state on every sync would rebuild the engine AND the
+  //    auto-sync coordinator, resetting the coordinator's
+  //    `lastAutoSyncAt` throttle and effectively bypassing the
+  //    30 s minimum-interval guard.
+  // The state is populated once at hydration (cold-start seed) and
+  // cleared on sign-out / provider switch. AsyncStorage holds the
+  // authoritative latest etag for the next cold start.
+  const [etagSeeds, setEtagSeeds] = useState<Partial<Record<SyncProviderKey, string>>>({});
   // Bumping this forces useMemo below to rebuild the adapter+engine,
   // dropping the engine's in-closure cachedEtag. Used after sign-out so
   // a subsequent sign-in starts from a clean slate.
@@ -94,17 +131,33 @@ export function SyncProvider({ children }: SyncProviderProps) {
     let cancelled = false;
     (async () => {
       try {
-        const [storedProvider, storedLastSync] = await Promise.all([
-          AsyncStorage.getItem(PROVIDER_KEY),
-          AsyncStorage.getItem(LAST_SYNCED_KEY),
-        ]);
+        const [storedProvider, storedLastSync, storedAutoSync, storedOneDriveEtag, storedGoogleEtag] =
+          await Promise.all([
+            AsyncStorage.getItem(PROVIDER_KEY),
+            AsyncStorage.getItem(LAST_SYNCED_KEY),
+            AsyncStorage.getItem(AUTO_SYNC_ENABLED_KEY),
+            AsyncStorage.getItem(etagKey('onedrive')),
+            AsyncStorage.getItem(etagKey('googledrive')),
+          ]);
         if (cancelled) return;
+        // Seed the etag state from storage. The engine memo runs after
+        // this state update lands, so the first engine built for the
+        // hydrated provider already gets the persisted seed.
+        const seeds: Partial<Record<SyncProviderKey, string>> = {};
+        if (storedOneDriveEtag) seeds.onedrive = storedOneDriveEtag;
+        if (storedGoogleEtag) seeds.googledrive = storedGoogleEtag;
+        if (Object.keys(seeds).length > 0) setEtagSeeds(seeds);
         if (storedProvider && VALID_PROVIDERS.includes(storedProvider as SyncProviderKey)) {
           setProviderState(storedProvider as SyncProviderKey);
         }
         if (storedLastSync) {
           const n = Number(storedLastSync);
           if (Number.isFinite(n) && n > 0) setLastSyncedAt(n);
+        }
+        // Only an explicit 'false' disables it — any other value (or
+        // missing key) keeps the default-on behaviour.
+        if (storedAutoSync === 'false') {
+          setAutoSyncEnabledState(false);
         }
       } catch (e) {
         console.warn('Failed to hydrate sync preferences', e);
@@ -140,12 +193,35 @@ export function SyncProvider({ children }: SyncProviderProps) {
     }
     const a: CloudDriveAdapter =
       provider === 'onedrive' ? createOneDriveAdapter() : createGoogleDriveAdapter();
-    const e = createSyncEngine({ store, adapter: a });
+    // Capture the current provider so the persistence callback always
+    // writes to the right key even if `provider` changes underneath us
+    // (the engine is torn down on that transition, but in-flight
+    // callbacks from before the swap should still hit the original key).
+    const p = provider;
+    const seed = etagSeeds[p];
+    const e = createSyncEngine({
+      store,
+      adapter: a,
+      ...(seed !== undefined ? { initialEtag: seed } : {}),
+      onEtagChange: (etag) => {
+        // Persist only — do NOT setEtagSeeds here. See the comment on
+        // the `etagSeeds` declaration for why this is fire-and-forget.
+        if (etag !== undefined) {
+          void AsyncStorage.setItem(etagKey(p), etag).catch((err) => {
+            console.warn('Failed to persist sync etag', err);
+          });
+        } else {
+          void AsyncStorage.removeItem(etagKey(p)).catch((err) => {
+            console.warn('Failed to clear sync etag', err);
+          });
+        }
+      },
+    });
     return { adapter: a, engine: e };
     // engineGen intentionally participates so signOut can drop the
     // engine's cached etag.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [provider, providerConfigured, store, engineGen]);
+  }, [provider, providerConfigured, store, engineGen, etagSeeds]);
 
   // Refresh `signedIn` whenever the adapter changes.
   // Use a ref so we don't race two parallel refreshes when adapter
@@ -211,12 +287,30 @@ export function SyncProvider({ children }: SyncProviderProps) {
     setSignedIn(false);
     setLastResult(null);
     setLastError(null);
+    // Drop the cached etag for this provider — a subsequent sign-in
+    // (possibly to a different account on the same provider) must not
+    // reuse the previous account's validator.
+    setEtagSeeds((prev) => {
+      if (prev[provider] === undefined) return prev;
+      const next = { ...prev };
+      delete next[provider];
+      return next;
+    });
+    void AsyncStorage.removeItem(etagKey(provider)).catch((e) => {
+      console.warn('Failed to clear sync etag on sign-out', e);
+    });
     // Force a fresh adapter+engine on next render so the previous
     // engine's cached etag (and any in-flight promises) are discarded.
     setEngineGen((n) => n + 1);
-  }, [adapter]);
+  }, [adapter, provider]);
 
-  const syncNow = useCallback(async () => {
+  // The actual sync work — invoked by the coordinator from every trigger
+  // (manual button, cold start, app foreground, after-write debounce,
+  // background flush, net reconnect). Status state is identical
+  // regardless of who fired the sync, so the trigger reason isn't
+  // forwarded into the UI here — it's available to the coordinator for
+  // logging/metrics if we add them later.
+  const runSyncCycle = useCallback(async (): Promise<void> => {
     if (!engine) return;
     setLastError(null);
     setSyncing(true);
@@ -243,6 +337,41 @@ export function SyncProvider({ children }: SyncProviderProps) {
     }
   }, [engine, queryClient]);
 
+  // Coordinator owns the in-flight guard, min-interval throttle, and
+  // after-write debounce shared by every trigger source.
+  const coordinator = useMemo<AutoSyncCoordinator | null>(() => {
+    if (!engine) return null;
+    return createAutoSyncCoordinator(runSyncCycle);
+  }, [engine, runSyncCycle]);
+
+  // Dispose timers when the coordinator is replaced (sign-out, provider
+  // change) or the provider unmounts.
+  useEffect(() => {
+    if (!coordinator) return;
+    return () => coordinator.dispose();
+  }, [coordinator]);
+
+  // Wire AppState / NetInfo / local-write triggers to the coordinator.
+  // `enabled` gates every auto trigger — when the user has switched
+  // off auto-sync in settings, only the manual "Sync now" button
+  // (via `syncNow` below) drives `coordinator.requestSync`.
+  useAutoSync({ coordinator, enabled: isSignedIn && autoSyncEnabled });
+
+  const setAutoSyncEnabled = useCallback(async (v: boolean) => {
+    setAutoSyncEnabledState(v);
+    try {
+      await AsyncStorage.setItem(AUTO_SYNC_ENABLED_KEY, v ? 'true' : 'false');
+    } catch (e) {
+      console.warn('Failed to save auto-sync preference', e);
+    }
+  }, []);
+
+  const syncNow = useCallback(async () => {
+    // Manual button bypasses the auto-sync min-interval throttle but
+    // still respects the in-flight guard — see `AutoSyncCoordinator`.
+    await coordinator?.requestSync('manual', { force: true });
+  }, [coordinator]);
+
   const value = useMemo<SyncContextValue>(
     () => ({
       provider,
@@ -257,6 +386,8 @@ export function SyncProvider({ children }: SyncProviderProps) {
       lastSyncedAt,
       lastResult,
       lastError,
+      autoSyncEnabled,
+      setAutoSyncEnabled,
     }),
     [
       provider,
@@ -271,6 +402,8 @@ export function SyncProvider({ children }: SyncProviderProps) {
       lastSyncedAt,
       lastResult,
       lastError,
+      autoSyncEnabled,
+      setAutoSyncEnabled,
     ],
   );
 

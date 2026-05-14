@@ -26,7 +26,7 @@
 import { AuthError, ConcurrencyError } from './cloudDriveAdapter';
 import type {
   CloudDriveAdapter,
-  DownloadResult,
+  DownloadOutcome,
   UploadResult,
 } from './cloudDriveAdapter';
 import { createOAuthClient } from './oauthClient';
@@ -89,7 +89,7 @@ export function createGoogleDriveAdapter(
     signIn: () => oauth.signIn(),
     signOut: () => oauth.signOut(),
 
-    async download(): Promise<DownloadResult | null> {
+    async download(opts?: { ifNoneMatch?: string }): Promise<DownloadOutcome> {
       let token: string;
       try {
         token = await oauth.getAccessToken();
@@ -98,14 +98,29 @@ export function createGoogleDriveAdapter(
       }
 
       const fileId = await findFileId(token);
-      if (fileId === null) return null;
+      if (fileId === null) return { kind: 'absent' };
 
+      // `If-None-Match` tells the server to return 304 (no body) when the
+      // file hasn't changed since we last saw it. This is the primary
+      // bandwidth saver for idle auto-syncs.
+      const headers = new Headers();
+      if (opts?.ifNoneMatch !== undefined) {
+        headers.set('If-None-Match', opts.ifNoneMatch);
+      }
       const response = await authFetch(
         `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-        { method: 'GET' },
+        { method: 'GET', headers },
         token,
       );
       if (response.status === 401) throw new AuthError('Drive auth rejected');
+      if (response.status === 304) {
+        // 304 responses on Drive carry the ETag header but no body.
+        const etag = response.headers.get('ETag') ?? opts?.ifNoneMatch;
+        if (etag === undefined || etag === null) {
+          throw new Error('Drive returned 304 without an ETag');
+        }
+        return { kind: 'not-modified', etag };
+      }
       if (!response.ok) throw new Error(`Drive download failed: ${response.status}`);
 
       const etag = response.headers.get('ETag');
@@ -113,7 +128,7 @@ export function createGoogleDriveAdapter(
         throw new Error('Drive did not return an ETag — cannot guarantee concurrency');
       }
       const buffer = await response.arrayBuffer();
-      return { bytes: new Uint8Array(buffer), etag };
+      return { kind: 'modified', bytes: new Uint8Array(buffer), etag };
     },
 
     async upload(bytes: Uint8Array, ifMatch?: string): Promise<UploadResult> {

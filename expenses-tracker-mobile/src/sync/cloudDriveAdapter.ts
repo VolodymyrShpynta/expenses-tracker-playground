@@ -16,19 +16,30 @@
  * is rejected with `ConcurrencyError` and the engine retries the full
  * cycle (download → reapply → upload).
  *
+ * Bandwidth model: the adapter's `download` accepts an optional
+ * `ifNoneMatch` etag. When provided, the adapter MUST skip transferring
+ * the file body if the remote etag still matches, and instead return
+ * `{ kind: 'not-modified', etag }`. Implementations map this to:
+ *   - Google Drive: `If-None-Match` header → 304 Not Modified.
+ *   - OneDrive:     metadata-only fetch compared against `ifNoneMatch`.
+ * This is the primary bandwidth saver — every idle auto-sync (cold
+ * start, foreground return, net reconnect, …) skips the gzipped body.
+ *
  * The interface is deliberately minimal — see ISP in
  * `.github/instructions/expenses-tracker-mobile.instructions.md`. Auth
  * specifics (PKCE, redirects, refresh tokens, scopes) live entirely
  * inside each adapter and never leak through this surface.
  */
 
-/** Result of a successful download. */
-export interface DownloadResult {
-  /** Raw file bytes (gzipped or plain JSON — caller decides). */
-  readonly bytes: Uint8Array;
-  /** Opaque server etag for optimistic-concurrency upload. */
-  readonly etag: string;
-}
+/**
+ * Outcome of a `download` call. Discriminated by `kind` so callers can
+ * unambiguously distinguish "we got bytes" from "nothing changed" from
+ * "the file does not exist yet".
+ */
+export type DownloadOutcome =
+  | { readonly kind: 'modified'; readonly bytes: Uint8Array; readonly etag: string }
+  | { readonly kind: 'not-modified'; readonly etag: string }
+  | { readonly kind: 'absent' };
 
 /** Result of a successful upload. */
 export interface UploadResult {
@@ -70,10 +81,19 @@ export interface CloudDriveAdapter {
   signOut(): Promise<void>;
 
   /**
-   * Download the sync file. Returns `null` when the file does not exist
-   * (first sync from this account). Throws `AuthError` when not signed in.
+   * Download the sync file.
+   *
+   *   - When `opts.ifNoneMatch` is set and the remote etag still
+   *     matches, the adapter MUST return `{ kind: 'not-modified', etag }`
+   *     WITHOUT transferring the file body. This is the bandwidth-saver
+   *     path used by the engine when there are no local writes pending.
+   *   - When the file does not exist (first sync from this account),
+   *     returns `{ kind: 'absent' }`.
+   *   - Otherwise returns `{ kind: 'modified', bytes, etag }`.
+   *
+   * Throws `AuthError` when not signed in.
    */
-  download(): Promise<DownloadResult | null>;
+  download(opts?: { ifNoneMatch?: string }): Promise<DownloadOutcome>;
 
   /**
    * Upload the sync file. When `ifMatch` is set, the upload must be

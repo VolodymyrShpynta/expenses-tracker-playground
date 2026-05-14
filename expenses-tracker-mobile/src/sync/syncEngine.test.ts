@@ -162,12 +162,129 @@ describe('SyncEngine.performFullSync', () => {
     const first = await engine.performFullSync();
     expect(first.downloadedRemote).toBe(true);
     expect(first.remote.applied).toBe(1);
+    expect(adapter.notModifiedCount).toBe(0);
 
-    // No local changes, no remote changes — second cycle is mostly idle.
+    // No local changes, no remote changes — second cycle short-circuits
+    // via `If-None-Match`. The adapter must report it as a not-modified
+    // response (no body transferred).
     const second = await engine.performFullSync();
     expect(second.downloadedRemote).toBe(false);
     expect(second.remote.applied).toBe(0);
     expect(second.uploadedLocal).toBe(0);
+    expect(adapter.notModifiedCount).toBe(1);
+  });
+
+  it('uses If-None-Match on idle cycles to save bandwidth', async () => {
+    adapter.setRemoteBytes(encodeSyncFile({ events: [], categoryEvents: [] }, true));
+
+    // Prime the engine's cachedEtag.
+    await engine.performFullSync();
+    const baselineNotModified = adapter.notModifiedCount;
+
+    // Three idle cycles — none should re-download the body.
+    await engine.performFullSync();
+    await engine.performFullSync();
+    await engine.performFullSync();
+    expect(adapter.notModifiedCount).toBe(baselineNotModified + 3);
+  });
+
+  it('skips If-None-Match when local writes are pending (needs bytes to merge)', async () => {
+    adapter.setRemoteBytes(encodeSyncFile({ events: [], categoryEvents: [] }, true));
+    await engine.performFullSync(); // prime cachedEtag
+
+    // A pending local write means we MUST fetch the full file to merge
+    // and upload. The engine should not use `If-None-Match` here.
+    await store.appendEvent(makeLocalEvent('e1', 'x1', 100));
+    const before = adapter.notModifiedCount;
+    const result = await engine.performFullSync();
+    expect(result.uploadedLocal).toBe(1);
+    expect(adapter.notModifiedCount).toBe(before);
+  });
+
+  // ----- Persisted etag (cold-start hydration) ----------------------------
+  //
+  // The engine receives an `initialEtag` from its caller (SyncProvider
+  // reads it from AsyncStorage) and reports updates via `onEtagChange`.
+  // These tests assert the contract, not the storage layer.
+
+  it('seeds cachedEtag from initialEtag so cold starts revalidate without redownloading', async () => {
+    // Remote already exists at a known etag (simulates "another device
+    // wrote yesterday; today we cold-start the app").
+    const knownEtag = adapter.setRemoteBytes(
+      encodeSyncFile({ events: [], categoryEvents: [] }, true),
+    );
+
+    // Build a fresh engine pre-seeded with that etag.
+    const seededEngine = createSyncEngine({
+      store,
+      adapter,
+      compressed: true,
+      initialEtag: knownEtag,
+    });
+
+    const before = adapter.notModifiedCount;
+    const result = await seededEngine.performFullSync();
+
+    // First cycle hit 'not-modified' instead of re-downloading the body.
+    expect(adapter.notModifiedCount).toBe(before + 1);
+    expect(result.downloadedRemote).toBe(false);
+    expect(result.remote.applied).toBe(0);
+  });
+
+  it('reports the new etag via onEtagChange after a successful upload', async () => {
+    const seen: Array<string | undefined> = [];
+    const observedEngine = createSyncEngine({
+      store,
+      adapter,
+      compressed: true,
+      onEtagChange: (etag) => seen.push(etag),
+    });
+
+    await store.appendEvent(makeLocalEvent('e1', 'x1', 100));
+    await observedEngine.performFullSync();
+
+    // The final reported value matches what the adapter holds — that's
+    // what callers persist for the next cold start.
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen[seen.length - 1]).toBe(adapter.peekEtag());
+  });
+
+  it('reports undefined via onEtagChange on concurrency retry (clears stale persisted etag)', async () => {
+    adapter.setRemoteBytes(encodeSyncFile({ events: [], categoryEvents: [] }, true));
+    const seen: Array<string | undefined> = [];
+    const observedEngine = createSyncEngine({
+      store,
+      adapter,
+      compressed: true,
+      onEtagChange: (etag) => seen.push(etag),
+    });
+    // Prime the engine so it has a real cachedEtag (and thus a
+    // persisted value on the caller side) for the conflict to invalidate.
+    await observedEngine.performFullSync();
+    expect(seen.length).toBeGreaterThan(0);
+    seen.length = 0;
+
+    await store.appendEvent(makeLocalEvent('e1', 'x1', 100));
+
+    // Force a concurrency conflict on the first upload, succeed on the
+    // retry. The engine's invalidation must be observable to the
+    // persistence callback so callers can drop their stale copy.
+    const realUpload = adapter.upload.bind(adapter);
+    let firstUpload = true;
+    adapter.upload = async (bytes, ifMatch) => {
+      if (firstUpload) {
+        firstUpload = false;
+        adapter.setRemoteBytes(
+          encodeSyncFile({ events: [], categoryEvents: [] }, true),
+        );
+        throw new ConcurrencyError('etag moved');
+      }
+      return realUpload(bytes, ifMatch);
+    };
+
+    await observedEngine.performFullSync();
+    // At least once during the cycle the engine declared the cache stale.
+    expect(seen).toContain(undefined);
   });
 
   it('retries the cycle on optimistic-concurrency conflict', async () => {

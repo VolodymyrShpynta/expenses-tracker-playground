@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { CATEGORIES_QUERY_KEY, EXPENSES_QUERY_KEY } from '../queryClient';
 import { useAppServices } from '../context/appServicesProvider';
+import { notifyLocalWrite } from '../sync/autoSyncSignal';
 import type {
   CreateCategoryCommand,
   UpdateCategoryCommand,
@@ -49,7 +50,10 @@ export function useCreateCategory() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (cmd: CreateCategoryCommand) => categories.createCategory(cmd),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
+      notifyLocalWrite();
+    },
   });
 }
 
@@ -59,7 +63,10 @@ export function useUpdateCategory() {
   return useMutation({
     mutationFn: ({ id, cmd }: { id: string; cmd: UpdateCategoryCommand }) =>
       categories.updateCategory(id, cmd),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
+      notifyLocalWrite();
+    },
   });
 }
 
@@ -68,7 +75,10 @@ export function useDeleteCategory() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => categories.deleteCategory(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
+      notifyLocalWrite();
+    },
   });
 }
 
@@ -77,7 +87,10 @@ export function useRestoreCategory() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => categories.restoreCategory(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
+      notifyLocalWrite();
+    },
   });
 }
 
@@ -88,8 +101,9 @@ export function useMergeCategories() {
     mutationFn: ({ sourceId, targetId }: { sourceId: string; targetId: string }) =>
       categories.mergeCategories(sourceId, targetId, expenseQueries, expenseCommands),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: EXPENSES_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: EXPENSES_QUERY_KEY });
+      notifyLocalWrite();
     },
   });
 }
@@ -99,6 +113,9 @@ export function useResetCategoriesToDefaults() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => categories.resetToDefaults(),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
+      notifyLocalWrite();
+    },
   });
 }

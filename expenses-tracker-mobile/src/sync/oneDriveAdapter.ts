@@ -25,7 +25,7 @@
 import { AuthError, ConcurrencyError } from './cloudDriveAdapter';
 import type {
   CloudDriveAdapter,
-  DownloadResult,
+  DownloadOutcome,
   UploadResult,
 } from './cloudDriveAdapter';
 import { createOAuthClient } from './oauthClient';
@@ -89,7 +89,7 @@ export function createOneDriveAdapter(
     signIn: () => oauth.signIn(),
     signOut: () => oauth.signOut(),
 
-    async download(): Promise<DownloadResult | null> {
+    async download(opts?: { ifNoneMatch?: string }): Promise<DownloadOutcome> {
       let token: string;
       try {
         token = await oauth.getAccessToken();
@@ -97,8 +97,15 @@ export function createOneDriveAdapter(
         throw new AuthError(e instanceof Error ? e.message : 'auth error');
       }
 
+      // OneDrive forces us to do a metadata round trip anyway to learn
+      // the item id and its current eTag. We piggy-back the
+      // ifNoneMatch check on that — if the eTag still matches, we skip
+      // the (much heavier) content fetch entirely. No 304 dance needed.
       const meta = await getMetadata(token);
-      if (meta === null) return null;
+      if (meta === null) return { kind: 'absent' };
+      if (opts?.ifNoneMatch !== undefined && opts.ifNoneMatch === meta.etag) {
+        return { kind: 'not-modified', etag: meta.etag };
+      }
 
       const response = await authFetch(
         `https://graph.microsoft.com/v1.0/me/drive/items/${meta.id}/content`,
@@ -110,7 +117,7 @@ export function createOneDriveAdapter(
         throw new Error(`OneDrive download failed: ${response.status}`);
       }
       const buffer = await response.arrayBuffer();
-      return { bytes: new Uint8Array(buffer), etag: meta.etag };
+      return { kind: 'modified', bytes: new Uint8Array(buffer), etag: meta.etag };
     },
 
     async upload(bytes: Uint8Array, ifMatch?: string): Promise<UploadResult> {

@@ -150,6 +150,110 @@ but it preserves SRP and makes the projector unit-testable in isolation.
   update (resurrection).
 - Equal timestamps are **rejected** (strict `>`, not `>=`).
 
+### Automatic sync triggers
+
+`SyncEngine.performFullSync()` is invoked from a single coordinator
+(`src/sync/autoSyncCoordinator.ts`) so the in-flight guard and throttle
+apply uniformly across every trigger source. **All new sync triggers must
+go through the coordinator — never call `engine.performFullSync()` directly.**
+
+The coordinator funnels five trigger sources:
+
+| Trigger          | Fires when                                                  | Coordinator API                      |
+|------------------|-------------------------------------------------------------|--------------------------------------|
+| Cold start       | `enabled` transitions `false → true` on mount or sign-in    | `requestSync('cold-start')`          |
+| Foreground       | `AppState` transitions `inactive\|background → active`      | `requestSync('app-active')`          |
+| After local write| Mutation hooks call `notifyLocalWrite()` on success         | `notifyLocalWrite()` (debounced)     |
+| App backgrounded | `AppState` transitions `active → inactive\|background`      | `flush('background-flush')`          |
+| Net reconnect    | `@react-native-community/netinfo` reports offline → online  | `requestSync('net-reconnect')`       |
+| Manual button    | "Sync now" in `SyncCloudDialog`                             | `requestSync('manual', { force })`   |
+
+`enabled` here means `isSignedIn && autoSyncEnabled` (the user-facing
+toggle in `SyncCloudDialog`, persisted under
+`expenses-tracker-sync-auto-enabled`, default `true`). When the user
+turns auto-sync **off**, every row above except the last is silenced and
+any pending after-write debounce is cancelled. The manual button keeps
+working because it calls `coordinator.requestSync` directly, not via
+`useAutoSync`.
+
+Configuration constants (in `autoSyncCoordinator.ts`):
+
+- `QUIET_DEBOUNCE_MS = 15_000` — debounce window after each local write.
+  Subsequent writes reset the timer so a burst of edits collapses to one
+  upload.
+- `CEILING_MS = 60_000` — hard cap on the debounce so a continuous edit
+  stream still uploads at least once a minute.
+- `MIN_AUTO_INTERVAL_MS = 30_000` — minimum gap between two consecutive
+  auto-syncs. The manual button passes `{ force: true }` to bypass this.
+
+Wiring is in `src/context/syncProvider.tsx` (owns the coordinator) and
+`src/context/useAutoSync.ts` (binds `AppState` + NetInfo). Mutation hooks
+notify writes via `src/sync/autoSyncSignal.ts` — a module-level pub/sub
+so the hooks stay decoupled from the `SyncContext` shape.
+
+NetInfo is **soft-imported**: if `@react-native-community/netinfo` is not
+installed, the net-reconnect trigger silently no-ops and the other four
+still work. Run `npx expo install @react-native-community/netinfo` to
+enable it.
+
+### Bandwidth — verify before downloading
+
+The auto-sync triggers above fire frequently (cold start + foreground
+return + net reconnect can all hit within seconds of app launch). To
+keep the network footprint small, **`SyncEngine` never blindly downloads
+the sync file** — it asks the adapter for a *conditional* read.
+
+`CloudDriveAdapter.download(opts?)` returns a discriminated union:
+
+```ts
+type DownloadOutcome =
+  | { kind: 'modified'; bytes: Uint8Array; etag: string }
+  | { kind: 'not-modified'; etag: string }   // bandwidth saver: no body
+  | { kind: 'absent' };                       // first sync, file missing
+```
+
+The engine flow:
+
+1. Probe the local store for uncommitted events first.
+2. **When nothing local is pending and a cached eTag exists**, call
+   `download({ ifNoneMatch: cachedEtag })`. The adapter must short-circuit
+   without transferring the file body:
+   - **Google Drive** sends `If-None-Match` → server returns `304 Not Modified`.
+   - **OneDrive** uses the metadata round-trip it already needs for the
+     item id; if `meta.eTag === ifNoneMatch` we never hit `/content`.
+3. **When local writes are pending**, the engine calls `download()`
+   without `ifNoneMatch` (we need the bytes for the merge step anyway).
+
+When you add a new adapter, the `If-None-Match` path is mandatory — drop
+it and every idle auto-sync pulls the entire gzipped file from the
+cloud. The in-memory test adapter exposes `notModifiedCount` so engine
+tests assert the short-circuit fires.
+
+The cached eTag lives in the engine closure for the app session **and is
+persisted across cold starts**. `SyncProvider` keys the value per
+provider (`expenses-tracker-sync-etag:<provider>` in `AsyncStorage`) so
+switching between OneDrive and Google Drive does not invalidate the
+other's cache. Wiring:
+
+- `SyncEngineDeps` accepts an optional `initialEtag` (seed) and
+  `onEtagChange(etag | undefined)` callback (fire-and-forget persist).
+- `SyncProvider` holds the live values in a `useRef` map (not state — a
+  state update on every sync would rebuild the engine and discard the
+  freshly observed etag). The ref is hydrated from `AsyncStorage`
+  **before** `setProviderState` runs, so the engine `useMemo` reads the
+  seed synchronously on first build.
+- On `signOut`, the provider deletes the etag entry (both from the ref
+  and from `AsyncStorage`) before bumping `engineGen` — a subsequent
+  sign-in (possibly to a different account on the same provider) must
+  not reuse the previous account's validator.
+- The engine reports `undefined` to `onEtagChange` whenever it
+  invalidates the cache (concurrency conflict, remote file disappeared)
+  so the persisted copy is dropped at the same moment.
+
+The first sync after install (no seed) still does one unconditional
+download — there is nothing to revalidate against. Every subsequent
+cold start should short-circuit at 304.
+
 ---
 
 ## Engineering Principles
