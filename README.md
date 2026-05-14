@@ -13,7 +13,7 @@ across multiple devices.
 - ✨ **Modern Stack**: Spring Boot 4, Kotlin 2.3.10, Java 21 LTS, PostgreSQL 17
 - 🔐 **Multi-User Auth**: Keycloak (OAuth2 / OpenID Connect) with per-user data isolation
 - 🎨 **React Web Frontend**: React 19, TypeScript, MUI v7, Vite — responsive for mobile & desktop
-- 📱 **Native Mobile App**: Expo SDK 53 + React Native 0.79 + React Native Paper v5 (Material 3) — fully offline-first
+- 📱 **Native Mobile App**: Expo SDK 55 + React Native 0.83 + React Native Paper v5 (Material 3) — fully offline-first
   with its own SQLite event store
 - ☁️ **BYO Cloud Sync**: Mobile app syncs through the user's own Google Drive `appDataFolder` or OneDrive `approot` — no
   central sync server, no backend dependency
@@ -28,45 +28,90 @@ across multiple devices.
 
 ## 📑 Table of Contents
 
-- [Project Overview](#-project-overview)
-- [Key Features](#-key-features)
-- [Technology Stack](#-technology-stack)
-- [Project Structure](#-project-structure)
-- [Communication Flow](#-communication-flow)
-- [Sync Engine Architecture](#-sync-engine-architecture)
+- [Expenses Tracker with Event Sourcing \& CQRS](#expenses-tracker-with-event-sourcing--cqrs)
+  - [🌟 What Makes This Project Special?](#-what-makes-this-project-special)
+  - [📑 Table of Contents](#-table-of-contents)
+  - [🎯 Project Overview](#-project-overview)
+    - [Real-World Use Case](#real-world-use-case)
+  - [✨ Key Features](#-key-features)
+    - [Authentication \& Multi-User](#authentication--multi-user)
+    - [Event Sourcing \& CQRS Architecture](#event-sourcing--cqrs-architecture)
+    - [Efficient Sync Engine](#efficient-sync-engine)
+    - [Technology](#technology)
+  - [🛠 Technology Stack](#-technology-stack)
+    - [Core Framework](#core-framework)
+    - [Authentication](#authentication)
+    - [Reactive Stack](#reactive-stack)
+    - [Database \& Migrations](#database--migrations)
+    - [Build \& Testing](#build--testing)
+    - [Frontend](#frontend)
+    - [Mobile](#mobile)
+  - [📁 Project Structure](#-project-structure)
+  - [📚 Module Documentation](#-module-documentation)
+  - [🔀 Communication Flow](#-communication-flow)
+  - [🏗 Sync Engine Architecture](#-sync-engine-architecture)
     - [Design Principles](#design-principles)
     - [Event Sourcing Model](#event-sourcing-model)
     - [CQRS Architecture](#cqrs-architecture)
     - [Database Schema](#database-schema)
+      - [**Table: `expense_projections`** (Read Model / Materialized View)](#table-expense_projections-read-model--materialized-view)
+      - [**Table: `expense_events`** (Event Store / Source of Truth)](#table-expense_events-event-store--source-of-truth)
+      - [**Table: `processed_events`** (Idempotency Registry)](#table-processed_events-idempotency-registry)
+      - [**Table: `categories`** (User-Configurable Categories)](#table-categories-user-configurable-categories)
+      - [**Table: `default_categories`** (Language-Agnostic Templates)](#table-default_categories-language-agnostic-templates)
     - [Conflict Resolution](#conflict-resolution)
+      - [**Projection Update Implementation**](#projection-update-implementation)
     - [Sync Workflow](#sync-workflow)
-    - [Idempotency Guarantees](#idempotency-guarantees)
+      - [**Phase 1: Local Write (User Action)**](#phase-1-local-write-user-action)
+      - [**Phase 2: Efficient Sync Cycle**](#phase-2-efficient-sync-cycle)
+      - [**Phase 3: Event Processing with Idempotency**](#phase-3-event-processing-with-idempotency)
+      - [**Phase 4: Collect Local Events**](#phase-4-collect-local-events)
+      - [**Phase 5: Upload to Shared File**](#phase-5-upload-to-shared-file)
+      - [**Phase 6: Download from Shared File**](#phase-6-download-from-shared-file)
+      - [**Phase 7: Process Remote Events**](#phase-7-process-remote-events)
     - [Mobile Sync (TypeScript Port)](#mobile-sync-typescript-port)
-- [Why This Architecture?](#-why-this-architecture)
+      - [Automatic Sync Triggers, Throttling, and Bandwidth](#automatic-sync-triggers-throttling-and-bandwidth)
+    - [Component Architecture](#component-architecture)
+    - [Sync File Format](#sync-file-format)
+    - [Component Diagram](#component-diagram)
+    - [Transaction Boundaries](#transaction-boundaries)
+    - [Idempotency Guarantees](#idempotency-guarantees)
+      - [**Application-Level Idempotency**](#application-level-idempotency)
+      - [**Database-Level Idempotency**](#database-level-idempotency)
+      - [**Network Retry Idempotency**](#network-retry-idempotency)
+  - [🎨 Why This Architecture?](#-why-this-architecture)
     - [Event Sourcing Benefits](#event-sourcing-benefits)
     - [CQRS Benefits](#cqrs-benefits)
     - [Efficient Synchronization](#efficient-synchronization)
     - [Clear Domain Model](#clear-domain-model)
     - [Multi-Device Support](#multi-device-support)
-- [Technical Decisions](#-technical-decisions)
-    - [Why Event Sourcing](#why-event-sourcing)
-    - [Why Timestamp-Only Conflict Resolution](#why-timestamp-only-conflict-resolution)
-    - [Why Separate ExpenseSyncProjector and ExpenseSyncRecorder](#why-separate-expensesyncprojector-and-expensesyncrecorder)
-    - [Why PostgreSQL for Tests](#why-postgresql-for-tests)
-- [Configuration](#-configuration)
-- [Getting Started](#-getting-started)
-    - [Running the Backend](#running-the-backend)
-    - [Running the Frontend](#running-the-frontend)
-    - [Running Both (Full Stack)](#running-both-full-stack)
-- [Frontend](#-frontend)
-- [API Documentation](#-api-documentation)
-- [Testing](#-testing)
-- [Mobile App (Expo)](#-mobile-app-expo)
-- [Performance Optimization: Batch Processing](#-performance-optimization-batch-processing-recommended)
-- [Troubleshooting](#-troubleshooting)
-- [Copilot Instructions](#-copilot-instructions)
-- [CI/CD](#-cicd)
-- [References](#-references)
+  - [💡 Technical Decisions](#-technical-decisions)
+    - [Why Event Sourcing?](#why-event-sourcing)
+    - [Why Timestamp-Only Conflict Resolution?](#why-timestamp-only-conflict-resolution)
+    - [Why Separate ExpenseSyncProjector and ExpenseSyncRecorder?](#why-separate-expensesyncprojector-and-expensesyncrecorder)
+    - [Why PostgreSQL for Tests?](#why-postgresql-for-tests)
+  - [⚙ Configuration](#-configuration)
+    - [Docker Compose Configuration](#docker-compose-configuration)
+  - [🚀 Getting Started](#-getting-started)
+    - [Prerequisites](#prerequisites)
+    - [Quick Start](#quick-start)
+      - [Clone \& Build](#clone--build)
+      - [Run the Stack](#run-the-stack)
+      - [Production Build (Frontend)](#production-build-frontend)
+    - [Docker Compose (Alternative)](#docker-compose-alternative)
+      - [Configuration Overview](#configuration-overview)
+        - [Using Docker Compose (Recommended)](#using-docker-compose-recommended)
+        - [Useful Docker Compose Commands](#useful-docker-compose-commands)
+        - [Windows PowerShell Equivalents](#windows-powershell-equivalents)
+        - [Troubleshooting Docker Compose](#troubleshooting-docker-compose)
+        - [Docker Environment Variables](#docker-environment-variables)
+        - [Using .env File for Configuration (Recommended)](#using-env-file-for-configuration-recommended)
+  - [🔄 CI/CD](#-cicd)
+  - [🤖 Copilot Instructions](#-copilot-instructions)
+  - [📚 References](#-references)
+    - [Documentation](#documentation)
+    - [Key Learnings](#key-learnings)
+    - [Tech Stack Versions](#tech-stack-versions)
 
 ---
 
@@ -403,6 +448,20 @@ Key Components:
 
 ---
 
+## 📚 Module Documentation
+
+Each module has its own README with running instructions, configuration, REST endpoints, build steps,
+and module-specific troubleshooting:
+
+| Module                                    | README                                                                         | Covers                                                                                                                                                                                                                                                            |
+|-------------------------------------------|--------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `expenses-tracker-api/` (backend)         | [`expenses-tracker-api/README.md`](./expenses-tracker-api/README.md)           | Running the backend, environment variables & `application.yaml`, Flyway migrations, REST API endpoints + curl examples, `http-client.env.json` environments, Testcontainers test suite, performance optimization (batch processing), backend troubleshooting.    |
+| `expenses-tracker-frontend/` (web)        | [`expenses-tracker-frontend/README.md`](./expenses-tracker-frontend/README.md) | Frontend features, `src/` architecture, Vite dev server, npm commands, API/auth proxy, Keycloak / PKCE wiring.                                                                                                                                                    |
+| `expenses-tracker-mobile/` (Expo / RN)    | [`expenses-tracker-mobile/README.md`](./expenses-tracker-mobile/README.md)     | Running the mobile app, simulator / emulator setup, dev client with `npx expo run:android`, building & sideloading a production APK, Cloud-Drive OAuth client IDs (Google Drive / OneDrive).                                                                      |
+
+Path-scoped Copilot rules for each module live in [`.github/instructions/`](./.github/instructions/).
+
+---
 ## 🔀 Communication Flow
 
 The user enters **`http://localhost:3000`** — this is the Nginx frontend URL which acts as the single entry
@@ -1812,78 +1871,10 @@ class ExpenseSyncRecorder(
 
 ## ⚙ Configuration
 
-### Environment Variables
-
-The application can be configured via environment variables:
-
-**Database (R2DBC):**
-
-- `EXPENSES_TRACKER_R2DBC_URL` - R2DBC connection URL (default: `r2dbc:postgresql://localhost:5432/expenses_db`)
-- `EXPENSES_TRACKER_R2DBC_USERNAME` - Database username (default: `postgres`)
-- `EXPENSES_TRACKER_R2DBC_PASSWORD` - Database password (default: `postgres`)
-
-**Database (Flyway Migrations):**
-
-- `EXPENSES_TRACKER_FLYWAY_JDBC_URL` - JDBC URL for migrations (default: `jdbc:postgresql://localhost:5432/expenses_db`)
-- `EXPENSES_TRACKER_FLYWAY_USERNAME` - Migration username (default: `postgres`)
-- `EXPENSES_TRACKER_FLYWAY_PASSWORD` - Migration password (default: `postgres`)
-
-**Sync Configuration:**
-
-- `SYNC_FILE_PATH` - Path to sync file (default: `./sync-data/sync.json`)
-- `SYNC_FILE_COMPRESSION_ENABLED` - Enable gzip compression (default: `true`)
-
-> The variables above only configure the **backend's** local-filesystem sync path. The mobile module does
-> not read any of them — its sync configuration lives in source as committed constants
-> (`GOOGLE_OAUTH_CLIENT_ID` and `MICROSOFT_OAUTH_CLIENT_ID`, see [Mobile App (Expo)](#-mobile-app-expo)).
-> OAuth tokens themselves are persisted in `expo-secure-store` (Keychain / Keystore) at runtime —
-> never in source.
-
-**Authentication (Keycloak):**
-
-- `KEYCLOAK_ISSUER_URI` - Keycloak JWT issuer URI (default: `http://localhost:3000/auth/realms/expenses-tracker`)
-- `KEYCLOAK_JWK_SET_URI` - JWK set endpoint for key fetching (default: same host as issuer)
-- `KC_ADMIN` / `KC_ADMIN_PASSWORD` - Keycloak admin credentials (default: `admin` / `admin`)
-
-### Application Configuration
-
-**application.yaml:**
-
-```yaml
-spring:
-  application:
-    name: expenses-tracker-api
-  r2dbc:
-    url: ${EXPENSES_TRACKER_R2DBC_URL:r2dbc:postgresql://localhost:5432/expenses_db}
-    username: ${EXPENSES_TRACKER_R2DBC_USERNAME:postgres}
-    password: ${EXPENSES_TRACKER_R2DBC_PASSWORD:postgres}
-    pool:
-      initial-size: 5
-      max-size: 20
-      max-idle-time: 30m
-      validation-query: SELECT 1
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-    datasource:
-      jdbc-url: ${EXPENSES_TRACKER_FLYWAY_JDBC_URL:jdbc:postgresql://localhost:5432/expenses_db}
-      username: ${EXPENSES_TRACKER_FLYWAY_USERNAME:postgres}
-      password: ${EXPENSES_TRACKER_FLYWAY_PASSWORD:postgres}
-      driver-class-name: org.postgresql.Driver
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:3000/auth/realms/expenses-tracker}
-          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/auth/realms/expenses-tracker/protocol/openid-connect/certs}
-
-sync:
-  file:
-    path: ${SYNC_FILE_PATH:./sync-data/sync.json}
-    compression:
-      enabled: ${SYNC_FILE_COMPRESSION_ENABLED:true}
-```
+The Docker Compose stack orchestrates PostgreSQL, Keycloak, the backend API, and the Nginx-fronted
+web frontend in a single network. Backend-specific environment variables and the full
+`application.yaml` reference are documented in
+[`expenses-tracker-api/README.md`](./expenses-tracker-api/README.md#-configuration).
 
 ### Docker Compose Configuration
 
@@ -1983,9 +1974,11 @@ cd expenses-tracker-playground
 > ./gradlew :expenses-tracker-frontend:build   # Frontend only
 > ```
 
-#### Running the Backend
+#### Run the Stack
 
-##### Start PostgreSQL and Keycloak (required)
+The recommended local development workflow uses three terminals:
+
+**Terminal 1 — Database & Keycloak:**
 
 ```bash
 docker compose up -d postgres keycloak
@@ -1994,42 +1987,13 @@ docker compose up -d postgres keycloak
 Keycloak starts on **http://localhost:8180** and auto-imports the `expenses-tracker` realm.
 Admin console: **http://localhost:8180/auth/admin** (admin/admin).
 
-##### Run the API server
+**Terminal 2 — Backend API:**
 
 ```bash
 ./gradlew :expenses-tracker-api:bootRun
 ```
 
 The backend API starts on **http://localhost:8080**.
-
-#### Running the Frontend
-
-In a separate terminal:
-
-```bash
-cd expenses-tracker-frontend
-npm run dev
-```
-
-The frontend dev server starts on **http://localhost:3000** and proxies API requests to the backend at `localhost:8080`.
-
-Open **http://localhost:3000** in your browser.
-
-#### Running Both (Full Stack)
-
-The recommended local development workflow:
-
-**Terminal 1 — Database & Keycloak:**
-
-```bash
-docker compose up -d postgres keycloak
-```
-
-**Terminal 2 — Backend API:**
-
-```bash
-./gradlew :expenses-tracker-api:bootRun
-```
 
 **Terminal 3 — Frontend:**
 
@@ -2038,11 +2002,15 @@ cd expenses-tracker-frontend
 npm run dev
 ```
 
-Open **http://localhost:3000** to use the application. You'll be redirected to Keycloak to log in.
-Use the test user (`testuser` / `password`) or register a new account.
+The frontend dev server starts on **http://localhost:3000** and proxies `/api/*` requests to the
+backend at `localhost:8080`, so no CORS configuration is needed during development.
 
-> **Tip:** The Vite dev server (`npm run dev`) automatically proxies `/api/*` requests to the
-> backend at `localhost:8080`, so no CORS configuration is needed during development.
+Open **http://localhost:3000** in your browser. You'll be redirected to Keycloak to log in — use the
+test user (`testuser` / `password`) or register a new account.
+
+> **Tip:** `application.yaml` ships with `localhost:5432` (PostgreSQL) and `localhost:8180` (Keycloak)
+> as defaults, so no `.env` file is needed for this workflow. The same applies when running the
+> backend from IntelliJ — just run the main application class.
 
 #### Production Build (Frontend)
 
@@ -2062,23 +2030,15 @@ The production bundle is output to `expenses-tracker-frontend/dist/`.
 
 #### Configuration Overview
 
-The project is **pre-configured for two scenarios**:
-
-**Scenario 1: Local Development (No .env needed)** ⭐ Recommended
-
-- PostgreSQL and Keycloak in Docker, application runs locally
-- `application.yaml` defaults to `localhost:5432` (DB) and `localhost:8180` (Keycloak)
-- Just run: `docker compose up -d postgres keycloak` and `./gradlew bootRun`
-
-**Scenario 2: Full Docker Compose (Uses .env file)**
-
-- PostgreSQL, Keycloak, backend API, and frontend all in Docker
-- `docker-compose.yml` uses service names for inter-container networking
-- Copy `.env.example` to `.env` if you want to customize
+The **Docker Compose** workflow runs everything — PostgreSQL, Keycloak, the backend API, and the
+Nginx-fronted frontend — inside containers. Service-name DNS is used for inter-container networking
+(e.g. the backend talks to `postgres:5432`, not `localhost:5432`). Copy `.env.example` to `.env` if
+you need to customize ports or credentials — the stack works without a `.env` file using sensible
+defaults from `docker-compose.yml`.
 
 ##### Using Docker Compose (Recommended)
 
-**Start all services (database + backend + frontend):**
+**Start all services (database + Keycloak + backend + frontend):**
 
 ```bash
 docker compose up -d --build
@@ -2136,47 +2096,6 @@ docker compose restart expenses-api
 
 ```bash
 docker compose ps
-```
-
-##### Running Dependencies Only (Local Development)
-
-For local development, you can run **PostgreSQL and Keycloak in Docker Compose** and run the application locally with
-Gradle/IntelliJ:
-
-**Start PostgreSQL and Keycloak:**
-
-```bash
-docker compose up -d postgres keycloak
-```
-
-**Run application locally:**
-
-```bash
-# Using Gradle
-./gradlew :expenses-tracker-api:bootRun
-
-# Or in IntelliJ IDEA
-# Just run the main application class normally
-```
-
-**That's it!** The `application.yaml` is already configured with `localhost` as the default database host, so the
-application will automatically connect to PostgreSQL running in Docker on `localhost:5432`.
-
-**Benefits:**
-
-- ✅ Fast application restart (no Docker rebuild)
-- ✅ Easy debugging with IDE
-- ✅ Hot reload with Spring DevTools
-- ✅ PostgreSQL in container (consistent with production)
-- ✅ No extra configuration files needed
-
-**Stop services:**
-
-```bash
-docker compose stop postgres keycloak
-
-# Or stop and remove
-docker compose down
 ```
 
 ##### Useful Docker Compose Commands
@@ -2323,6 +2242,30 @@ docker compose up -d
 docker compose up -d --force-recreate
 ```
 
+**Database inspection (psql):**
+
+```bash
+# Connect to the database
+docker compose exec postgres psql -U postgres -d expenses_db
+
+# List tables
+\dt
+
+# Query data
+SELECT * FROM expense_events LIMIT 10;
+
+# Exit
+\q
+```
+
+**Clean slate (remove containers + volumes, then start fresh):**
+
+```bash
+docker compose down -v
+docker compose up -d
+docker compose ps
+```
+
 ##### Windows PowerShell Equivalents
 
 For Windows users, Docker Compose commands are the same:
@@ -2338,88 +2281,6 @@ docker compose logs expenses-api | Select-String -Pattern "error"
 
 # Check if services are running
 docker compose ps | Select-String "expenses-api"
-```
-
-##### Development Workflow Examples
-
-**1. Local Development with Containerized Dependencies:**
-
-```bash
-# Start PostgreSQL and Keycloak
-docker compose up -d postgres keycloak
-
-# Run application locally
-./gradlew :expenses-tracker-api:bootRun
-
-# View logs
-docker compose logs -f postgres keycloak
-
-# Stop when done
-docker compose stop postgres keycloak
-```
-
-**2. Full Stack in Docker:**
-
-```bash
-# Start everything (postgres + keycloak + api + frontend)
-docker compose up -d --build
-
-# Open http://localhost:3000 in your browser
-
-# View all logs
-docker compose logs -f
-
-# Stop everything
-docker compose down
-```
-
-**3. Rebuild After Code Changes:**
-
-```bash
-# Rebuild and restart only the backend
-./gradlew :expenses-tracker-api:bootJar
-docker compose up -d --build expenses-api
-
-# Rebuild and restart only the frontend
-docker compose up -d --build expenses-frontend
-
-# Rebuild everything
-docker compose up -d --build
-
-# View logs to verify
-docker compose logs -f expenses-api expenses-frontend
-```
-
-**4. Database Inspection:**
-
-```bash
-# Start PostgreSQL
-docker compose up -d postgres
-
-# Connect to database
-docker compose exec postgres psql -U postgres -d expenses_db
-
-# List tables
-\dt
-
-# Query data
-SELECT * FROM expense_events LIMIT 10;
-
-# Exit
-\q
-```
-
-**5. Clean Start:**
-
-```bash
-# Remove everything including volumes
-docker compose down -v
-
-# Start fresh
-docker compose up -d
-
-# Check health
-docker compose ps
 ```
 
 ##### Troubleshooting Docker Compose
@@ -2728,1443 +2589,6 @@ $env:POSTGRES_PASSWORD="mysecret"; docker compose up -d
 
 The backend API starts on `http://localhost:8080` and the frontend on `http://localhost:3000`.
 
-### Quick API Test
-
-> **Note:** All API endpoints (except `/actuator/health`) require a valid JWT Bearer token from Keycloak.
-> Use the frontend UI for the easiest experience, or obtain a token via Keycloak's token endpoint:
-
-**Get a token (using test user):**
-
-```bash
-TOKEN=$(curl -s -X POST 'http://localhost:8180/realms/expenses-tracker/protocol/openid-connect/token' \
-  -H 'Content-Type: application/x-www-form-urlencoded' \
-  -d 'grant_type=password&client_id=expenses-frontend&username=testuser&password=password' \
-  | jq -r '.access_token')
-```
-
-**Create an Expense:**
-
-```bash
-curl -X POST http://localhost:8080/api/expenses \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{
-    "description": "Coffee",
-    "amount": 450,
-    "category": "Food",
-    "date": "2026-01-20T10:00:00Z"
-  }'
-```
-
-**Trigger Sync:**
-
-```bash
-curl -X POST http://localhost:8080/api/expenses/sync \
-  -H "Authorization: Bearer $TOKEN"
-```
-
----
-
-## 🎨 Frontend
-
-The frontend is a **React 19 + TypeScript + MUI v7** single-page application with **Keycloak authentication**
-that consumes the backend REST API.
-
-> **Note on cloud-drive sync.** Cloud-drive sync (Google Drive `appDataFolder` / OneDrive `approot`) is a
-> mobile-only feature — see [Mobile App (Expo)](#-mobile-app-expo). The web frontend is a thin online client
-> against the backend API and intentionally does **not** expose a "sync now" trigger.
-
-### Features
-
-- **Keycloak login** — PKCE authentication flow, auto token refresh, logout
-- **Dark / Light theme** — persisted in `localStorage`, toggle via the sun/moon icon in the app bar
-- **Responsive layout** — bottom navigation + hamburger menu on mobile; permanent sidebar on desktop
-- **Categories screen** — category grid with colored icons, amounts, and a donut chart of total expenses
-- **Transactions screen** — chronological list of all expenses with category chips
-- **Add/Edit Expense** — dialogs with category selector, calculator-style money input, and date picker
-- **Category management** — user-configurable categories with custom icons and colors
-- **Multi-currency** — per-user currency preference with exchange rate conversion
-- **Per-user preferences** — currency and date range stored in `localStorage` namespaced by userId
-
-### Architecture
-
-```
-expenses-tracker-frontend/src/
-├── main.tsx            # Entry (AuthProvider, QueryClientProvider, BrowserRouter)
-├── App.tsx             # Routes + ThemeProvider + ColorMode context
-├── theme.ts            # MUI dark/light theme (ColorModeToggleContext)
-├── config/             # Keycloak config + AuthContext (provider, userId, logout)
-├── api/                # Typed fetch wrappers (all REST endpoints, authenticated)
-├── components/         # Shared UI: Layout, MoneyField, DonutChart, …
-├── hooks/              # useExpenses, useCategories, useCurrency, useDateRange, …
-├── pages/              # CategoriesPage, TransactionsPage, OverviewPage
-├── types/              # Expense & Category interfaces (mirrors backend DTOs)
-└── utils/              # formatCurrency, categoryConfig, dateRange
-```
-
-### Commands
-
-```bash
-cd expenses-tracker-frontend
-
-npm run dev      # Vite dev server on port 3000 (proxies /api → localhost:8080)
-npm run build    # TypeScript + Vite production build → dist/
-npm run lint     # ESLint
-npm run preview  # Preview production build locally
-```
-
-### API Proxy
-
-During development, Vite proxies `/api/*` requests to `http://localhost:8080` and `/auth/*` requests to
-`http://localhost:8180` (Keycloak) — both configured in `vite.config.ts`. This mirrors the nginx proxy setup in Docker
-Compose, so the browser always uses `localhost:3000` as the origin in both modes. No CORS setup is needed.
-
-All API calls go through `fetchWithAuth.ts` which automatically attaches the Keycloak JWT Bearer token
-and refreshes it when expired.
-
----
-
-## 📡 API Documentation
-
-### Endpoints
-
-All endpoints (except health check) require a valid JWT Bearer token.
-
-| Method | Endpoint               | Description                       |
-|--------|------------------------|-----------------------------------|
-| POST   | `/api/expenses`        | Create expense                    |
-| GET    | `/api/expenses`        | Get all expenses (current user)   |
-| GET    | `/api/expenses/{id}`   | Get expense by ID                 |
-| PUT    | `/api/expenses/{id}`   | Update expense                    |
-| DELETE | `/api/expenses/{id}`   | Soft delete expense               |
-| POST   | `/api/expenses/sync`   | Trigger sync manually             |
-| GET    | `/api/categories`      | Get all categories (current user) |
-| GET    | `/api/categories/{id}` | Get category by ID                |
-| POST   | `/api/categories`      | Create category                   |
-| PUT    | `/api/categories/{id}` | Update category                   |
-| DELETE | `/api/categories/{id}` | Delete category                   |
-| GET    | `/actuator/health`     | Health check (no auth required)   |
-
-### Examples
-
-See `expenses-tracker-api.http` for complete examples.
-
-### HTTP Client Environment Configuration
-
-The project includes `http-client.env.json` for configuring API endpoints across different environments when using the
-HTTP client in IntelliJ IDEA or similar IDEs.
-
-#### File Location
-
-```
-expenses-tracker-playground/
-├── expenses-tracker-api.http      # HTTP request examples
-└── http-client.env.json           # Environment configuration
-```
-
-#### Configuration Format
-
-```json
-{
-  "local": {
-    "ExpensesApiUrl": "http://localhost:8080"
-  },
-  "docker": {
-    "ExpensesApiUrl": "http://localhost:8080"
-  },
-  "prod": {
-    "ExpensesApiUrl": "https://expenses-api.example.com"
-  }
-}
-```
-
-#### Available Environments
-
-| Environment | Variable         | Default Value                      | Use Case                          |
-|-------------|------------------|------------------------------------|-----------------------------------|
-| `local`     | `ExpensesApiUrl` | `http://localhost:8080`            | Local development (Gradle run)    |
-| `docker`    | `ExpensesApiUrl` | `http://localhost:8080`            | Docker Compose deployment         |
-| `prod`      | `ExpensesApiUrl` | `https://expenses-api.example.com` | Production deployment (customize) |
-
-#### How to Use
-
-**1. In IntelliJ IDEA / WebStorm:**
-
-- Open `expenses-tracker-api.http`
-- Select environment from dropdown (top-right corner): `local`, `docker`, or `prod`
-- Click the green "Run" arrow next to any request
-- The `{{ExpensesApiUrl}}` variable will be replaced with the selected environment's URL
-
-**2. In VS Code with REST Client extension:**
-
-- Install the "REST Client" extension
-- Open `expenses-tracker-api.http`
-- Select environment from status bar or command palette
-- Click "Send Request" above any request
-
-**3. Usage in HTTP Requests:**
-
-All requests in `expenses-tracker-api.http` use the `{{ExpensesApiUrl}}` variable:
-
-```http
-### Get All Expenses
-GET {{ExpensesApiUrl}}/api/expenses
-Accept: application/json
-
-### Create Expense
-POST {{ExpensesApiUrl}}/api/expenses
-Content-Type: application/json
-
-{
-  "description": "Coffee",
-  "amount": 450,
-  "category": "Food",
-  "date": "2026-01-24T10:00:00Z"
-}
-```
-
-#### Customizing for Your Environment
-
-**For local development on a different port:**
-
-```json
-{
-  "local": {
-    "ExpensesApiUrl": "http://localhost:9090"
-  }
-}
-```
-
-**For remote server testing:**
-
-```json
-{
-  "staging": {
-    "ExpensesApiUrl": "https://expenses-api-staging.example.com"
-  },
-  "production": {
-    "ExpensesApiUrl": "https://expenses-api.example.com"
-  }
-}
-```
-
-**With authentication:**
-
-```json
-{
-  "prod": {
-    "ExpensesApiUrl": "https://expenses-api.example.com",
-    "AuthToken": "Bearer <your-keycloak-jwt-token>"
-  }
-}
-```
-
-Then use in requests:
-
-```http
-GET {{ExpensesApiUrl}}/api/expenses
-Authorization: {{AuthToken}}
-```
-
-#### Tips
-
-- ✅ **Version control**: Safe to commit `http-client.env.json` with default values
-- ✅ **Secrets**: For sensitive data, use `.env.private` (auto-ignored by IntelliJ)
-- ✅ **Multiple environments**: Add as many environments as needed
-- ✅ **Team collaboration**: Shared configuration helps team members test consistently
-
-#### Alternative: Using curl
-
-If you prefer curl, replace the variable manually:
-
-```bash
-# Local
-API_URL="http://localhost:8080"
-
-# Get all expenses
-curl -X GET "$API_URL/api/expenses" -H "Accept: application/json"
-
-# Create expense
-curl -X POST "$API_URL/api/expenses" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "description": "Coffee",
-    "amount": 450,
-    "category": "Food",
-    "date": "2026-01-24T10:00:00Z"
-  }'
-```
-
----
-
-## 🧪 Testing
-
-> **Mobile module:** the mobile app has its own pure-TypeScript test suite — **56 Vitest tests** covering
-> the projector, codec, sync engine, OAuth client, and remote event applier. Run it with
-> `cd expenses-tracker-mobile && npm test`, or via Gradle: `./gradlew :expenses-tracker-mobile:check`
-> (lint + Vitest + `tsc -b`). The sections below describe the **backend** test suite.
-
-### Test Coverage
-
-**Comprehensive test suite** covering:
-
-1. **Command Service Transaction Tests** - `ExpenseCommandServiceTransactionTest`
-    - Transaction atomicity for create/update/delete operations
-    - Rollback behavior on failures
-    - Event and projection creation in single transaction
-
-2. **Event Projector Transaction Tests** - `ExpenseSyncProjectorTransactionTest`
-    - Transaction rollback scenarios
-    - Idempotency guarantees (event already processed)
-    - Failed projection isolation
-    - Atomic operations across all database tables
-
-3. **Sync Service Integration Tests** - `ExpenseEventSyncServiceTest`
-    - Duplicate event handling (idempotency)
-    - Out-of-order event application
-    - Concurrent device writes simulation
-    - Last-write-wins conflict resolution
-    - Sync file compression and decompression
-
-4. **Controller Integration Tests** - `SyncExpenseControllerTest`
-    - Full API endpoint integration
-    - Request/response validation
-    - CRUD operations end-to-end testing
-
-5. **Repository Tests** - `ExpenseProjectionRepositoryTest`
-    - UPSERT idempotency verification
-    - Last-write-wins conflict resolution
-    - Out-of-order operation handling
-    - Soft delete behavior
-
-### Running Tests
-
-```bash
-# Run all tests
-./gradlew test
-
-# Run with coverage report
-./gradlew test jacocoTestReport
-
-# Run specific test class
-./gradlew test --tests ExpenseEventSyncServiceTest
-./gradlew test --tests ExpenseCommandServiceTransactionTest
-./gradlew test --tests ExpenseSyncProjectorTransactionTest
-
-# Run tests with verbose output
-./gradlew test --info
-
-# Generate test report (open after running)
-./gradlew test
-# Report location: expenses-tracker-api/build/reports/tests/test/index.html
-```
-
-### Test Infrastructure
-
-The project uses **Testcontainers** with real PostgreSQL for integration testing:
-
-- ✅ Identical database behavior in tests and production
-- ✅ No H2 compatibility issues
-- ✅ Real SQL query validation
-- ✅ Automatic container lifecycle management
-- ✅ Parallel test execution support
-
-**Test Configuration:** `application-test.yaml`
-
-```yaml
-spring:
-  # Testcontainers will automatically configure both R2DBC and JDBC via @ServiceConnection
-  # This requires Docker to be running!
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-
-sync:
-  file:
-    path: ./build/test-sync-data/sync.json
-    compression:
-      enabled: false  # Disable compression in tests for simplicity
-```
-
-### Key Test Scenarios
-
-**Idempotency:**
-
-```kotlin
-@Test
-fun `should handle duplicate operations idempotently`() = runBlocking {
-        // Create an expense
-        val expense = commandService.createExpense(
-            description = "Test Expense",
-            amount = 10000,
-            currency = "USD",
-            categoryId = categoryId,
-            date = "2026-01-20T10:00:00Z"
-        )
-
-        // Sync twice (should apply events only once)
-        expenseEventSyncService.performFullSync()
-        val firstSyncExpenses = queryService.findAllExpenses().toList()
-        expenseEventSyncService.performFullSync()
-        val secondSyncExpenses = queryService.findAllExpenses().toList()
-
-        // Both syncs should result in same state (idempotent)
-        assertEquals(firstSyncExpenses.size, secondSyncExpenses.size)
-    }
-```
-
-**Out-of-Order Events:**
-
-```kotlin
-@Test
-fun `should apply out-of-order operations correctly`() = runBlocking {
-        val expenseId = UUID.randomUUID()
-        val now = System.currentTimeMillis()
-
-        // Create events with different timestamps
-        val event1 = createTestEventEntry(
-            eventId = UUID.randomUUID(),
-            timestamp = now - 1000, amount = 1000
-        )
-        val event2 = createTestEventEntry(
-            eventId = UUID.randomUUID(),
-            timestamp = now, amount = 2000
-        )
-
-        // Apply in reverse order (event2 first, then event1)
-        val syncFile = EventSyncFile(events = listOf(event2, event1))
-        writeSyncFile(syncFile)
-
-        expenseEventSyncService.performFullSync()
-
-        // Should have event2's data (newer timestamp wins)
-        val expenses = queryService.findAllExpenses().toList()
-        assertEquals(2000L, expenses[0].amount)
-    }
-```
-
-**Transaction Rollback:**
-
-```kotlin
-@Test
-fun `should rollback all steps when expense projection fails`() = runBlocking {
-        val eventEntry = createTestEventEntry(...)
-        val initialProjectionCount = projectionRepository.findAll().toList().size
-        val initialProcessedEventsCount = getAllProcessedEvents().size
-
-        // Configure spy to fail on projection
-        doAnswer { throw RuntimeException("Simulated projection failure") }
-            .`when`(projectionRepository).projectFromEvent(any())
-
-        // Execute and expect failure
-        assertThatThrownBy {
-            runBlocking { expenseSyncProjector.projectEvent(eventEntry) }
-        }.isInstanceOf(RuntimeException::class.java)
-
-        // Verify rollback - no changes persisted
-        val projectionsAfter = projectionRepository.findAll().toList()
-        val processedEventsAfter = getAllProcessedEvents()
-
-        assertEquals(initialProjectionCount, projectionsAfter.size)
-        assertEquals(initialProcessedEventsCount, processedEventsAfter.size)
-    }
-```
-
----
-
-## 📱 Mobile App (Expo)
-
-The `expenses-tracker-mobile/` module is a native iOS + Android app built with **Expo SDK 55 + React Native
-0.83 + React Native Paper v5**. It is **fully offline-first** and **never talks to `expenses-tracker-api`** —
-all state lives in a local SQLite database, and multi-device convergence happens through the user's own
-Google Drive `appDataFolder` or OneDrive `approot`.
-
-The mobile module is a Gradle subproject (`./gradlew :expenses-tracker-mobile:check` runs lint + Vitest +
-type-check) so it participates in the same monorepo build as the backend and web frontend.
-
-### Running the Mobile App
-
-```bash
-cd expenses-tracker-mobile
-
-# First-time install (no special flags needed)
-npm install
-
-# Run the standard checks (lint + Vitest + tsc)
-npm run lint
-npm run typecheck
-npm test
-
-# Start the Expo dev server (requires a simulator or a physical device)
-npm start
-```
-
-When `npm start` is running, press:
-
-- `a` — open on Android emulator (or connected device)
-- `i` — open on iOS Simulator (macOS only)
-- `w` — open in a web browser (limited; not the supported target)
-- scan the QR code with the **Expo Go** app on a physical device
-
-#### Setting up a simulator / emulator
-
-You have three options for running the app during development. Pick whichever fits your OS.
-
-**Option 1 — Physical device with Expo Go (easiest, any OS)**
-
-1. Install **Expo Go** from the [App Store](https://apps.apple.com/app/expo-go/id982107779) (iOS) or
-   [Google Play](https://play.google.com/store/apps/details?id=host.exp.exponent) (Android).
-2. Connect the phone to the **same Wi-Fi network** as your dev machine.
-3. Run `npm start` and scan the QR code printed in the terminal (iOS: Camera app; Android: Expo Go's
-   built-in scanner).
-
-> Expo Go is fine for the JS-only parts of this app, but **OAuth via `expo-auth-session` and
-> `expo-secure-store` need a custom dev client**. For full cloud-drive sync testing on a physical
-> device, build a dev client with `npx eas build --profile development --platform <android|ios>`
-> and install the resulting `.apk` / `.ipa`.
-
-**Option 2 — Android emulator (Windows / macOS / Linux)**
-
-1. Install **[Android Studio](https://developer.android.com/studio)**. During the setup wizard,
-   make sure **Android SDK**, **Android SDK Platform-Tools**, and **Android Virtual Device** are
-   selected.
-2. Open Android Studio → **More Actions → Virtual Device Manager → Create Device**. Pick a phone
-   profile (e.g. Pixel 7) and a recent system image (API 34 / Android 14 recommended). Download
-   the image if prompted, then **Finish**.
-3. Set the `ANDROID_HOME` environment variable and add platform-tools to `PATH`:
-    - **Windows (PowerShell, persistent — writes the User registry directly, idempotent):**
-      ```powershell
-      $sdk = "$env:LOCALAPPDATA\Android\Sdk"
-      Set-ItemProperty -Path 'HKCU:\Environment' -Name 'ANDROID_HOME' -Value $sdk
-
-      $userPath = (Get-ItemProperty -Path 'HKCU:\Environment' -Name 'Path' -ErrorAction SilentlyContinue).Path
-      $entries  = if ($userPath) { $userPath -split ';' | Where-Object { $_ -ne '' } } else { @() }
-      foreach ($p in @("$sdk\platform-tools", "$sdk\emulator")) {
-          if ($entries -notcontains $p) { $entries += $p }
-      }
-      Set-ItemProperty -Path 'HKCU:\Environment' -Name 'Path' -Value ($entries -join ';') -Type ExpandString
-      ```
-      Open a **new terminal** afterwards so it picks up the updated `Path`.
-
-      > Why the registry directly? `[Environment]::SetEnvironmentVariable(..., 'User')`
-      > broadcasts a `WM_SETTINGCHANGE` message to every top-level window and can hang for
-      > minutes if any of them is unresponsive. Writing `HKCU:\Environment` is instant and
-      > equivalent for new processes.
-    - **macOS / Linux (`~/.zshrc` or `~/.bashrc`):**
-      ```bash
-      export ANDROID_HOME="$HOME/Library/Android/sdk"   # macOS
-      # export ANDROID_HOME="$HOME/Android/Sdk"         # Linux
-      export PATH="$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator"
-      ```
-4. Verify the toolchain:
-   ```bash
-   adb --version
-   emulator -list-avds
-   ```
-5. Start the emulator (from Android Studio's Device Manager, or `emulator -avd <name>`), run
-   `npm start` from `expenses-tracker-mobile/`, and press `a`.
-
-> Hardware acceleration matters: on Windows enable **Hyper-V** or **WHPX** (Android Studio
-> installs WHPX automatically); on Intel Macs use **HAXM**; on Apple Silicon use the bundled
-> ARM64 system image; on Linux make sure your user is in the `kvm` group.
-
-##### Recommended AVD configuration (stability)
-
-The default AVD wizard picks values tuned for "smallest possible footprint", not "stable for
-daily dev work". The Android Studio emulator is notoriously fragile on Windows; the settings
-below eliminate the most common crash / freeze causes. Pick these explicitly when creating
-the device (or **Edit Device** an existing one — then **Wipe Data** so the new values take
-effect instead of being shadowed by the old userdata image).
-
-| Setting                   | Default      | Recommended                                             | Why                                                                                                                                                                                                      |
-|---------------------------|--------------|---------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Device profile**        | Pixel 9 / 10 | **Pixel 7**                                             | Most battle-tested profile; what most Expo / RN guides assume.                                                                                                                                           |
-| **API level**             | Latest       | **34** (Android 14)                                     | Expo SDK 55 / RN 0.83 cap `targetSdk` at 35. Preview API images (37+) are explicitly unstable.                                                                                                           |
-| **Services**              | Google Play  | **Google APIs**                                         | The Play image runs Play Services + Play Store auto-updaters in the background — #1 cause of random freezes. You don't need Play Store for `npx expo run:android`.                                       |
-| **ABI**                   | x86_64       | **x86_64** (Intel/AMD) or **arm64-v8a** (Apple Silicon) | Match the host architecture exactly.                                                                                                                                                                     |
-| **Preferred ABI**         | Optimal      | **x86_64** (or arm64-v8a)                               | "Optimal" lets the emulator translate cross-arch binaries via `libndk_translation`. Translation is slow *and* a known crash source. Force the host arch to disable it.                                   |
-| **Default boot**          | Quick        | **Cold**                                                | Quick boot uses a snapshot; snapshot restore is the #1 source of "started, then froze" and "Metro can't connect" reports. Cold boots take 20–40 s but are far more reliable.                             |
-| **Graphics acceleration** | Automatic    | **Hardware — GLES 2.0**                                 | "Automatic" sometimes picks ANGLE-on-D3D on Windows and crashes on driver updates. Explicit is deterministic. (Fall back to **SwiftShader / software** if you get GPU crashes — slower but bulletproof.) |
-| **RAM**                   | 1.5–2 GB     | **4 GB**                                                | 2 GB is heavily swap-bound on API 34; apps get killed under memory pressure and the emulator surfaces it as "process terminated".                                                                        |
-| **VM heap size**          | 228 MB       | **512 MB**                                              | API-24 era default. Hermes + debugger needs 384+ MB; OOM kills look like emulator crashes.                                                                                                               |
-| **CPU cores**             | 2            | **4**                                                   | Don't exceed half your host's physical cores.                                                                                                                                                            |
-| **Internal storage**      | 2 GB         | **6 GB**                                                | RN dev clients + Metro cache + a couple of APK rebuilds fill 2 GB fast.                                                                                                                                  |
-
-After clicking **Finish**: right-click the AVD → **Wipe Data**. Without this the existing
-userdata image keeps the old RAM / heap settings.
-
-###### Host-level tips (Windows)
-
-These matter at least as much as the AVD settings themselves:
-
-- **Exclude the AVD + SDK directories from Windows Defender real-time scanning** —
-  `%USERPROFILE%\.android\avd\` and `%LOCALAPPDATA%\Android\Sdk\`. Defender locking the qcow2
-  disk image mid-write produces a silent *"emulator process terminated"* with no useful log.
-- **Don't run Docker Desktop and the emulator at the same time** unless Docker is fully on
-  the WSL2 backend — both want the Hyper-V hypervisor, and the loser crashes.
-- **Keep emulator + platform-tools current** — `sdkmanager --update`. Pre-33.x emulator
-  binaries crash on Windows 11 24H2.
-
-###### If the AOSP emulator still misbehaves
-
-Three escalation paths in order of effort:
-
-1. **Physical Android device over USB** (gold standard). Enable Developer Options →
-   USB Debugging, connect, then `adb reverse tcp:8081 tcp:8081` so Metro speaks to the
-   device over USB regardless of Wi-Fi. Restarting the phone is far cheaper than restarting
-   an emulator.
-2. **Genymotion Personal** (free for non-commercial use). Runs on VirtualBox instead of
-   WHPX / Hyper-V and is dramatically more stable on Windows. Pairs cleanly with Android
-   Studio's `adb`.
-3. **EAS preview build + same physical device** — `npx eas build --profile preview
-   --platform android`, install the APK. Useful for reproducing release-mode bugs.
-
-**Option 3 — iOS Simulator (macOS only)**
-
-1. Install **[Xcode](https://apps.apple.com/app/xcode/id497799835)** from the Mac App Store
-   (large download, ~10 GB).
-2. Open Xcode once and accept the license, then install the command-line tools:
-   ```bash
-   sudo xcode-select --install
-   sudo xcodebuild -license accept
-   ```
-3. Install a simulator runtime: **Xcode → Settings → Platforms → iOS → Get** (or **+** to pick a
-   specific version). iOS 17+ is recommended.
-4. (Optional but recommended) install Watchman for faster Metro file watching:
-   ```bash
-   brew install watchman
-   ```
-5. Verify:
-   ```bash
-   xcrun simctl list devices
-   ```
-6. Run `npm start` from `expenses-tracker-mobile/` and press `i`. Expo will boot the default
-   simulator and install the app.
-
-> iOS Simulator is **not available on Windows or Linux** — there is no legal way to run it
-> outside macOS. From a Windows machine, use the Android emulator locally and rely on
-> `npx eas build --platform ios` (cloud build) when you need an iOS artifact.
-
-#### Verifying the setup
-
-After starting `npm start`, the Metro bundler should print something like:
-
-```
-› Metro waiting on exp://192.168.1.42:8081
-› Press a │ open Android
-› Press i │ open iOS simulator
-```
-
-If `a` reports "No Android connected device found", run `adb devices` — the emulator should
-appear as `emulator-5554   device`. If it shows `unauthorized`, accept the USB-debugging prompt
-on the device; if it shows `offline`, cold-boot the emulator from Android Studio's Device
-Manager.
-
-To produce installable builds via EAS (Expo Application Services):
-
-```bash
-# Android (works from Windows / macOS / Linux — cloud build by default)
-npx eas build --platform android --profile preview
-
-# iOS (requires an Apple developer account and either macOS or EAS cloud)
-npx eas build --platform ios --profile preview
-```
-
-#### Building a local dev client with `npx expo run:android`
-
-`npm start` + Expo Go covers most JS-only work, but features that need native modules
-(cloud-drive OAuth, `expo-secure-store`, background sync) require a **dev client** built
-locally. From `expenses-tracker-mobile/`:
-
-```bash
-npx expo run:android   # generates android/, runs Gradle, installs APK on device/emulator
-```
-
-This invokes the full Android NDK + CMake + Kotlin/Gradle pipeline and has three host-level
-prerequisites beyond the SDK / emulator setup above.
-
-**1. JDK 17–21 (NOT JDK 22+)** — AGP 8.12 (bundled with Expo SDK 55 / RN 0.83) only supports
-JDK 17–21. On JDK 22+ the CMake configure tasks fail with
-`WARNING: A restricted method in java.lang.System has been called`. Microsoft Build of OpenJDK
-21 LTS, Eclipse Temurin 21, Azul Zulu 21, Android Studio's bundled JBR 21 all work. Set
-`JAVA_HOME` to the JDK 21 install root and reopen your terminal. The backend uses Gradle
-toolchains (`gradle/libs.versions.toml: java = "21"`) and is unaffected by the global JDK.
-
-**2. Windows: enable Win32 long path support** — RN's autolinked CMake codegen embeds
-absolute source paths inside the build directory, producing object-file paths of ~380 chars.
-The default Windows MAX_PATH of 260 will fail the build with
-`ninja: error: Stat(...): Filename longer than 260 characters`. Two steps are needed:
-
-- Set the registry flag once (admin / UAC required):
-  ```powershell
-  Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile','-Command',
-    "Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' LongPathsEnabled 1 -Type DWord"
-  ```
-- Enable long-path support in git as well (no admin):
-  ```powershell
-  git config --global core.longpaths true
-  ```
-
-**3. Windows: replace Android SDK's bundled `ninja.exe`** — the registry flag is necessary
-but **not sufficient**: each process must also declare `longPathAware` in its application
-manifest. The `ninja.exe` shipped with Android SDK `cmake/3.22.1/` is version 1.10.2 (2020)
-and lacks that manifest entry, so Windows continues to enforce MAX_PATH on it regardless of
-the registry. Replace it with ninja 1.11+ (kitware-built binaries from
-[ninja-build releases](https://github.com/ninja-build/ninja/releases)):
-
-```powershell
-$bin = "$env:LOCALAPPDATA\Android\Sdk\cmake\3.22.1\bin"
-Copy-Item "$bin\ninja.exe" "$bin\ninja.exe.bak"
-Invoke-WebRequest 'https://github.com/ninja-build/ninja/releases/download/v1.12.1/ninja-win.zip' `
-  -OutFile "$env:TEMP\ninja-win.zip"
-Expand-Archive "$env:TEMP\ninja-win.zip" -DestinationPath "$env:TEMP\ninja" -Force
-Copy-Item "$env:TEMP\ninja\ninja.exe" "$bin\ninja.exe" -Force
-```
-
-Verify with:
-
-```powershell
-& "$env:LOCALAPPDATA\Android\Sdk\cmake\3.22.1\bin\ninja.exe" --version   # should print 1.12.1+
-```
-
-After changing any of the above, clean stale CMake artifacts before the next build:
-
-```powershell
-cd expenses-tracker-mobile\android
-Remove-Item -Recurse -Force app\.cxx, app\build -ErrorAction SilentlyContinue
-.\gradlew.bat --stop
-```
-
-> macOS / Linux are unaffected by points 2 and 3 — their filesystems have no 260-char limit.
-> The JDK version requirement (point 1) applies to every host OS.
-
-### Cloud-Drive Sync — Getting OAuth Client IDs
-
-The mobile app uses **OAuth 2.0 with PKCE** to talk to Google Drive and OneDrive. There is **no client
-secret** — PKCE replaces it with a per-flow code challenge — so the only thing you need to provide is the
-**Client ID** for each provider. Both client IDs are referenced as constants in source:
-
-| Provider     | Constant                    | File                                                                                                               |
-|--------------|-----------------------------|--------------------------------------------------------------------------------------------------------------------|
-| Google Drive | `GOOGLE_OAUTH_CLIENT_ID`    | [`expenses-tracker-mobile/src/sync/googleDriveAdapter.ts`](expenses-tracker-mobile/src/sync/googleDriveAdapter.ts) |
-| OneDrive     | `MICROSOFT_OAUTH_CLIENT_ID` | [`expenses-tracker-mobile/src/sync/oneDriveAdapter.ts`](expenses-tracker-mobile/src/sync/oneDriveAdapter.ts)       |
-
-Both files ship with a `TODO_REPLACE_WITH_*` placeholder. Replace those values with the IDs you obtain
-from the steps below before running the OAuth flow on a device.
-
-The redirect URI used by both adapters is **`expensestracker://redirect`** — derived from the `scheme`
-field in [`expenses-tracker-mobile/app.json`](expenses-tracker-mobile/app.json). The bundle / package
-identifier is **`com.vshpynta.expensestracker`** for both iOS and Android.
-
-> ⚠️ **You cannot test the OAuth flow in Expo Go.** Expo Go ignores the app's custom `scheme` and
-> generates a sandbox redirect URI like `exp://192.168.x.x:8081/--/redirect`, which neither Microsoft
-> nor Google will accept. You must run the app in a **development build** (or production build) so
-> that the native binary owns the `expensestracker` scheme:
->
-> ```powershell
-> cd expenses-tracker-mobile
-> # one-time — already added to package.json:
-> # npx expo install expo-dev-client
->
-> # Android (requires Android SDK / emulator / USB-connected device):
-> npx expo run:android
->
-> # iOS (requires macOS + Xcode):
-> npx expo run:ios
->
-> # Or build a dev client in the cloud and install the resulting .apk / .ipa:
-> npx eas build --profile development --platform android
-> ```
->
-> Inside a dev build, `AuthSession.makeRedirectUri({ scheme: 'expensestracker', path: 'redirect' })`
-> correctly returns `expensestracker://redirect`. The sign-in dialog in **Settings → Cloud sync** logs
-> the live value as `[oauth] redirectUri = …` to Metro so you can verify before talking to the
-> provider's redirect-URI registration.
-
-#### Microsoft (OneDrive)
-
-1. Sign in to <https://entra.microsoft.com> and open **App registrations → New registration**.
-2. Choose **Personal Microsoft accounts only** (this matches the `consumers` tenant used by the adapter).
-   If you also need work / school accounts, pick **Accounts in any organizational directory and personal
-   Microsoft accounts** and change the tenant in `oneDriveAdapter.ts` from `consumers` to `common`.
-3. Under **Redirect URI**, select **Mobile and desktop applications** and add
-   `expensestracker://redirect` exactly.
-4. Open **API permissions → Add a permission → Microsoft Graph → Delegated permissions** and add:
-    - `Files.ReadWrite.AppFolder`
-    - `offline_access` (so the app can refresh tokens silently)
-5. Open **Authentication (Preview) → Settings** tab and toggle **Allow public client flows** to
-   **Enabled**, then click **Save** (PKCE is a public-client flow). In the classic Authentication
-   experience the same toggle lives at the bottom of the page under **Advanced settings → Allow public
-   client flows: Yes**.
-6. Copy the **Application (client) ID** from the **Overview** blade and paste it into
-   `MICROSOFT_OAUTH_CLIENT_ID`.
-
-#### Google (Google Drive)
-
-1. Sign in to <https://console.cloud.google.com>, create a project (or pick an existing one), and open
-   **APIs & Services → Library → Google Drive API → Enable**.
-2. Open **APIs & Services → OAuth consent screen** and configure the app for **External** users (Testing
-   mode is fine for development).
-3. Open **APIs & Services → Credentials → Create Credentials → OAuth client ID** and create **two**
-   clients — one per platform — using the bundle / package identifier `com.vshpynta.expensestracker`:
-    - **iOS** — Bundle ID `com.vshpynta.expensestracker`.
-    - **Android** — Package name `com.vshpynta.expensestracker` plus the SHA-1 fingerprint of the keystore
-      EAS uses to sign the app (run `npx eas credentials` to retrieve it).
-4. Under **Scopes**, the app only requests `https://www.googleapis.com/auth/drive.appdata` — no broad
-   Drive scope, so your app stays inside Google's lightweight verification path.
-5. Copy the resulting **Client ID** and paste it into `GOOGLE_OAUTH_CLIENT_ID`.
-
-#### Will other users be able to use my app registration?
-
-**Yes — that's the whole point.** An app registration in Entra ID (or in Google Cloud) is just a
-**public identity** for your app. It is *not* tied to your personal OneDrive / Drive — it's a record
-that says "an app named `vs-expenses-tracker` exists, here's its client ID, here's where it's allowed
-to redirect after login, and here are the permissions it can ask for."
-
-When another user installs your mobile app:
-
-1. The app opens the system browser to Microsoft's (or Google's) login page, passing **your client
-   ID** + the redirect URI `expensestracker://redirect` + the requested scopes.
-2. The user signs in with **their own** Microsoft / Google account.
-3. The provider shows a consent screen: *"vs-expenses-tracker wants to access files it creates in your
-   OneDrive."*
-4. After they consent, the provider redirects back to the app with an auth code.
-5. The app exchanges the code (plus the PKCE verifier) for an access token + refresh token. The tokens
-   belong to **that user**, scoped to **their** drive's app folder (`approot` / `appDataFolder`).
-   Users cannot see each other's data, and you as the app owner have no access to anyone else's data
-   either.
-
-The **only thing shared** between users is the client ID — that's why it is safe to commit.
-
-##### Who can sign in — the "Supported account types" setting
-
-For Microsoft / Entra registrations specifically, **who** is allowed to sign in depends on the
-**Supported account types** option you picked at registration time:
-
-| Setting in Entra                                                  | Who can log in                                                                   | Tenant in `oneDriveAdapter.ts` |
-|-------------------------------------------------------------------|----------------------------------------------------------------------------------|--------------------------------|
-| **Personal Microsoft accounts only**                              | Only `@outlook.com`, `@hotmail.com`, `@live.com`, Xbox, etc. (NOT work / school) | `consumers`                    |
-| **Accounts in any org directory and personal Microsoft accounts** | Anyone — personal + any company / school Microsoft 365 tenant                    | `common`                       |
-| **Accounts in any organizational directory only**                 | Any work / school tenant, no personal accounts                                   | `organizations`                |
-| **Accounts in this organizational directory only**                | Only users in *your* tenant — single-tenant app                                  | `<your-tenant-id>`             |
-
-The default in the registration steps above is **Personal Microsoft accounts only** (matches
-`consumers`). If you want users with only a work / school Microsoft account to sign in too, pick
-**"Any org directory + personal"** and change the tenant constant in
-[`expenses-tracker-mobile/src/sync/oneDriveAdapter.ts`](expenses-tracker-mobile/src/sync/oneDriveAdapter.ts)
-from `consumers` to `common`.
-
-##### "Unverified publisher" warning
-
-Until you complete [Publisher
-Verification](https://learn.microsoft.com/en-us/entra/identity-platform/publisher-verification-overview),
-users other than you will see a yellow *"unverified app"* warning on the Microsoft consent screen.
-It is not blocking — for personal use or small-scale testing it is harmless — but for a wider release
-you would want to verify your publisher domain.
-
-#### How the `expensestracker://redirect` URI actually works
-
-This is the part of OAuth that feels like magic until you see what is happening under the hood. The
-short version: **Microsoft does not redirect to anything on the internet. It tells the device's OS to
-open a URL with a custom scheme, and the OS routes that URL to your app.**
-
-```
-┌──────────────┐                                  ┌──────────────────┐
-│  Mobile App  │ ── 1. open browser ────────────► │   System         │
-│  (Expo)      │                                  │   Browser        │
-└──────────────┘                                  └──────────────────┘
-       ▲                                                   │
-       │                                                   │ 2. user signs in
-       │                                                   │    + consents
-       │                                                   ▼
-       │                                          ┌──────────────────┐
-       │                                          │ login.microsoft  │
-       │                                          │ online.com       │
-       │                                          └──────────────────┘
-       │                                                   │
-       │                                                   │ 3. HTTP 302 Redirect:
-       │                                                   │    Location: expensestracker://redirect?code=...
-       │                                                   ▼
-       │                                          ┌──────────────────┐
-       │                                          │  Browser tries   │
-       │                                          │  to open URL     │
-       │                                          └──────────────────┘
-       │                                                   │
-       │                                                   │ 4. OS sees scheme
-       │                                                   │    "expensestracker://"
-       │                                                   │    and looks up
-       │                                                   │    which app owns it
-       │                                                   ▼
-       │                                          ┌──────────────────┐
-       └─── 5. OS hands URL to app ◄───────────── │   Android / iOS  │
-                                                  │   scheme handler │
-                                                  └──────────────────┘
-```
-
-Two pieces make this work:
-
-##### 1. The app *claims* the scheme at install time
-
-In [`expenses-tracker-mobile/app.json`](expenses-tracker-mobile/app.json):
-
-```json
-{
-  "expo": {
-    "scheme": "expensestracker"
-  }
-}
-```
-
-When Expo / EAS builds the native binaries, this scheme is compiled into the platform manifests:
-
-- **Android** — into `AndroidManifest.xml` as an `<intent-filter>`:
-  ```xml
-  <intent-filter>
-    <action android:name="android.intent.action.VIEW"/>
-    <category android:name="android.intent.category.DEFAULT"/>
-    <category android:name="android.intent.category.BROWSABLE"/>
-    <data android:scheme="expensestracker"/>
-  </intent-filter>
-  ```
-- **iOS** — into `Info.plist` as a `CFBundleURLTypes` entry:
-  ```xml
-  <key>CFBundleURLSchemes</key>
-  <array><string>expensestracker</string></array>
-  ```
-
-When the app is installed, the OS registers this claim in a system-wide *scheme → app* table.
-
-##### 2. Microsoft *records* the redirect URI as a plain string
-
-When you registered the app in Entra, you added `expensestracker://redirect` to the redirect URIs
-list. Microsoft's auth server stores this string verbatim. During step 3 of the flow it just emits
-an HTTP 302:
-
-```
-HTTP/1.1 302 Found
-Location: expensestracker://redirect?code=ABC123&state=xyz
-```
-
-Microsoft has no idea what `expensestracker://` is. It does not "look up where your app lives" — it
-just trusts that whoever registered the app knows what they are doing and emits the URL as-is.
-
-##### The handoff
-
-The browser receives the 302 and tries to navigate to `expensestracker://redirect?code=...`. Since
-the scheme is not `http` / `https`, the browser asks the OS:
-
-- **Android** fires `Intent.ACTION_VIEW`; the OS consults its scheme table and launches the app
-  registered for `expensestracker`, passing the full URL as intent data.
-- **iOS** invokes `application:openURL:options:` on the app registered for that scheme.
-
-In React Native / Expo this surfaces as a `Linking` event. The
-[`expo-auth-session`](https://docs.expo.dev/versions/latest/sdk/auth-session/) library (configured
-via [`expenses-tracker-mobile/src/sync/oauthClient.ts`](expenses-tracker-mobile/src/sync/oauthClient.ts))
-subscribes to that event, parses the URL, extracts `code` + `state`, and resolves the awaiting
-promise. The app then exchanges the code (plus its PKCE verifier) for tokens and finishes the
-flow.
-
-##### Why this is secure
-
-You might wonder: *"What if a malicious app also claims `expensestracker://`?"* That is exactly why
-**PKCE** is required for public clients.
-
-- At the **start** of the flow, the app generates a random `code_verifier` and sends only its
-  SHA-256 hash (`code_challenge`) to Microsoft.
-- The `code_verifier` **never leaves the originating app's memory**.
-- At the **end** of the flow, the app must present the original `code_verifier` to exchange the
-  auth code for tokens.
-
-A hostile app that intercepts the redirect URL gets the auth code but cannot compute the verifier
-(SHA-256 is one-way), so the code is useless to it.
-
-For even stronger guarantees you can switch to **Android App Links** / **iOS Universal Links** —
-real `https://yourdomain.com/redirect` URLs that the OS verifies against `assetlinks.json` /
-`apple-app-site-association` files hosted on your domain. That eliminates scheme hijacking entirely
-but requires you to own a domain. Custom-scheme + PKCE is the standard pattern that both Microsoft
-and Google explicitly recommend for native apps without their own backend.
-
-##### Common failure modes (and what they confirm about the model)
-
-| Symptom                                              | Likely cause                                                                           |
-|------------------------------------------------------|----------------------------------------------------------------------------------------|
-| Browser shows *"Can't open page — unknown protocol"* | App not installed, or `scheme` in `app.json` doesn't match what's registered           |
-| Microsoft shows error `AADSTS50011`                  | The redirect URI string doesn't match the registration **exactly** (e.g. trailing `/`) |
-| App opens but the auth promise never resolves        | `expo-auth-session` listener not wired up, or the app was killed during the flow       |
-| Two apps both claim `expensestracker://`             | OS shows an app picker (Android) or uses install order (iOS) — pick a unique scheme    |
-
-#### Are these Client IDs sensitive?
-
-**No — Client IDs are public identifiers under the PKCE flow** and are safe to commit to a public Git
-repository. They identify your app to the OAuth provider but cannot be used to obtain tokens on their
-own (the per-flow code-verifier secret stays on the device). For comparison, the web frontend's Keycloak
-public client ID (`expenses-frontend`) is committed to this repo for the same reason.
-
-**Never commit any of these:**
-
-- OAuth **client secrets** (PKCE removes the need for one — your registration must NOT have one)
-- **Refresh tokens** or **access tokens** (the app stores them in `expo-secure-store`, i.e. iOS Keychain
-  / Android Keystore — _never_ in `AsyncStorage` or in source)
-- **Service-account JSON keys** (not used by this app at all)
-
-If you accidentally leak a token, revoke it from the provider's console and rotate. If you leak a Client
-ID, you do not need to rotate it — but you should still review the registration's permitted redirect
-URIs.
-
-### Key Files
-
-- **[
-  `.github/instructions/expenses-tracker-mobile.instructions.md`](.github/instructions/expenses-tracker-mobile.instructions.md)
-  ** —
-  full coding conventions for this module (RN Paper v5, Expo Router v4, TanStack Query over local store,
-  i18n, time injection, security).
-- **[`expenses-tracker-mobile/src/sync/syncEngine.ts`](expenses-tracker-mobile/src/sync/syncEngine.ts)** —
-  the orchestration loop with retry-on-`ConcurrencyError`.
-- **[`expenses-tracker-mobile/src/sync/oauthClient.ts`](expenses-tracker-mobile/src/sync/oauthClient.ts)** —
-  shared PKCE helper used by both Drive adapters; persists tokens via `expo-secure-store` and serializes
-  refresh requests behind a single in-flight promise.
-
----
-
-## 🚀 Performance Optimization: Batch Processing (Recommended)
-
-### Current Implementation
-
-The current codebase uses **sequential processing within a transaction**:
-
-```kotlin
-@Transactional
-suspend fun projectFromEventBatch(projections: List<ExpenseProjection>): Int {
-    return projections.count { projection ->
-        projectFromEvent(projection) > 0  // N database calls
-    }
-}
-```
-
-**Characteristics:**
-
-- ✅ **Simple & Maintainable** - Easy to understand, reuses existing methods
-- ✅ **Atomic** - Single transaction ensures all-or-nothing
-- ✅ **Portable** - Works on any database
-- ⚠️ **Performance** - Makes N database calls (acceptable for validation/playground)
-
----
-
-### Recommended Production Optimization
-
-For production systems handling large sync batches, implement **true batch processing** using multi-row SQL operations.
-
-#### Option 1: Multi-Row INSERT (PostgreSQL + SQLite 3.24+)
-
-**Implementation using DatabaseClient with dynamic SQL:**
-
-```kotlin
-@Component
-class ExpenseProjectionRepositoryCustomImpl(
-    private val databaseClient: DatabaseClient
-) : ExpenseProjectionRepositoryCustom {
-
-    @Transactional
-    override suspend fun projectFromEventBatch(projections: List<ExpenseProjection>): Int {
-        if (projections.isEmpty()) return 0
-
-        // Generate VALUES placeholders: (?, ?, ...), (?, ?, ...), (?, ?, ...)
-        val valuesPlaceholders = projections.joinToString(", ") { "(?, ?, ?, ?, ?, ?, ?)" }
-
-        val sql = """
-            INSERT INTO expense_projections (id, description, amount, category, date, updated_at, deleted)
-            VALUES $valuesPlaceholders
-            ON CONFLICT (id) DO UPDATE SET
-                description = EXCLUDED.description,
-                amount = EXCLUDED.amount,
-                category = EXCLUDED.category,
-                date = EXCLUDED.date,
-                updated_at = EXCLUDED.updated_at,
-                deleted = EXCLUDED.deleted
-            WHERE EXCLUDED.updated_at > expense_projections.updated_at
-        """.trimIndent()
-
-        // Bind parameters using extension function
-        val spec = databaseClient.sql(sql).bindProjections(projections)
-
-        return spec.fetch().rowsUpdated().awaitSingle().toInt()
-    }
-}
-
-// Extension function for clean parameter binding
-private fun DatabaseClient.GenericExecuteSpec.bindProjections(
-    projections: List<ExpenseProjection>
-): DatabaseClient.GenericExecuteSpec {
-    var spec = this
-    var paramIndex = 0
-
-    projections.forEach { projection ->
-        spec = spec
-            .bind(paramIndex++, projection.id)                    // R2DBC UuidToStringConverter handles UUID->String
-            .bindNullable(paramIndex++, projection.description)   // Nullable string
-            .bind(paramIndex++, projection.amount)                // Non-null long
-            .bindNullable(paramIndex++, projection.category)      // Nullable string
-            .bindNullable(paramIndex++, projection.date)          // Nullable string
-            .bind(paramIndex++, projection.updatedAt)             // Non-null long
-            .bind(paramIndex++, projection.deleted)               // Non-null boolean
-    }
-
-    return spec
-}
-
-// Helper for nullable binding
-private fun DatabaseClient.GenericExecuteSpec.bindNullable(
-    index: Int,
-    value: String?
-): DatabaseClient.GenericExecuteSpec {
-    return if (value != null) bind(index, value) else bindNull(index, String::class.java)
-}
-```
-
-**Performance:**
-
-- ✅ **1 database call** for N projections (vs N calls)
-- ✅ **60-100x faster** for large batches
-- ✅ **Reduced network latency**
-
-#### Option 2: Batch UPDATE with VALUES Clause
-
-**For batch delete operations:**
-
-```kotlin
-@Transactional
-override suspend fun markAsDeletedBatch(ids: List<UUID>, updatedAts: List<Long>): Int {
-    if (ids.isEmpty()) return 0
-    require(ids.size == updatedAts.size) { "ids and updatedAts must have the same size" }
-
-    // Generate VALUES placeholders: (?, ?), (?, ?), (?, ?)
-    val valuesPlaceholders = ids.indices.joinToString(", ") { "(?, ?)" }
-
-    val sql = """
-        UPDATE expense_projections
-        SET deleted = true,
-            updated_at = updates.updated_at
-        FROM (VALUES $valuesPlaceholders) AS updates(id, updated_at)
-        WHERE expense_projections.id = updates.id
-          AND expense_projections.updated_at < updates.updated_at
-    """.trimIndent()
-
-    val spec = databaseClient.sql(sql).bindDeleteBatch(ids, updatedAts)
-
-    return spec.fetch().rowsUpdated().awaitSingle().toInt()
-}
-
-private fun DatabaseClient.GenericExecuteSpec.bindDeleteBatch(
-    ids: List<UUID>,
-    updatedAts: List<Long>
-): DatabaseClient.GenericExecuteSpec {
-    var spec = this
-    var paramIndex = 0
-
-    ids.forEachIndexed { index, id ->
-        spec = spec
-            .bind(paramIndex++, id)
-            .bind(paramIndex++, updatedAts[index])
-    }
-
-    return spec
-}
-```
-
----
-
-### Database Compatibility
-
-| Feature                      | PostgreSQL     | SQLite           | MySQL                     | H2            |
-|------------------------------|----------------|------------------|---------------------------|---------------|
-| Multi-row INSERT             | ✅ All versions | ✅ 3.24+          | ✅ Yes                     | ✅ Yes         |
-| ON CONFLICT DO UPDATE        | ✅ 9.5+         | ✅ 3.24+ (UPSERT) | ✅ 8.0+ (ON DUPLICATE KEY) | ✅ Yes (MERGE) |
-| UPDATE ... FROM (VALUES ...) | ✅ All versions | ✅ 3.33+ (2020)   | ⚠️ Different syntax       | ✅ Yes         |
-
-**For maximum portability:** Use the simple sequential approach (current implementation)  
-**For production performance:** Implement batch operations with database-specific optimization
-
----
-
-### Performance Comparison
-
-**Test scenario: Sync batch of 100 events**
-
-| Approach                 | DB Calls        | SQL Type           | Complexity | Performance               |
-|--------------------------|-----------------|--------------------|------------|---------------------------|
-| **Sequential (Current)** | 100             | Individual INSERTs | Low        | Acceptable for playground |
-| **Multi-row INSERT**     | 1               | Bulk INSERT        | Medium     | 60-100x faster            |
-| **R2DBC Batch API**      | 100 (pipelined) | Individual INSERTs | High       | 10-20x faster             |
-
----
-
-### When to Optimize
-
-**Keep Sequential Approach (Current) When:**
-
-- ✅ Validating sync architecture (playground/POC)
-- ✅ Batch sizes are small (< 50 items)
-- ✅ Simplicity is priority
-- ✅ Targeting personal use (mobile module already uses single-transaction batching via expo-sqlite)
-
-**Implement Batch Processing When:**
-
-- ⚡ Handling large sync batches (100+ items regularly)
-- ⚡ Network latency is critical
-- ⚡ Production performance profiling shows sync bottleneck
-- ⚡ Database is consistently PostgreSQL/MySQL
-
----
-
-### Mobile Note (expo-sqlite)
-
-The mobile module uses **expo-sqlite** with `withTransactionAsync` blocks instead of Room. Batching the
-projector's UPSERTs in a single transaction is already enough on mobile, because:
-
-- the SQLite database is local (no network round trip per statement),
-- a typical sync batch is small (≤ 100 events for a personal expense tracker),
-- the `RemoteEventApplier` already runs the whole batch inside one `db.withTransactionAsync` call.
-
-If profiling ever shows the per-statement loop is a bottleneck on a constrained device, the same
-multi-row VALUES technique described above translates directly to expo-sqlite — but it has not been
-needed in practice.
-
----
-
-### PostgreSQL-Specific Optimization (Most Efficient)
-
-If your production system uses **PostgreSQL exclusively**, you can leverage the `unnest()` function for the **most
-efficient** batch processing.
-
-#### Why PostgreSQL `unnest()` is Better
-
-**Comparison:**
-
-- **Multi-row VALUES**: Generates long SQL with many placeholders - `(?, ?, ...), (?, ?, ...), (?, ?, ...)`
-- **PostgreSQL unnest()**: Uses arrays - `unnest(ARRAY[?, ?])` - more efficient for PostgreSQL query planner
-
-**Performance benefits:**
-
-- ✅ More compact SQL (shorter query string)
-- ✅ Better query plan optimization by PostgreSQL
-- ✅ Potentially faster execution for large batches (1000+ items)
-
-#### Implementation with unnest()
-
-```kotlin
-@Component
-class PostgresExpenseProjectionRepositoryImpl(
-    private val databaseClient: DatabaseClient
-) : ExpenseProjectionRepositoryCustom {
-
-    /**
-     * PostgreSQL-optimized batch projection using unnest()
-     * 
-     * Uses PostgreSQL arrays and unnest() function for optimal performance.
-     * This is the most efficient approach for PostgreSQL.
-     */
-    @Transactional
-    override suspend fun projectFromEventBatch(projections: List<ExpenseProjection>): Int {
-        if (projections.isEmpty()) return 0
-
-        val sql = """
-            INSERT INTO expense_projections (id, description, amount, category, date, updated_at, deleted)
-            SELECT 
-                unnest(CAST(:ids AS text[])),
-                unnest(CAST(:descriptions AS text[])),
-                unnest(CAST(:amounts AS bigint[])),
-                unnest(CAST(:categories AS text[])),
-                unnest(CAST(:dates AS text[])),
-                unnest(CAST(:updatedAts AS bigint[])),
-                unnest(CAST(:deletedFlags AS boolean[]))
-            ON CONFLICT (id) DO UPDATE SET
-                description = EXCLUDED.description,
-                amount = EXCLUDED.amount,
-                category = EXCLUDED.category,
-                date = EXCLUDED.date,
-                updated_at = EXCLUDED.updated_at,
-                deleted = EXCLUDED.deleted
-            WHERE EXCLUDED.updated_at > expense_projections.updated_at
-        """.trimIndent()
-
-        val spec = databaseClient.sql(sql)
-            .bind("ids", projections.map { it.id.toString() }.toTypedArray())  // Manual UUID->String
-            .bind("descriptions", projections.map { it.description }.toTypedArray())
-            .bind("amounts", projections.map { it.amount }.toTypedArray())
-            .bind("categories", projections.map { it.category }.toTypedArray())
-            .bind("dates", projections.map { it.date }.toTypedArray())
-            .bind("updatedAts", projections.map { it.updatedAt }.toTypedArray())
-            .bind("deletedFlags", projections.map { it.deleted }.toTypedArray())
-
-        return spec.fetch().rowsUpdated().awaitSingle().toInt()
-    }
-
-    /**
-     * PostgreSQL-optimized batch delete using unnest()
-     */
-    @Transactional
-    override suspend fun markAsDeletedBatch(ids: List<UUID>, updatedAts: List<Long>): Int {
-        if (ids.isEmpty()) return 0
-        require(ids.size == updatedAts.size) { "ids and updatedAts must have the same size" }
-
-        val sql = """
-            UPDATE expense_projections 
-            SET deleted = true, updated_at = updates.updated_at
-            FROM (
-                SELECT 
-                    unnest(CAST(:ids AS text[])) as id,
-                    unnest(CAST(:updatedAts AS bigint[])) as updated_at
-            ) AS updates
-            WHERE expense_projections.id = updates.id 
-              AND expense_projections.updated_at < updates.updated_at
-        """.trimIndent()
-
-        val spec = databaseClient.sql(sql)
-            .bind("ids", ids.map { it.toString() }.toTypedArray())
-            .bind("updatedAts", updatedAts.toTypedArray())
-
-        return spec.fetch().rowsUpdated().awaitSingle().toInt()
-    }
-}
-```
-
-#### Pros and Cons
-
-**PostgreSQL unnest() Approach:**
-
-- ✅ **Most efficient** for PostgreSQL (best query planning)
-- ✅ **Cleanest code** - No manual parameter indexing, named parameters
-- ✅ **Shorter SQL** - More compact than multi-row VALUES
-- ✅ **Best for large batches** (1000+ items)
-- ❌ **PostgreSQL only** - Not portable to SQLite/MySQL
-- ⚠️ **Requires arrays** - Need to convert lists to arrays
-
-**Multi-row VALUES Approach (Option 1):**
-
-- ✅ **Portable** - Works on PostgreSQL, SQLite 3.24+, MySQL, H2
-- ✅ **Standard SQL** - No database-specific features
-- ⚠️ **More code** - Manual parameter indexing required
-- ⚠️ **Longer SQL** - Many placeholders for large batches
-
-**Recommendation:**
-
-- Use **PostgreSQL unnest()** if you're committed to PostgreSQL in production
-- Use **multi-row VALUES** if you need portability or plan to migrate to SQLite/Android
-
----
-
-## 🔍 Troubleshooting
-
-### Tests Failing
-
-**Check Docker:**
-
-```bash
-docker ps
-```
-
-**View Testcontainer Logs:**
-
-```bash
-# Tests automatically clean up, check during test run
-./gradlew test --info
-```
-
-**Common Issues:**
-
-- Docker not running: Start Docker Desktop
-- Port conflicts: Stop other services using port 5432
-- Testcontainers timeout: Increase Docker memory allocation
-
-### Sync Not Working
-
-**Check sync file:**
-
-```bash
-ls -la sync-data/
-cat sync-data/sync.json
-```
-
-**Verify sync configuration:**
-
-```bash
-# Check application.yaml for sync settings
-cat expenses-tracker-api/src/main/resources/application.yaml
-```
-
-**Check logs:**
-
-```bash
-docker logs expenses-api | grep -i sync
-# Or in Windows PowerShell:
-docker logs expenses-api | Select-String -Pattern "sync" -CaseSensitive:$false
-```
-
-### Transaction Issues
-
-**Verify @Transactional working:**
-
-- Check `ExpenseSyncProjector` and `ExpenseSyncRecorder` are separate components
-- Verify injection (not `this.method()` calls)
-- Look for rollback in logs
-- Ensure R2DBC connection pooling is configured correctly
-
-### Connection Issues
-
-**Database connection errors:**
-
-```bash
-# Check PostgreSQL is running
-docker ps | grep postgres
-
-# Test connection
-docker exec expenses-db psql -U postgres -d expenses_db -c "SELECT 1;"
-```
-
-**PostgreSQL major version upgrade (e.g. 16 → 17):**
-
-If the container keeps restarting with `database files are incompatible with server`, the existing
-Docker volume was initialized by the previous PostgreSQL version. PostgreSQL does not support
-in-place major version data directory upgrades. Delete the volume and let the new version
-re-initialize:
-
-```bash
-docker compose down -v      # stops containers AND removes volumes
-docker compose up -d postgres
-```
-
-> ⚠️ This deletes all data in the local database. For a playground project this is fine —
-> Flyway will recreate the schema on the next application start.
-
-### Docker Build Fails with `npm ci` Error
-
-If `docker compose up -d --build` fails with:
-
-```
-npm error `npm ci` can only install packages when your package.json and package-lock.json are in sync.
-```
-
-This happens when the npm version in the Docker image differs from your local npm version,
-causing the lock file format to be incompatible. The Dockerfile pins `node:24.13.0-alpine` to
-prevent this. If versions drift:
-
-1. Check your local Node version: `node --version`
-2. Update the `FROM` line in `expenses-tracker-frontend/Dockerfile` to match
-3. Regenerate the lock file:
-
-```bash
-cd expenses-tracker-frontend
-npm install
-```
-
-4. Rebuild:
-
-```bash
-docker compose build --no-cache
-docker compose up -d
-```
-
 ---
 
 ## 🔄 CI/CD
@@ -4191,7 +2615,7 @@ context, conventions, and architectural rules. They live in the `.github/` direc
 | `.github/copilot-instructions.md`                                | Entire workspace               | Project overview, clean code principles (SOLID, DRY, KISS, YAGNI), general coding rules                                                                                                                                                |
 | `.github/instructions/expenses-tracker-api.instructions.md`      | `expenses-tracker-api/**`      | Backend-specific rules: Kotlin/Spring Boot conventions, reactive stack patterns, CQRS/event sourcing guidance, testing conventions (AssertJ, Testcontainers)                                                                           |
 | `.github/instructions/expenses-tracker-frontend.instructions.md` | `expenses-tracker-frontend/**` | Frontend-specific rules: React 19 + TypeScript conventions, MUI v7 practices (slotProps, sx), component/hook patterns, form validation with Zod                                                                                        |
-| `.github/instructions/expenses-tracker-mobile.instructions.md`   | `expenses-tracker-mobile/**`   | Mobile-specific rules: Expo SDK 53 + RN Paper v5 + Expo Router v4 conventions, expo-sqlite local store, cloud-drive `CloudDriveAdapter` interface, OAuth via expo-auth-session, security (PKCE / app-private folders / no PII in logs) |
+| `.github/instructions/expenses-tracker-mobile.instructions.md`   | `expenses-tracker-mobile/**`   | Mobile-specific rules: Expo SDK 55 + React Native 0.83 + RN Paper v5 + Expo Router conventions, expo-sqlite local store, cloud-drive `CloudDriveAdapter` interface, OAuth via expo-auth-session, security (PKCE / app-private folders / no PII in logs)            |
 | `.github/instructions/test-conventions.instructions.md`          | Test files                     | Testing conventions: naming, structure, assertions, Testcontainers usage                                                                                                                                                               |
 
 These files are automatically picked up by Copilot when editing matching files, ensuring AI suggestions follow the
