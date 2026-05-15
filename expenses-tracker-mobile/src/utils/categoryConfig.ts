@@ -65,6 +65,90 @@ export const ICON_MAP: Readonly<Record<string, MaterialIconName>> = {
   Brush: 'brush',
   CameraAlt: 'camera-alt',
   Wifi: 'wifi',
+  // Transportation
+  LocalGasStation: 'local-gas-station',
+  LocalTaxi: 'local-taxi',
+  DirectionsBike: 'directions-bike',
+  DirectionsSubway: 'directions-subway',
+  DirectionsRailway: 'directions-railway',
+  TwoWheeler: 'two-wheeler',
+  CarRepair: 'car-repair',
+  // Food & drink
+  Fastfood: 'fastfood',
+  LocalPizza: 'local-pizza',
+  LocalCafe: 'local-cafe',
+  BakeryDining: 'bakery-dining',
+  WineBar: 'wine-bar',
+  EmojiFoodBeverage: 'emoji-food-beverage',
+  Icecream: 'icecream',
+  // Shopping
+  LocalMall: 'local-mall',
+  LocalFlorist: 'local-florist',
+  Redeem: 'redeem',
+  Storefront: 'storefront',
+  // Health & personal care
+  LocalPharmacy: 'local-pharmacy',
+  MedicalServices: 'medical-services',
+  Vaccines: 'vaccines',
+  Spa: 'spa',
+  Healing: 'healing',
+  // Home & utilities
+  Bolt: 'bolt',
+  HomeRepairService: 'home-repair-service',
+  CleaningServices: 'cleaning-services',
+  AcUnit: 'ac-unit',
+  Yard: 'yard',
+  Plumbing: 'plumbing',
+  LocalFireDepartment: 'local-fire-department',
+  // Entertainment & subscriptions
+  ConfirmationNumber: 'confirmation-number',
+  TheaterComedy: 'theater-comedy',
+  LiveTv: 'live-tv',
+  Festival: 'festival',
+  Headphones: 'headphones',
+  Newspaper: 'newspaper',
+  // Travel
+  Luggage: 'luggage',
+  Hotel: 'hotel',
+  BeachAccess: 'beach-access',
+  CardTravel: 'card-travel',
+  // Finance
+  CreditCard: 'credit-card',
+  Receipt: 'receipt',
+  AccountBalanceWallet: 'account-balance-wallet',
+  LocalAtm: 'local-atm',
+  // Work & education
+  Work: 'work',
+  MenuBook: 'menu-book',
+  // Sports & hobbies
+  Pool: 'pool',
+  SportsSoccer: 'sports-soccer',
+  Hiking: 'hiking',
+  // Faces & people (kids, family, moods)
+  Face2: 'face-2',
+  Face3: 'face-3',
+  Face4: 'face-4',
+  Face5: 'face-5',
+  Face6: 'face-6',
+  EmojiPeople: 'emoji-people',
+  EmojiEmotions: 'emoji-emotions',
+  Mood: 'mood',
+  People: 'people',
+  Groups: 'groups',
+  EscalatorWarning: 'escalator-warning',
+  Diversity1: 'diversity-1',
+  Diversity3: 'diversity-3',
+  Elderly: 'elderly',
+  ElderlyWoman: 'elderly-woman',
+  // Buildings & housing (apartments, offices, city)
+  Apartment: 'apartment',
+  House: 'house',
+  HomeWork: 'home-work',
+  Cottage: 'cottage',
+  Villa: 'villa',
+  Business: 'business',
+  LocationCity: 'location-city',
+  Store: 'store',
 };
 
 /** Stored icon keys, in catalogue order. Used to drive the icon picker grid. */
@@ -78,6 +162,9 @@ export const AVAILABLE_COLORS: ReadonlyArray<string> = [
   '#fdd835', '#ff7043', '#ffc107', '#3f51b5', '#00acc1',
   '#ff5722', '#78909c', '#e91e63', '#009688', '#ff9800',
   '#673ab7', '#03a9f4', '#8bc34a', '#f44336', '#ffeb3b',
+  '#a5d6a7', '#90caf9', '#ce93d8', '#ffab91', '#f48fb1',
+  '#80cbc4', '#b39ddb', '#ffd54f', '#ef9a9a', '#bcaaa4',
+  '#4527a0', '#01579b', '#1b5e20', '#bf360c', '#263238',
 ];
 
 /** Resolve a stored MUI icon key to a MaterialIcons name with a neutral fallback. */
