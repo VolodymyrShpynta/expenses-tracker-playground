@@ -103,7 +103,9 @@
     "expense": "Expense",
     "description": "Description",
     "pickCategoryError": "Please pick a category.",
-    "positiveAmountError": "Amount must be a positive number."
+    "positiveAmountError": "Amount must be a positive number.",
+    "suggestionsHeader": "From previous expenses",
+    "suggestionAriaLabel": "Use {{description}} from a previous expense"
   },
   "categoryTemplates": {
     "beauty": "Beauty",

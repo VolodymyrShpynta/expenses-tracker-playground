@@ -103,7 +103,9 @@
     "expense": "Výdaj",
     "description": "Popis",
     "pickCategoryError": "Vyberte prosím kategorii.",
-    "positiveAmountError": "Částka musí být kladné číslo."
+    "positiveAmountError": "Částka musí být kladné číslo.",
+    "suggestionsHeader": "Z dřívějších výdajů",
+    "suggestionAriaLabel": "Použít {{description}} z dřívějšího výdaje"
   },
   "categoryTemplates": {
     "beauty": "Krása",

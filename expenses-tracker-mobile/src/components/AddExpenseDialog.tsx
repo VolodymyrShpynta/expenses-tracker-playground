@@ -35,6 +35,7 @@ import { CurrencyPickerDialog } from './CurrencyPickerDialog';
 import { SingleDatePickerDialog } from './DatePickerDialogs';
 import { AmountKeypad } from './AmountKeypad';
 import { HeaderTile } from './HeaderTile';
+import { ExpenseSuggestionList } from './ExpenseSuggestionList';
 import { useCalculator } from '../utils/useCalculator';
 import { useCategoryLookup } from '../hooks/useCategoryLookup';
 import {
@@ -42,6 +43,7 @@ import {
   useDeleteExpense,
   useUpdateExpense,
 } from '../hooks/useExpenses';
+import { useExpenseSuggestions } from '../hooks/useExpenseSuggestions';
 import { useMainCurrency } from '../context/preferencesProvider';
 import type { ExpenseProjection } from '../domain/types';
 
@@ -61,15 +63,58 @@ export interface AddExpenseDialogProps {
  * changes": every form field's `useState(...)` initializer is re-run
  * naturally, including `useCalculator`'s lazy seed — no manual reset
  * block, no digit-by-digit replay loop.
+ *
+ * The same remount mechanism powers description-suggestion prefill:
+ * when the user taps a suggested previous expense from inside the
+ * form, `suggestionSeed` is set and `seedNonce` bumps, forcing
+ * `AddExpenseDialogContent` to remount with the picked expense fed in
+ * as `seedFrom`. All `useState`/`useReducer` initializers re-run,
+ * which is the cleanest way to re-seed the calculator amount (its
+ * reducer has no "load value" action by design).
+ *
+ * `suggestionSeed` only applies in **create mode** — `props.expense`
+ * always wins when present so an edit session never silently switches
+ * its submit target.
  */
 export function AddExpenseDialog(props: AddExpenseDialogProps) {
+  const [suggestionSeed, setSuggestionSeed] = useState<ExpenseProjection | undefined>(undefined);
+  const [seedNonce, setSeedNonce] = useState(0);
+
+  // Reset the suggestion seed whenever the dialog closes or the target
+  // edit-expense changes. The outer dialog stays mounted across show /
+  // hide cycles (the parent screen renders it unconditionally), so
+  // these state slots would otherwise leak from one open session to
+  // the next.
+  //
+  // We use the React-recommended "store previous prop, adjust during
+  // render" pattern instead of `useEffect`. Resetting inside an effect
+  // would trigger an extra commit + warn under React 19's
+  // "setState synchronously within an effect" rule. Calling `setState`
+  // during render is safe and well-defined as long as it's gated by a
+  // prop-change check and the new value is what we want for *this*
+  // render — React simply re-renders before committing.
+  // See https://react.dev/reference/react/useState#storing-information-from-previous-renders
+  const [prevVisible, setPrevVisible] = useState(props.visible);
+  const [prevExpenseId, setPrevExpenseId] = useState(props.expense?.id);
+  if (prevVisible !== props.visible || prevExpenseId !== props.expense?.id) {
+    setPrevVisible(props.visible);
+    setPrevExpenseId(props.expense?.id);
+    if (suggestionSeed !== undefined) setSuggestionSeed(undefined);
+    if (seedNonce !== 0) setSeedNonce(0);
+  }
+
   if (!props.visible) return null;
   return (
     <AddExpenseDialogContent
-      key={props.expense?.id ?? 'new'}
+      key={`${props.expense?.id ?? 'new'}-${seedNonce}`}
       onDismiss={props.onDismiss}
       expense={props.expense}
+      seedFrom={suggestionSeed}
       defaultCategoryId={props.defaultCategoryId}
+      onPickSuggestion={(s) => {
+        setSuggestionSeed(s);
+        setSeedNonce((n) => n + 1);
+      }}
     />
   );
 }
@@ -77,13 +122,17 @@ export function AddExpenseDialog(props: AddExpenseDialogProps) {
 interface AddExpenseDialogContentProps {
   readonly onDismiss: () => void;
   readonly expense: ExpenseProjection | undefined;
+  readonly seedFrom: ExpenseProjection | undefined;
   readonly defaultCategoryId: string | undefined;
+  readonly onPickSuggestion: (expense: ExpenseProjection) => void;
 }
 
 function AddExpenseDialogContent({
   onDismiss,
   expense,
+  seedFrom,
   defaultCategoryId,
+  onPickSuggestion,
 }: AddExpenseDialogContentProps) {
   const { t: translate, i18n } = useTranslation();
   const theme = useTheme();
@@ -95,16 +144,25 @@ function AddExpenseDialogContent({
   const deleteExpense = useDeleteExpense();
 
   // ---- Form state — seeded once per mount from the `expense` prop -------
-  const [description, setDescription] = useState(expense?.description ?? '');
+  // In create mode, `seedFrom` (a description suggestion the user just
+  // tapped) acts as a secondary seed. Edit mode always wins so the
+  // submit target never silently changes.
+  const seed = expense ?? seedFrom;
+  const [description, setDescription] = useState(seed?.description ?? '');
   const [date, setDate] = useState<Date>(() =>
     expense?.date ? new Date(expense.date) : new Date(),
   );
-  const [currency, setCurrency] = useState<string>(expense?.currency ?? mainCurrency);
+  const [currency, setCurrency] = useState<string>(seed?.currency ?? mainCurrency);
   const [categoryId, setCategoryId] = useState<string | undefined>(
-    expense?.categoryId ?? defaultCategoryId,
+    seed?.categoryId ?? defaultCategoryId,
   );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Tracks whether the user has typed into the description field since
+  // this mount. Used to suppress the suggestion dropdown right after a
+  // suggestion is picked (the form remounts with the picked description
+  // pre-filled, which would otherwise immediately match itself).
+  const [descriptionTouched, setDescriptionTouched] = useState(false);
 
   // Sub-dialog visibility
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -114,8 +172,16 @@ function AddExpenseDialogContent({
 
   // Calculator — `useCalculator` lazy-seeds via its `useReducer` initializer.
   const { expression, hasOperator, amount, dispatch } = useCalculator(
-    expense ? expense.amount / 100 : null,
+    seed ? seed.amount / 100 : null,
   );
+
+  // Description-based autocomplete over previous expenses. Disabled in
+  // edit mode (the user is fixing one specific entry, not creating a
+  // new one) and until the user has actually typed into the field on
+  // this mount.
+  const suggestions = useExpenseSuggestions(description, {
+    enabled: !expense && descriptionTouched,
+  });
 
   const resolved = categoryId ? lookup.resolve(categoryId) : null;
   const now = new Date();
@@ -288,9 +354,17 @@ function AddExpenseDialogContent({
                   mode="outlined"
                   placeholder={translate('expenseDialog.description')}
                   value={description}
-                  onChangeText={setDescription}
+                  onChangeText={(text) => {
+                    setDescription(text);
+                    setDescriptionTouched(true);
+                  }}
                   dense
                   style={styles.descriptionInput}
+                />
+
+                <ExpenseSuggestionList
+                  suggestions={suggestions}
+                  onPick={onPickSuggestion}
                 />
 
                 {error ? <HelperText type="error">{error}</HelperText> : null}

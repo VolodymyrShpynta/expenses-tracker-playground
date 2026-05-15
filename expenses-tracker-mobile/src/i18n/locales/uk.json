@@ -103,7 +103,9 @@
     "expense": "Витрата",
     "description": "Опис",
     "pickCategoryError": "Будь ласка, оберіть категорію.",
-    "positiveAmountError": "Сума має бути додатним числом."
+    "positiveAmountError": "Сума має бути додатним числом.",
+    "suggestionsHeader": "З попередніх витрат",
+    "suggestionAriaLabel": "Використати {{description}} з попередньої витрати"
   },
   "categoryTemplates": {
     "beauty": "Краса",
