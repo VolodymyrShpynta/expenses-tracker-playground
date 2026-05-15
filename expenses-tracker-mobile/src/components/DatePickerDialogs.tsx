@@ -152,7 +152,9 @@ export interface RangeDatePickerDialogProps {
  *     └────────────────────────────────────┘
  *
  * The active chip drives which date the calendar edits. Picking a date
- * on the "from" step auto-advances to the "to" step (matches the web).
+ * on the "from" step auto-advances to the "to" step and resets the "to"
+ * date to today (clamped to >= the picked "from") so the calendar
+ * scrolls to the current month — mirrors the web `RangePickerPanel`.
  * If the user picks `to < from` we auto-swap on confirm so the parent
  * always receives `startDate <= endDate`.
  *
@@ -193,9 +195,14 @@ export function RangeDatePickerDialog({
     if (!date) return;
     if (step === 'from') {
       setPendingFrom(date);
-      // If the new "from" is past the current "to", push "to" forward
-      // so the range stays valid as the user moves to step 2.
-      if (date > pendingTo) setPendingTo(date);
+      // After picking "from", reset "to" to today so the calendar in
+      // step 2 scrolls to the current month and pre-selects a sensible
+      // default — mirrors the web `RangePickerPanel` behaviour. If the
+      // user picked a "from" in the future, clamp "to" to that date so
+      // the range stays inside `validRange` (which also disables earlier
+      // days in the calendar).
+      const today = new Date();
+      setPendingTo(date > today ? date : today);
       setStep('to');
       return;
     }
@@ -251,6 +258,15 @@ export function RangeDatePickerDialog({
         <View style={styles.calendarWrap}>
           <ThemeProvider theme={calendarTheme}>
             <Calendar
+              // `react-native-paper-dates` derives the swiper's initial
+              // month from the `date` prop *only on mount* (see
+              // `getInitialIndex` in the library's `Calendar.tsx`). Keying
+              // by `step` remounts the calendar when the user advances
+              // from "from" → "to" (or flips back via the chips) so it
+              // scrolls to the newly bound date instead of getting stuck
+              // on the previous step's month. Within a step, manual
+              // month-swipes still stick.
+              key={step}
               locale={locale}
               mode="single"
               date={step === 'from' ? pendingFrom : pendingTo}

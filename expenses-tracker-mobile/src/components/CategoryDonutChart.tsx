@@ -7,12 +7,19 @@
  * the actual filled annulus geometry rather than using `strokeWidth`,
  * which lets us colour each slice independently.
  *
+ * The centre label is rendered as native `<Text>` overlaid on top of
+ * the SVG (not as `<SvgText>`) so we can use `adjustsFontSizeToFit` to
+ * guarantee long currency totals (e.g. `CZK 1 166 326`) auto-shrink to
+ * fit inside the inner disc instead of overlapping the ring. The
+ * overlay's width is clamped to the inner disc's chord so `numberOfLines`
+ * + `adjustsFontSizeToFit` has a hard boundary to scale against.
+ *
  * Empty input → renders a muted background ring + the formatted total.
  */
 import { useMemo } from 'react';
 import { View } from 'react-native';
-import Svg, { Circle, G, Path, Text as SvgText } from 'react-native-svg';
-import { useTheme } from 'react-native-paper';
+import Svg, { Circle, G, Path } from 'react-native-svg';
+import { Text, useTheme } from 'react-native-paper';
 
 export interface DonutSlice {
   readonly id: string;
@@ -64,6 +71,15 @@ export function CategoryDonutChart({
 
   const muted = theme.colors.surfaceVariant;
 
+  // Centre text overlay geometry. The inner disc has diameter `2*innerRadius`,
+  // but a single line of text sitting on the horizontal diameter would touch
+  // the ring at its widest point — so we shrink the usable width by an 8%
+  // safety margin and let `adjustsFontSizeToFit` shrink the font further if
+  // the formatted total is unusually long.
+  const innerWidth = Math.max(0, Math.floor(innerRadius * 2 * 0.92));
+  const valueFontSize = Math.round(size * 0.13);
+  const labelFontSize = Math.round(size * 0.06);
+
   return (
     <View style={{ width: size, height: size, alignSelf: 'center' }}>
       <Svg width={size} height={size}>
@@ -80,31 +96,62 @@ export function CategoryDonutChart({
           {arcs.map((a) => (
             <Path key={a.id} d={a.d} fill={a.color} />
           ))}
-          {centerValue ? (
-            <SvgText
-              x={radius}
-              y={radius - 2}
-              fill={theme.colors.onSurface}
-              fontSize={Math.round(size * 0.13)}
-              fontWeight="700"
-              textAnchor="middle"
-            >
-              {centerValue}
-            </SvgText>
-          ) : null}
-          {centerLabel ? (
-            <SvgText
-              x={radius}
-              y={radius + Math.round(size * 0.11)}
-              fill={theme.colors.onSurfaceVariant}
-              fontSize={Math.round(size * 0.06)}
-              textAnchor="middle"
-            >
-              {centerLabel}
-            </SvgText>
-          ) : null}
         </G>
       </Svg>
+      {centerValue || centerLabel ? (
+        <View
+          // `pointerEvents="none"` keeps the overlay from swallowing taps
+          // on the donut (currently a no-op but future legend / drill-down
+          // gestures would rely on this).
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <View style={{ width: innerWidth, alignItems: 'center' }}>
+            {centerValue ? (
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                // Allow shrinking to half-size before truncating with "…" —
+                // enough headroom for the longest realistic currency totals
+                // (e.g. `CZK 1 166 326`, `UAH 9 999 999`) without going so
+                // small the number becomes unreadable.
+                minimumFontScale={0.5}
+                style={{
+                  fontSize: valueFontSize,
+                  fontWeight: '700',
+                  textAlign: 'center',
+                  color: theme.colors.onSurface,
+                }}
+              >
+                {centerValue}
+              </Text>
+            ) : null}
+            {centerLabel ? (
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.6}
+                style={{
+                  marginTop: 4,
+                  fontSize: labelFontSize,
+                  textAlign: 'center',
+                  color: theme.colors.onSurfaceVariant,
+                }}
+              >
+                {centerLabel}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
