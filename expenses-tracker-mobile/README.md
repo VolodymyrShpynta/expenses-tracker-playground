@@ -911,7 +911,7 @@ screen layers several techniques that all target that bottleneck:
 - **`SectionList` with tight virtualisation windowing.** `windowSize={4}` keeps roughly one viewport
   of buffer above and below the visible area mounted (~40 native rows), instead of React Native's
   default of 10 (~100 rows). The cost of a collapse toggle scales roughly with the mounted-row count,
-  so halving the window roughly halves the work. `maxToRenderPerBatch={8}` keeps incremental paint
+  so halving the window roughly halves the work. `maxToRenderPerBatch={4}` keeps incremental paint
   batches small enough to avoid stutter on subsequent frames, and `initialNumToRender={20}` keeps the
   cold-open paint generous so the first screenful arrives in a single pass.
 - **`removeClippedSubviews` is intentionally not set.** On Android its default is already `true`, and

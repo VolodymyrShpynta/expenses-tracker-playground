@@ -529,7 +529,7 @@ export default function TransactionsScreen() {
            * touchables, so we leave it unset rather than forcing it.
            */
           initialNumToRender={20}
-          maxToRenderPerBatch={8}
+          maxToRenderPerBatch={4}
           windowSize={4}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={
