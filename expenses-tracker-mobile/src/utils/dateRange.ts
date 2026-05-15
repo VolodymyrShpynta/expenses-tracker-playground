@@ -124,15 +124,30 @@ export function formatShort(d: Date, locale: string): string {
  * transactions list:
  *   - 'all'   → year (compact when scrolling decades of data)
  *   - 'year'  → month
+ *   - 'range' → duration-based: ≤ ~1 month → day, ≤ ~1 year → month,
+ *               otherwise → year (so a custom range stays readable
+ *               regardless of how wide the user picked it)
  *   - other   → day
  */
 export type GroupBy = 'day' | 'month' | 'year';
 
-export function presetToGroupBy(preset: PresetKey): GroupBy {
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+export function presetToGroupBy(preset: PresetKey, range?: DateRange): GroupBy {
   switch (preset) {
-    case 'year': return 'month';
-    case 'all': return 'year';
-    default: return 'day';
+    case 'year':
+      return 'month';
+    case 'all':
+      return 'year';
+    case 'range': {
+      if (!range) return 'day';
+      const days = (range.to.getTime() - range.from.getTime()) / MS_PER_DAY;
+      if (days <= 31) return 'day';
+      if (days <= 366) return 'month';
+      return 'year';
+    }
+    default:
+      return 'day';
   }
 }
 

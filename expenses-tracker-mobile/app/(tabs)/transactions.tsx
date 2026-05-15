@@ -19,6 +19,7 @@ import {
 } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { SpendingHeader } from '../../src/components/SpendingHeader';
 import { CategoryAvatar } from '../../src/components/CategoryAvatar';
@@ -49,6 +50,25 @@ export default function TransactionsScreen() {
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<ExpenseProjection | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  /**
+   * Per-group collapsed state. Groups are expanded by default; tapping a
+   * header toggles its key in this set. We keep this local to the screen
+   * (no persistence across tab switches needed) and intentionally don't
+   * prune stale keys when filters change — re-tapping a header is cheap
+   * and the set stays tiny relative to the visible list.
+   */
+  const [collapsedKeys, setCollapsedKeys] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+
+  const toggleCollapsed = useCallback((key: string) => {
+    setCollapsedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
 
   /**
    * Apply an incoming `categoryId` route param whenever the screen gains
@@ -124,7 +144,7 @@ export default function TransactionsScreen() {
     [filtered, convert],
   );
 
-  const groupBy = presetToGroupBy(preset);
+  const groupBy = presetToGroupBy(preset, dateRange);
   const groups = useMemo(
     () => groupExpenses(filtered, groupBy, i18n.language),
     [filtered, groupBy, i18n.language],
@@ -167,23 +187,30 @@ export default function TransactionsScreen() {
               {translate('expenses.noTransactions')}
             </Text>
           ) : (
-            groups.map((g) => (
+            groups.map((g) => {
+              const collapsed = collapsedKeys.has(g.key);
+              return (
               <View key={g.key} style={{ marginTop: 8 }}>
-                <View
-                  style={{
-                    paddingHorizontal: 16,
-                    paddingTop: 10,
-                    paddingBottom: 8,
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    backgroundColor: theme.dark
-                      ? 'rgba(255,255,255,0.05)'
-                      : 'rgba(0,0,0,0.05)',
-                    borderBottomWidth: 1,
-                    borderBottomColor: theme.colors.outlineVariant,
-                  }}
+                <TouchableRipple
+                  onPress={() => toggleCollapsed(g.key)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: !collapsed }}
                 >
+                  <View
+                    style={{
+                      paddingHorizontal: 16,
+                      paddingTop: 10,
+                      paddingBottom: 8,
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      backgroundColor: theme.dark
+                        ? 'rgba(255,255,255,0.05)'
+                        : 'rgba(0,0,0,0.05)',
+                      borderBottomWidth: 1,
+                      borderBottomColor: theme.colors.outlineVariant,
+                    }}
+                  >
                   {/*
                    * Day variant mirrors the web ExpenseGroupHeader: large
                    * day-of-month on the left, weekday + month/year stacked
@@ -237,18 +264,26 @@ export default function TransactionsScreen() {
                       {g.label}
                     </Text>
                   )}
-                  <Text
-                    variant="titleMedium"
-                    style={{ color: theme.colors.onSurface, fontWeight: '700' }}
-                  >
-                    {formatAmountWithCurrency(
-                      g.expenses.reduce((s, e) => s + convert(e.amount, e.currency), 0),
-                      mainCurrency,
-                      i18n.language,
-                    )}
-                  </Text>
-                </View>
-                {g.expenses.map((e) => {
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text
+                      variant="titleMedium"
+                      style={{ color: theme.colors.onSurface, fontWeight: '700' }}
+                    >
+                      {formatAmountWithCurrency(
+                        g.expenses.reduce((s, e) => s + convert(e.amount, e.currency), 0),
+                        mainCurrency,
+                        i18n.language,
+                      )}
+                    </Text>
+                    <MaterialIcons
+                      name={collapsed ? 'chevron-right' : 'expand-more'}
+                      size={22}
+                      color={theme.colors.onSurfaceVariant}
+                    />
+                  </View>
+                  </View>
+                </TouchableRipple>
+                {!collapsed && g.expenses.map((e) => {
                   const resolved = lookup.resolve(e.categoryId);
                   const showConverted = e.currency !== mainCurrency;
                   const convertedAmount = showConverted ? convert(e.amount, e.currency) : 0;
@@ -296,7 +331,8 @@ export default function TransactionsScreen() {
                   );
                 })}
               </View>
-            ))
+              );
+            })
           )}
         </ScrollView>
 

@@ -388,9 +388,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   // The library's `Calendar` lays itself out lazily based on parent
-  // size — give it a fixed minimum so it doesn't collapse to zero
-  // inside our scroll-area-less `Dialog.Content`.
+  // size and silently clips trailing day rows when the parent is too
+  // short — that's why a month with 6 week rows (e.g. March 2026) was
+  // showing only days 1–28. Give it a minHeight that fits the worst
+  // case: month/year header (~56) + weekday row (~40) + 6 day rows
+  // (~50 each) = ~396, rounded up for a small safety margin.
   calendarWrap: {
-    minHeight: 340,
+    minHeight: 420,
   },
 });
