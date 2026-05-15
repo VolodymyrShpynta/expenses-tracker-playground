@@ -323,4 +323,26 @@ describe('CategoryService — seedDefaultsIfEmpty', () => {
     expect(count).toBe(0);
     expect(store.allCategoryEvents().length).toBe(before);
   });
+
+  it('should stamp seed rows at epoch (`updatedAt = 0`) so remote events win LWW', async () => {
+    // Regression: on a fresh install (Device B), defaults used to be
+    // seeded with `time.nowMs()`. When OneDrive sync later delivered
+    // older customizations / deletions from Device A, the strict-`>`
+    // LWW check silently rejected them and Device B kept showing only
+    // defaults. Seeding at `0` makes the seed row lose every later LWW
+    // race so any peer mutation propagates correctly.
+    const { service } = buildService({
+      ids: Array.from({ length: 200 }, (_, i) => `id-${i}`),
+      // Production wall-clock would be ~1.7e12 here; use a clearly
+      // non-zero stamp to make the assertion meaningful.
+      times: Array.from({ length: 200 }, (_, i) => 1_700_000_000_000 + i),
+    });
+
+    await service.seedDefaultsIfEmpty();
+
+    const seeded = await service.findAllCategories();
+    for (const row of seeded) {
+      expect(row.updatedAt).toBe(0);
+    }
+  });
 });

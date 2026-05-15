@@ -196,11 +196,22 @@ export function createCategoryService(deps: CategoryServiceDeps): CategoryServic
    * The category id is derived deterministically from `templateKey` (see
    * `defaultTemplateId`) so peer devices converge on the same row when
    * their seed CREATED events meet via cloud-drive sync or file import.
+   *
+   * `updatedAt` is taken from the caller so the two seed paths can pick
+   * the right timestamp policy:
+   *   - `seedDefaultsIfEmpty` passes `0` (epoch) so any subsequent remote
+   *     event from a peer — UPDATED icon/color, DELETED, etc. — wins the
+   *     strict-`>` LWW comparison and propagates onto a fresh install.
+   *     Without this, a new device's "now" stamp would silently reject
+   *     older customizations replayed from the cloud sync file.
+   *   - `resetToDefaults` passes a current-time stamp because it must
+   *     beat the soft-delete event it just emitted for the same row id.
    */
   function seedTemplatePayload(
     template: (typeof DEFAULT_CATEGORY_TEMPLATES)[number],
+    updatedAt: number,
   ): CategoryPayload {
-    return buildPayload(defaultTemplateId(template.templateKey), time.nowMs(), {
+    return buildPayload(defaultTemplateId(template.templateKey), updatedAt, {
       templateKey: template.templateKey,
       icon: template.icon,
       color: template.color,
@@ -292,8 +303,13 @@ export function createCategoryService(deps: CategoryServiceDeps): CategoryServic
       }
       // Re-seed unconditionally: `seedDefaultsIfEmpty` would skip because
       // archived rows still exist, so we mirror its body here.
+      //
+      // Use current wall-clock for the CREATED stamp so it wins the
+      // strict-`>` LWW UPSERT over the soft-delete events we just
+      // emitted for the same row ids — unlike the fresh-install seed
+      // path below, here the seed MUST clobber what's there.
       for (const template of DEFAULT_CATEGORY_TEMPLATES) {
-        await recordCreateOrUpdate('CREATED', seedTemplatePayload(template));
+        await recordCreateOrUpdate('CREATED', seedTemplatePayload(template, time.nowMs()));
       }
       return { archived: active.length, seeded: DEFAULT_CATEGORY_TEMPLATES.length };
     },
@@ -301,8 +317,17 @@ export function createCategoryService(deps: CategoryServiceDeps): CategoryServic
     async seedDefaultsIfEmpty() {
       const existing = await store.findAllCategories();
       if (existing.length > 0) return 0;
+      // Stamp the seed rows at epoch (`updatedAt = 0`) so that ANY remote
+      // category event arriving later — UPDATED icon/color, DELETED,
+      // merge — wins the strict-`>` LWW comparison in
+      // `projectCategoryFromEvent` / `softDeleteCategory`. Without this,
+      // a fresh install (Device B) would stamp its defaults at "now",
+      // which is newer than the older customizations recorded on
+      // Device A and replayed via the cloud sync file — so those
+      // customizations would be silently dropped. See the seed-vs-sync
+      // race description on `seedTemplatePayload`.
       for (const template of DEFAULT_CATEGORY_TEMPLATES) {
-        await recordCreateOrUpdate('CREATED', seedTemplatePayload(template));
+        await recordCreateOrUpdate('CREATED', seedTemplatePayload(template, 0));
       }
       return DEFAULT_CATEGORY_TEMPLATES.length;
     },

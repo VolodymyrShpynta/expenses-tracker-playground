@@ -246,4 +246,53 @@ describe('applyRemoteCategoryEvents', () => {
     const result = await applyRemoteCategoryEvents(store, [], silentLogger);
     expect(result).toEqual({ applied: 0, skipped: 0, errors: 0 });
   });
+
+  it('fresh-install regression: peer DELETED/UPDATED beats seeded defaults', async () => {
+    // Regression for the user-reported bug: on Device B (fresh install),
+    // `seedDefaultsIfEmpty` used to stamp default rows with `time.nowMs()`,
+    // which was newer than the older customizations on the cloud-drive
+    // sync file from Device A. The strict-`>` LWW UPSERT / soft-delete
+    // then silently rejected every remote event, leaving Device B with
+    // only defaults.
+    //
+    // After the fix, seed rows live at `updatedAt = 0`, so any peer
+    // event with `t > 0` wins. We simulate the scenario directly: pre-
+    // project a default row at `0`, then apply peer events recorded at
+    // older-than-"now" wall-clock timestamps. They must take effect.
+    const seededAtEpoch = {
+      id: 'default-food',
+      icon: 'ShoppingCart',
+      color: '#5b8def',
+      sortOrder: 9,
+      updatedAt: 0,
+      deleted: false,
+      templateKey: 'food',
+    };
+    await store.projectCategoryFromEvent(seededAtEpoch);
+
+    // Peer DELETED at a wall-clock timestamp older than Device B's "now"
+    // but newer than the seed (0) — this is the realistic case where
+    // Device A made the change weeks ago.
+    const peerDelete = makeEvent({
+      eventId: 'peer-del',
+      categoryId: 'default-food',
+      eventType: 'DELETED',
+      timestamp: 1_700_000_000_000,
+      payload: {
+        id: 'default-food',
+        templateKey: 'food',
+        icon: 'ShoppingCart',
+        color: '#5b8def',
+        sortOrder: 9,
+        updatedAt: 1_700_000_000_000,
+        deleted: true,
+      },
+    });
+
+    const result = await applyRemoteCategoryEvents(store, [peerDelete], silentLogger);
+    expect(result).toEqual({ applied: 1, skipped: 0, errors: 0 });
+
+    const row = await store.findCategoryById('default-food');
+    expect(row?.deleted).toBe(true);
+  });
 });
