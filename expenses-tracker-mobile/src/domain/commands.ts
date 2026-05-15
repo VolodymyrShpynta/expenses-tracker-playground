@@ -18,9 +18,10 @@
  * deterministic ids — same DI principle as `TimeProvider`.
  */
 import type { LocalStore } from './localStore';
-import { payloadToProjection } from './mapping';
+import { projectPayload, softDelete } from './projector';
 import type { ExpenseEvent, ExpensePayload, ExpenseProjection, EventType } from './types';
 import type { TimeProvider } from '../utils/time';
+import { nextUpdatedAt } from '../utils/time';
 
 export interface IdGenerator {
   /** Returns a fresh UUIDv4 string (lowercase, 36 chars). */
@@ -94,7 +95,7 @@ export function createExpenseCommandService(deps: CommandServiceDeps): ExpenseCo
 
       const projection = await store.transaction(async () => {
         await appendEventInTx('CREATED', expenseId, payload);
-        await store.projectFromEvent(payloadToProjection(payload));
+        await projectPayload(store, payload);
         const stored = await store.findProjectionById(expenseId);
         if (!stored) {
           throw new Error(`Failed to retrieve created expense projection: ${expenseId}`);
@@ -110,14 +111,11 @@ export function createExpenseCommandService(deps: CommandServiceDeps): ExpenseCo
       if (!existing) return undefined;
 
       // Cap above the existing projection's updatedAt so the strict-`>` LWW
-      // UPSERT in `projectFromEvent` never silently drops this write. This
-      // bites whenever `existing.updatedAt` was set by a synced event whose
-      // author had a faster clock than ours (or in the same millisecond as
-      // a previous local write): `time.nowMs()` alone would lose the race
-      // and the projection would keep its stale fields — for example a
-      // merged category would not be reassigned. We still log the wall-
-      // clock value as the event's own `timestamp` inside `appendEventInTx`.
-      const now = Math.max(time.nowMs(), existing.updatedAt + 1);
+      // UPSERT in `projectFromEvent` never silently drops this write. See
+      // `nextUpdatedAt` for the full rationale (synced-from-faster-clock-peer
+      // scenario). We still log the wall-clock value as the event's own
+      // `timestamp` inside `appendEventInTx`.
+      const now = nextUpdatedAt(time, existing.updatedAt);
       // Resolve optional fields with command-overrides-existing precedence.
       // Spread-conditional pattern keeps `exactOptionalPropertyTypes` happy:
       // omit the key entirely when the resolved value is `undefined`.
@@ -137,7 +135,7 @@ export function createExpenseCommandService(deps: CommandServiceDeps): ExpenseCo
 
       return store.transaction(async () => {
         await appendEventInTx('UPDATED', id, payload);
-        await store.projectFromEvent(payloadToProjection(payload));
+        await projectPayload(store, payload);
         return store.findProjectionById(id);
       });
     },
@@ -148,7 +146,7 @@ export function createExpenseCommandService(deps: CommandServiceDeps): ExpenseCo
 
       // See `updateExpense` for the rationale — same LWW skip vector
       // applies to `markAsDeleted`, so cap above existing.updatedAt.
-      const now = Math.max(time.nowMs(), existing.updatedAt + 1);
+      const now = nextUpdatedAt(time, existing.updatedAt);
       // DELETED events still carry the last-known payload so peers can
       // resolve resurrection conflicts. Spread-conditional pattern handles
       // optional fields under `exactOptionalPropertyTypes`.
@@ -165,7 +163,7 @@ export function createExpenseCommandService(deps: CommandServiceDeps): ExpenseCo
 
       return store.transaction(async () => {
         await appendEventInTx('DELETED', id, payload);
-        await store.markAsDeleted(id, now);
+        await softDelete(store, id, now);
         return true;
       });
     },

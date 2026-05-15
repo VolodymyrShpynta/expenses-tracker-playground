@@ -102,7 +102,10 @@ The path-scoped Copilot rules for this module live in
 - **TanStack Query** — wraps the local store, mirroring the web frontend's data-fetching layer
 - **expo-auth-session** — OAuth 2.0 + PKCE for Google Drive / OneDrive (no client secret)
 - **expo-secure-store** — Keychain (iOS) / Keystore (Android) for tokens
-- **expo-background-fetch** + **expo-task-manager** — periodic sync when the app is backgrounded
+- **`@react-native-community/netinfo`** — connectivity-change listener that powers the
+  *network reconnect* auto-sync trigger; covers the gap where the app stays foregrounded
+  through a connectivity outage (train tunnel, elevator, weak Wi-Fi) and regains the network
+  without any user action
 - **pako** — gzip encode/decode of `sync.json.gz` (byte-identical to the backend's `SyncFileManager` output)
 - **i18next** + **react-i18next** — locale JSON copied at build time from the web frontend
 - **Vitest** — pure-TypeScript unit tests for `src/domain/`, `src/sync/`, and `src/test/` (56+ tests)
@@ -1020,6 +1023,9 @@ by accident:
 - **[`src/sync/autoSyncCoordinator.ts`](./src/sync/autoSyncCoordinator.ts)** — single source of truth
   for **all** automatic sync triggers (cold start, foreground, after-write debounce, app-background
   flush, network reconnect, manual button). Enforces in-flight de-duplication and 30 s throttle.
+  The *network reconnect* trigger is fed by `@react-native-community/netinfo` (subscribed in
+  [`src/context/useAutoSync.ts`](./src/context/useAutoSync.ts)) and fires on every offline → online
+  edge — the first event after mount only establishes the baseline.
 - **[`src/sync/autoSyncSignal.ts`](./src/sync/autoSyncSignal.ts)** — module-level `notifyLocalWrite()`
   used by mutation hooks to bump the after-write debounce.
 - **[`src/components/SyncCloudDialog.tsx`](./src/components/SyncCloudDialog.tsx)** — the

@@ -57,56 +57,41 @@ export interface AddExpenseDialogProps {
 /**
  * Outer shell — handles open/close lifecycle.
  *
- * Mounts a fresh `AddExpenseDialogContent` every time the dialog is
- * opened (or the target `expense` changes) by keying it on the expense
- * id. This is the React-recommended way to "reset state when a prop
- * changes": every form field's `useState(...)` initializer is re-run
- * naturally, including `useCalculator`'s lazy seed — no manual reset
- * block, no digit-by-digit replay loop.
+ * Returns `null` while `visible` is `false`, so the stateful inner
+ * component (`AddExpenseDialogShell`) unmounts every time the dialog
+ * closes. State held there (description seed, calculator amount,
+ * sub-picker flags, …) is therefore cleared between sessions without a
+ * single `useEffect` reset block.
  *
- * The same remount mechanism powers description-suggestion prefill:
- * when the user taps a suggested previous expense from inside the
- * form, `suggestionSeed` is set and `seedNonce` bumps, forcing
- * `AddExpenseDialogContent` to remount with the picked expense fed in
- * as `seedFrom`. All `useState`/`useReducer` initializers re-run,
- * which is the cleanest way to re-seed the calculator amount (its
- * reducer has no "load value" action by design).
+ * The `key={expense?.id ?? 'new'}` prop on the inner component handles
+ * the second reset trigger: when the parent flips the dialog from "edit
+ * expense A" straight into "edit expense B" without closing in between,
+ * React unmounts/remounts because the key changed. All `useState`/
+ * `useReducer` initializers re-run naturally, including
+ * `useCalculator`'s lazy seed.
+ *
+ * Description-suggestion prefill uses the same remount mechanism: when
+ * the user taps a suggested previous expense from inside the form,
+ * `suggestionSeed` is updated and `seedNonce` bumps, forcing the
+ * innermost `AddExpenseDialogContent` to remount with the picked
+ * expense fed in as `seedFrom`.
  *
  * `suggestionSeed` only applies in **create mode** — `props.expense`
  * always wins when present so an edit session never silently switches
  * its submit target.
  */
 export function AddExpenseDialog(props: AddExpenseDialogProps) {
+  if (!props.visible) return null;
+  return <AddExpenseDialogShell key={props.expense?.id ?? 'new'} {...props} />;
+}
+
+function AddExpenseDialogShell(props: AddExpenseDialogProps) {
   const [suggestionSeed, setSuggestionSeed] = useState<ExpenseProjection | undefined>(undefined);
   const [seedNonce, setSeedNonce] = useState(0);
 
-  // Reset the suggestion seed whenever the dialog closes or the target
-  // edit-expense changes. The outer dialog stays mounted across show /
-  // hide cycles (the parent screen renders it unconditionally), so
-  // these state slots would otherwise leak from one open session to
-  // the next.
-  //
-  // We use the React-recommended "store previous prop, adjust during
-  // render" pattern instead of `useEffect`. Resetting inside an effect
-  // would trigger an extra commit + warn under React 19's
-  // "setState synchronously within an effect" rule. Calling `setState`
-  // during render is safe and well-defined as long as it's gated by a
-  // prop-change check and the new value is what we want for *this*
-  // render — React simply re-renders before committing.
-  // See https://react.dev/reference/react/useState#storing-information-from-previous-renders
-  const [prevVisible, setPrevVisible] = useState(props.visible);
-  const [prevExpenseId, setPrevExpenseId] = useState(props.expense?.id);
-  if (prevVisible !== props.visible || prevExpenseId !== props.expense?.id) {
-    setPrevVisible(props.visible);
-    setPrevExpenseId(props.expense?.id);
-    if (suggestionSeed !== undefined) setSuggestionSeed(undefined);
-    if (seedNonce !== 0) setSeedNonce(0);
-  }
-
-  if (!props.visible) return null;
   return (
     <AddExpenseDialogContent
-      key={`${props.expense?.id ?? 'new'}-${seedNonce}`}
+      key={seedNonce}
       onDismiss={props.onDismiss}
       expense={props.expense}
       seedFrom={suggestionSeed}

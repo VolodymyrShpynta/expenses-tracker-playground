@@ -36,6 +36,7 @@ import { presetToGroupBy, type GroupBy } from '../../src/utils/dateRange';
 import { groupExpenses } from '../../src/utils/groupExpenses';
 import { useExchangeRates } from '../../src/hooks/useExchangeRates';
 import type { ExpenseProjection } from '../../src/domain/types';
+import { useAppColors } from '../../src/theme/appColors';
 
 /**
  * Memoized expense row hoisted to module scope. With stable props
@@ -133,7 +134,7 @@ interface SectionHeaderViewProps {
   readonly onSurface: string;
   readonly onSurfaceVariant: string;
   readonly outlineVariant: string;
-  readonly dark: boolean;
+  readonly backgroundColor: string;
   readonly onToggle: (key: string) => void;
 }
 
@@ -149,7 +150,7 @@ const SectionHeaderView = memo(function SectionHeaderView({
   onSurface,
   onSurfaceVariant,
   outlineVariant,
-  dark,
+  backgroundColor,
   onToggle,
 }: SectionHeaderViewProps) {
   const date = new Date(dateMs);
@@ -168,7 +169,7 @@ const SectionHeaderView = memo(function SectionHeaderView({
           flexDirection: 'row',
           justifyContent: 'space-between',
           alignItems: 'center',
-          backgroundColor: dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+          backgroundColor,
           borderBottomWidth: 1,
           borderBottomColor: outlineVariant,
         }}
@@ -412,7 +413,7 @@ export default function TransactionsScreen() {
   const secondaryColor = theme.colors.onSurfaceVariant;
   const onSurfaceColor = theme.colors.onSurface;
   const outlineVariantColor = theme.colors.outlineVariant;
-  const themeDark = theme.dark;
+  const sectionHeaderBg = useAppColors().sectionHeaderBg;
 
   const renderItem = useCallback(
     ({ item }: { item: ExpenseProjection }) => (
@@ -443,7 +444,7 @@ export default function TransactionsScreen() {
         onSurface={onSurfaceColor}
         onSurfaceVariant={secondaryColor}
         outlineVariant={outlineVariantColor}
-        dark={themeDark}
+        backgroundColor={sectionHeaderBg}
         onToggle={toggleCollapsed}
       />
     ),
@@ -455,7 +456,7 @@ export default function TransactionsScreen() {
       onSurfaceColor,
       secondaryColor,
       outlineVariantColor,
-      themeDark,
+      sectionHeaderBg,
       toggleCollapsed,
     ],
   );

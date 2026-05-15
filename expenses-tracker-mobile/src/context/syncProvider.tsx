@@ -31,7 +31,10 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { useLocalStore } from '../db/databaseProvider';
 import { createOneDriveAdapter } from '../sync/oneDriveAdapter';
-import { createGoogleDriveAdapter } from '../sync/googleDriveAdapter';
+import {
+  createGoogleDriveAdapter,
+  isGoogleDriveConfigured,
+} from '../sync/googleDriveAdapter';
 import { createSyncEngine, type SyncEngine, type SyncResult } from '../sync/syncEngine';
 import type { CloudDriveAdapter } from '../sync/cloudDriveAdapter';
 import {
@@ -52,9 +55,6 @@ const AUTO_SYNC_ENABLED_KEY = 'expenses-tracker-sync-auto-enabled';
  */
 const ETAG_KEY_PREFIX = 'expenses-tracker-sync-etag:';
 const etagKey = (p: SyncProviderKey): string => `${ETAG_KEY_PREFIX}${p}`;
-
-/** Sentinel for the unconfigured Google client id. */
-const GOOGLE_PLACEHOLDER = 'TODO_REPLACE_WITH_GOOGLE_CLIENT_ID';
 
 export type SyncProviderKey = 'none' | 'onedrive' | 'googledrive';
 
@@ -177,8 +177,8 @@ export function SyncProvider({ children }: SyncProviderProps) {
       case 'googledrive':
         // The default client ID in googleDriveAdapter.ts is a TODO
         // placeholder. Refuse to construct the adapter until the user
-        // has filled it in.
-        return !GOOGLE_PLACEHOLDER.startsWith('TODO_REPLACE');
+        // has filled it in. Single source of truth lives in the adapter.
+        return isGoogleDriveConfigured();
     }
   }, [provider]);
 

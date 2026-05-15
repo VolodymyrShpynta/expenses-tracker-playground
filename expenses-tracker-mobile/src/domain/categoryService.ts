@@ -26,6 +26,7 @@ import type { Category, CategoryEvent, CategoryPayload, EventType } from './type
 import type { ExpenseCommandService, IdGenerator } from './commands';
 import type { ExpenseQueryService } from './queries';
 import type { TimeProvider } from '../utils/time';
+import { nextUpdatedAt } from '../utils/time';
 import { DEFAULT_CATEGORY_TEMPLATES, defaultTemplateId } from './defaultCategories';
 
 export interface CategoryServiceDeps {
@@ -171,7 +172,7 @@ export function createCategoryService(deps: CategoryServiceDeps): CategoryServic
    */
   async function recordDelete(existing: Category): Promise<boolean> {
     // See `updateExpense` for the rationale on bumping above existing.
-    const now = Math.max(time.nowMs(), existing.updatedAt + 1);
+    const now = nextUpdatedAt(time, existing.updatedAt);
     const payload = buildPayload(existing.id, now, {
       icon: existing.icon,
       color: existing.color,
@@ -229,9 +230,8 @@ export function createCategoryService(deps: CategoryServiceDeps): CategoryServic
       const name = cmd.name ?? existing.name;
       // Cap above the existing row's updatedAt so the strict-`>` LWW
       // UPSERT inside `projectCategoryFromEvent` never silently drops
-      // this write — see `ExpenseCommandService.updateExpense` for the
-      // full rationale (synced-from-faster-clock-peer scenario).
-      const now = Math.max(time.nowMs(), existing.updatedAt + 1);
+      // this write — see `nextUpdatedAt` for the full rationale.
+      const now = nextUpdatedAt(time, existing.updatedAt);
       const payload = buildPayload(id, now, {
         icon: cmd.icon ?? existing.icon,
         color: cmd.color ?? existing.color,
@@ -256,7 +256,7 @@ export function createCategoryService(deps: CategoryServiceDeps): CategoryServic
       if (!existing) return undefined;
 
       // See `updateCategory` for the rationale on bumping above existing.
-      const now = Math.max(time.nowMs(), existing.updatedAt + 1);
+      const now = nextUpdatedAt(time, existing.updatedAt);
       const payload = buildPayload(id, now, {
         icon: existing.icon,
         color: existing.color,

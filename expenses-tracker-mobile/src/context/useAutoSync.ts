@@ -15,10 +15,11 @@
  *      successful mutation.
  *   4. **App backgrounding** — flush any pending debounced sync so
  *      local edits don't sit on the device until the user returns.
- *   5. **Network reconnect** — when `@react-native-community/netinfo`
- *      reports the device transitioning offline -> online, request a
- *      sync. The package is soft-imported; if it isn't installed, this
- *      trigger silently no-ops and the other four still work.
+ *   5. **Network reconnect** — listen on `@react-native-community/netinfo`
+ *      and request a sync whenever the device transitions offline →
+ *      online. Covers the gap the other four triggers miss: app stays
+ *      foregrounded throughout a connectivity outage (train tunnel,
+ *      elevator, …) and regains the network without any user action.
  *
  * The `enabled` flag is the single switch — pass `false` and every
  * trigger goes silent (the manual "Sync now" button keeps working
@@ -33,6 +34,7 @@
  */
 import { useEffect } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 
 import type { AutoSyncCoordinator } from '../sync/autoSyncCoordinator';
 import { onLocalWrite } from '../sync/autoSyncSignal';
@@ -87,7 +89,7 @@ export function useAutoSync({ coordinator, enabled }: UseAutoSyncArgs): void {
     });
   }, [coordinator, enabled]);
 
-  // ── 5. Net reconnect (soft dependency on NetInfo) ───────────────────
+  // ── 5. Net reconnect ────────────────────────────────────────────────
   useEffect(() => {
     if (!coordinator || !enabled) return;
     const unsubscribe = subscribeNetReconnect(() => {
@@ -98,41 +100,16 @@ export function useAutoSync({ coordinator, enabled }: UseAutoSyncArgs): void {
 }
 
 /**
- * Soft-bind to `@react-native-community/netinfo`. The package is
- * declared as an optional dependency — if it isn't installed (or fails
- * to load in the current environment) we silently degrade to a no-op
- * subscription. The other four triggers above keep working.
+ * Subscribe to `@react-native-community/netinfo` and fire `onReconnect`
+ * on every offline → online edge. The first connectivity event after
+ * mount establishes the baseline and does not fire — we only want
+ * **transitions**, not the initial state.
  */
 function subscribeNetReconnect(onReconnect: () => void): () => void {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let netInfo: any = null;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require('@react-native-community/netinfo');
-    netInfo = mod?.default ?? mod;
-  } catch {
-    return () => {
-      // No NetInfo available — fine, this trigger is optional.
-    };
-  }
-  if (!netInfo?.addEventListener) {
-    return () => {
-      // NetInfo present but with an unexpected shape — degrade silently.
-    };
-  }
-
   let wasOnline: boolean | null = null;
-  const handler = (state: { isConnected: boolean | null }) => {
+  return NetInfo.addEventListener((state) => {
     const online = state.isConnected === true;
     if (wasOnline === false && online) onReconnect();
     wasOnline = online;
-  };
-  const unsub = netInfo.addEventListener(handler);
-  return typeof unsub === 'function'
-    ? unsub
-    : () => {
-        // Some NetInfo versions return a subscription object instead of
-        // an unsubscribe function. Degrade silently — we'd rather leak a
-        // listener for the app's lifetime than crash on cleanup.
-      };
+  });
 }

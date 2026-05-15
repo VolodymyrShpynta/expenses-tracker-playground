@@ -20,7 +20,7 @@
  * Logging never includes payload contents — same PII rule as the backend.
  */
 import type { LocalStore } from '../domain/localStore';
-import { eventEntryToProjection } from '../domain/mapping';
+import { projectEventEntry, softDelete } from '../domain/projector';
 import type { EventEntry, EventType } from '../domain/types';
 
 export interface ApplyResult {
@@ -87,10 +87,10 @@ async function projectByEventType(store: LocalStore, event: EventEntry): Promise
   switch (eventType) {
     case 'CREATED':
     case 'UPDATED':
-      await store.projectFromEvent(eventEntryToProjection(event));
+      await projectEventEntry(store, event);
       return;
     case 'DELETED':
-      await store.markAsDeleted(event.expenseId, event.payload.updatedAt);
+      await softDelete(store, event.expenseId, event.payload.updatedAt);
       return;
   }
 }

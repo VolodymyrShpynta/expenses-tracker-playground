@@ -31,8 +31,20 @@ import type {
 } from './cloudDriveAdapter';
 import { createOAuthClient } from './oauthClient';
 
+/** Sentinel value for the unconfigured client id. Imported by `syncProvider.tsx`. */
+const GOOGLE_OAUTH_CLIENT_ID_PLACEHOLDER = 'TODO_REPLACE_WITH_GOOGLE_CLIENT_ID';
+
 /** TODO(setup): replace with the OAuth Client ID from Google Cloud Console. */
-const GOOGLE_OAUTH_CLIENT_ID = 'TODO_REPLACE_WITH_GOOGLE_CLIENT_ID';
+const GOOGLE_OAUTH_CLIENT_ID: string = GOOGLE_OAUTH_CLIENT_ID_PLACEHOLDER;
+
+/**
+ * Whether the OAuth client id has been filled in. Single source of truth
+ * for "Google Drive sync is usable on this build" — `syncProvider.tsx`
+ * consults it before constructing the adapter.
+ */
+export function isGoogleDriveConfigured(): boolean {
+  return GOOGLE_OAUTH_CLIENT_ID !== GOOGLE_OAUTH_CLIENT_ID_PLACEHOLDER;
+}
 
 const SYNC_FILE_NAME = 'sync.json.gz';
 const APP_DATA_FOLDER = 'appDataFolder';

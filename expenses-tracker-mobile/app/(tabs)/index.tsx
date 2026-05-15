@@ -29,6 +29,7 @@ import { useCategorySummary } from '../../src/hooks/useCategorySummary';
 import { useConvertedExpenses } from '../../src/hooks/useExchangeRates';
 import { useDateRange, useMainCurrency } from '../../src/context/preferencesProvider';
 import { formatAmountCompactWithCurrency } from '../../src/utils/format';
+import { useAppColors } from '../../src/theme/appColors';
 
 export default function CategoriesScreen() {
   const { t: translate, i18n } = useTranslation();
@@ -41,6 +42,7 @@ export default function CategoriesScreen() {
   const convertedExpenses = useConvertedExpenses(expenses);
   const { categories, grandTotal } = useCategorySummary(convertedExpenses, dateRange);
   const [addOpen, setAddOpen] = useState(false);
+  const appColors = useAppColors();
 
   /**
    * `categories` is already filtered to entries with activity in the
@@ -142,9 +144,7 @@ export default function CategoriesScreen() {
                           marginTop: 4,
                           height: 6,
                           borderRadius: 3,
-                          backgroundColor: theme.dark
-                            ? 'rgba(255,255,255,0.06)'
-                            : 'rgba(0,0,0,0.06)',
+                          backgroundColor: appColors.progressTrackBg,
                           overflow: 'hidden',
                         }}
                       >
