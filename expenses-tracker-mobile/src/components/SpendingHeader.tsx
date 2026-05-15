@@ -82,20 +82,38 @@ export function SpendingHeader({ totalSpending, currency }: SpendingHeaderProps)
           {formatAmountWithCurrency(totalSpending, currency, i18n.language)}
         </Text>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: 8,
+            alignSelf: 'stretch',
+          }}
+        >
           {canShift ? (
             <IconButton
               icon="chevron-left"
               accessibilityLabel={translate('dateRange.prevPeriodAria')}
               onPress={() => setDateRange(shiftRange(dateRange, preset, 'prev'))}
+              // Negative horizontal margin pulls the chevron closer to the
+              // label without shrinking the icon or its 48dp touch target.
+              style={{ margin: 0, marginHorizontal: -8 }}
             />
           ) : null}
           <TouchableRipple
             onPress={() => setPeriodOpen(true)}
             borderless
+            // `flex: 1` lets the label absorb leftover width and the tight
+            // horizontal padding keeps the chevrons close to the text so
+            // long localized labels (e.g. uk "1 ТРАВ. 2026 Р. – 31 ТРАВ.
+            // 2026 Р.") still fit on narrow phones without shrinking the
+            // font. `numberOfLines={1}` is a safety net that ellipsizes
+            // rather than pushing the chevrons off-screen.
             style={{
+              flex: 1,
               paddingVertical: 6,
-              paddingHorizontal: 12,
+              paddingHorizontal: 0,
             }}
           >
             {/*
@@ -106,6 +124,7 @@ export function SpendingHeader({ totalSpending, currency }: SpendingHeaderProps)
              */}
             <Text
               variant="titleMedium"
+              numberOfLines={1}
               style={{
                 fontWeight: '700',
                 letterSpacing: 0.5,
@@ -121,6 +140,7 @@ export function SpendingHeader({ totalSpending, currency }: SpendingHeaderProps)
               icon="chevron-right"
               accessibilityLabel={translate('dateRange.nextPeriodAria')}
               onPress={() => setDateRange(shiftRange(dateRange, preset, 'next'))}
+              style={{ margin: 0, marginHorizontal: -8 }}
             />
           ) : null}
         </View>

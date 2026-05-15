@@ -352,9 +352,12 @@ async function buildCategoryResolver(
 class CategoryResolver {
   private readonly byTemplateKey = new Map<string, string>();
   private readonly byNameLower = new Map<string, string>();
+  private readonly categoryService: CategoryService;
   autoCreated = 0;
 
-  constructor(private readonly categoryService: CategoryService) {}
+  constructor(categoryService: CategoryService) {
+    this.categoryService = categoryService;
+  }
 
   register(category: Category): void {
     if (category.templateKey) this.byTemplateKey.set(category.templateKey, category.id);
