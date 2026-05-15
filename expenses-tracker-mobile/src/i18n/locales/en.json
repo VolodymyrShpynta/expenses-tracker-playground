@@ -61,6 +61,7 @@
     "lastSynced": "Last synced {{when}}",
     "neverSynced": "Never synced",
     "statusSuccess": "Applied {{applied}}, uploaded {{uploaded}}.",
+    "statusUpToDate": "Already up to date.",
     "statusError": "Sync failed: {{message}}",
     "signInPrompt": "Sign in to enable sync.",
     "notConfigured": "Choose a cloud provider first.",

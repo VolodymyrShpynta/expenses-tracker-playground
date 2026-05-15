@@ -705,9 +705,26 @@ function CategoryFormDialog({
     setSubmitting(true);
     try {
       if (category) {
+        // Templated rows resolve their label through i18n
+        // (`categoryTemplates.<templateKey>`). The name input is prefilled
+        // with the currently displayed translation so the user sees what
+        // they're editing — but if we send that value back unchanged,
+        // `cmd.name` would freeze the localized text into `categories.name`
+        // and `useCategoryLookup` would stop retranslating on language
+        // switch. Only forward `name` when the user actually changed it
+        // away from the current template translation. Mirrors the web
+        // frontend's `handleEdit` in `ManageCategoriesDialog`.
+        const trimmed = name.trim();
+        const isTemplated = category.templateKey != null;
+        const originalName = lookup.resolve(category.id).name;
+        const shouldSendName = !isTemplated || trimmed !== originalName;
         await updateCategory.mutateAsync({
           id: category.id,
-          cmd: { name: name.trim(), icon: iconKey, color },
+          cmd: {
+            icon: iconKey,
+            color,
+            ...(shouldSendName ? { name: trimmed } : {}),
+          },
         });
       } else {
         await createCategory.mutateAsync({ name: name.trim(), icon: iconKey, color });

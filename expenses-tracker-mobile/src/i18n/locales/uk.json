@@ -61,6 +61,7 @@
     "lastSynced": "Останнє синхронізування {{when}}",
     "neverSynced": "Ще не синхронізовано",
     "statusSuccess": "Застосовано {{applied}}, надіслано {{uploaded}}.",
+    "statusUpToDate": "Вже синхронізовано.",
     "statusError": "Помилка синхронізації: {{message}}",
     "signInPrompt": "Увійдіть, щоб увімкнути синхронізацію.",
     "notConfigured": "Спочатку оберіть хмарного провайдера.",

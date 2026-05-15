@@ -61,6 +61,7 @@
     "lastSynced": "Naposledy synchronizováno {{when}}",
     "neverSynced": "Nikdy synchronizováno",
     "statusSuccess": "Aplikováno {{applied}}, nahráno {{uploaded}}.",
+    "statusUpToDate": "Vše je synchronizováno.",
     "statusError": "Synchronizace selhala: {{message}}",
     "signInPrompt": "Pro synchronizaci se přihlaste.",
     "notConfigured": "Nejprve vyberte poskytovatele cloudu.",

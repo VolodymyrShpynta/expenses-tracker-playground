@@ -172,8 +172,16 @@ export function SyncCloudDialog({ visible, onDismiss, onShowStatus }: SyncCloudD
           <SyncStatusFooter
             lastSyncedAt={lastSyncedAt}
             lastError={lastError}
-            lastApplied={lastResult?.remote.applied ?? null}
-            lastUploaded={lastResult?.uploadedLocal ?? null}
+            lastApplied={
+              lastResult
+                ? lastResult.remote.applied + lastResult.remoteCategories.applied
+                : null
+            }
+            lastUploaded={
+              lastResult
+                ? lastResult.uploadedLocal + lastResult.uploadedLocalCategories
+                : null
+            }
           />
         </Dialog.Content>
       </AppDialog>
@@ -238,10 +246,12 @@ function SyncStatusFooter({
       </Text>
       {lastApplied !== null && lastUploaded !== null && (
         <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-          {translate('syncDialog.statusSuccess', {
-            applied: lastApplied,
-            uploaded: lastUploaded,
-          })}
+          {lastApplied === 0 && lastUploaded === 0
+            ? translate('syncDialog.statusUpToDate')
+            : translate('syncDialog.statusSuccess', {
+                applied: lastApplied,
+                uploaded: lastUploaded,
+              })}
         </Text>
       )}
     </>
