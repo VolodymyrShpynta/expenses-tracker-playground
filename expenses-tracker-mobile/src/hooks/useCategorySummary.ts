@@ -39,18 +39,20 @@ export function useCategorySummary(
         })
       : expenses;
 
+    // Single pass over the in-range subset. Categories with no activity
+    // in the selected period are intentionally omitted from the result —
+    // callers used to filter `c.total > 0` after the fact, which is now
+    // unnecessary but harmless.
     const map = new Map<string, { total: number; count: number }>();
-
-    for (const e of expenses) {
-      const key = e.categoryId ?? '';
-      if (!map.has(key)) map.set(key, { total: 0, count: 0 });
-    }
-
     for (const e of filtered) {
       const key = e.categoryId ?? '';
-      const entry = map.get(key)!;
-      entry.total += e.amount;
-      entry.count += 1;
+      const entry = map.get(key);
+      if (entry) {
+        entry.total += e.amount;
+        entry.count += 1;
+      } else {
+        map.set(key, { total: e.amount, count: 1 });
+      }
     }
 
     const grandTotal = filtered.reduce((sum, e) => sum + e.amount, 0);

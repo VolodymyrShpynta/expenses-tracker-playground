@@ -7,7 +7,7 @@
  * `react-native-svg` and a sizable amount of layout code; the ranked list
  * is the same information density without the extra dependency.
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import {
   ActivityIndicator,
@@ -42,12 +42,25 @@ export default function CategoriesScreen() {
   const { categories, grandTotal } = useCategorySummary(convertedExpenses, dateRange);
   const [addOpen, setAddOpen] = useState(false);
 
-  const active = categories.filter((c) => c.total > 0);
+  /**
+   * `categories` is already filtered to entries with activity in the
+   * selected period by `useCategorySummary`, so this is just a defensive
+   * filter; memoizing keeps the array identity stable so the donut chart
+   * doesn't re-derive its SVG paths on unrelated renders.
+   */
+  const active = useMemo(
+    () => categories.filter((c) => c.total > 0),
+    [categories],
+  );
 
-  const slices: DonutSlice[] = active.map((c) => {
-    const r = lookup.resolve(c.categoryId);
-    return { id: c.categoryId, label: r.name, value: c.total, color: r.color };
-  });
+  const slices = useMemo<DonutSlice[]>(
+    () =>
+      active.map((c) => {
+        const r = lookup.resolve(c.categoryId);
+        return { id: c.categoryId, label: r.name, value: c.total, color: r.color };
+      }),
+    [active, lookup],
+  );
 
   if (loading) {
     return (

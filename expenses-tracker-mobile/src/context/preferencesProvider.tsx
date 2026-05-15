@@ -12,6 +12,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from 'react';
 import type { ReactNode } from 'react';
@@ -156,21 +157,42 @@ export function PreferencesProvider({ children }: PreferencesProviderProps) {
     [],
   );
 
+  /**
+   * Memoize the context value so every preference change only invalidates
+   * consumers when its slice actually changed (the value object identity
+   * is otherwise rebuilt on every provider render, defeating downstream
+   * memoization across the tree). Setters are all `useCallback`-stable,
+   * so the dep list is the underlying state.
+   */
+  const value = useMemo<PreferencesContextValue>(
+    () => ({
+      mainCurrency,
+      setMainCurrency,
+      dateRange,
+      preset,
+      setPreset,
+      setDateRange,
+      themeMode,
+      setThemeMode,
+      fontScale,
+      setFontScale,
+    }),
+    [
+      mainCurrency,
+      setMainCurrency,
+      dateRange,
+      preset,
+      setPreset,
+      setDateRange,
+      themeMode,
+      setThemeMode,
+      fontScale,
+      setFontScale,
+    ],
+  );
+
   return (
-    <PreferencesContext.Provider
-      value={{
-        mainCurrency,
-        setMainCurrency,
-        dateRange,
-        preset,
-        setPreset,
-        setDateRange,
-        themeMode,
-        setThemeMode,
-        fontScale,
-        setFontScale,
-      }}
-    >
+    <PreferencesContext.Provider value={value}>
       {children}
     </PreferencesContext.Provider>
   );

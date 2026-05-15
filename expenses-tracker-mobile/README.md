@@ -56,6 +56,13 @@ own Google Drive `appDataFolder` or OneDrive `approot`.
       - [Common failure modes (and what they confirm about the model)](#common-failure-modes-and-what-they-confirm-about-the-model)
     - [Are these Client IDs sensitive?](#are-these-client-ids-sensitive)
   - [📦 Mobile Note (`expo-sqlite`)](#-mobile-note-expo-sqlite)
+  - [⚡ Rendering \& Performance Notes](#-rendering--performance-notes)
+    - [Transactions list (the hot spot)](#transactions-list-the-hot-spot)
+    - [Cross-cutting providers](#cross-cutting-providers)
+    - [Categories screen](#categories-screen)
+    - [Sync engine](#sync-engine)
+    - [Other micro-wins](#other-micro-wins)
+    - [Things deliberately *not* done](#things-deliberately-not-done)
   - [📄 Key Files](#-key-files)
   - [📚 Related Documentation](#-related-documentation)
 
@@ -882,6 +889,121 @@ If profiling ever shows the per-statement loop is a bottleneck on a constrained 
 multi-row VALUES technique described in
 [`expenses-tracker-api/README.md → Performance Optimization`](../expenses-tracker-api/README.md#-performance-optimization-batch-processing-recommended)
 translates directly to expo-sqlite — but it has not been needed in practice.
+
+---
+
+## ⚡ Rendering & Performance Notes
+
+The module targets **mid-range Android** as its slowest realistic device and assumes a working dataset
+in the low thousands of expenses (a couple of years of personal spending). Two surfaces dominate
+perceived responsiveness: the **transactions list** (which can render hundreds of native views at
+once) and the **cross-cutting providers** that fan out re-renders across every screen. The notes below
+explain what the module does today on each of those surfaces and the constraint each piece addresses.
+
+### Transactions list (the hot spot)
+
+The list in [`app/(tabs)/transactions.tsx`](./app/%28tabs%29/transactions.tsx) groups expenses by
+day / month / year depending on the active period preset. On a year preset with ~2k expenses, that
+is typically twelve month-sections of ~150 rows each. The bottleneck on tap-to-expand / tap-to-collapse
+is **native view mount and layout on the JS thread**, not JS work in the row render function. The
+screen layers several techniques that all target that bottleneck:
+
+- **`SectionList` with tight virtualisation windowing.** `windowSize={4}` keeps roughly one viewport
+  of buffer above and below the visible area mounted (~40 native rows), instead of React Native's
+  default of 10 (~100 rows). The cost of a collapse toggle scales roughly with the mounted-row count,
+  so halving the window roughly halves the work. `maxToRenderPerBatch={8}` keeps incremental paint
+  batches small enough to avoid stutter on subsequent frames, and `initialNumToRender={20}` keeps the
+  cold-open paint generous so the first screenful arrives in a single pass.
+- **`removeClippedSubviews` is intentionally not set.** On Android its default is already `true`, and
+  forcing it explicitly is a known source of bugs interacting with the nested `TouchableRipple`
+  handlers in section headers and rows. Leaving the prop unset uses the platform default and avoids
+  the trap.
+- **`React.memo` on hoisted `ExpenseRow` and `SectionHeaderView`.** Both components live at module
+  scope (not inside the screen function) so their identities are stable across renders. The parent
+  rebuilds its `sections` array on every collapse toggle, but the memoised children compare props
+  via `Object.is` and bail out unless something they actually display changed.
+- **Section-header props are primitives, not section objects.** Because the parent allocates a fresh
+  section object on every render, passing `section.date` or `section` itself would force a new
+  reference into the header every time and defeat memoisation. The header instead takes `dateMs:
+  number`, `total: number`, `collapsed: boolean`, language / theme primitives, etc., so the shallow
+  compare succeeds for every section except the one the user actually tapped.
+- **`useCallback` on `renderItem` / `renderSectionHeader` / press handlers.** Inline arrow functions
+  would allocate a new closure every render, force `SectionList` to re-evaluate its row factories,
+  and (worst of all) blow up the memo bailouts on individual rows. Stable callbacks paired with
+  memoised children mean a parent re-render touches only the section that actually changed, not the
+  whole visible list.
+- **Section totals pre-computed in the `sections` `useMemo`.** Each header shows the section's total
+  converted to the main currency. Doing the reduce here costs at most twelve reductions per filter
+  change; doing it inside the header render would re-run it on every scroll-induced re-render.
+- **`useTransition` around the collapse `setState`.** The toggle is marked as a **non-urgent** update,
+  so React keeps the JS thread free for the `TouchableRipple` press-feedback animation while the
+  heavy reconciliation — mounting or unmounting the section's rows — runs in the background. If the
+  user taps another header before the previous transition commits, React discards the in-flight work,
+  so rapid tapping cannot queue up multiple expensive reconciliations.
+
+### Cross-cutting providers
+
+Performance work on a single screen is wasted if a global context fans out re-renders to every
+consumer on every state change.
+
+- **[`PreferencesProvider`](./src/context/preferencesProvider.tsx) exposes a `useMemo`-wrapped value
+  object.** Currency, date range, theme, and font-scale state all live in one provider. The context
+  value is memoised on the full list of its fields so consumers that compare by reference (TanStack
+  Query keys, downstream `useMemo`s, child providers) don't see a fresh `value` object on unrelated
+  state changes. Without the memo, any setter from one of the sub-hooks would re-render every screen
+  that consumes the context — including the transactions list mid-collapse.
+
+### Categories screen
+
+- **`active` and `slices` are memoised** in [`app/(tabs)/index.tsx`](./app/%28tabs%29/index.tsx).
+  The donut chart's internal arc-geometry memo keys off slice identity. Rebuilding `slices` every
+  render would invalidate that memo and force the underlying SVG to re-lay-out, which is by far the
+  most expensive piece of the screen.
+
+### Sync engine
+
+- **Local-uncommitted reads run in parallel.**
+  [`SyncEngine.runOneCycle()`](./src/sync/syncEngine.ts) issues `findUncommittedEvents()` and
+  `findUncommittedCategoryEvents()` through `Promise.all`. Both are independent SQLite queries;
+  serialising them costs one extra round-trip per sync cycle for no benefit. Sync cycles are off the
+  render path, but they run on app foreground / network reconnect / after-write debounce, so a
+  faster cycle is a faster perceived *"data is up to date"*.
+
+### Other micro-wins
+
+- **[`CurrencyPickerDialog`](./src/components/CurrencyPickerDialog.tsx) sorts the currency catalogue
+  once at module scope** (`SORTED_CURRENCIES`). The dialog's typeahead filter scans this constant on
+  every keystroke; re-sorting the ~180-element array per keystroke is invisible on desktop but
+  visibly stutters the dialog on mid-range Android.
+- **[`useCategorySummary`](./src/hooks/useCategorySummary.ts) populates its result map in a single
+  pass** over the already-filtered expenses. Pre-seeding every catalogue category with `total: 0`
+  would emit zero-value rows for categories the user didn't touch this period, forcing the UI to
+  render and then filter them.
+
+### Things deliberately *not* done
+
+A few "obvious" optimisations were tested and rejected because measurement (or hard experience)
+showed them to be worse than the baseline. They are documented here so they don't get re-introduced
+by accident:
+
+- **`@shopify/flash-list` for the transactions list.** True view recycling sounds appealing, but the
+  recycler relies on fixed item heights to avoid layout reflow. Our rows vary by ±8 px because the
+  converted-amount second line is conditional on `expense.currency !== mainCurrency`. The result was
+  visible empty gaps as recycled cells rebind between heights. The SectionList path with the
+  windowing + memo combination above stays smoother on the same dataset.
+- **`getItemLayout` on `SectionList`.** Would let `SectionList` skip on-the-fly measurement of each
+  row, but it requires exact, deterministic heights per flat index — including header heights that
+  vary by `groupBy`. The variable-height rows would force an artificial uniform height (wasteful
+  padding on most rows), and a single height mismatch corrupts the layout. Not worth it for the
+  marginal scroll-only improvement.
+- **Default-collapsing all sections except the most recent.** Trades a cold-start win for a per-tap
+  penalty: each older section's first expand pays the full native-mount cost from empty, instead of
+  the cheap re-toggle of an already-windowed section. That is the opposite of what users notice.
+- **Pre-formatting every row's display strings upfront in a `useMemo` map.** Amortising the
+  `Intl.NumberFormat` and category-lookup work across a 2k-row map costs ~100–300 ms of upfront work
+  on every filter change and delays first paint by more than the per-row savings it returns. The
+  memoised rows already keep this work negligible because shallow-compare bail-outs skip the work
+  for rows that didn't change.
 
 ---
 

@@ -153,9 +153,12 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     // Knowing up front whether we have anything to upload lets us pick
     // the cheaper download path: with `ifNoneMatch` when we're just
     // pulling, without it when we'll need the bytes for a merge.
-    const localUncommitted = await store.findUncommittedEvents();
-    const localUncommittedCategories =
-      await store.findUncommittedCategoryEvents();
+    // Run both queries in parallel — they share no data dependency and
+    // each pays a JS↔native bridge round-trip on Android.
+    const [localUncommitted, localUncommittedCategories] = await Promise.all([
+      store.findUncommittedEvents(),
+      store.findUncommittedCategoryEvents(),
+    ]);
     const hasLocalWrites =
       localUncommitted.length > 0 || localUncommittedCategories.length > 0;
 

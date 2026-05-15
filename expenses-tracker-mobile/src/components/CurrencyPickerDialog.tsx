@@ -31,6 +31,13 @@ const CURRENCIES: ReadonlyArray<string> = [
   'INR', 'TRY', 'ZAR', 'BRL', 'MXN', 'KRW', 'SGD', 'HKD', 'NZD',
 ];
 
+/**
+ * Pre-sorted view of `CURRENCIES` — module-level so the sort runs once
+ * per JS module load, not on every dialog render / keystroke inside the
+ * `useMemo` below.
+ */
+const SORTED_CURRENCIES: ReadonlyArray<string> = [...CURRENCIES].sort();
+
 export interface CurrencyPickerDialogProps {
   readonly visible: boolean;
   readonly selected: string;
@@ -49,13 +56,12 @@ export function CurrencyPickerDialog({
   const [query, setQuery] = useState('');
 
   const list = useMemo(() => {
-    const sorted = [...CURRENCIES].sort();
     const q = query.trim().toLowerCase();
     if (!q) {
-      const remaining = sorted.filter((c) => c !== selected);
+      const remaining = SORTED_CURRENCIES.filter((c) => c !== selected);
       return [selected, ...remaining];
     }
-    return sorted.filter((c) => c.toLowerCase().includes(q));
+    return SORTED_CURRENCIES.filter((c) => c.toLowerCase().includes(q));
   }, [query, selected]);
 
   const handleDismiss = (): void => {
