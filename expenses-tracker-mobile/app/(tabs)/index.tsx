@@ -28,7 +28,7 @@ import { useCategoryLookup } from '../../src/hooks/useCategoryLookup';
 import { useCategorySummary } from '../../src/hooks/useCategorySummary';
 import { useConvertedExpenses } from '../../src/hooks/useExchangeRates';
 import { useDateRange, useMainCurrency } from '../../src/context/preferencesProvider';
-import { formatAmountCompactWithCurrency } from '../../src/utils/format';
+import { formatConvertedAmountCompact } from '../../src/utils/format';
 import { useAppColors } from '../../src/theme/appColors';
 
 export default function CategoriesScreen() {
@@ -51,7 +51,7 @@ export default function CategoriesScreen() {
    * doesn't re-derive its SVG paths on unrelated renders.
    */
   const active = useMemo(
-    () => categories.filter((c) => c.total > 0),
+    () => categories.filter((c) => c.total.amount > 0),
     [categories],
   );
 
@@ -59,7 +59,7 @@ export default function CategoriesScreen() {
     () =>
       active.map((c) => {
         const r = lookup.resolve(c.categoryId);
-        return { id: c.categoryId, label: r.name, value: c.total, color: r.color };
+        return { id: c.categoryId, label: r.name, value: c.total.amount, color: r.color };
       }),
     [active, lookup],
   );
@@ -76,13 +76,17 @@ export default function CategoriesScreen() {
     <>
       <View style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingBottom: 96 }}>
-          <SpendingHeader totalSpending={grandTotal} currency={mainCurrency} />
+          <SpendingHeader total={grandTotal} currency={mainCurrency} />
 
           {active.length > 0 ? (
             <View style={{ paddingVertical: 8 }}>
               <CategoryDonutChart
                 slices={slices}
-                centerValue={formatAmountCompactWithCurrency(grandTotal, mainCurrency, i18n.language)}
+                centerValue={formatConvertedAmountCompact(
+                  grandTotal,
+                  mainCurrency,
+                  i18n.language,
+                )}
                 centerLabel={translate('expenses.totalSpending')}
               />
             </View>
@@ -162,7 +166,11 @@ export default function CategoriesScreen() {
                       variant="bodyLarge"
                       style={{ color: resolved.color, fontWeight: '700', minWidth: 80, textAlign: 'right' }}
                     >
-                      {formatAmountCompactWithCurrency(cat.total, mainCurrency, i18n.language)}
+                      {formatConvertedAmountCompact(
+                        cat.total,
+                        mainCurrency,
+                        i18n.language,
+                      )}
                     </Text>
                   </View>
                 </TouchableRipple>

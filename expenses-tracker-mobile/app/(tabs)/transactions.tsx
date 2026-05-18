@@ -31,10 +31,12 @@ import {
   type CategoryLookup,
 } from '../../src/hooks/useCategoryLookup';
 import { useDateRange, useMainCurrency } from '../../src/context/preferencesProvider';
-import { formatAmountWithCurrency } from '../../src/utils/format';
+import { formatAmountWithCurrency, formatConvertedAmount } from '../../src/utils/format';
 import { presetToGroupBy, type GroupBy } from '../../src/utils/dateRange';
 import { groupExpenses } from '../../src/utils/groupExpenses';
 import { useExchangeRates } from '../../src/hooks/useExchangeRates';
+import type { ConvertedAmount } from '../../src/domain/exchangeRates';
+import { sumAmounts } from '../../src/domain/exchangeRates';
 import type { ExpenseProjection } from '../../src/domain/types';
 import { useAppColors } from '../../src/theme/appColors';
 
@@ -53,7 +55,11 @@ interface ExpenseRowProps {
   readonly mainCurrency: string;
   readonly language: string;
   readonly lookup: CategoryLookup;
-  readonly convert: (amount: number, fromCurrency: string) => number;
+  readonly convert: (
+    amount: number,
+    fromCurrency: string,
+    date?: string,
+  ) => ConvertedAmount;
   readonly onPress: (expense: ExpenseProjection) => void;
   readonly secondaryColor: string;
 }
@@ -69,7 +75,9 @@ const ExpenseRow = memo(function ExpenseRow({
 }: ExpenseRowProps) {
   const resolved = lookup.resolve(expense.categoryId);
   const showConverted = expense.currency !== mainCurrency;
-  const convertedAmount = showConverted ? convert(expense.amount, expense.currency) : 0;
+  const converted = showConverted
+    ? convert(expense.amount, expense.currency, expense.date)
+    : null;
   return (
     <TouchableRipple onPress={() => onPress(expense)}>
       <View
@@ -96,11 +104,11 @@ const ExpenseRow = memo(function ExpenseRow({
         </View>
         <View style={{ minWidth: 90, alignItems: 'flex-end' }}>
           <Text variant="bodyMedium">
-            {showConverted
-              ? formatAmountWithCurrency(convertedAmount, mainCurrency, language)
+            {converted
+              ? formatConvertedAmount(converted, mainCurrency, language)
               : formatAmountWithCurrency(expense.amount, expense.currency, language)}
           </Text>
-          {showConverted ? (
+          {converted ? (
             <Text
               variant="bodySmall"
               style={{ color: secondaryColor, marginTop: 2 }}
@@ -116,17 +124,20 @@ const ExpenseRow = memo(function ExpenseRow({
 
 /**
  * Memoized section header. We deliberately pass primitives (not the
- * `section` object) so React.memo can bail out for unchanged sections:
- * the parent rebuilds the `sections` array on every collapse toggle, so
- * each section object literal is a new reference even when its content
- * didn't change. Primitives compare by value and let the shallow compare
- * succeed for every section except the one the user actually tapped.
+ * `section` object, and not the `ConvertedAmount` total) so React.memo
+ * can bail out for unchanged sections: the parent rebuilds the
+ * `sections` array on every collapse toggle, so each section object
+ * literal and each `total` value object is a new reference even when
+ * its content didn't change. Primitives compare by value and let the
+ * shallow compare succeed for every section except the one the user
+ * actually tapped.
  */
 interface SectionHeaderViewProps {
   readonly sectionKey: string;
   readonly label: string;
   readonly dateMs: number;
   readonly total: number;
+  readonly approx: boolean;
   readonly collapsed: boolean;
   readonly groupBy: GroupBy;
   readonly language: string;
@@ -143,6 +154,7 @@ const SectionHeaderView = memo(function SectionHeaderView({
   label,
   dateMs,
   total,
+  approx,
   collapsed,
   groupBy,
   language,
@@ -227,7 +239,7 @@ const SectionHeaderView = memo(function SectionHeaderView({
             variant="titleMedium"
             style={{ color: onSurface, fontWeight: '700' }}
           >
-            {formatAmountWithCurrency(total, mainCurrency, language)}
+            {formatAmountWithCurrency(total, mainCurrency, language, approx)}
           </Text>
           <MaterialIcons
             name={collapsed ? 'chevron-right' : 'expand-more'}
@@ -361,8 +373,8 @@ export default function TransactionsScreen() {
       });
   }, [inRange, includeIds, query, lookup]);
 
-  const grandTotal = useMemo(
-    () => filtered.reduce((sum, e) => sum + convert(e.amount, e.currency), 0),
+  const grandTotal = useMemo<ConvertedAmount>(
+    () => sumAmounts(filtered.map((e) => convert(e.amount, e.currency, e.date))),
     [filtered, convert],
   );
 
@@ -380,15 +392,20 @@ export default function TransactionsScreen() {
    */
   const sections = useMemo(
     () =>
-      groups.map((g) => ({
-        key: g.key,
-        label: g.label,
-        date: g.date,
-        total: g.expenses.reduce((s, e) => s + convert(e.amount, e.currency), 0),
-        data: collapsedKeys.has(g.key)
-          ? ([] as ReadonlyArray<ExpenseProjection>)
-          : g.expenses,
-      })),
+      groups.map((g) => {
+        const total = sumAmounts(
+          g.expenses.map((e) => convert(e.amount, e.currency, e.date)),
+        );
+        return {
+          key: g.key,
+          label: g.label,
+          date: g.date,
+          total,
+          data: collapsedKeys.has(g.key)
+            ? ([] as ReadonlyArray<ExpenseProjection>)
+            : g.expenses,
+        };
+      }),
     [groups, collapsedKeys, convert],
   );
 
@@ -436,7 +453,8 @@ export default function TransactionsScreen() {
         sectionKey={section.key}
         label={section.label}
         dateMs={section.date.getTime()}
-        total={section.total}
+        total={section.total.amount}
+        approx={section.total.approx}
         collapsed={collapsedKeys.has(section.key)}
         groupBy={groupBy}
         language={i18n.language}
@@ -464,7 +482,10 @@ export default function TransactionsScreen() {
   const listHeader = useMemo(
     () => (
       <>
-        <SpendingHeader totalSpending={grandTotal} currency={mainCurrency} />
+        <SpendingHeader
+          total={grandTotal}
+          currency={mainCurrency}
+        />
         <TransactionFilters
           query={query}
           onQueryChange={setQuery}

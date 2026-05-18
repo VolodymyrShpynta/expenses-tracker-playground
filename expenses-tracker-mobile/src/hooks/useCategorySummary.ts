@@ -4,23 +4,38 @@
  *
  * Display fields (name, color, icon) are resolved by the caller via
  * `useCategoryLookup` — same separation the web frontend uses.
+ *
+ * When called with `ConvertedExpenseProjection` rows (the usual path),
+ * each `CategorySummary.total` and the `grandTotal` carry the `approx`
+ * flag as part of a `ConvertedAmount` value object: `approx=true` when
+ * *any* contributing expense was converted using the live fallback rate.
+ * See `src/domain/exchangeRates.ts`.
  */
 import { useMemo } from 'react';
 
 import type { ExpenseProjection } from '../domain/types';
 import type { DateRange } from '../utils/dateRange';
+import {
+  ZERO_AMOUNT,
+  addAmounts,
+  type ConvertedAmount,
+} from '../domain/exchangeRates';
+
+/** Optional `approx` field — present on `ConvertedExpenseProjection`. */
+type MaybeApprox = ExpenseProjection & { readonly approx?: boolean };
 
 export interface CategorySummary {
   readonly categoryId: string;
-  readonly total: number;
+  /** Per-category total, paired with the `approx` propagation flag. */
+  readonly total: ConvertedAmount;
   readonly count: number;
   readonly percentage: number;
 }
 
 export function useCategorySummary(
-  expenses: ReadonlyArray<ExpenseProjection>,
+  expenses: ReadonlyArray<MaybeApprox>,
   dateRange?: DateRange,
-): { categories: CategorySummary[]; grandTotal: number } {
+): { categories: CategorySummary[]; grandTotal: ConvertedAmount } {
   return useMemo(() => {
     const now = new Date();
     const today = new Date(
@@ -41,31 +56,36 @@ export function useCategorySummary(
 
     // Single pass over the in-range subset. Categories with no activity
     // in the selected period are intentionally omitted from the result —
-    // callers used to filter `c.total > 0` after the fact, which is now
-    // unnecessary but harmless.
-    const map = new Map<string, { total: number; count: number }>();
+    // callers used to filter `c.total.amount > 0` after the fact, which
+    // is now unnecessary but harmless.
+    const map = new Map<string, { total: ConvertedAmount; count: number }>();
+    let grandTotal: ConvertedAmount = ZERO_AMOUNT;
     for (const e of filtered) {
+      const contribution: ConvertedAmount = {
+        amount: e.amount,
+        approx: e.approx === true,
+      };
+      grandTotal = addAmounts(grandTotal, contribution);
       const key = e.categoryId ?? '';
       const entry = map.get(key);
       if (entry) {
-        entry.total += e.amount;
+        entry.total = addAmounts(entry.total, contribution);
         entry.count += 1;
       } else {
-        map.set(key, { total: e.amount, count: 1 });
+        map.set(key, { total: contribution, count: 1 });
       }
     }
 
-    const grandTotal = filtered.reduce((sum, e) => sum + e.amount, 0);
-
     const categories: CategorySummary[] = Array.from(map.entries())
       .filter(([key]) => key !== '')
-      .map(([categoryId, { total, count }]) => ({
+      .map(([categoryId, entry]) => ({
         categoryId,
-        total,
-        count,
-        percentage: grandTotal > 0 ? (total / grandTotal) * 100 : 0,
+        total: entry.total,
+        count: entry.count,
+        percentage:
+          grandTotal.amount > 0 ? (entry.total.amount / grandTotal.amount) * 100 : 0,
       }))
-      .sort((a, b) => b.total - a.total);
+      .sort((a, b) => b.total.amount - a.total.amount);
 
     return { categories, grandTotal };
   }, [expenses, dateRange]);

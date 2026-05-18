@@ -25,6 +25,7 @@ import { AppServicesProvider } from '../src/context/appServicesProvider';
 import { PreferencesProvider, useThemeMode } from '../src/context/preferencesProvider';
 import { SyncProvider } from '../src/context/syncProvider';
 import { ThemedPaperProvider } from '../src/theme/ThemedPaperProvider';
+import { useExchangeRatesSync } from '../src/hooks/useExchangeRatesSync';
 
 export default function RootLayout() {
   const [i18nReady, setI18nReady] = useState(false);
@@ -45,6 +46,7 @@ export default function RootLayout() {
                   <SyncProvider>
                     <ThemedPaperProvider>
                       <ThemedStatusBar />
+                      <ExchangeRatesSyncMounter />
                       <Stack>
                         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                         <Stack.Screen name="settings" />
@@ -74,4 +76,15 @@ function ThemedStatusBar() {
     themeMode === 'dark' ||
     (themeMode === 'system' && systemScheme === 'dark');
   return <StatusBar style={isDark ? 'light' : 'dark'} />;
+}
+
+/**
+ * Headless mount-point for `useExchangeRatesSync`. The hook needs access
+ * to `DatabaseProvider`, `AppServices`, `Preferences`, and
+ * `QueryClientProvider`, all of which are above it in the tree. It
+ * returns nothing; it just schedules the background refresh side effect.
+ */
+function ExchangeRatesSyncMounter() {
+  useExchangeRatesSync();
+  return null;
 }

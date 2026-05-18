@@ -116,6 +116,32 @@ export const MIGRATIONS: ReadonlyArray<{ readonly version: number; readonly sql:
         ON categories(sort_order);
     `,
   },
+  {
+    version: 2,
+    sql: `
+      -- Historical exchange-rate cache.
+      --
+      -- One row per (base, quote, period_start) tuple. period_start is the
+      -- first day of the month the rate applies to ('YYYY-MM-01'), with the
+      -- sentinel value 'LATEST' reserved for the most recent live rate
+      -- (used as a fallback when no historical rate is available for the
+      -- expense's month).
+      --
+      -- Rate convention follows Frankfurter / open.er-api.com: the value
+      -- is 'how many quote units one base unit buys', i.e. to convert
+      -- amount from quote to base divide by rate.
+      CREATE TABLE IF NOT EXISTS exchange_rates (
+        base         TEXT    NOT NULL,
+        quote        TEXT    NOT NULL,
+        period_start TEXT    NOT NULL,
+        rate         REAL    NOT NULL,
+        fetched_at   INTEGER NOT NULL,
+        PRIMARY KEY (base, quote, period_start)
+      );
+      CREATE INDEX IF NOT EXISTS idx_exchange_rates_base_period
+        ON exchange_rates(base, period_start);
+    `,
+  },
 ];
 
 /** SQLite database name on disk (lives under `FileSystem.documentDirectory/SQLite/`). */

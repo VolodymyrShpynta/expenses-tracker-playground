@@ -40,18 +40,25 @@ import {
   startOfDay,
   type PresetKey,
 } from '../utils/dateRange';
-import { formatAmountWithCurrency } from '../utils/format';
+import { formatConvertedAmount } from '../utils/format';
+import type { ConvertedAmount } from '../domain/exchangeRates';
 import { PeriodPickerDialog } from './PeriodPickerDialog';
 import { RangeDatePickerDialog, SingleDatePickerDialog } from './DatePickerDialogs';
 
 export interface SpendingHeaderProps {
-  readonly totalSpending: number;
+  /**
+   * Total to display, paired with the `approx` propagation flag so the
+   * `~` prefix is applied automatically when at least one contributing
+   * expense was converted using the live fallback rate. See
+   * `src/domain/exchangeRates.ts` for the conversion contract.
+   */
+  readonly total: ConvertedAmount;
   readonly currency: string;
 }
 
 const NON_SHIFTABLE: ReadonlyArray<PresetKey> = ['all', 'range', 'day'];
 
-export function SpendingHeader({ totalSpending, currency }: SpendingHeaderProps) {
+export function SpendingHeader({ total, currency }: SpendingHeaderProps) {
   const { t: translate, i18n } = useTranslation();
   const theme = useTheme();
   const { dateRange, preset, setPreset, setDateRange } = useDateRange();
@@ -118,7 +125,7 @@ export function SpendingHeader({ totalSpending, currency }: SpendingHeaderProps)
           {translate('expenses.totalSpending')}
         </Text>
         <Text variant="headlineMedium" style={{ fontWeight: '700', marginTop: 4 }}>
-          {formatAmountWithCurrency(totalSpending, currency, i18n.language)}
+          {formatConvertedAmount(total, currency, i18n.language)}
         </Text>
 
         <GestureDetector gesture={swipeGesture}>

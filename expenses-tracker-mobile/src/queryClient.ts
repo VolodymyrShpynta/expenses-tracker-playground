@@ -31,3 +31,10 @@ export const EXPENSES_QUERY_KEY = ['expenses'] as const;
 
 /** Canonical key for the categories list. */
 export const CATEGORIES_QUERY_KEY = ['categories'] as const;
+
+/**
+ * Canonical key for the historical + latest exchange-rate cache.
+ * Invalidated by `useExchangeRatesSync` after writing new rows; consumed
+ * by `useExchangeRates`.
+ */
+export const EXCHANGE_RATES_QUERY_KEY = ['exchange-rates'] as const;

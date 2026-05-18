@@ -20,11 +20,14 @@ import * as SQLite from 'expo-sqlite';
 
 import type { LocalStore } from '../domain/localStore';
 import { createSqliteLocalStore } from './sqliteLocalStore';
+import { createExchangeRateStore } from './exchangeRateStore';
+import type { ExchangeRateStore } from './exchangeRateStore';
 import { migrate } from './migrations';
 import { DB_NAME } from './schema';
 
 interface DatabaseContextValue {
   readonly store: LocalStore;
+  readonly exchangeRateStore: ExchangeRateStore;
   readonly schemaVersion: number;
 }
 
@@ -45,7 +48,11 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
         const db = await SQLite.openDatabaseAsync(DB_NAME);
         const schemaVersion = await migrate(db);
         if (cancelled) return;
-        setValue({ store: createSqliteLocalStore(db), schemaVersion });
+        setValue({
+          store: createSqliteLocalStore(db),
+          exchangeRateStore: createExchangeRateStore(db),
+          schemaVersion,
+        });
       } catch (e) {
         if (cancelled) return;
         // Surface a generic message — the underlying error message may
@@ -86,4 +93,17 @@ export function useLocalStore(): LocalStore {
     throw new Error('useLocalStore must be used inside <DatabaseProvider>');
   }
   return ctx.store;
+}
+
+/**
+ * Access the shared exchange-rate cache. Throws when used outside
+ * `DatabaseProvider`. Backed by the `exchange_rates` SQLite table (see
+ * `schema.ts` migration v2).
+ */
+export function useExchangeRateStore(): ExchangeRateStore {
+  const ctx = useContext(DatabaseContext);
+  if (!ctx) {
+    throw new Error('useExchangeRateStore must be used inside <DatabaseProvider>');
+  }
+  return ctx.exchangeRateStore;
 }

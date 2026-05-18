@@ -56,6 +56,10 @@ own Google Drive `appDataFolder` or OneDrive `approot`.
       - [Common failure modes (and what they confirm about the model)](#common-failure-modes-and-what-they-confirm-about-the-model)
     - [Are these Client IDs sensitive?](#are-these-client-ids-sensitive)
   - [📦 Mobile Note (`expo-sqlite`)](#-mobile-note-expo-sqlite)
+  - [💱 Historical-Rate Currency Conversion](#-historical-rate-currency-conversion)
+    - [Components](#components)
+    - [Runtime flow](#runtime-flow)
+    - [Non-obvious decisions](#non-obvious-decisions)
   - [⚡ Rendering \& Performance Notes](#-rendering--performance-notes)
     - [Transactions list (the hot spot)](#transactions-list-the-hot-spot)
     - [Cross-cutting providers](#cross-cutting-providers)
@@ -86,6 +90,11 @@ The mobile app:
   debounce, app-background flush, network reconnect, manual button) and enforces a 30 s minimum gap
   between auto-syncs — see the
   [Automatic Sync Triggers, Throttling, and Bandwidth subsection in the root README](../README.md#mobile-sync-typescript-port).
+- Converts foreign-currency expenses using the **historical monthly rate for the expense's month**
+  (cached locally, sourced from the free, key-less [Frankfurter](https://api.frankfurter.dev) API)
+  rather than today's rate, so long-range totals don't drift as FX moves. When an exact-month rate
+  isn't available, the UI prefixes the affected total with `~` to flag the approximation — see
+  [Historical-Rate Currency Conversion](#-historical-rate-currency-conversion).
 
 The path-scoped Copilot rules for this module live in
 [`.github/instructions/expenses-tracker-mobile.instructions.md`](../.github/instructions/expenses-tracker-mobile.instructions.md).
@@ -107,8 +116,11 @@ The path-scoped Copilot rules for this module live in
   through a connectivity outage (train tunnel, elevator, weak Wi-Fi) and regains the network
   without any user action
 - **pako** — gzip encode/decode of `sync.json.gz` (byte-identical to the backend's `SyncFileManager` output)
+- **[Frankfurter](https://api.frankfurter.dev)** (`api.frankfurter.dev/v2`) — free, key-less,
+  ECB-backed historical + latest FX rates; powers the
+  [historical-rate currency conversion](#-historical-rate-currency-conversion)
 - **i18next** + **react-i18next** — locale JSON copied at build time from the web frontend
-- **Vitest** — pure-TypeScript unit tests for `src/domain/`, `src/sync/`, and `src/test/` (56+ tests)
+- **Vitest** — pure-TypeScript unit tests for `src/domain/`, `src/sync/`, and `src/test/` (170+ tests across 16 files)
 
 ---
 
@@ -895,6 +907,75 @@ translates directly to expo-sqlite — but it has not been needed in practice.
 
 ---
 
+## 💱 Historical-Rate Currency Conversion
+
+Expenses are stored in their **original** currency (amount in cents + 3-letter code). At display
+time they're converted to the user's `mainCurrency` so totals across periods, categories, and the
+spending header all line up on one scale.
+
+**The problem with a single live rate.** A naïve implementation converts every expense at *today's*
+rate. Over a single month that's fine, but on a year- or multi-year overview the foreign-exchange
+drift between, say, USD and EUR can silently distort totals by 5–15 %. A €500 grocery run in
+January 2020 is not the same number of USD as it would be today.
+
+**The fix.** Each expense is converted using the **monthly historical rate that applied during the
+expense's month**. Rates are sourced from [Frankfurter](https://api.frankfurter.dev) (free,
+key-less, ECB-backed) via its `group=month` time-series endpoint, then cached locally in SQLite so
+the conversion works offline and never re-fetches the same month twice.
+
+**The fallback.** When no historical rate is available — first run before sync, a currency
+Frankfurter doesn't cover, or an expense with no date — conversion falls back to today's live rate
+and the result is marked **`approx`**. The UI prefixes affected totals with `~` so the user can see
+at a glance which numbers used an approximation:
+
+- per-expense row, per-day / per-month section total, transactions grand total
+- per-category row, categories grand total, donut-chart center label
+
+The `approx` flag bubbles up by **OR**: any approximate contributor marks its aggregate approximate.
+
+### Components
+
+| File | Role |
+|------|------|
+| [`src/db/schema.ts`](./src/db/schema.ts) (migration v2) | Adds `exchange_rates(base, quote, period_start, rate, fetched_at)` SQLite table with `(base, quote, period_start)` primary key. `period_start` is `'YYYY-MM-01'` for a historical monthly rate or the sentinel `'LATEST'` for the live fallback. |
+| [`src/db/exchangeRateStore.ts`](./src/db/exchangeRateStore.ts) | Functional store factory — `upsertRates`, `findHistoricalRates`, `findLatestRates`, `findCoveredMonths`, `findLatestFetchedAt`. Mirrors the [`sqliteLocalStore`](./src/db/sqliteLocalStore.ts) pattern. |
+| [`src/api/exchangeRates.ts`](./src/api/exchangeRates.ts) | Pure-TS Frankfurter v2 client — `fetchLatestRates(base)` and `fetchMonthlySeries(base, from, quotes)`. No keys, no quota, no SDK. |
+| [`src/domain/exchangeRates.ts`](./src/domain/exchangeRates.ts) | Pure-TS conversion logic — `monthKey(iso)` (UTC-stable bucketing), `convertAmount(...)` returning a `ConvertedAmount` (`{ amount, approx }`), plus the `ZERO_AMOUNT` / `addAmounts` / `sumAmounts` algebra that lets callers sum converted amounts as a single value object (the `approx` flag bubbles via OR). Vitest-covered. |
+| [`src/hooks/useExchangeRatesSync.ts`](./src/hooks/useExchangeRatesSync.ts) | Background hook mounted once near the root of `app/_layout.tsx`. Computes missing `(currency, month)` tuples from the user's expenses and fetches them in **one** batched HTTP request. |
+| [`src/hooks/useExchangeRates.ts`](./src/hooks/useExchangeRates.ts) | Read-side hook — `convert(amount, fromCurrency, date?) => { amount, approx }` and `useConvertedExpenses(expenses)` which threads the `approx` flag through each row. |
+
+### Runtime flow
+
+1. **Sync hook fires** when expenses load, `mainCurrency` changes, or new expenses arrive.
+2. **Diff against cache.** For each non-main quote currency, compute which months are missing.
+3. **One batched fetch** per cycle from `api.frankfurter.dev/v2/rates?base=…&from=…&quotes=…&group=month`.
+   The earliest missing month becomes the `from` parameter; over-fetching a few months keeps the
+   HTTP call count at exactly one.
+4. **UPSERT** the response into `exchange_rates` inside a single SQLite transaction.
+5. **Live fallback refresh** (gated to **once per 24 h**) updates the `'LATEST'` sentinel rows so
+   conversion still works offline for currencies/months not in the historical set.
+6. **Invalidate** the `['exchange-rates', mainCurrency]` TanStack Query key — only when rows were
+   actually written, to avoid feedback loops.
+
+### Non-obvious decisions
+
+- **Rate storage is per-device.** Rates are *not* event-sourced, *not* synced through the cloud
+  drive file, and *not* part of the backend's data model. Historical ECB rates are deterministic and
+  freely available, so every device independently converges to the same cache. Keeping rates out of
+  the event log keeps events lean and the sync surface untouched.
+- **UTC month bucketing.** `monthKey()` uses UTC components (`getUTCMonth`, etc.) so an expense
+  saved at 23:59 local on the last of the month doesn't jump to the next bucket on a phone whose
+  timezone changed.
+- **Strict `>` last-write-wins applies only to projection rows.** The exchange-rate cache uses a
+  plain UPSERT — Frankfurter occasionally republishes corrected ECB rates and we want the newest
+  server value to win without a timestamp comparison.
+- **Why Frankfurter and not the other "free" APIs.** `exchangerate.host` moved to a paid tier;
+  `openexchangerates.org` requires an API key and only allows USD as base on the free plan;
+  `open.er-api.com` (used by the web frontend) has no historical endpoint. Frankfurter is the only
+  free, key-less option with monthly historical rates back to 1999 via the ECB.
+
+---
+
 ## ⚡ Rendering & Performance Notes
 
 The module targets **mid-range Android** as its slowest realistic device and assumes a working dataset
@@ -926,10 +1007,12 @@ screen layers several techniques that all target that bottleneck:
   rebuilds its `sections` array on every collapse toggle, but the memoised children compare props
   via `Object.is` and bail out unless something they actually display changed.
 - **Section-header props are primitives, not section objects.** Because the parent allocates a fresh
-  section object on every render, passing `section.date` or `section` itself would force a new
-  reference into the header every time and defeat memoisation. The header instead takes `dateMs:
-  number`, `total: number`, `collapsed: boolean`, language / theme primitives, etc., so the shallow
-  compare succeeds for every section except the one the user actually tapped.
+  section object on every render, passing `section.date` or `section.total` (a `ConvertedAmount`
+  value object — see below) would force a new reference into the header every time and defeat
+  memoisation. The header instead takes `dateMs: number`, `total: number`, `approx: boolean`,
+  `collapsed: boolean`, language / theme primitives, etc., so the shallow compare succeeds for
+  every section except the one the user actually tapped. (This is the **one** boundary in the screen
+  where the `ConvertedAmount` value object is unboxed; everywhere else it flows as a unit.)
 - **`useCallback` on `renderItem` / `renderSectionHeader` / press handlers.** Inline arrow functions
   would allocate a new closure every render, force `SectionList` to re-evaluate its row factories,
   and (worst of all) blow up the memo bailouts on individual rows. Stable callbacks paired with
@@ -1031,6 +1114,13 @@ by accident:
 - **[`src/components/SyncCloudDialog.tsx`](./src/components/SyncCloudDialog.tsx)** — the
   Settings → Cloud sync dialog (provider picker, "Sync now" button, auto-sync toggle, status footer
   with last-sync timestamp).
+- **[`src/hooks/useExchangeRatesSync.ts`](./src/hooks/useExchangeRatesSync.ts)** — background hook
+  that keeps the local `exchange_rates` cache covered for the months the user's expenses span.
+  Mounted once in `app/_layout.tsx`. One batched HTTP call per cycle; 24 h freshness gate on the
+  live fallback rate. See [Historical-Rate Currency Conversion](#-historical-rate-currency-conversion).
+- **[`src/domain/exchangeRates.ts`](./src/domain/exchangeRates.ts)** — pure-TS conversion logic
+  (`monthKey`, `convertAmount`) that picks the historical monthly rate for an expense's date and
+  falls back to the live rate with an `approx=true` flag when no exact-month rate is available.
 
 ---
 
