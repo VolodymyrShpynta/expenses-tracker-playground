@@ -62,6 +62,14 @@ interface ExpenseRowProps {
   ) => ConvertedAmount;
   readonly onPress: (expense: ExpenseProjection) => void;
   readonly secondaryColor: string;
+  /**
+   * Current section granularity. When the list is grouped by day the
+   * section header already announces the date, so the row keeps its
+   * compact "category-only" subtitle. For coarser groupings (month /
+   * year) we append a short `day · month` label next to the category —
+   * mirrors the web `ExpenseRow` behaviour.
+   */
+  readonly groupBy: GroupBy;
 }
 
 const ExpenseRow = memo(function ExpenseRow({
@@ -72,12 +80,20 @@ const ExpenseRow = memo(function ExpenseRow({
   convert,
   onPress,
   secondaryColor,
+  groupBy,
 }: ExpenseRowProps) {
   const resolved = lookup.resolve(expense.categoryId);
   const showConverted = expense.currency !== mainCurrency;
   const converted = showConverted
     ? convert(expense.amount, expense.currency, expense.date)
     : null;
+  const dateLabel =
+    groupBy !== 'day' && expense.date
+      ? new Date(expense.date).toLocaleDateString(language, {
+          day: 'numeric',
+          month: 'short',
+        })
+      : null;
   return (
     <TouchableRipple onPress={() => onPress(expense)}>
       <View
@@ -99,7 +115,7 @@ const ExpenseRow = memo(function ExpenseRow({
             style={{ color: secondaryColor }}
             numberOfLines={1}
           >
-            {resolved.name}
+            {dateLabel ? `${resolved.name} · ${dateLabel}` : resolved.name}
           </Text>
         </View>
         <View style={{ minWidth: 90, alignItems: 'flex-end' }}>
@@ -442,9 +458,18 @@ export default function TransactionsScreen() {
         convert={convert}
         onPress={handleEditPress}
         secondaryColor={secondaryColor}
+        groupBy={groupBy}
       />
     ),
-    [mainCurrency, i18n.language, lookup, convert, handleEditPress, secondaryColor],
+    [
+      mainCurrency,
+      i18n.language,
+      lookup,
+      convert,
+      handleEditPress,
+      secondaryColor,
+      groupBy,
+    ],
   );
 
   const renderSectionHeader = useCallback(
