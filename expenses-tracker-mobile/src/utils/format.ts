@@ -81,6 +81,39 @@ export function formatConvertedAmountCompact(
 }
 
 /**
+ * Short-scale formatter for chart axis ticks — strips the currency
+ * (callers render the currency once in a header / tooltip, not on every
+ * gridline) and collapses thousands / millions / billions to `k` / `M`
+ * / `B` so even six-figure totals fit a narrow Y-axis gutter.
+ *
+ * Examples (locale = en-US):
+ *   `formatCentsShortScale(0, 'en-US')`           → `'0'`
+ *   `formatCentsShortScale(95_000, 'en-US')`      → `'950'`        // 950.00 units
+ *   `formatCentsShortScale(1_234_500, 'en-US')`   → `'12.3k'`
+ *   `formatCentsShortScale(500_000_000, 'en-US')` → `'5M'`
+ */
+export function formatCentsShortScale(cents: number, locale: string): string {
+  const units = cents / 100;
+  const abs = Math.abs(units);
+  if (abs < 1) return '0';
+  if (abs < 1_000) return Math.round(units).toLocaleString(locale);
+  if (abs < 1_000_000) return formatScaledOneDecimal(units / 1_000, locale) + 'k';
+  if (abs < 1_000_000_000) return formatScaledOneDecimal(units / 1_000_000, locale) + 'M';
+  return formatScaledOneDecimal(units / 1_000_000_000, locale) + 'B';
+}
+
+/** Render a scaled tick number with at most one decimal, dropped if `.0`. */
+function formatScaledOneDecimal(value: number, locale: string): string {
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded)
+    ? rounded.toLocaleString(locale)
+    : rounded.toLocaleString(locale, {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      });
+}
+
+/**
  * Parse a user-typed amount string ("12,50" / "12.50" / "12") into
  * integer cents. Returns `null` for invalid / empty input. Locale-tolerant
  * (accepts both `,` and `.` as decimal separator).

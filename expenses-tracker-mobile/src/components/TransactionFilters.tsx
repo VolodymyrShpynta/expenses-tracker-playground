@@ -7,9 +7,9 @@
  * State for `query` and `includeIds` is lifted to the screen so the
  * parent can wire it into the expense filter.
  *
- * The category picker is rendered here (not at the screen level) because
- * `AppDialog` uses RN's `Modal` under the hood, which portals to the
- * root window — so the picker can sit anywhere in the tree.
+ * The chips row is delegated to the shared `CategoryIncludeFilter`
+ * component so the Overview screen and the Transactions screen render
+ * the same pill style and stay visually consistent.
  *
  * Mirrors the web frontend: include-only filtering — tapping a chip (or
  * its inline X) removes it. The picker only offers categories that have
@@ -17,20 +17,11 @@
  */
 import { useState } from 'react';
 import { View } from 'react-native';
-import {
-  Chip,
-  IconButton,
-  Text,
-  TextInput,
-  TouchableRipple,
-  useTheme,
-} from 'react-native-paper';
-import { MaterialIcons } from '@expo/vector-icons';
+import { IconButton, TextInput, useTheme } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
-import { CategoryAvatar } from './CategoryAvatar';
+import { CategoryIncludeFilter } from './CategoryIncludeFilter';
 import { CategoryPickerDialog } from './CategoryPickerDialog';
-import { useCategoryLookup } from '../hooks/useCategoryLookup';
 
 export interface TransactionFiltersProps {
   readonly query: string;
@@ -51,7 +42,10 @@ export function TransactionFilters({
 }: TransactionFiltersProps) {
   const { t: translate } = useTranslation();
   const theme = useTheme();
-  const lookup = useCategoryLookup();
+  // Local picker for the "open filter" icon button next to the search
+  // field — needed because the chips row only renders its own picker
+  // when at least one chip is selected (the Add pill is rendered as
+  // part of the chips row, not when the row is empty).
   const [pickerOpen, setPickerOpen] = useState(false);
 
   return (
@@ -75,73 +69,14 @@ export function TransactionFilters({
       </View>
 
       {includeIds.length > 0 && (
-        <View
-          style={{
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            gap: 6,
-            paddingVertical: 6,
-          }}
-        >
-          {includeIds.map((id) => {
-            const r = lookup.resolve(id);
-            // Custom inline chip instead of RN Paper's `Chip` for selected
-            // filters: Paper's `Chip` positions its close button with
-            // `position: 'absolute'` under a column-flex Surface, which
-            // interacts badly with our wrapping parent and renders the X
-            // below the pill. Laying out [avatar][label][×] in a single
-            // flex row sidesteps that entire absolute-positioning path.
-            return (
-              <TouchableRipple
-                key={`inc-${id}`}
-                onPress={() => onRemoveInclude(id)}
-                borderless
-                accessibilityRole="button"
-                accessibilityLabel={translate('transactions.removeFilter', {
-                  name: r.name,
-                })}
-                style={{
-                  backgroundColor: theme.colors.secondaryContainer,
-                  borderRadius: 16,
-                  paddingLeft: 4,
-                  paddingRight: 8,
-                  paddingVertical: 4,
-                }}
-              >
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                >
-                  <CategoryAvatar iconName={r.iconName} color={r.color} size={24} />
-                  <Text
-                    variant="labelLarge"
-                    style={{ color: theme.colors.onSecondaryContainer }}
-                  >
-                    {r.name}
-                  </Text>
-                  <MaterialIcons
-                    name="close"
-                    size={16}
-                    color={theme.colors.onSecondaryContainer}
-                  />
-                </View>
-              </TouchableRipple>
-            );
-          })}
-          {availableCategoryIds.size > 0 && (
-            <Chip
-              icon="plus"
-              onPress={() => setPickerOpen(true)}
-              mode="outlined"
-            >
-              {translate('transactions.add')}
-            </Chip>
-          )}
-        </View>
+        <CategoryIncludeFilter
+          includeIds={includeIds}
+          availableCategoryIds={availableCategoryIds}
+          onAddInclude={onAddInclude}
+          onRemoveInclude={onRemoveInclude}
+          addLabel={translate('transactions.add')}
+          style={{ paddingVertical: 6 }}
+        />
       )}
 
       <CategoryPickerDialog

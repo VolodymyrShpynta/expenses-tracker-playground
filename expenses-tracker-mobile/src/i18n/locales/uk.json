@@ -94,7 +94,16 @@
     "addCategoryAriaLabel": "Додати витрату в категорію {{category}}",
     "editExpenseAriaLabel": "Редагувати витрату {{description}}",
     "overviewTitle": "Огляд",
-    "overviewComingSoon": "Огляд бюджету та аналітика скоро зʼявляться."
+    "overviewComingSoon": "Огляд бюджету та аналітика скоро зʼявляться.",
+    "overviewModeLines": "Лінії",
+    "overviewModeStackedArea": "Стек",
+    "overviewOtherSeries": "Інше",
+    "overviewNoData": "Для цього періоду немає даних.",
+    "overviewApproxRatesCaveat": "Деякі суми використовують сьогоднішній курс.",
+    "overviewTotalSparklineLabel": "Тренд загальних витрат",
+    "overviewTooltipTotal": "Разом",
+    "overviewTooltipOverflow": "Інші витрати",
+    "overviewChartLabel": "Витрати у часі за категоріями"
   },
   "expenseDialog": {
     "date": "Дата",

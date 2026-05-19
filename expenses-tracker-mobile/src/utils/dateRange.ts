@@ -120,6 +120,61 @@ export function formatShort(d: Date, locale: string): string {
 }
 
 /**
+ * Render a bucket boundary (epoch ms) as a compact chart-axis label
+ * tailored to the granularity:
+ *   - 'day'   → `'May 5'`
+ *   - 'month' → `'May 26'`   (short month + 2-digit year, matches the
+ *                              format used by `SpendingHeader`)
+ *   - 'year'  → `'2026'`
+ *
+ * Falls back to an ISO date prefix if the locale string is malformed
+ * (e.g. an empty `i18n.language` during early hydration) so the chart
+ * never throws during render.
+ */
+export function formatBucketLabel(
+  epochMs: number,
+  granularity: GroupBy,
+  locale: string,
+): string {
+  const date = new Date(epochMs);
+  try {
+    if (granularity === 'year') return String(date.getFullYear());
+    if (granularity === 'month') {
+      return date.toLocaleDateString(locale, { month: 'short', year: '2-digit' });
+    }
+    return date.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
+  } catch {
+    return date.toISOString().slice(0, 10);
+  }
+}
+
+/**
+ * Render a bucket boundary as a long-form label suitable for chart
+ * tooltips. Longer than `formatBucketLabel` so the user sees the full
+ * month name + 4-digit year, but still localised through `Intl`.
+ */
+export function formatBucketLabelLong(
+  epochMs: number,
+  granularity: GroupBy,
+  locale: string,
+): string {
+  const date = new Date(epochMs);
+  try {
+    if (granularity === 'year') return String(date.getFullYear());
+    if (granularity === 'month') {
+      return date.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
+    }
+    return date.toLocaleDateString(locale, {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return date.toISOString().slice(0, 10);
+  }
+}
+
+/**
  * Map the active preset to a sensible grouping granularity for the
  * transactions list:
  *   - 'all'   → year (compact when scrolling decades of data)

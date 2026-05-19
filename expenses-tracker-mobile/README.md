@@ -120,7 +120,9 @@ The path-scoped Copilot rules for this module live in
   ECB-backed historical + latest FX rates; powers the
   [historical-rate currency conversion](#-historical-rate-currency-conversion)
 - **i18next** + **react-i18next** — locale JSON copied at build time from the web frontend
-- **Vitest** — pure-TypeScript unit tests for `src/domain/`, `src/sync/`, and `src/test/` (170+ tests across 16 files)
+- **Vitest** — pure-TypeScript unit tests for `src/domain/`, `src/sync/`, `src/api/`, and `src/utils/`
+  (330+ tests across 25 files). React Native components are NOT tested here — that requires
+  `jest-expo`, which is out of scope for the current setup.
 
 ---
 

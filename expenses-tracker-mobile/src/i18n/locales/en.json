@@ -94,7 +94,16 @@
     "addCategoryAriaLabel": "Add {{category}} expense",
     "editExpenseAriaLabel": "Edit expense {{description}}",
     "overviewTitle": "Overview",
-    "overviewComingSoon": "Budget overview and analytics coming soon."
+    "overviewComingSoon": "Budget overview and analytics coming soon.",
+    "overviewModeLines": "Lines",
+    "overviewModeStackedArea": "Stacked",
+    "overviewOtherSeries": "Other",
+    "overviewNoData": "No data for this period.",
+    "overviewApproxRatesCaveat": "Some amounts use today's exchange rate.",
+    "overviewTotalSparklineLabel": "Total spending trend",
+    "overviewTooltipTotal": "Total",
+    "overviewTooltipOverflow": "Other expenses",
+    "overviewChartLabel": "Spending over time by category"
   },
   "expenseDialog": {
     "date": "Date",

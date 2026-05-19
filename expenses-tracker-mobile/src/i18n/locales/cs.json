@@ -94,7 +94,16 @@
     "addCategoryAriaLabel": "Přidat výdaj do kategorie {{category}}",
     "editExpenseAriaLabel": "Upravit výdaj {{description}}",
     "overviewTitle": "Přehled",
-    "overviewComingSoon": "Přehled rozpočtu a analytika brzy."
+    "overviewComingSoon": "Přehled rozpočtu a analytika brzy.",
+    "overviewModeLines": "Čáry",
+    "overviewModeStackedArea": "Plocha",
+    "overviewOtherSeries": "Ostatní",
+    "overviewNoData": "Pro toto období nejsou žádná data.",
+    "overviewApproxRatesCaveat": "Některé částky používají dnešní kurz.",
+    "overviewTotalSparklineLabel": "Trend celkových výdajů",
+    "overviewTooltipTotal": "Celkem",
+    "overviewTooltipOverflow": "Ostatní výdaje",
+    "overviewChartLabel": "Výdaje v čase podle kategorie"
   },
   "expenseDialog": {
     "date": "Datum",

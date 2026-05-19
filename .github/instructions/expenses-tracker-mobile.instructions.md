@@ -16,19 +16,22 @@ hosted in the user's own Google Drive `appDataFolder` or OneDrive `approot`.
 
 ## Mobile Stack
 
-- **Runtime**: Expo SDK 53+ + React Native 0.79 + React 19 + TypeScript
+- **Runtime**: Expo SDK 55 + React Native 0.83 + React 19.2 + TypeScript
   (strict mode, `verbatimModuleSyntax`, `exactOptionalPropertyTypes`)
 - **UI library**: **React Native Paper** v5 (Material 3) — never MUI.
-- **Routing**: **Expo Router** v4 (file-based routing under `app/`).
+- **Routing**: **Expo Router** v4 (file-based routing under `app/`, tab group under `app/(tabs)/`).
 - **Local store**: `expo-sqlite` (event store + projection + idempotency).
 - **Server-state cache**: `@tanstack/react-query` (over local DB, not HTTP).
 - **Cloud auth**: `expo-auth-session` (Google + Microsoft OAuth via PKCE).
 - **Secure storage**: `expo-secure-store` (Keychain / Keystore) for tokens.
 - **Background sync**: `expo-background-fetch` + `expo-task-manager`.
-- **Charts**: `victory-native`.
+- **Charts**: hand-rolled SVG via `react-native-svg` (no chart library — keeps the bundle small
+  and lets each chart be styled with the active MD3 theme; see `SparklineChart` /
+  `ExpenseTimeSeriesChart` in `src/components/`).
 - **Compression**: `pako` (gzip JSON sync file).
-- **Testing**: Vitest for pure-TS code (domain, sync). RN component tests
-  (added later) will use `jest-expo`.
+- **Testing**: Vitest for pure-TS code (`src/domain/`, `src/sync/`, `src/api/`,
+  `src/utils/`). RN component / hook tests are out of scope for the current
+  setup — adding them would require `jest-expo`.
 - **i18n**: `i18next` + `react-i18next` (locale JSON files mirrored from
   `expenses-tracker-frontend/src/i18n/locales/`).
 
@@ -41,42 +44,47 @@ hosted in the user's own Google Drive `appDataFolder` or OneDrive `approot`.
 ```
 expenses-tracker-mobile/
 ├── app/                      # Expo Router file-based routes (screens)
-│   ├── _layout.tsx           # Paper provider + theme + i18n bootstrap
-│   ├── index.tsx             # Categories / overview entry screen
-│   ├── transactions.tsx
-│   ├── add.tsx               # Add / edit expense (bottom sheet pattern)
-│   └── settings/
-│       ├── index.tsx
-│       ├── categories.tsx
-│       └── sync.tsx          # Cloud-drive picker, sync status
+│   ├── _layout.tsx           # Paper provider + theme + i18n + sync bootstrap
+│   ├── +native-intent.tsx    # Deep-link entry point (OAuth redirects)
+│   ├── settings.tsx          # Settings screen (cloud sync, categories, prefs)
+│   └── (tabs)/               # Tab group — bottom navigation
+│       ├── _layout.tsx       # <Tabs> declaration
+│       ├── index.tsx         # Categories screen (donut + per-category totals)
+│       ├── overview.tsx      # Time-series charts (sparkline + per-category lines/bars)
+│       └── transactions.tsx  # Flat / grouped transactions list
 ├── src/
 │   ├── domain/               # Pure TS — NO React, NO React Native imports
 │   │   ├── types.ts          # ExpenseEvent, EventEntry, EventSyncFile, …
 │   │   ├── projector.ts      # last-write-wins projection (port of backend)
 │   │   ├── mapping.ts        # event ↔ projection (analogue of ExpenseMapper)
 │   │   ├── commands.ts       # createExpense / updateExpense / deleteExpense
-│   │   └── queries.ts        # findAllExpenses / findExpenseById
+│   │   ├── queries.ts        # findAllExpenses / findExpenseById
+│   │   ├── timeSeries.ts     # group expenses into time-series buckets
+│   │   ├── categorySummary.ts
+│   │   ├── exchangeRates.ts  # monthKey + convertAmount (historical-rate FX)
+│   │   └── expenseSuggestions.ts
 │   ├── db/                   # expo-sqlite implementation of LocalStore
 │   │   ├── schema.ts
-│   │   ├── migrations.ts
-│   │   └── localStore.ts     # implements LocalStore interface
+│   │   ├── sqliteLocalStore.ts
+│   │   └── exchangeRateStore.ts
 │   ├── sync/                 # Pure TS — NO React, NO React Native imports
-│   │   ├── SyncEngine.ts
-│   │   ├── CloudDriveAdapter.ts   # Interface (DIP)
-│   │   ├── RemoteEventApplier.ts  # Idempotency + projection
-│   │   ├── SyncFileCodec.ts       # gzip + JSON
-│   │   └── adapters/
-│   │       ├── GoogleDriveAdapter.ts
-│   │       └── OneDriveAdapter.ts
-│   ├── auth/                 # OAuth via expo-auth-session (RN allowed)
-│   ├── hooks/                # TanStack Query hooks over LocalStore
-│   ├── components/           # Shared RN Paper components
-│   ├── theme.ts              # MD3 light/dark theme
-│   ├── i18n/                 # i18next bootstrap + locale JSON
-│   ├── utils/
-│   │   └── time.ts           # TimeProvider (deterministic in tests)
-│   └── types/                # Shared TS interfaces
-└── src/test/                 # Test fixtures and helpers
+│   │   ├── syncEngine.ts
+│   │   ├── cloudDriveAdapter.ts   # Interface (DIP)
+│   │   ├── remoteEventApplier.ts  # Idempotency + projection
+│   │   ├── codec.ts               # gzip + JSON
+│   │   ├── googleDriveAdapter.ts
+│   │   ├── oneDriveAdapter.ts
+│   │   ├── autoSyncCoordinator.ts # Single-source-of-truth trigger funnel
+│   │   └── autoSyncSignal.ts      # notifyLocalWrite() pub/sub
+│   ├── api/                  # External HTTP clients (Frankfurter FX)
+│   ├── hooks/                # TanStack Query hooks + screen-level model hooks
+│   ├── context/              # PreferencesProvider, SyncProvider, useAutoSync
+│   ├── components/           # Shared RN Paper components (charts, dialogs, list rows)
+│   ├── theme/                # MD3 light/dark theme (folder, not single file)
+│   ├── i18n/                 # i18next bootstrap + locale JSON (web-mirrored)
+│   ├── utils/                # time, format, dateRange, calculator, chartTicks, …
+│   ├── queryClient.ts        # Singleton TanStack QueryClient
+│   └── test/                 # In-memory fakes (LocalStore, CloudDriveAdapter) + fixtures
 ```
 
 ### Layer responsibilities
