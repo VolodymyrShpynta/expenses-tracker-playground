@@ -76,6 +76,12 @@ export interface AddExpenseDialogProps {
  * innermost `AddExpenseDialogContent` to remount with the picked
  * expense fed in as `seedFrom`.
  *
+ * If the user has already typed an amount before picking a suggestion,
+ * that amount is preserved by overriding the seed's `amount` with the
+ * current calculator value (in cents). The suggestion's amount is only
+ * adopted when the user hasn't entered one yet. Other fields
+ * (description, category, currency) always take the suggestion's value.
+ *
  * `suggestionSeed` only applies in **create mode** — `props.expense`
  * always wins when present so an edit session never silently switches
  * its submit target.
@@ -96,8 +102,14 @@ function AddExpenseDialogShell(props: AddExpenseDialogProps) {
       expense={props.expense}
       seedFrom={suggestionSeed}
       defaultCategoryId={props.defaultCategoryId}
-      onPickSuggestion={(s) => {
-        setSuggestionSeed(s);
+      onPickSuggestion={(picked, currentAmount) => {
+        // If the user already entered a positive amount, keep it by
+        // overriding the picked expense's amount before reseeding.
+        const nextSeed =
+          currentAmount != null && currentAmount > 0
+            ? { ...picked, amount: Math.round(currentAmount * 100) }
+            : picked;
+        setSuggestionSeed(nextSeed);
         setSeedNonce((n) => n + 1);
       }}
     />
@@ -109,7 +121,7 @@ interface AddExpenseDialogContentProps {
   readonly expense: ExpenseProjection | undefined;
   readonly seedFrom: ExpenseProjection | undefined;
   readonly defaultCategoryId: string | undefined;
-  readonly onPickSuggestion: (expense: ExpenseProjection) => void;
+  readonly onPickSuggestion: (expense: ExpenseProjection, currentAmount: number | null) => void;
 }
 
 function AddExpenseDialogContent({
@@ -349,7 +361,7 @@ function AddExpenseDialogContent({
 
                 <ExpenseSuggestionList
                   suggestions={suggestions}
-                  onPick={onPickSuggestion}
+                  onPick={(s) => onPickSuggestion(s, amount)}
                 />
 
                 {error ? <HelperText type="error">{error}</HelperText> : null}
