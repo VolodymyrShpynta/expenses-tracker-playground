@@ -17,6 +17,7 @@ import type { LocalStore } from '../domain/localStore';
 import type {
   Category,
   CategoryEvent,
+  CoveredEvent,
   ExpenseEvent,
   ExpenseProjection,
 } from '../domain/types';
@@ -24,7 +25,8 @@ import type {
 interface State {
   events: ExpenseEvent[];
   projections: Map<string, ExpenseProjection>;
-  processedEvents: Set<string>;
+  /** Idempotency registry: eventId → original event timestamp. */
+  processedEvents: Map<string, number>;
   categories: Map<string, Category>;
   categoryEvents: CategoryEvent[];
 }
@@ -33,7 +35,7 @@ function snapshot(state: State): State {
   return {
     events: [...state.events],
     projections: new Map(state.projections),
-    processedEvents: new Set(state.processedEvents),
+    processedEvents: new Map(state.processedEvents),
     categories: new Map(state.categories),
     categoryEvents: [...state.categoryEvents],
   };
@@ -44,7 +46,7 @@ function restore(target: State, source: State): void {
   target.projections.clear();
   for (const [key, value] of source.projections) target.projections.set(key, value);
   target.processedEvents.clear();
-  for (const id of source.processedEvents) target.processedEvents.add(id);
+  for (const [id, ts] of source.processedEvents) target.processedEvents.set(id, ts);
   target.categories.clear();
   for (const [key, value] of source.categories) target.categories.set(key, value);
   target.categoryEvents.splice(
@@ -58,7 +60,7 @@ export class InMemoryLocalStore implements LocalStore {
   private readonly state: State = {
     events: [],
     projections: new Map(),
-    processedEvents: new Set(),
+    processedEvents: new Map(),
     categories: new Map(),
     categoryEvents: [],
   };
@@ -163,16 +165,25 @@ export class InMemoryLocalStore implements LocalStore {
     return [...this.state.projections.values()].filter((p) => !p.deleted);
   }
 
+  async findAllProjections(): Promise<ReadonlyArray<ExpenseProjection>> {
+    return [...this.state.projections.values()];
+  }
+
   async isEventProcessed(eventId: string): Promise<boolean> {
     return this.state.processedEvents.has(eventId);
   }
 
-  async findAllProcessedEventIds(): Promise<ReadonlyArray<string>> {
-    return Array.from(this.state.processedEvents);
+  async findAllProcessedEvents(): Promise<ReadonlyArray<CoveredEvent>> {
+    return Array.from(this.state.processedEvents.entries()).map(
+      ([eventId, timestamp]) => ({ eventId, timestamp }),
+    );
   }
 
-  async recordProcessedEvent(eventId: string): Promise<void> {
-    this.state.processedEvents.add(eventId);
+  async recordProcessedEvent(eventId: string, timestamp: number): Promise<void> {
+    // INSERT OR IGNORE semantics — first write wins for the timestamp.
+    if (!this.state.processedEvents.has(eventId)) {
+      this.state.processedEvents.set(eventId, timestamp);
+    }
   }
 
   async projectCategoryFromEvent(category: Category): Promise<number> {

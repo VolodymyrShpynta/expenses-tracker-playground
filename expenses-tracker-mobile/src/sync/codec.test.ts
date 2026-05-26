@@ -80,18 +80,33 @@ describe('codec', () => {
   });
 
   it('preserves snapshot when present', () => {
+    const snapshot = {
+      version: 2,
+      createdAt: 1000,
+      expenses: [],
+      categories: [],
+      coveredEvents: [],
+    };
     const file: EventSyncFile = {
-      snapshot: { version: 1, expenses: [] },
+      snapshot,
       events: [],
       categoryEvents: [],
     };
     const bytes = encodeSyncFile(file, true);
     const decoded = decodeSyncFile(bytes, true);
-    expect(decoded.snapshot).toEqual({ version: 1, expenses: [] });
+    expect(decoded.snapshot).toEqual(snapshot);
   });
 
   it('tolerates a remote file missing `events` (treats as empty)', () => {
-    const json = JSON.stringify({ snapshot: { version: 1, expenses: [] } });
+    const json = JSON.stringify({
+      snapshot: {
+        version: 2,
+        createdAt: 1000,
+        expenses: [],
+        categories: [],
+        coveredEvents: [],
+      },
+    });
     const bytes = new TextEncoder().encode(json);
     const decoded = decodeSyncFile(bytes, false);
     expect(decoded.events).toEqual([]);

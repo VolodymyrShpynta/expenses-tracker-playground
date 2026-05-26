@@ -55,7 +55,7 @@ describe('applyRemoteEvents', () => {
 
   it('skips already-processed events even when not in cache (DB recheck)', async () => {
     // Pre-record the eventId in the processed registry but skip the projection.
-    await store.recordProcessedEvent('e-pre');
+    await store.recordProcessedEvent('e-pre', 0);
     const e = makeEvent({ eventId: 'e-pre', expenseId: 'x1' });
 
     const result = await applyRemoteEvents(store, [e], silentLogger);

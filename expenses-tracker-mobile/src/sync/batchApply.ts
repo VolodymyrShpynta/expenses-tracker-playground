@@ -9,7 +9,7 @@
  * COMMIT). At 4,500 events that is ~27,000 hops — minutes of pure overhead.
  *
  * What this helper changes:
- *   1. **Bulk dedup pre-load.** A single `findAllProcessedEventIds()` call
+ *   1. **Bulk dedup pre-load.** A single `findAllProcessedEvents()` call
  *      hydrates an in-memory `Set`, replacing N point queries.
  *   2. **Per-chunk transactions.** ~200 events share one BEGIN/COMMIT.
  *   3. **Fallback to per-event isolation on chunk failure.** Preserves the
@@ -46,6 +46,9 @@ const CHUNK_SIZE = 200;
  * fallback isolation.
  *
  * `getEventId` extracts the idempotency key from an event.
+ * `getTimestamp` extracts the event's original emission time so it can
+ *   be recorded in `processed_events` (the snapshot builder needs it
+ *   for the retention-window prune).
  * `applyOne` performs the projection step for a single event WITHIN the
  *   ambient transaction; it must not open its own transaction and must
  *   not write to `processed_events` (that is handled here).
@@ -55,6 +58,7 @@ export async function applyEventsBatched<TEvent>(
   store: LocalStore,
   events: ReadonlyArray<TEvent>,
   getEventId: (event: TEvent) => string,
+  getTimestamp: (event: TEvent) => number,
   applyOne: (event: TEvent) => Promise<void>,
   errorLabel: string,
   log: BatchApplyLog,
@@ -62,8 +66,10 @@ export async function applyEventsBatched<TEvent>(
   if (events.length === 0) return { applied: 0, skipped: 0, errors: 0 };
 
   // Hydrate the dedup set once. The set is mutated in place as we apply
-  // so consecutive chunks see the latest state.
-  const seen = new Set<string>(await store.findAllProcessedEventIds());
+  // so consecutive chunks see the latest state. Only the IDs are needed
+  // here — timestamps are read from the events themselves.
+  const processed = await store.findAllProcessedEvents();
+  const seen = new Set<string>(processed.map((p) => p.eventId));
   const { pending, skipped } = partitionUnseen(events, getEventId, seen);
 
   let applied = 0;
@@ -73,7 +79,7 @@ export async function applyEventsBatched<TEvent>(
     const chunk = pending.slice(i, i + CHUNK_SIZE);
 
     try {
-      await applyChunkAtomically(store, chunk, getEventId, applyOne);
+      await applyChunkAtomically(store, chunk, getEventId, getTimestamp, applyOne);
       applied += chunk.length;
       markSeen(chunk, getEventId, seen);
     } catch (chunkError) {
@@ -88,6 +94,7 @@ export async function applyEventsBatched<TEvent>(
         store,
         chunk,
         getEventId,
+        getTimestamp,
         applyOne,
         errorLabel,
         log,
@@ -144,12 +151,13 @@ async function applyChunkAtomically<TEvent>(
   store: LocalStore,
   chunk: ReadonlyArray<TEvent>,
   getEventId: (event: TEvent) => string,
+  getTimestamp: (event: TEvent) => number,
   applyOne: (event: TEvent) => Promise<void>,
 ): Promise<void> {
   await store.transaction(async () => {
     for (const event of chunk) {
       await applyOne(event);
-      await store.recordProcessedEvent(getEventId(event));
+      await store.recordProcessedEvent(getEventId(event), getTimestamp(event));
     }
   });
 }
@@ -164,6 +172,7 @@ async function applyChunkPerEvent<TEvent>(
   store: LocalStore,
   chunk: ReadonlyArray<TEvent>,
   getEventId: (event: TEvent) => string,
+  getTimestamp: (event: TEvent) => number,
   applyOne: (event: TEvent) => Promise<void>,
   errorLabel: string,
   log: BatchApplyLog,
@@ -176,7 +185,7 @@ async function applyChunkPerEvent<TEvent>(
     try {
       await store.transaction(async () => {
         await applyOne(event);
-        await store.recordProcessedEvent(id);
+        await store.recordProcessedEvent(id, getTimestamp(event));
       });
       applied += 1;
       seen.add(id);

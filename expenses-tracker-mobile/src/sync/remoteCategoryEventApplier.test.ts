@@ -55,7 +55,7 @@ describe('applyRemoteCategoryEvents', () => {
   });
 
   it('skips already-processed events (DB recheck)', async () => {
-    await store.recordProcessedEvent('e-pre');
+    await store.recordProcessedEvent('e-pre', 0);
     const e = makeEvent({ eventId: 'e-pre', categoryId: 'c1' });
 
     const result = await applyRemoteCategoryEvents(store, [e], silentLogger);
@@ -66,7 +66,7 @@ describe('applyRemoteCategoryEvents', () => {
   it('shares the processed_events registry with expense events', async () => {
     // UUIDs are globally unique, so a category event whose id collides
     // with an already-processed expense event must be a true duplicate.
-    await store.recordProcessedEvent('shared');
+    await store.recordProcessedEvent('shared', 0);
     const e = makeEvent({ eventId: 'shared', categoryId: 'c1' });
 
     const result = await applyRemoteCategoryEvents(store, [e], silentLogger);

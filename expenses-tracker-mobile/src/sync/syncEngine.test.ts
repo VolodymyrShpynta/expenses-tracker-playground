@@ -333,26 +333,50 @@ describe('SyncEngine.performFullSync', () => {
     expect(second.remote.skipped).toBe(1);
   });
 
-  it('produces an upload that includes both base and new events sorted', async () => {
-    const remote1 = makeRemoteEvent('r1', 'rx1', 50, 1000);
+  it('produces an upload whose snapshot captures both base and new events', async () => {
+    // Use timestamps recent enough that buildSnapshot's 30-day retention
+    // window (createdAt - PRUNE_WINDOW_MS) does NOT prune them out of
+    // `coveredEvents` — otherwise body truncation can't detect the body
+    // events as covered.
+    const recent = Date.now() - 1000;
+    const remote1 = makeRemoteEvent('r1', 'rx1', recent - 50, 1000);
     adapter.setRemoteBytes(encodeSyncFile({ events: [remote1], categoryEvents: [] }, true));
-    await store.appendEvent(makeLocalEvent('e1', 'x1', 200));
+    await store.appendEvent(makeLocalEvent('e1', 'x1', recent));
+    // Mirror `ExpenseCommandService`: appending the event also projects.
+    await store.projectFromEvent({
+      id: 'x1',
+      amount: 1234,
+      currency: 'USD',
+      updatedAt: recent,
+      deleted: false,
+    });
 
     await engine.performFullSync();
 
-    // Decode what we wrote back and assert ordering.
+    // Decode what we wrote back. With Phase B truncation, both events
+    // are absorbed into the snapshot's coveredEvents and the body is
+    // empty. The snapshot carries the projections.
     const { decodeSyncFile } = await import('./codec');
     const lastBytes = adapter.peekBytes();
     expect(lastBytes).not.toBeNull();
     const decoded = decodeSyncFile(lastBytes!, true);
-    expect(decoded.events.map((e) => e.eventId)).toEqual(['r1', 'e1']);
+    expect(decoded.events).toEqual([]);
+    expect([...(decoded.snapshot?.coveredEvents ?? [])]
+      .map((c) => c.eventId)
+      .sort())
+      .toEqual(['e1', 'r1']);
+    expect([...(decoded.snapshot?.expenses.map((p) => p.id) ?? [])].sort())
+      .toEqual(['rx1', 'x1']);
   });
 
   // ----- Category-event sync coverage --------------------------------------
 
   it('uploads local category events alongside expense events', async () => {
-    await store.appendEvent(makeLocalEvent('e1', 'x1', 100));
-    await store.appendCategoryEvent(makeLocalCategoryEvent('ce1', 'c1', 100));
+    // Recent timestamps so the 30-day prune window keeps both IDs in
+    // `coveredEvents` and body truncation can detect them.
+    const recent = Date.now() - 1000;
+    await store.appendEvent(makeLocalEvent('e1', 'x1', recent));
+    await store.appendCategoryEvent(makeLocalCategoryEvent('ce1', 'c1', recent));
 
     const result = await engine.performFullSync();
 
@@ -363,11 +387,16 @@ describe('SyncEngine.performFullSync', () => {
     expect(await store.findUncommittedEvents()).toHaveLength(0);
     expect(await store.findUncommittedCategoryEvents()).toHaveLength(0);
 
-    // The uploaded file carries the category events.
+    // The uploaded file's snapshot carries both events; the body is
+    // empty after Phase B truncation.
     const { decodeSyncFile } = await import('./codec');
     const decoded = decodeSyncFile(adapter.peekBytes()!, true);
-    expect(decoded.categoryEvents).toHaveLength(1);
-    expect(decoded.categoryEvents[0]?.eventId).toBe('ce1');
+    expect(decoded.events).toEqual([]);
+    expect(decoded.categoryEvents).toEqual([]);
+    expect([...(decoded.snapshot?.coveredEvents ?? [])]
+      .map((c) => c.eventId)
+      .sort())
+      .toEqual(['ce1', 'e1']);
   });
 
   it('downloads and applies remote category events', async () => {
@@ -397,16 +426,29 @@ describe('SyncEngine.performFullSync', () => {
   });
 
   it('round-trips category events: download remote, apply, push local', async () => {
+    // Recent timestamps so the 30-day prune window keeps both IDs in
+    // `coveredEvents` and body truncation can detect them.
+    const recent = Date.now() - 1000;
     adapter.setRemoteBytes(
       encodeSyncFile(
         {
           events: [],
-          categoryEvents: [makeRemoteCategoryEvent('rc1', 'cx1', 50)],
+          categoryEvents: [makeRemoteCategoryEvent('rc1', 'cx1', recent - 50)],
         },
         true,
       ),
     );
-    await store.appendCategoryEvent(makeLocalCategoryEvent('ce1', 'c2', 100));
+    await store.appendCategoryEvent(makeLocalCategoryEvent('ce1', 'c2', recent));
+    // Mirror the command-service path: appending the event also projects.
+    await store.projectCategoryFromEvent({
+      id: 'c2',
+      name: 'Food',
+      icon: 'food',
+      color: '#FF0000',
+      sortOrder: 0,
+      updatedAt: recent,
+      deleted: false,
+    });
 
     const result = await engine.performFullSync();
 
@@ -415,7 +457,16 @@ describe('SyncEngine.performFullSync', () => {
 
     const { decodeSyncFile } = await import('./codec');
     const decoded = decodeSyncFile(adapter.peekBytes()!, true);
-    expect(decoded.categoryEvents.map((e) => e.eventId)).toEqual(['rc1', 'ce1']);
+    // Phase B: both events end up in the snapshot's coveredEvents,
+    // not in the body. The snapshot's categories include the merged
+    // remote + local category projections.
+    expect(decoded.categoryEvents).toEqual([]);
+    expect([...(decoded.snapshot?.coveredEvents ?? [])]
+      .map((c) => c.eventId)
+      .sort())
+      .toEqual(['ce1', 'rc1']);
+    expect([...(decoded.snapshot?.categories.map((c) => c.id) ?? [])].sort())
+      .toEqual(['c2', 'cx1']);
   });
 
   it('idempotently skips re-applied category events', async () => {

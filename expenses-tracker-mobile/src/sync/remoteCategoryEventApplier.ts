@@ -44,6 +44,7 @@ export async function applyRemoteCategoryEvents(
     store,
     events,
     (event) => event.eventId,
+    (event) => event.timestamp,
     (event) => applyByEventType(store, event),
     'remote category event',
     log,

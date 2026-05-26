@@ -43,6 +43,9 @@ import {
 } from './codec';
 import { applyRemoteEvents, type ApplyResult } from './remoteEventApplier';
 import { applyRemoteCategoryEvents } from './remoteCategoryEventApplier';
+import { applySnapshot } from './snapshotApply';
+import { buildSnapshot } from './snapshotBuilder';
+import { shouldRefreshSnapshot, dropCoveredEvents } from './snapshotPolicy';
 import type { LocalStore } from '../domain/localStore';
 import { jsonToCategoryPayload, jsonToPayload } from '../domain/mapping';
 import type {
@@ -148,146 +151,127 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     },
   };
 
+  /**
+   * One full sync cycle. Picks the cheaper of two paths based on
+   * whether anything local is waiting to be uploaded.
+   */
   async function runOneCycle(): Promise<Omit<SyncResult, 'retries'>> {
-    // ---- 1. Probe local store first ----------------------------------
-    // Knowing up front whether we have anything to upload lets us pick
-    // the cheaper download path: with `ifNoneMatch` when we're just
-    // pulling, without it when we'll need the bytes for a merge.
-    // Run both queries in parallel — they share no data dependency and
-    // each pays a JS↔native bridge round-trip on Android.
+    // Probe both aggregates in parallel — they share no data dependency
+    // and each pays a JS↔native bridge round-trip on Android.
     const [localUncommitted, localUncommittedCategories] = await Promise.all([
       store.findUncommittedEvents(),
       store.findUncommittedCategoryEvents(),
     ]);
-    const hasLocalWrites =
-      localUncommitted.length > 0 || localUncommittedCategories.length > 0;
 
-    // ---- 2. Conditional download (no upload pending) -----------------
-    if (!hasLocalWrites) {
-      const probe =
-        cachedEtag !== undefined
-          ? await adapter.download({ ifNoneMatch: cachedEtag })
-          : await adapter.download();
+    return localUncommitted.length === 0 && localUncommittedCategories.length === 0
+      ? runPullOnlyCycle()
+      : runMergeAndUploadCycle(localUncommitted, localUncommittedCategories);
+  }
 
-      if (probe.kind === 'absent') {
-        // No remote file and no local writes — nothing to do.
-        setCachedEtag(undefined);
-        return {
-          remote: EMPTY_APPLY,
-          remoteCategories: EMPTY_APPLY,
-          uploadedLocal: 0,
-          uploadedLocalCategories: 0,
-          downloadedRemote: false,
-        };
-      }
-      if (probe.kind === 'not-modified') {
-        // Server confirmed nothing changed since our last sync. Skip
-        // both the body transfer and the apply step.
-        setCachedEtag(probe.etag);
-        return {
-          remote: EMPTY_APPLY,
-          remoteCategories: EMPTY_APPLY,
-          uploadedLocal: 0,
-          uploadedLocalCategories: 0,
-          downloadedRemote: false,
-        };
-      }
-      // probe.kind === 'modified' — apply but don't upload (nothing to push).
-      const file = decodeSyncFile(probe.bytes, compressed);
-      const remoteCategories = await applyRemoteCategoryEvents(
-        store,
-        file.categoryEvents,
-      );
-      const remote = await applyRemoteEvents(store, file.events);
+  /**
+   * Idle path: nothing local to upload, so a conditional download is
+   * safe. The common case (auto-sync cold-start / foreground /
+   * net-reconnect with no remote changes) short-circuits at the
+   * adapter's `not-modified` reply without transferring the body —
+   * this is the primary bandwidth saver for auto-syncs.
+   */
+  async function runPullOnlyCycle(): Promise<Omit<SyncResult, 'retries'>> {
+    const probe =
+      cachedEtag !== undefined
+        ? await adapter.download({ ifNoneMatch: cachedEtag })
+        : await adapter.download();
+
+    if (probe.kind === 'absent') {
+      // No remote file and no local writes — nothing to do.
+      setCachedEtag(undefined);
+      return NO_CHANGES_RESULT;
+    }
+    if (probe.kind === 'not-modified') {
+      // Server confirmed nothing changed since our last sync. Skip
+      // both the body transfer and the apply step.
       setCachedEtag(probe.etag);
-      return {
-        remote,
-        remoteCategories,
-        uploadedLocal: 0,
-        uploadedLocalCategories: 0,
-        downloadedRemote: true,
-      };
+      return NO_CHANGES_RESULT;
+    }
+    // probe.kind === 'modified' — apply remote, nothing to push.
+    const file = decodeSyncFile(probe.bytes, compressed);
+    const { remote, remoteCategories } = await applyRemoteFile(store, file);
+    setCachedEtag(probe.etag);
+    return {
+      remote,
+      remoteCategories,
+      uploadedLocal: 0,
+      uploadedLocalCategories: 0,
+      downloadedRemote: true,
+    };
+  }
+
+  /**
+   * Push path: local writes are pending, so we always download
+   * unconditionally — we need the bytes for the merge step. Apply
+   * anything new the remote has, compose the outgoing file, upload
+   * with optimistic eTag, then mark the uploaded events committed.
+   */
+  async function runMergeAndUploadCycle(
+    localUncommitted: ReadonlyArray<ExpenseEvent>,
+    localUncommittedCategories: ReadonlyArray<CategoryEvent>,
+  ): Promise<Omit<SyncResult, 'retries'>> {
+    const downloaded = await adapter.download();
+
+    // Defensive: we didn't pass ifNoneMatch on this branch, so this
+    // shouldn't happen. If an adapter ever returns it anyway, treat it
+    // as "remote unchanged" — the simplest safe fallback is to skip
+    // the upload this round and let the next cycle start fresh.
+    if (downloaded.kind === 'not-modified') {
+      setCachedEtag(downloaded.etag);
+      return NO_CHANGES_RESULT;
     }
 
-    // ---- 3. Full download (local writes pending — we need the bytes) -
-    const downloaded = await adapter.download();
-    let downloadedRemote = false;
+    // Resolve the merge base + decide whether to apply remote events.
+    let base: OutgoingBase = { events: [], categoryEvents: [], snapshot: undefined };
+    let etag: string | undefined;
     let remote: ApplyResult = EMPTY_APPLY;
     let remoteCategories: ApplyResult = EMPTY_APPLY;
-    let baseEvents: ReadonlyArray<EventEntry> = [];
-    let baseCategoryEvents: ReadonlyArray<CategoryEventEntry> = [];
-    let baseSnapshot: EventSyncFile['snapshot'];
-    let etag: string | undefined;
+    let downloadedRemote = false;
 
     if (downloaded.kind === 'absent') {
       // First sync from this account — no remote file exists yet.
       etag = undefined;
-    } else if (downloaded.kind === 'not-modified') {
-      // Defensive: we didn't pass ifNoneMatch on this branch, so this
-      // shouldn't happen. If an adapter ever returns it anyway, treat it
-      // as "remote unchanged" — we still need to walk our base from
-      // whatever we last knew, which means refusing the cycle. The
-      // simplest safe fallback is to skip the upload this round.
-      setCachedEtag(downloaded.etag);
-      return {
-        remote: EMPTY_APPLY,
-        remoteCategories: EMPTY_APPLY,
-        uploadedLocal: 0,
-        uploadedLocalCategories: 0,
-        downloadedRemote: false,
-      };
     } else if (downloaded.etag === cachedEtag) {
-      // Remote bytes match what we already applied. Skip the apply step
-      // (events are already in `processed_events`) but keep the decoded
-      // base events for the upload merge.
+      // Remote bytes match what we already applied. Skip the apply
+      // step (events are already in `processed_events`) but keep the
+      // decoded base for the upload merge.
       const file = decodeSyncFile(downloaded.bytes, compressed);
-      baseEvents = file.events;
-      baseCategoryEvents = file.categoryEvents;
-      baseSnapshot = file.snapshot;
+      base = { events: file.events, categoryEvents: file.categoryEvents, snapshot: file.snapshot };
       etag = downloaded.etag;
     } else {
       const file = decodeSyncFile(downloaded.bytes, compressed);
-      baseEvents = file.events;
-      baseCategoryEvents = file.categoryEvents;
-      baseSnapshot = file.snapshot;
+      base = { events: file.events, categoryEvents: file.categoryEvents, snapshot: file.snapshot };
       etag = downloaded.etag;
       downloadedRemote = true;
-      // Apply categories BEFORE expenses so any expense projection that
-      // references a brand-new category sees the row in place.
-      remoteCategories = await applyRemoteCategoryEvents(store, baseCategoryEvents);
-      remote = await applyRemoteEvents(store, file.events);
+      ({ remote, remoteCategories } = await applyRemoteFile(store, file));
     }
 
-    // ---- 4. Build the new file payload --------------------------------
-    const newEntries = localUncommitted.map(toEventEntry);
-    const newCategoryEntries = localUncommittedCategories.map(toCategoryEventEntry);
-    const merged: EventSyncFile = {
-      events: sortEventsDeterministically([...baseEvents, ...newEntries]),
-      categoryEvents: sortCategoryEventsDeterministically([
-        ...baseCategoryEvents,
-        ...newCategoryEntries,
-      ]),
-      ...(baseSnapshot !== undefined ? { snapshot: baseSnapshot } : {}),
-    };
+    const merged = await buildOutgoingFile(
+      store,
+      base,
+      localUncommitted,
+      localUncommittedCategories,
+    );
     const bytes = encodeSyncFile(merged, compressed);
 
-    // ---- 5. Upload with optimistic concurrency ------------------------
     // Pass `etag` only when we know one (otherwise the adapter does an
-    // unconditional create). A stale etag will surface as ConcurrencyError
-    // and the engine's outer loop retries the cycle.
-    const upload = etag !== undefined
-      ? await adapter.upload(bytes, etag)
-      : await adapter.upload(bytes);
+    // unconditional create). A stale etag will surface as
+    // ConcurrencyError and the engine's outer loop retries the cycle.
+    const upload =
+      etag !== undefined
+        ? await adapter.upload(bytes, etag)
+        : await adapter.upload(bytes);
 
-    // ---- 6. Mark uploaded events committed locally --------------------
-    if (localUncommitted.length > 0) {
-      await store.markEventsCommitted(localUncommitted.map((e) => e.eventId));
-    }
-    if (localUncommittedCategories.length > 0) {
-      await store.markCategoryEventsCommitted(
-        localUncommittedCategories.map((e) => e.eventId),
-      );
-    }
+    await markLocalEventsCommitted(
+      store,
+      localUncommitted,
+      localUncommittedCategories,
+    );
     setCachedEtag(upload.etag);
 
     return {
@@ -297,6 +281,110 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       uploadedLocalCategories: localUncommittedCategories.length,
       downloadedRemote,
     };
+  }
+}
+
+/** Sentinel return value for cycles that decided to do nothing. */
+const NO_CHANGES_RESULT: Omit<SyncResult, 'retries'> = {
+  remote: EMPTY_APPLY,
+  remoteCategories: EMPTY_APPLY,
+  uploadedLocal: 0,
+  uploadedLocalCategories: 0,
+  downloadedRemote: false,
+};
+
+/** The three "remote file" inputs that compose into the merge step. */
+interface OutgoingBase {
+  readonly events: ReadonlyArray<EventEntry>;
+  readonly categoryEvents: ReadonlyArray<CategoryEventEntry>;
+  readonly snapshot: EventSyncFile['snapshot'];
+}
+
+/**
+ * Apply a decoded remote file to the local store. Order is snapshot →
+ * categories → expenses:
+ *
+ * - Snapshot first so the per-event applier sees pre-populated
+ *   projections + `processed_events` and most historical events become
+ *   cheap no-ops. Snapshot is purely an optimization; semantic
+ *   correctness is unchanged.
+ * - Categories before expenses so any expense projection that
+ *   references a brand-new category sees the row in place — otherwise
+ *   the UI briefly shows an orphan-placeholder name/icon until the
+ *   next refresh.
+ */
+async function applyRemoteFile(
+  store: LocalStore,
+  file: EventSyncFile,
+): Promise<{ remote: ApplyResult; remoteCategories: ApplyResult }> {
+  if (file.snapshot !== undefined) {
+    await applySnapshot(store, file.snapshot);
+  }
+  const remoteCategories = await applyRemoteCategoryEvents(store, file.categoryEvents);
+  const remote = await applyRemoteEvents(store, file.events);
+  return { remote, remoteCategories };
+}
+
+/**
+ * Compose the EventSyncFile we'll upload this cycle:
+ *
+ * 1. Merge base remote events with local uncommitted ones, sorted
+ *    deterministically (`(timestamp ASC, eventId ASC)`).
+ * 2. Decide whether to refresh the embedded snapshot. Refresh fires
+ *    when enough events have piled up past the base snapshot's cutoff
+ *    (or there is no snapshot yet); otherwise we reuse the base
+ *    snapshot to keep idle uploads payload-stable. `buildSnapshot`
+ *    runs after the apply step so it captures freshly-applied remote
+ *    events alongside local-only ones.
+ * 3. Drop events whose IDs are already captured by the resulting
+ *    snapshot. Runs on every cycle — not just on refresh — so
+ *    partially-applied cycles self-heal: a covered event can never
+ *    re-enter the body.
+ */
+async function buildOutgoingFile(
+  store: LocalStore,
+  base: OutgoingBase,
+  localUncommitted: ReadonlyArray<ExpenseEvent>,
+  localUncommittedCategories: ReadonlyArray<CategoryEvent>,
+): Promise<EventSyncFile> {
+  const mergedEvents = sortEventsDeterministically([
+    ...base.events,
+    ...localUncommitted.map(toEventEntry),
+  ]);
+  const mergedCategoryEvents = sortCategoryEventsDeterministically([
+    ...base.categoryEvents,
+    ...localUncommittedCategories.map(toCategoryEventEntry),
+  ]);
+
+  const nextSnapshot = shouldRefreshSnapshot(
+    base.snapshot,
+    mergedEvents,
+    mergedCategoryEvents,
+  )
+    ? await buildSnapshot(store)
+    : base.snapshot;
+
+  const coveredEvents = nextSnapshot?.coveredEvents ?? [];
+  return {
+    events: dropCoveredEvents(mergedEvents, coveredEvents),
+    categoryEvents: dropCoveredEvents(mergedCategoryEvents, coveredEvents),
+    ...(nextSnapshot !== undefined ? { snapshot: nextSnapshot } : {}),
+  };
+}
+
+/** Mark local uncommitted events (both aggregates) as committed. */
+async function markLocalEventsCommitted(
+  store: LocalStore,
+  localUncommitted: ReadonlyArray<ExpenseEvent>,
+  localUncommittedCategories: ReadonlyArray<CategoryEvent>,
+): Promise<void> {
+  if (localUncommitted.length > 0) {
+    await store.markEventsCommitted(localUncommitted.map((e) => e.eventId));
+  }
+  if (localUncommittedCategories.length > 0) {
+    await store.markCategoryEventsCommitted(
+      localUncommittedCategories.map((e) => e.eventId),
+    );
   }
 }
 

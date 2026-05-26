@@ -314,6 +314,18 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
       return rows.map(rowToProjection);
     },
 
+    async findAllProjections(): Promise<ReadonlyArray<ExpenseProjection>> {
+      // Includes soft-deleted rows — snapshot builder needs the full
+      // state because a deleted row can still be superseded by a newer
+      // non-deleted update on another device (LWW resurrection).
+      const rows = await db.getAllAsync<ProjectionRow>(
+        `SELECT id, description, amount, currency, category_id, date,
+                updated_at, deleted
+           FROM expense_projections`,
+      );
+      return rows.map(rowToProjection);
+    },
+
     async isEventProcessed(eventId: string): Promise<boolean> {
       const row = await db.getFirstAsync<{ event_id: string }>(
         `SELECT event_id FROM processed_events WHERE event_id = ?`,
@@ -322,20 +334,25 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
       return row !== null && row !== undefined;
     },
 
-    async findAllProcessedEventIds(): Promise<ReadonlyArray<string>> {
+    async findAllProcessedEvents(): Promise<
+      ReadonlyArray<{ readonly eventId: string; readonly timestamp: number }>
+    > {
       // Single full-table scan replaces N point queries when batching the
-      // remote apply path. `processed_events` has only one column; even at
-      // 100k rows this is a few MB of strings — well within memory budget.
-      const rows = await db.getAllAsync<{ event_id: string }>(
-        `SELECT event_id FROM processed_events`,
+      // remote apply path. `processed_events` is two columns wide; even at
+      // 100k rows this is a few MB of strings + ints — well within memory
+      // budget. Returns the timestamps too because `buildSnapshot` needs
+      // them for retention-window pruning of `coveredEvents`.
+      const rows = await db.getAllAsync<{ event_id: string; timestamp: number }>(
+        `SELECT event_id, timestamp FROM processed_events`,
       );
-      return rows.map((r) => r.event_id);
+      return rows.map((r) => ({ eventId: r.event_id, timestamp: r.timestamp }));
     },
 
-    async recordProcessedEvent(eventId: string): Promise<void> {
+    async recordProcessedEvent(eventId: string, timestamp: number): Promise<void> {
       await db.runAsync(
-        `INSERT OR IGNORE INTO processed_events (event_id) VALUES (?)`,
+        `INSERT OR IGNORE INTO processed_events (event_id, timestamp) VALUES (?, ?)`,
         eventId,
+        timestamp,
       );
     },
 

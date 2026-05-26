@@ -142,6 +142,23 @@ export const MIGRATIONS: ReadonlyArray<{ readonly version: number; readonly sql:
         ON exchange_rates(base, period_start);
     `,
   },
+  {
+    version: 3,
+    sql: `
+      -- processed_events grows the event's original emission timestamp.
+      --
+      -- The retention-window pruning in snapshotBuilder needs to know how
+      -- old each entry is so it can drop entries past PRUNE_WINDOW_MS
+      -- while keeping the recent ones. Pre-existing rows backfill with
+      -- 0, which causes them to age out on the very next snapshot build
+      -- (they are still safely covered by the snapshot's projections —
+      -- the timestamp only governs whether the ID is enumerated in
+      -- coveredEvents).
+      ALTER TABLE processed_events ADD COLUMN timestamp INTEGER NOT NULL DEFAULT 0;
+      CREATE INDEX IF NOT EXISTS idx_processed_events_timestamp
+        ON processed_events(timestamp);
+    `,
+  },
 ];
 
 /** SQLite database name on disk (lives under `FileSystem.documentDirectory/SQLite/`). */

@@ -10,7 +10,13 @@
  * backend's `ExpenseEventRepository` + `ExpenseProjectionRepository`
  * pair — including the same last-write-wins UPSERT semantics.
  */
-import type { Category, CategoryEvent, ExpenseEvent, ExpenseProjection } from './types';
+import type {
+  Category,
+  CategoryEvent,
+  CoveredEvent,
+  ExpenseEvent,
+  ExpenseProjection,
+} from './types';
 
 /**
  * Atomic transactional unit. Implementations MUST run the closure inside a
@@ -70,22 +76,39 @@ export interface LocalStore {
   /** Stream all active (non-deleted) projections. */
   findActiveProjections(): Promise<ReadonlyArray<ExpenseProjection>>;
 
+  /**
+   * All projections, including soft-deleted rows. Used by the snapshot
+   * builder to capture the full read-model state, since a soft-deleted
+   * row can still be superseded by a newer non-deleted update (LWW
+   * resurrection).
+   */
+  findAllProjections(): Promise<ReadonlyArray<ExpenseProjection>>;
+
   // -- processed_events (idempotency registry) -----------------------------
 
   /** True if the given event was already processed during sync. */
   isEventProcessed(eventId: string): Promise<boolean>;
 
   /**
-   * Snapshot of the entire idempotency registry. Used by
-   * `applyRemoteEvents` / `applyRemoteCategoryEvents` to seed an in-memory
-   * dedup `Set` once at the start of a sync cycle, sparing thousands of
-   * `isEventProcessed` round-trips through the JS↔native bridge during
-   * batched apply.
+   * Snapshot of the entire idempotency registry, returned as
+   * `{eventId, timestamp}` pairs. Used by:
+   *
+   *   - `applyEventsBatched` to seed an in-memory dedup `Set` (only the
+   *     IDs are consulted) and spare thousands of `isEventProcessed`
+   *     round-trips through the JS↔native bridge during batched apply.
+   *   - `buildSnapshot` to populate `SyncFileSnapshot.coveredEvents`
+   *     with the per-event timestamps required for retention-window
+   *     pruning.
    */
-  findAllProcessedEventIds(): Promise<ReadonlyArray<string>>;
+  findAllProcessedEvents(): Promise<ReadonlyArray<CoveredEvent>>;
 
-  /** Mark an event as processed (idempotent — second insert is a no-op). */
-  recordProcessedEvent(eventId: string): Promise<void>;
+  /**
+   * Mark an event as processed (idempotent — second insert is a no-op).
+   * `timestamp` is the event's original emission time (the `timestamp`
+   * field on `ExpenseEvent` / `CategoryEvent`), NOT the wall-clock time
+   * we observed it — see `CoveredEvent` for why this matters.
+   */
+  recordProcessedEvent(eventId: string, timestamp: number): Promise<void>;
 
   // -- categories ----------------------------------------------------------
 

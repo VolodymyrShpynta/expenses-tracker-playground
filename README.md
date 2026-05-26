@@ -71,6 +71,8 @@ across multiple devices.
       - [**Phase 7: Process Remote Events**](#phase-7-process-remote-events)
     - [Mobile Sync (TypeScript Port)](#mobile-sync-typescript-port)
       - [Automatic Sync Triggers, Throttling, and Bandwidth](#automatic-sync-triggers-throttling-and-bandwidth)
+      - [Apply-Time Optimizations \& Cold-Install Fast Path](#apply-time-optimizations--cold-install-fast-path)
+        - [Design Alternatives Considered — Why Not Full LSM Compaction?](#design-alternatives-considered--why-not-full-lsm-compaction)
     - [Component Architecture](#component-architecture)
     - [Sync File Format](#sync-file-format)
     - [Component Diagram](#component-diagram)
@@ -1238,7 +1240,158 @@ against. Every subsequent cold start should short-circuit at 304.
 > for the canonical version of these tables, the full wiring (`syncProvider.tsx` / `useAutoSync.ts` /
 > `autoSyncSignal.ts`), and the rationale behind each design choice.
 
-### Component Architecture
+#### Apply-Time Optimizations & Cold-Install Fast Path
+
+The mobile apply pipeline has three layered optimizations on top of the per-event idempotent applier.
+All three run on every sync; together they keep a fresh install bootstrap-able in about a minute even
+when the sync file already carries thousands of historical events.
+
+**1. Batched-transaction apply** (`src/sync/batchApply.ts`). Remote events are applied in chunks of
+`CHUNK_SIZE = 200` inside a single `expo-sqlite` transaction so the per-event bridge cost amortizes. A
+failing chunk falls back to a per-event retry loop so one corrupt payload can never abort the rest. WAL
++ `synchronous = NORMAL` PRAGMAs are set on every connection in `src/db/databaseProvider.tsx` so writes
+don't fsync on every commit. Between chunks the helper does a `setTimeout(0)` to let the UI thread
+render — important on a list screen that's open during a large initial sync.
+
+**2. Embedded snapshot in the sync file** (`src/sync/snapshotBuilder.ts`, `src/sync/snapshotApply.ts`,
+`src/sync/snapshotPolicy.ts`). The sync file optionally carries a materialized view of the read model:
+
+```jsonc
+{
+  "snapshot": {
+    "version": 2,
+    "createdAt": 1737475200000,
+    "expenses":  [/* every ExpenseProjection, including soft-deleted (tombstones) */],
+    "categories":[/* every Category, including soft-deleted */],
+    "coveredEvents": [
+      // Sorted by eventId. Each entry pairs the event id with the
+      // event's original emission timestamp (epoch ms). The retention
+      // window below operates on `timestamp`.
+      { "eventId": "…", "timestamp": 1737475100000 }
+    ]
+  },
+  "events":         [/* events past the snapshot, deterministically sorted */],
+  "categoryEvents": [/* …same for categories */]
+}
+```
+
+Cold-install devices apply the snapshot once — bulk LWW `UPSERT`s for `expense_projections` and
+`categories`, plus bulk `INSERT OR IGNORE` into `processed_events` (`event_id`, `timestamp`) for every
+`coveredEvents` entry — then iterate the small post-cutoff event tail. Warm devices see the snapshot
+as a no-op because their LWW comparison loses for every row (strict `>` by `updatedAt`).
+
+The snapshot is **purely an optimization** for current readers — semantic correctness is unchanged
+once the version matches. But the body is **not** a complete event log: `dropCoveredEvents` removes
+every event already captured by the snapshot before upload, so reading just the body without
+understanding the snapshot would produce partial state. Files written without a `snapshot` field
+remain backward-compatible (the body is the full log in that case); files **with** a snapshot must
+be read by a build that understands the snapshot's `version`.
+
+**Snapshot schema version.** `SNAPSHOT_VERSION` is the integer carried in every snapshot. It acts as
+an emergency fuse for incompatible shape changes that can't be handled by additive evolution.
+Readers compare it to the version they understand; a mismatch causes `applySnapshot` to throw
+`IncompatibleSnapshotError`, which propagates out of `performFullSync` (the retry loop only catches
+`ConcurrencyError`) and surfaces in the UI as "this sync file was written by a newer version of the
+app — please update". The cloud file is left untouched. Falling back to the body alone would be
+unsafe because of the truncation above, so the strict abort is intentional: bump the version only
+for unrenameable/untyped changes you don't want older peers to apply blindly.
+
+The on-device `processed_events` table stores `(event_id, timestamp)` pairs so snapshot builds can
+carry the original emission timestamp through to peers. The timestamp is what the retention window
+below operates on; pairing it with the id (rather than tracking ids only) means receiving devices
+preserve enough information to apply the same window on their own subsequent rebuilds. Without it,
+each cross-device hop would re-stamp the ids with a new "observed at" time and pruning would never
+converge.
+
+**Refresh policy** (`snapshotPolicy.ts`). Rewriting the snapshot every cycle wastes bandwidth; never
+rewriting it lets cold-install cost grow without bound. The chosen heuristic refreshes the snapshot
+when **more than `SNAPSHOT_REFRESH_THRESHOLD = 500` events** have accumulated past the existing
+snapshot's `createdAt` (counted across both event streams). Idle periods produce zero rewrites; busy
+periods produce exactly enough refreshes to bound cold-install cost.
+
+**Retention window** (`PRUNE_WINDOW_MS = 30 days` in `snapshotBuilder.ts`). When the snapshot is
+rebuilt, entries in `coveredEvents` whose `timestamp <= createdAt - PRUNE_WINDOW_MS` are dropped.
+This bounds the size of `coveredEvents` even after years of writes — the projections continue to
+reflect those events, but their ids are no longer enumerated. The trade-off is precise: an event whose
+id has been pruned is no longer detectable as covered by `dropCoveredEvents`, so if a stale copy of
+that event somehow still rides along in a peer's body it will be re-applied on the next sync. Re-apply
+is a no-op by LWW (the projection already reflects the same `updatedAt`), so the correctness cost is
+zero — only a one-time CPU cost on the rare "old straggler" event. The window value is the smallest
+that comfortably exceeds expected sync latency for offline-then-reconnect scenarios (cellular dead
+zones, lost phones turned back on weeks later).
+
+**3. Body truncation against `coveredEvents`**. Every upload — not just refresh cycles — runs
+`dropCoveredEvents(events, snapshot.coveredEvents)` before encoding. The body then carries only events
+past the embedded snapshot, bounding steady-state file growth to one refresh window. Always-on
+truncation is also self-healing: if an upload was ever interrupted and left a stale event in the body,
+the next cycle drops it because a covered event can never re-enter the body (until the retention
+window drops its id, at which point LWW absorbs the re-apply as described above).
+
+These three optimizations are **mobile-only**. The backend's `SyncFileManager` writes the events-only
+format described below and uses a simpler `Snapshot` shape (in
+[`EventSyncFile.kt`](expenses-tracker-api/src/main/kotlin/com/vshpynta/expenses/api/model/EventSyncFile.kt)).
+Mobile-produced files are a superset; the two implementations are not expected to share files in the
+same Drive folder.
+
+#### Design Alternatives Considered — Why Not Full LSM Compaction?
+
+The current design is, conceptually, a **degenerate two-level LSM tree** collapsed into a single sync
+file. The mapping is direct:
+
+| LSM concept                  | Mobile equivalent                                              |
+|------------------------------|----------------------------------------------------------------|
+| Memtable                     | `expense_events` / `category_events` rows with `committed = 0` |
+| L0 (immutable recent log)    | `EventSyncFile.events` / `categoryEvents` (the body)           |
+| Compacted level (read model) | `EventSyncFile.snapshot` (projections + `coveredEvents`)       |
+| Compaction trigger           | `shouldRefreshSnapshot` (500-event threshold)                  |
+| Tombstone GC                 | 30-day `PRUNE_WINDOW_MS` on `coveredEvents`                    |
+
+A natural extension would be a "proper" LSM with **multiple files per cloud-drive folder** — for
+example a long-lived `snapshot.json.gz` plus per-device `tail-<deviceId>.json.gz` write-only delta
+files, periodically compacted into a new snapshot. This was considered and **deliberately rejected**
+in favor of the single-file model. The rationale, for future maintainers:
+
+**1. Cloud-drive storage gives us per-file eTags only — no cross-file atomicity.** A multi-file design
+would require a separate manifest with its own concurrency story (write new snapshot → bump manifest
+→ delete tails). Any crash between those steps leaves orphaned objects we'd have to reconcile on every
+read. The single-file model is *one* atomic unit and one eTag check; this property is unusually
+valuable on dumb append-only storage.
+
+**2. iCloud Drive's directory listing is lazily consistent.** Newly added files can be invisible to
+peers for seconds to minutes after upload. That breaks the "read snapshot + every peer's tail" step in
+subtle ways that are very hard to test on emulators. Reading a single well-known file at a fixed path
+sidesteps this entirely.
+
+**3. No leader for compaction.** Server-backed LSMs have one writer choosing when to compact. In a
+peer-to-peer cloud-drive topology, every device would race to rewrite the snapshot, causing wasted
+work and constant eTag retries. A "designated compactor" requires consensus, which the mobile sync
+architecture explicitly avoids.
+
+**4. Tail-file GC requires a high-water mark we can't compute.** "When can device A delete
+`tail-A.json.gz`?" → only when *every* peer has observed a snapshot that already absorbed it. We
+don't have a peer registry. The pragmatic answer ("delete after N days") just recreates the same
+retention-window trade-off `PRUNE_WINDOW_MS` already solves.
+
+**5. File-count would grow per device, including orphans.** Reinstalls and new phones generate fresh
+device ids, leaving stale `tail-<oldDeviceId>.json.gz` objects in the user's drive folder forever.
+Now we need orphan reaping logic, which is its own correctness problem.
+
+**6. The savings are modest for the actual workload.** Target users have 1–3 devices and write
+~10–100 events/day. With `PRUNE_WINDOW_MS = 30 days` the snapshot stays small (low single-digit MB
+gzipped even for power users), so the "wasted re-upload" optimized away by an LSM split is on the
+order of a few KB per sync — well below the noise floor of cellular round-trip variance.
+
+**7. Cheaper wins capture most of the same benefit on one file.** The current design already does:
+short-circuit upload when nothing local changed *and* remote eTag is unchanged (handled at the
+adapter level via the `eTagValidator` cache); skip the snapshot rebuild on most cycles
+(`shouldRefreshSnapshot`); and reuse the prior snapshot bytes verbatim when only the body changes.
+These give us LSM-style amortization (less I/O, less CPU, less bandwidth) with **zero new failure
+modes**, no new files, no orphan reaping, no eTag dance across multiple objects.
+
+The two-level conceptual model is the right one for this domain. The cost of physically materializing
+the levels into separate cloud objects is not justified by the savings.
+
+
 
 The sync system uses a well-designed component hierarchy:
 
@@ -1318,10 +1471,17 @@ The sync system uses a well-designed component hierarchy:
 
 **Design notes:**
 
-- `events` array is append-only (never delete or modify)
-- `snapshot` is an optional field for full state snapshots (defined in `EventSyncFile.kt`)
-- Events contain complete expense state (not deltas)
-- JSON format for human readability and debugging
+- `events` array is append-only on the backend (never delete or modify); the mobile port additionally
+  truncates events already folded into the embedded snapshot — see
+  [Apply-Time Optimizations & Cold-Install Fast Path](#apply-time-optimizations--cold-install-fast-path).
+- `categoryEvents` is a parallel stream for category mutations, currently emitted by the mobile port only
+  (the backend doesn't event-source categories).
+- `snapshot` is an optional materialized view of the read model — the backend uses a simpler shape
+  (`{ version, expenses }` in `EventSyncFile.kt`) while the mobile port emits a richer shape
+  (`{ version, createdAt, expenses, categories, coveredEvents }`) and uses it as a cold-install
+  fast path.
+- Events contain complete expense state (not deltas).
+- JSON format for human readability and debugging.
 
 ### Component Diagram
 

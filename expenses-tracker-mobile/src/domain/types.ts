@@ -95,9 +95,59 @@ export interface EventSyncFile {
   readonly categoryEvents: ReadonlyArray<CategoryEventEntry>;
 }
 
+/**
+ * Materialized read-model snapshot embedded in the sync file. Lets
+ * cold-install devices skip applying historical events one by one —
+ * they bulk-load the projections + categories and bulk-mark the covered
+ * event IDs as processed, then only events past the snapshot still need
+ * the slow apply path.
+ *
+ * The snapshot is purely an optimization. Older readers that ignore the
+ * field still rebuild correct state from `events` + `categoryEvents`.
+ * Conflict semantics on apply are unchanged: LWW by `updatedAt`, soft
+ * deletes can be superseded by newer non-deleted updates.
+ *
+ * Bump `version` and treat older snapshots as absent if the shape ever
+ * changes incompatibly.
+ */
 export interface SyncFileSnapshot {
+  /** Snapshot schema version. Current value: 2. */
   readonly version: number;
-  readonly expenses: ReadonlyArray<ExpensePayload>;
+  /** Epoch ms when the snapshot was built. */
+  readonly createdAt: number;
+  /** Materialized expense projections, including soft-deleted rows. */
+  readonly expenses: ReadonlyArray<ExpenseProjection>;
+  /** Materialized categories, including soft-deleted rows. */
+  readonly categories: ReadonlyArray<Category>;
+  /**
+   * Events whose effect is captured by this snapshot, paired with the
+   * timestamp at which they were originally emitted. The pair (id +
+   * timestamp) lets cold installs bulk-populate the local
+   * `processed_events` registry with accurate per-event timestamps —
+   * which in turn enables future snapshot builds on this device to
+   * apply the same retention window without losing that information.
+   *
+   * Builders MAY prune entries older than `createdAt - PRUNE_WINDOW_MS`
+   * (see `snapshotBuilder.ts`). Pruned entries are effectively
+   * "trust the projections to reflect this era" — body events whose IDs
+   * were pruned out of this set are no longer detectable as covered
+   * and will be re-applied as no-ops by LWW on cold installs.
+   */
+  readonly coveredEvents: ReadonlyArray<CoveredEvent>;
+}
+
+/**
+ * One entry in `SyncFileSnapshot.coveredEvents`. Carrying the original
+ * event `timestamp` (not the snapshot build time) means receiving
+ * devices can re-apply the same retention window when they later rebuild
+ * the snapshot — without that, every cross-device hop would re-stamp
+ * the IDs with a new "observed at" time and pruning would never
+ * converge.
+ */
+export interface CoveredEvent {
+  readonly eventId: string;
+  /** Original event timestamp (epoch ms) — NOT the snapshot's build time. */
+  readonly timestamp: number;
 }
 
 /**
