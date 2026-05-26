@@ -75,6 +75,15 @@ export interface LocalStore {
   /** True if the given event was already processed during sync. */
   isEventProcessed(eventId: string): Promise<boolean>;
 
+  /**
+   * Snapshot of the entire idempotency registry. Used by
+   * `applyRemoteEvents` / `applyRemoteCategoryEvents` to seed an in-memory
+   * dedup `Set` once at the start of a sync cycle, sparing thousands of
+   * `isEventProcessed` round-trips through the JS↔native bridge during
+   * batched apply.
+   */
+  findAllProcessedEventIds(): Promise<ReadonlyArray<string>>;
+
   /** Mark an event as processed (idempotent — second insert is a no-op). */
   recordProcessedEvent(eventId: string): Promise<void>;
 

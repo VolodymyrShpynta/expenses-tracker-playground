@@ -322,6 +322,16 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
       return row !== null && row !== undefined;
     },
 
+    async findAllProcessedEventIds(): Promise<ReadonlyArray<string>> {
+      // Single full-table scan replaces N point queries when batching the
+      // remote apply path. `processed_events` has only one column; even at
+      // 100k rows this is a few MB of strings — well within memory budget.
+      const rows = await db.getAllAsync<{ event_id: string }>(
+        `SELECT event_id FROM processed_events`,
+      );
+      return rows.map((r) => r.event_id);
+    },
+
     async recordProcessedEvent(eventId: string): Promise<void> {
       await db.runAsync(
         `INSERT OR IGNORE INTO processed_events (event_id) VALUES (?)`,

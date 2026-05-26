@@ -167,6 +167,10 @@ export class InMemoryLocalStore implements LocalStore {
     return this.state.processedEvents.has(eventId);
   }
 
+  async findAllProcessedEventIds(): Promise<ReadonlyArray<string>> {
+    return Array.from(this.state.processedEvents);
+  }
+
   async recordProcessedEvent(eventId: string): Promise<void> {
     this.state.processedEvents.add(eventId);
   }

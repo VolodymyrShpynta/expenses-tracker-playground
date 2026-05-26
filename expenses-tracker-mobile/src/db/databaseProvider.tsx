@@ -46,6 +46,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
     (async () => {
       try {
         const db = await SQLite.openDatabaseAsync(DB_NAME);
+        await configureConnection(db);
         const schemaVersion = await migrate(db);
         if (cancelled) return;
         setValue({
@@ -84,6 +85,30 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
   }
 
   return <DatabaseContext.Provider value={value}>{children}</DatabaseContext.Provider>;
+}
+
+/**
+ * One-time per-connection setup. Runs BEFORE `migrate` so the PRAGMAs are
+ * in effect for the migration transactions too.
+ *
+ * - `journal_mode = WAL` lets readers and writers run concurrently. Without
+ *   it (default DELETE mode) a long-running sync transaction blocks every
+ *   read query the UI tries to issue.
+ * - `synchronous = NORMAL` is the SQLite-recommended pairing with WAL —
+ *   commits no longer fsync the WAL file. Crash durability drops from
+ *   "every commit is durable" to "every checkpoint is durable", which is
+ *   fine for an event-sourced store: the cloud sync file is the source of
+ *   truth across devices, and a lost local commit is recoverable.
+ *
+ * Both PRAGMAs are per-connection and persist across app launches when set
+ * once on the database file (WAL mode is sticky in the SQLite file
+ * header). Re-running them on every open is cheap and explicit.
+ */
+async function configureConnection(db: SQLite.SQLiteDatabase): Promise<void> {
+  // PRAGMA journal_mode = WAL cannot be issued inside a transaction —
+  // expo-sqlite's openDatabaseAsync hands us a clean connection so this
+  // is safe here.
+  await db.execAsync('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;');
 }
 
 /** Access the shared `LocalStore`. Throws when used outside `DatabaseProvider`. */

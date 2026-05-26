@@ -239,7 +239,11 @@ describe('applyRemoteCategoryEvents', () => {
 
     const result = await applyRemoteCategoryEvents(store, [ok, bad, ok2], log);
     expect(result).toEqual({ applied: 2, skipped: 0, errors: 1 });
-    expect(warnings).toBe(1);
+    // Two warnings: one for the chunk-level rollback ("retrying per-event")
+    // and one for the actual per-event failure ("Failed to apply...").
+    // The chunk warning is intentional — it tells operators why the slow
+    // fallback path was taken.
+    expect(warnings).toBe(2);
   });
 
   it('returns zero counts on an empty input', async () => {
