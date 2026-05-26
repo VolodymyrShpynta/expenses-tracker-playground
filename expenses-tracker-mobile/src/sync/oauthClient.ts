@@ -45,6 +45,27 @@ export interface OAuthConfig {
   readonly redirectScheme: string;
   /** Path on the redirect URI (defaults to `'redirect'`). */
   readonly redirectPath?: string;
+  /**
+   * Literal redirect URI used verbatim on native platforms, bypassing
+   * `AuthSession.makeRedirectUri`'s `scheme + path` construction.
+   *
+   * Google's Android OAuth client only accepts the **single-slash**
+   * form `com.package.name:/oauth2redirect` (scheme + path, no
+   * authority). `makeRedirectUri({ scheme, path })` always emits the
+   * hierarchical `scheme://path` form, which Google rejects as
+   * `invalid_request`. Microsoft accepts both forms and does not need
+   * this override.
+   */
+  readonly nativeRedirectUri?: string;
+  /**
+   * Provider-specific query parameters appended to the **authorization**
+   * request (NOT the token request). Used for Google, which requires
+   * `access_type=offline` on the auth URL to issue a refresh token —
+   * unlike Microsoft, where the equivalent is the `offline_access`
+   * **scope**. Without this hook, Google would return only an access
+   * token and `signIn()` would throw on the missing refresh token.
+   */
+  readonly extraAuthorizationParams?: Readonly<Record<string, string>>;
 }
 
 interface StoredTokens {
@@ -131,6 +152,9 @@ export function createOAuthClient(config: OAuthConfig): OAuthClient {
 
     async signIn() {
       const redirectUri = AuthSession.makeRedirectUri({
+        ...(config.nativeRedirectUri !== undefined
+          ? { native: config.nativeRedirectUri }
+          : {}),
         scheme: config.redirectScheme,
         path: config.redirectPath ?? 'redirect',
       });
@@ -141,6 +165,12 @@ export function createOAuthClient(config: OAuthConfig): OAuthClient {
         responseType: AuthSession.ResponseType.Code,
         usePKCE: true,
         // PKCE method is S256 by default in expo-auth-session.
+        // `extraParams` is forwarded as query params on the authorization
+        // URL. Required for Google (`access_type=offline`) so the token
+        // endpoint returns a refresh token.
+        ...(config.extraAuthorizationParams !== undefined
+          ? { extraParams: { ...config.extraAuthorizationParams } }
+          : {}),
       });
 
       const discovery: AuthSession.DiscoveryDocument = {

@@ -45,6 +45,7 @@ own Google Drive `appDataFolder` or OneDrive `approot`.
   - [🔐 Cloud-Drive Sync — Getting OAuth Client IDs](#-cloud-drive-sync--getting-oauth-client-ids)
     - [Microsoft (OneDrive)](#microsoft-onedrive)
     - [Google (Google Drive)](#google-google-drive)
+      - ["I synced but I don't see the file in Google Drive"](#i-synced-but-i-dont-see-the-file-in-google-drive)
     - [Will other users be able to use my app registration?](#will-other-users-be-able-to-use-my-app-registration)
       - [Who can sign in — the "Supported account types" setting](#who-can-sign-in--the-supported-account-types-setting)
       - ["Unverified publisher" warning](#unverified-publisher-warning)
@@ -459,8 +460,8 @@ see the next section
 this step still produces a working app, but Google Drive / OneDrive sign-in will fail until real
 client IDs are wired in.
 
-> **Already set during development?** If you wired in `GOOGLE_OAUTH_CLIENT_ID` /
-> `MICROSOFT_OAUTH_CLIENT_ID` earlier (for example while testing
+> **Already set during development?** If you wired in `GOOGLE_OAUTH_CLIENT_ID_ANDROID` /
+> `GOOGLE_OAUTH_CLIENT_ID_IOS` / `MICROSOFT_OAUTH_CLIENT_ID` earlier (for example while testing
 > [`npx expo run:android`](#-building-a-local-dev-client-npx-expo-runandroid)), there is nothing
 > extra to do here — the values are already committed to the source tree and the bundler will inline
 > them into the release APK automatically. Skip this step.
@@ -624,15 +625,22 @@ install — if signatures differ, `adb uninstall com.vshpynta.expensestracker` f
 
 The mobile app uses **OAuth 2.0 with PKCE** to talk to Google Drive and OneDrive. There is **no client
 secret** — PKCE replaces it with a per-flow code challenge — so the only thing you need to provide is the
-**Client ID** for each provider. Both client IDs are referenced as constants in source:
+**Client ID** for each provider. The client IDs are referenced as constants in source:
 
-| Provider     | Constant                    | File                                                        |
-|--------------|-----------------------------|-------------------------------------------------------------|
-| Google Drive | `GOOGLE_OAUTH_CLIENT_ID`    | [`src/sync/googleDriveAdapter.ts`](./src/sync/googleDriveAdapter.ts) |
-| OneDrive     | `MICROSOFT_OAUTH_CLIENT_ID` | [`src/sync/oneDriveAdapter.ts`](./src/sync/oneDriveAdapter.ts)       |
+| Provider              | Constant                       | File                                                                 |
+|-----------------------|--------------------------------|----------------------------------------------------------------------|
+| Google Drive (Android)| `GOOGLE_OAUTH_CLIENT_ID_ANDROID` | [`src/sync/googleDriveAdapter.ts`](./src/sync/googleDriveAdapter.ts) |
+| Google Drive (iOS)    | `GOOGLE_OAUTH_CLIENT_ID_IOS`     | [`src/sync/googleDriveAdapter.ts`](./src/sync/googleDriveAdapter.ts) |
+| OneDrive              | `MICROSOFT_OAUTH_CLIENT_ID`      | [`src/sync/oneDriveAdapter.ts`](./src/sync/oneDriveAdapter.ts)       |
 
-Both files ship with a `TODO_REPLACE_WITH_*` placeholder. Replace those values with the IDs you obtain
-from the steps below before running the OAuth flow on a device.
+Google requires a **separate Client ID per platform** (the bundle id + signing fingerprint that Google
+verifies on each token request differ between iOS and Android), so `googleDriveAdapter.ts` resolves the
+active id via `Platform.select({ android: …, ios: … })` at module load. OneDrive uses a single
+cross-platform client id.
+
+All three constants ship with a `TODO_REPLACE_WITH_*` sentinel value. Replace the ones you need (you can
+leave the iOS constant untouched if you never build for iOS — Google Drive sync simply stays disabled
+on that platform) before running the OAuth flow on a device.
 
 The redirect URI used by both adapters is **`expensestracker://redirect`** — derived from the `scheme`
 field in [`app.json`](./app.json). The bundle / package identifier is **`com.vshpynta.expensestracker`**
@@ -683,18 +691,112 @@ for both iOS and Android.
 
 ### Google (Google Drive)
 
+> The Google Cloud Console reorganized this flow in 2024–2025. What used to be **APIs & Services →
+> OAuth consent screen** is now **Google Auth Platform**, and the legacy multi-page form is replaced
+> by a short "Get started" wizard. The steps below reflect the current UI.
+
 1. Sign in to <https://console.cloud.google.com>, create a project (or pick an existing one), and open
    **APIs & Services → Library → Google Drive API → Enable**.
-2. Open **APIs & Services → OAuth consent screen** and configure the app for **External** users (Testing
-   mode is fine for development).
-3. Open **APIs & Services → Credentials → Create Credentials → OAuth client ID** and create **two**
-   clients — one per platform — using the bundle / package identifier `com.vshpynta.expensestracker`:
-    - **iOS** — Bundle ID `com.vshpynta.expensestracker`.
-    - **Android** — Package name `com.vshpynta.expensestracker` plus the SHA-1 fingerprint of the keystore
-      EAS uses to sign the app (run `npx eas credentials` to retrieve it).
-4. Under **Scopes**, the app only requests `https://www.googleapis.com/auth/drive.appdata` — no broad
-   Drive scope, so your app stays inside Google's lightweight verification path.
-5. Copy the resulting **Client ID** and paste it into `GOOGLE_OAUTH_CLIENT_ID`.
+2. Open **APIs & Services → OAuth consent screen** (this now lands on the **Google Auth Platform**
+   overview page). If you see *"Google Auth Platform not configured yet"*, click **Get started** and
+   walk through the wizard:
+    - **App Information** — App name: `vs-expenses-tracker`. User support email: your Google account.
+    - **Audience** — User type: **External**.
+    - **Contact Information** — Developer contact email: your Google account.
+    - **Finish** — accept the *Google API Services User Data Policy* and click **Create**.
+3. Verify the app is in **Testing** publishing status (this is the default after finishing the wizard
+   with **External** user type — you do not need to change anything, just confirm). From the left
+   sidebar open **Audience** and check:
+    - At the top of the page, the **Publishing status** field shows **Testing**. The alternative is
+      **In production**, which would require Google verification for sensitive scopes and is not
+      needed here.
+    - Under **Test users → + Add users**, add every Google account that will sign into the app during
+      development. While the app is in Testing, only listed test users can complete OAuth — everyone
+      else gets `access_denied`. Because the app only requests the narrow scope
+      `https://www.googleapis.com/auth/drive.appdata`, you can stay in Testing indefinitely for
+      personal use; there is no need to click **Publish app**.
+4. *(Optional)* Open **Data Access** (or **Scopes**) and add
+   `https://www.googleapis.com/auth/drive.appdata`. This is not required — `expo-auth-session` requests
+   the scope dynamically at sign-in time and `drive.appdata` is non-sensitive, so it does not need to
+   be pre-registered — but adding it makes the consent screen wording explicit.
+5. Open **Clients** in the left sidebar (legacy path: **APIs & Services → Credentials**) and click
+   **+ Create client → OAuth client ID**. Create **two** clients — one per platform — using the
+   bundle / package identifier `com.vshpynta.expensestracker`:
+    - **iOS** — Application type **iOS**, Bundle ID `com.vshpynta.expensestracker`.
+    - **Android** — Application type **Android**, Package name `com.vshpynta.expensestracker`, plus
+      the **SHA-1 certificate fingerprint** of the keystore that signs your APK. There are two cases
+      depending on how you build:
+      - **Local Gradle builds** — e.g. `npx expo run:android`, or the typical release-APK command
+        run from `expenses-tracker-mobile/android/`:
+        ```pwsh
+        .\gradlew.bat assembleRelease -PreactNativeArchitectures=arm64-v8a
+        ```
+        The project's `android/app/build.gradle` currently signs both debug *and* release with the
+        bundled `android/app/debug.keystore` (see `signingConfigs.debug`), so this is the SHA-1 you
+        need for the APKs you sideload during development. From the **same `android/` directory**
+        where you ran the build above:
+        ```pwsh
+        keytool -list -v `
+          -keystore "app\debug.keystore" `
+          -alias androiddebugkey -storepass android -keypass android
+        ```
+        Copy the line labeled `SHA1:` (40 hex chars separated by colons) into the form.
+      - **EAS-signed production builds (`eas build --platform android`).** EAS manages its own upload
+        keystore. Run `npx eas credentials` from `expenses-tracker-mobile/`, pick
+        **Android → production → Keystore: View**, and copy the SHA-1 from the output. Add it as a
+        **second** fingerprint on the same OAuth client — Google allows multiple SHA-1 entries per
+        Android client, so both local and EAS-signed APKs can sign in.
+
+      After saving the Android client, open it again and scroll to **Advanced settings** at the
+      bottom of the edit page. Toggle **Custom URI scheme → Enabled** and click **Save**. Since
+      May 2024 Google requires this opt-in for any Android OAuth client that uses a custom
+      `<package-name>:/oauth2redirect` redirect (which `expo-auth-session` does). New clients have
+      the toggle **off** by default; without it, sign-in fails with
+      *"Custom URI scheme is not enabled for your Android client."* iOS clients do not have this
+      setting — custom schemes are always allowed there.
+6. Copy each resulting **Client ID** (looks like `1234567890-abcdefg.apps.googleusercontent.com`) and
+   paste it into the matching per-platform constant in
+   [`src/sync/googleDriveAdapter.ts`](./src/sync/googleDriveAdapter.ts):
+    - Android client ID → `GOOGLE_OAUTH_CLIENT_ID_ANDROID`
+    - iOS client ID → `GOOGLE_OAUTH_CLIENT_ID_IOS`
+
+   You only need to fill in the platform(s) you actually build for —
+   `isGoogleDriveConfigured()` checks the constant for the **current** platform, so leaving the iOS
+   placeholder in place cleanly disables Google Drive on iOS without breaking Android.
+
+#### "I synced but I don't see the file in Google Drive"
+
+This is expected — and is the entire point of using `appDataFolder` (the OneDrive equivalent is
+`approot`). Files in that space are **app-private**:
+
+- They do **not** appear under **My Drive** in the web UI or the Drive mobile app.
+- They do **not** count against the user's visible storage quota in the way regular files do
+  (`drive.google.com` shows them only on the *Storage* page under *Hidden app data*).
+- No other app or website can read or list them — the OAuth scope
+  `https://www.googleapis.com/auth/drive.appdata` grants access **only** to files this exact
+  client ID created. This is the narrowest scope Google offers for Drive and is why the app does
+  not have to go through Google's sensitive-scope verification process.
+
+To verify the sync file actually exists after a successful sync:
+
+1. **Two-device test (recommended).** Install the app on a second device (or wipe & reinstall on
+   this one), sign in with the same Google account, tap **Sync now**. All expenses, categories and
+   exchange-rate caches should reappear without re-entering anything.
+2. **Drive web UI.** Open <https://drive.google.com/drive/settings> → **Manage apps**, find
+   *vs-expenses-tracker* in the list. The entry shows the storage used by the app's hidden data
+   (typically a couple of KB) and offers a one-click **Delete hidden app data** action — useful for
+   forcing a fresh sync from scratch during testing. The entry only appears after the first
+   successful upload.
+3. **OAuth Playground.** Sign into <https://developers.google.com/oauthplayground>, authorize
+   `https://www.googleapis.com/auth/drive.appdata`, then call
+   `GET https://www.googleapis.com/drive/v3/files?spaces=appDataFolder`. The response lists
+   `sync.json.gz` with its `id`, `modifiedTime`, and `version` (Drive v3's monotonic concurrency
+   token — see `googleDriveAdapter.ts` for why we use this instead of HTTP `ETag`).
+
+OneDrive's `approot` is slightly more visible: on OneDrive Web it appears as a regular folder under
+**My files → Apps → vs-expenses-tracker**. The app-private guarantee is the same — other apps still
+need the `Files.ReadWrite.AppFolder` permission scoped to your client ID — but the user can browse
+to the file if they want to inspect it.
 
 ### Will other users be able to use my app registration?
 
