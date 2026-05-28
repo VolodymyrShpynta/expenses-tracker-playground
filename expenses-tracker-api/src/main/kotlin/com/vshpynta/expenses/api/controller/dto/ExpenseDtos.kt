@@ -69,10 +69,3 @@ data class ExpenseDto(
     val updatedAt: Long,
     val deleted: Boolean
 )
-
-/**
- * Sync result response
- */
-data class SyncResultDto(
-    val message: String
-)

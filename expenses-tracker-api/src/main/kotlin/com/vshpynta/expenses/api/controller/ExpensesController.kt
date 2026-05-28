@@ -2,10 +2,8 @@ package com.vshpynta.expenses.api.controller
 
 import com.vshpynta.expenses.api.controller.dto.CreateExpenseRequest
 import com.vshpynta.expenses.api.controller.dto.ExpenseDto
-import com.vshpynta.expenses.api.controller.dto.SyncResultDto
 import com.vshpynta.expenses.api.controller.dto.UpdateExpenseRequest
 import com.vshpynta.expenses.api.service.ExpenseCommandService
-import com.vshpynta.expenses.api.service.ExpenseEventSyncService
 import com.vshpynta.expenses.api.service.ExpenseMapper.toDto
 import com.vshpynta.expenses.api.service.ExpenseQueryService
 import jakarta.validation.Valid
@@ -31,8 +29,7 @@ import java.util.UUID
 @RequestMapping("/api/expenses")
 class ExpensesController(
     private val commandService: ExpenseCommandService,
-    private val queryService: ExpenseQueryService,
-    private val expenseEventSyncService: ExpenseEventSyncService
+    private val queryService: ExpenseQueryService
 ) {
 
     @PostMapping
@@ -85,14 +82,6 @@ class ExpensesController(
         val expense = queryService.findExpenseById(UUID.fromString(id))
             ?: throw NoSuchElementException("Expense not found: $id")
         return expense.toDto()
-    }
-
-    @PostMapping("/sync")
-    suspend fun triggerSync(): SyncResultDto {
-        expenseEventSyncService.performFullSync()
-        return SyncResultDto(
-            message = "Sync completed successfully"
-        )
     }
 }
 

@@ -64,7 +64,6 @@ class DataExchangeServiceTest {
     @BeforeEach
     fun setup() {
         runBlocking {
-            databaseClient.sql("DELETE FROM processed_events").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM expense_events").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM expense_projections").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM categories WHERE user_id = '$TEST_USER_ID'")

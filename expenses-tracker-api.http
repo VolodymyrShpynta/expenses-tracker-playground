@@ -109,12 +109,6 @@ Accept: application/json
 
 ###
 
-### Trigger Sync - Manually trigger sync operation
-POST {{ExpensesApiUrl}}/api/expenses/sync
-Accept: application/json
-
-###
-
 ### Export Backup - JSON (lossless)
 GET {{ExpensesApiUrl}}/api/data/export?format=json
 Accept: application/json

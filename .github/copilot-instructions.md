@@ -49,11 +49,12 @@ Understanding these flows is critical before modifying any service code.
 
 | Table                 | Role                                      | Key detail                                                                                 |
 |-----------------------|-------------------------------------------|--------------------------------------------------------------------------------------------|
-| `expense_events`      | Append-only event store (source of truth) | Events are immutable; `committed` flag tracks sync state                                   |
+| `expense_events`      | Append-only event store (source of truth) | Events are immutable                                                                       |
 | `expense_projections` | Materialized read model                   | UPSERT with last-write-wins (`WHERE EXCLUDED.updated_at > expense_projections.updated_at`) |
-| `processed_events`    | Idempotency registry                      | Prevents duplicate event processing during sync                                            |
 
-Schema defined in `expenses-tracker-api/src/main/resources/db/migration/V1__Initial_schema.sql`. Reference data (default category templates) is seeded by the repeatable migration `R__Seed_default_categories.sql`.
+Schema defined in `expenses-tracker-api/src/main/resources/db/migration/V1__Initial_schema.sql` (with `V2__Remove_sync_subsystem.sql` dropping the legacy `committed` column and `processed_events` table). Reference data (default category templates) is seeded by the repeatable migration `R__Seed_default_categories.sql`.
+
+> **No backend sync subsystem.** The backend itself does not participate in cross-device sync. Web clients converge through PostgreSQL directly; backup / migration uses the JSON / CSV endpoints in `DataExchangeController` (`/api/export`, `/api/import`). The mobile app has its own independent TypeScript sync engine over Google Drive / OneDrive (see `expenses-tracker-mobile/README.md`).
 
 ### Write path (local commands)
 
@@ -73,20 +74,15 @@ HTTP → ExpensesController → ExpenseQueryService → expense_projections (WHE
 
 Reads only touch the projection table. Soft-deleted rows are hidden.
 
-### Sync path (file-based multi-device sync)
+### Import / export path (backup & migration)
 
 ```
-ExpenseEventSyncService.performFullSync()
-  1. SyncFileManager.hasFileChanged() — checksum-based skip
-  2. SyncFileManager.readEvents() → RemoteEventProcessor.processRemoteEvents()
-       └─ for each event: ExpenseSyncProjector → ExpenseSyncRecorder (@Transactional)
-  3. Collect local uncommitted events → SyncFileManager.appendEvents()
-  4. Cache file checksum for next cycle
+HTTP → DataExchangeController → DataExchangeService
+         ├─ export → DataExporter   → JSON (lossless) or CSV-in-ZIP
+         └─ import → DataImporter   → ExpenseCommandService.createExpense() per row
 ```
 
-**Critical invariant:** `ExpenseSyncProjector` (cache + DB idempotency checks) and
-`ExpenseSyncRecorder` (`@Transactional` DB writes) are separate `@Component` classes.
-This separation avoids Spring's self-invocation proxy bypass. **Do not merge them.**
+Imports flow through the normal command path so events and projections are produced exactly as for a regular write.
 
 ### Conflict resolution
 
@@ -98,24 +94,21 @@ This separation avoids Spring's self-invocation proxy bypass. **Do not merge the
 
 - UUIDs stored as `VARCHAR(36)` for portability; R2DBC converters wired in `R2dbcConfig`.
 - Event payload is JSON text in `expense_events.payload`; mapped via `JsonOperations` and `ExpenseMapper`.
-- Sync file: optionally gzip-compressed, checksum-cached (`SyncFileManager`, `FileOperations`); default path
-  `./sync-data/sync.json` (+ `.gz`).
 - Flyway runs on a separate JDBC datasource (`spring.flyway.datasource.*`), not R2DBC.
-- Jackson 2.x `ObjectMapper` bean is intentionally **not** `@Primary` — WebFlux uses Jackson 3.x.
+- Jackson 2.x `ObjectMapper` bean is intentionally **not** `@Primary` — WebFlux uses Jackson 3.x; the bean exists for `JsonOperations` (used by `DataExporter`/`DataImporter`).
 
 ### Environment variables
 
 - `EXPENSES_TRACKER_R2DBC_URL`, `EXPENSES_TRACKER_R2DBC_USERNAME`, `EXPENSES_TRACKER_R2DBC_PASSWORD`
 - `EXPENSES_TRACKER_FLYWAY_JDBC_URL`, `EXPENSES_TRACKER_FLYWAY_USERNAME`, `EXPENSES_TRACKER_FLYWAY_PASSWORD`
-- `SYNC_FILE_PATH`, `SYNC_FILE_COMPRESSION_ENABLED`
+- `KEYCLOAK_ISSUER_URI`, `KEYCLOAK_JWK_SET_URI`, `CORS_ALLOWED_ORIGINS`
 
 ### Key files to read before editing
 
 - **Command/query:** `ExpenseCommandService`, `ExpenseQueryService`, `ExpensesController`
-- **Sync:** `ExpenseEventSyncService`, `SyncFileManager`, `RemoteEventProcessor`, `ExpenseSyncProjector`,
-  `ExpenseSyncRecorder`
-- **Correctness tests:** `ExpenseProjectionRepositoryTest`, `ExpenseSyncProjectorTransactionTest`,
-  `ExpenseEventSyncServiceTest`, `ExpenseCommandServiceTransactionTest`
+- **Import / export:** `DataExchangeController`, `DataExchangeService`, `DataExporter`, `DataImporter`, `DataExchangeCsvCodec`
+- **Correctness tests:** `ExpenseProjectionRepositoryTest`, `ExpenseCommandServiceTransactionTest`,
+  `ExpensesControllerTest`, `DataExchangeServiceTest`
 
 ---
 
@@ -131,7 +124,6 @@ that differ from defaults or are frequently violated.
   `append` (not `add`/`insert`) for event store writes.
 - **Logging**: declare in `companion object` with `LoggerFactory.getLogger(...)`. Use SLF4J placeholders (
   `logger.info("Created: {}", id)`), never string interpolation. Never log PII.
-- **Comments explain "why", not "what"** — self-documenting code is the goal. Add comments for non-obvious architectural
-  decisions (e.g., why Projector and Recorder are separate classes).
+- **Comments explain "why", not "what"** — self-documenting code is the goal. Add comments for non-obvious architectural decisions.
 - **Small functions (10–20 lines)**, guard clauses over nested `if`, max 2 levels of indentation.
 - **Always check for errors after edits.** Prefer reading enough context before editing — don't guess file structure.

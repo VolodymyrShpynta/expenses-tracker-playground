@@ -663,9 +663,7 @@ az containerapp create `
     EXPENSES_TRACKER_FLYWAY_PASSWORD=secretref:db-password `
     KEYCLOAK_ISSUER_URI="PLACEHOLDER" `
     KEYCLOAK_JWK_SET_URI="$keycloakJwkSetUri" `
-    CORS_ALLOWED_ORIGINS="PLACEHOLDER" `
-    SYNC_FILE_PATH="/app/sync-data/sync.json" `
-    SYNC_FILE_COMPRESSION_ENABLED=true
+    CORS_ALLOWED_ORIGINS="PLACEHOLDER"
 ```
 
 > **Note:** `--secrets` and `--env-vars` with `secretref:` can only be used together when the app
@@ -749,7 +747,6 @@ limit_req_zone `$binary_remote_addr zone=auth_per_ip:10m       rate=20r/s;
 # Global zones — single counter shared by ALL clients. These are a safety net
 # for the backend even when individual clients stay within per-IP limits.
 limit_req_zone `$server_name         zone=api_global:1m     rate=300r/s;
-limit_req_zone `$server_name         zone=sync_global:1m    rate=10r/m;
 
 server {
     listen 80;
@@ -789,21 +786,6 @@ server {
     client_max_body_size   1m;  # Reject > 1 MB bodies with 413
     client_body_timeout    10s; # Slowloris mitigation (slow POST body)
     client_header_timeout  10s; # Slowloris mitigation (slow headers)
-
-    # Sync endpoint (heavier work — stricter global limit).
-    # Must appear BEFORE /api/ since nginx matches the longest prefix first.
-    location /api/expenses/sync {
-        limit_req zone=api_per_ip   burst=5 nodelay;
-        limit_req zone=sync_global  burst=2 nodelay;
-        limit_req_status 429;
-
-        proxy_pass https://${apiFqdn};
-        proxy_set_header Host $apiFqdn;
-        proxy_set_header X-Real-IP         `$remote_addr;
-        proxy_set_header X-Forwarded-For   `$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto https;
-        proxy_ssl_server_name on;
-    }
 
     # Proxy API requests to the backend (internal ingress)
     location /api/ {
@@ -903,7 +885,7 @@ server {
     > and collapse into a single global bucket. With it, nginx sees the actual browser IP that
     > Envoy forwarded in `X-Forwarded-For`.
 > - **Per-IP limits** on `/api/`, `/auth/`, and the SPA (`/`) cap abuse from any single client.
-> - **Global limits** on `/api/` and `/api/expenses/sync` protect the backend from total overload
+> - **Global limits** on `/api/` protect the backend from total overload
     > even if many clients stay within their per-IP budget.
 > - **`server_tokens off`** hides the exact nginx version from response headers.
 > - **`client_max_body_size 1m`** rejects oversized request bodies with 413.
@@ -1458,7 +1440,6 @@ SET search_path TO public;
 |-------------------------|--------------------------------------------|
 | `expense_projections`   | Read model — current state of each expense |
 | `expense_events`        | Event store — append-only history          |
-| `processed_events`      | Idempotency registry for sync              |
 | `categories`            | User-configurable categories               |
 | `default_categories`    | Template categories seeded for new users   |
 | `flyway_schema_history` | Flyway migration tracking                  |
@@ -1478,12 +1459,6 @@ FROM expense_projections
 WHERE deleted = false
 ORDER BY updated_at DESC
     LIMIT 20;
-
--- Check uncommitted events (pending sync)
-SELECT event_id, event_type, expense_id, timestamp
-FROM expense_events
-WHERE committed = false
-ORDER BY timestamp DESC;
 
 -- Count events by type
 SELECT event_type, count(*)
@@ -1801,7 +1776,7 @@ Write-Host "Keycloak URL: $keycloakUrl" -ForegroundColor Green
 # 11. Deploy API (internal ingress) — issuer-uri is a placeholder until frontend URL is known
 $keycloakJwkSetUri = "$keycloakUrl/auth/realms/expenses-tracker/protocol/openid-connect/certs"
 
-az containerapp create --name $apiAppName --resource-group $resourceGroup --environment $envName --image "$acrName.azurecr.io/expenses-api:latest" --target-port 8080 --ingress internal --registry-server "$acrName.azurecr.io" --registry-username $acrName --registry-password $acrPassword --cpu 0.5 --memory 1.0Gi --min-replicas 1 --max-replicas 3 --secrets db-password="$dbAdminPassword" --env-vars EXPENSES_TRACKER_R2DBC_URL="$dbR2dbcUrl" EXPENSES_TRACKER_R2DBC_USERNAME="$dbAdminUser" EXPENSES_TRACKER_R2DBC_PASSWORD=secretref:db-password EXPENSES_TRACKER_FLYWAY_JDBC_URL="$dbJdbcUrl" EXPENSES_TRACKER_FLYWAY_USERNAME="$dbAdminUser" EXPENSES_TRACKER_FLYWAY_PASSWORD=secretref:db-password KEYCLOAK_ISSUER_URI="PLACEHOLDER" KEYCLOAK_JWK_SET_URI="$keycloakJwkSetUri" CORS_ALLOWED_ORIGINS="PLACEHOLDER" SYNC_FILE_PATH="/app/sync-data/sync.json" SYNC_FILE_COMPRESSION_ENABLED=true
+az containerapp create --name $apiAppName --resource-group $resourceGroup --environment $envName --image "$acrName.azurecr.io/expenses-api:latest" --target-port 8080 --ingress internal --registry-server "$acrName.azurecr.io" --registry-username $acrName --registry-password $acrPassword --cpu 0.5 --memory 1.0Gi --min-replicas 1 --max-replicas 3 --secrets db-password="$dbAdminPassword" --env-vars EXPENSES_TRACKER_R2DBC_URL="$dbR2dbcUrl" EXPENSES_TRACKER_R2DBC_USERNAME="$dbAdminUser" EXPENSES_TRACKER_R2DBC_PASSWORD=secretref:db-password EXPENSES_TRACKER_FLYWAY_JDBC_URL="$dbJdbcUrl" EXPENSES_TRACKER_FLYWAY_USERNAME="$dbAdminUser" EXPENSES_TRACKER_FLYWAY_PASSWORD=secretref:db-password KEYCLOAK_ISSUER_URI="PLACEHOLDER" KEYCLOAK_JWK_SET_URI="$keycloakJwkSetUri" CORS_ALLOWED_ORIGINS="PLACEHOLDER"
 
 $apiFqdn = az containerapp show --name $apiAppName --resource-group $resourceGroup --query properties.configuration.ingress.fqdn -o tsv
 

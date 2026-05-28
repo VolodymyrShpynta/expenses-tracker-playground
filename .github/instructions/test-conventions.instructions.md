@@ -12,7 +12,7 @@ These rules apply when working on test files under `expenses-tracker-api/src/tes
 
 - All integration tests use **Testcontainers PostgreSQL** — Docker must be running.
 - Import `TestContainersConfig` with `@Import(TestContainersConfig::class)` and activate the test profile with `@ActiveProfiles("test")`.
-- The test profile uses `application-test.yaml` which disables gzip compression and writes sync files to `./build/test-sync-data/`.
+- The test profile uses `application-test.yaml` (kept minimal after the sync subsystem was removed).
 - Use `@SpringBootTest(webEnvironment = RANDOM_PORT)` for controller/HTTP tests that need a running server.
 - Use `@SpringBootTest` (default, no web environment) for service/repository integration tests.
 - Use `WebTestClient` for HTTP assertions (configure via `WebTestClientConfig`).
@@ -31,18 +31,13 @@ Reactive R2DBC tests **cannot** rely on Spring's `@Transactional` test rollback 
 @BeforeEach
 fun setup() {
     runBlocking {
-        databaseClient.sql("DELETE FROM processed_events").fetch().rowsUpdated().awaitSingle()
         databaseClient.sql("DELETE FROM expense_events").fetch().rowsUpdated().awaitSingle()
         databaseClient.sql("DELETE FROM expense_projections").fetch().rowsUpdated().awaitSingle()
     }
 }
 ```
 
-Always delete in dependency order: `processed_events` → `expense_events` → `expense_projections`.
-
-## Reset `ProcessedEventsCache` in sync tests
-
-The in-memory `ProcessedEventsCache` persists across tests in the same Spring context. Call `processedEventsCache.reset()` in `@BeforeEach` for any test that exercises the sync/projection path, otherwise idempotency checks will produce false positives.
+Always delete in dependency order: `expense_events` → `expense_projections`.
 
 ## Coroutines in tests
 
@@ -81,6 +76,4 @@ assertThat(result).isTrue()
 
 ## Sync file tests
 
-- Tests write uncompressed JSON sync files directly (compression disabled in test profile).
-- Clean up sync files in both `@BeforeEach` and `@AfterEach`.
-- Use `ObjectMapper` to write `EventSyncFile` objects to the test sync path.
+The backend no longer has a sync subsystem (no `SyncFileManager`, `processed_events`, or sync file path). If you need backup / migration coverage, target `DataExchangeService` (JSON + CSV-in-ZIP through `/api/export` and `/api/import`).

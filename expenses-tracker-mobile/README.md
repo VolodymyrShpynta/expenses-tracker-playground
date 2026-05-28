@@ -5,12 +5,14 @@ React Native Paper v5**. It **never talks to [`expenses-tracker-api`](../expense
 — all state lives in a local SQLite database, and multi-device convergence happens through the user's
 own Google Drive `appDataFolder` or OneDrive `approot`.
 
-> **Where this module fits.** The mobile app is independent of the web frontend and backend. It ports
-> the same **event-sourcing + CQRS** model and sync engine to TypeScript so the on-device behavior is
-> identical to the backend's Kotlin implementation. For the cross-cutting **Sync Engine Architecture**,
-> the **sync file format**, and the **mobile sync TypeScript port** (including the
-> *Automatic Sync Triggers, Throttling, and Bandwidth* subsection), see the
-> [root README](../README.md#-sync-engine-architecture).
+> **Where this module fits.** The mobile app is independent of the web frontend and backend. It uses
+> the same **event-sourcing + CQRS** model that the backend uses for its REST API (last-write-wins by
+> strict-greater-than timestamp, immutable event log, materialized projections), but it implements that
+> model end-to-end in TypeScript on `expo-sqlite` so it can run fully offline. The **backend has no
+> sync subsystem**: web clients converge through PostgreSQL directly, and backup / migration use the
+> JSON / CSV import-export endpoints on the API. **This README is the canonical reference for the
+> cross-device sync engine** — file format, snapshot model, throttling, idempotency, and OAuth wiring
+> all live here, not in the root README.
 >
 > The mobile module is a Gradle subproject (`./gradlew :expenses-tracker-mobile:check` runs lint +
 > Vitest + type-check) so it participates in the same monorepo build as the backend and web frontend.
@@ -23,6 +25,18 @@ own Google Drive `appDataFolder` or OneDrive `approot`.
   - [📑 Table of Contents](#-table-of-contents)
   - [🎯 Overview](#-overview)
   - [🛠 Tech Stack](#-tech-stack)
+  - [🔄 Sync Engine Architecture](#-sync-engine-architecture)
+    - [Design Principles](#design-principles)
+    - [Database Schema (on-device, `expo-sqlite`)](#database-schema-on-device-expo-sqlite)
+    - [Conflict Resolution — Strict `>` Last-Write-Wins](#conflict-resolution--strict--last-write-wins)
+    - [Sync Workflow (cloud-drive cycle)](#sync-workflow-cloud-drive-cycle)
+    - [Sync File Format](#sync-file-format)
+    - [Automatic Sync Triggers, Throttling, and Bandwidth](#automatic-sync-triggers-throttling-and-bandwidth)
+    - [Apply-Time Optimizations \& Cold-Install Fast Path](#apply-time-optimizations--cold-install-fast-path)
+    - [Design Alternatives Considered — Why Not Full LSM Compaction?](#design-alternatives-considered--why-not-full-lsm-compaction)
+    - [Idempotency Guarantees](#idempotency-guarantees)
+    - [Component Diagram (mobile-internal)](#component-diagram-mobile-internal)
+    - [Mobile Module Layout](#mobile-module-layout)
   - [🚀 Running the Mobile App](#-running-the-mobile-app)
     - [Quick start](#quick-start)
     - [Setting up a simulator / emulator](#setting-up-a-simulator--emulator)
@@ -79,18 +93,22 @@ The mobile app:
 
 - Runs entirely on-device — **no backend dependency**. The entire data layer (event store, projection
   table, idempotency registry) lives in `expo-sqlite`.
-- Implements the same **event-sourced, CQRS** model as the backend: append-only `expense_events`,
-  materialized `expense_projections`, idempotent `processed_events`. The TypeScript projector mirrors
-  the Kotlin one byte-for-byte at the conflict-resolution layer (strict `>` last-write-wins).
+- Implements the same **event-sourced, CQRS** model that the backend uses for its REST API: append-only
+  `expense_events`, materialized `expense_projections`, plus a mobile-only `processed_events` table for
+  remote-event idempotency. The TypeScript projector mirrors the Kotlin projection algorithm exactly at
+  the conflict-resolution layer (strict `>` last-write-wins).
 - Syncs across the user's devices via a **shared sync file** in their own cloud drive:
-  Google Drive `appDataFolder` or OneDrive `approot`. The sync file is gzip-compressed JSON, **byte-identical
-  to the backend's `SyncFileManager` output**.
+  Google Drive `appDataFolder` or OneDrive `approot`. The sync file is gzip-compressed JSON; the wire
+  format and snapshot model are documented in this README. **The backend itself has no equivalent
+  file-sync subsystem** — web clients converge through PostgreSQL directly and backup / migration use
+  the JSON / CSV `/api/export` and `/api/import` endpoints instead.
 - Uses **OAuth 2.0 + PKCE** with no client secret for cloud-drive authentication
   ([Cloud-Drive Sync — Getting OAuth Client IDs](#-cloud-drive-sync--getting-oauth-client-ids)).
 - Has a single `AutoSyncCoordinator` that funnels every sync trigger (cold start, foreground, after-write
   debounce, app-background flush, network reconnect, manual button) and enforces a 30 s minimum gap
   between auto-syncs — see the
-  [Automatic Sync Triggers, Throttling, and Bandwidth subsection in the root README](../README.md#mobile-sync-typescript-port).
+  [Automatic Sync Triggers, Throttling, and Bandwidth](#automatic-sync-triggers-throttling-and-bandwidth)
+  section below.
 - Converts foreign-currency expenses using the **historical monthly rate for the expense's month**
   (cached locally, sourced from the free, key-less [Frankfurter](https://api.frankfurter.dev) API)
   rather than today's rate, so long-range totals don't drift as FX moves. When an exact-month rate
@@ -108,7 +126,8 @@ The path-scoped Copilot rules for this module live in
 - **TypeScript** (strict + `verbatimModuleSyntax` + `exactOptionalPropertyTypes`)
 - **React Native Paper v5** — Material 3 component library
 - **Expo Router** — file-based routing with typed routes
-- **expo-sqlite** — local event store + projection + idempotency registry (port of the backend's three tables)
+- **expo-sqlite** — local event store + projection + idempotency registry (mobile-only schema,
+  see [Database Schema (on-device, `expo-sqlite`)](#database-schema-on-device-expo-sqlite))
 - **TanStack Query** — wraps the local store, mirroring the web frontend's data-fetching layer
 - **expo-auth-session** — OAuth 2.0 + PKCE for Google Drive / OneDrive (no client secret)
 - **expo-secure-store** — Keychain (iOS) / Keystore (Android) for tokens
@@ -116,7 +135,7 @@ The path-scoped Copilot rules for this module live in
   *network reconnect* auto-sync trigger; covers the gap where the app stays foregrounded
   through a connectivity outage (train tunnel, elevator, weak Wi-Fi) and regains the network
   without any user action
-- **pako** — gzip encode/decode of `sync.json.gz` (byte-identical to the backend's `SyncFileManager` output)
+- **pako** — gzip encode/decode of `sync.json.gz` (the mobile-only sync wire format)
 - **[Frankfurter](https://api.frankfurter.dev)** (`api.frankfurter.dev/v2`) — free, key-less,
   ECB-backed historical + latest FX rates; powers the
   [historical-rate currency conversion](#-historical-rate-currency-conversion)
@@ -124,6 +143,444 @@ The path-scoped Copilot rules for this module live in
 - **Vitest** — pure-TypeScript unit tests for `src/domain/`, `src/sync/`, `src/api/`, and `src/utils/`
   (330+ tests across 25 files). React Native components are NOT tested here — that requires
   `jest-expo`, which is out of scope for the current setup.
+
+---
+
+## 🔄 Sync Engine Architecture
+
+The mobile app implements an **offline-first, peer-to-peer sync engine** over the user's own cloud
+drive. There is no central service — every device runs the same algorithm against a single shared
+file (`sync.json.gz`) in Google Drive `appDataFolder` or OneDrive `approot`. The backend has no
+equivalent file-sync subsystem; this section describes the entire protocol that runs on mobile.
+
+### Design Principles
+
+1. **Offline-first.** Every write commits to local SQLite synchronously. The user is never blocked
+   by network availability.
+2. **Eventual consistency by last-write-wins.** Conflicts resolve by event `updatedAt` timestamp
+   with strict `>` — equal timestamps don't override. No vector clocks, no CRDTs.
+3. **Idempotent at every layer.** The same event applied N times yields the same projection.
+   Network retries, duplicate downloads, and replays during recovery are all safe.
+4. **One sync in flight at a time.** A single `AutoSyncCoordinator` funnels every trigger and
+   enforces a 30 s minimum gap between auto-syncs.
+5. **No coordinator, no leader.** Every device runs the same algorithm against a single shared
+   file in the user's own cloud drive. Nothing to deploy or operate.
+6. **Bandwidth-frugal.** Conditional download (`If-None-Match` → 304), embedded snapshots for
+   cold-install, and body truncation after every upload keep round-trips and bytes small even
+   on cellular.
+
+### Database Schema (on-device, `expo-sqlite`)
+
+The mobile app mirrors the CQRS shape used by the backend's REST API on three tables, plus a
+fourth idempotency registry:
+
+| Table                 | Purpose                                                                                                          |
+|-----------------------|------------------------------------------------------------------------------------------------------------------|
+| `expense_events`      | Append-only event store. Source of truth for all expense changes on this device.                                 |
+| `expense_projections` | Materialized read model. UPSERT with strict `>` last-write-wins on `updated_at`.                                 |
+| `category_events`     | Append-only event store for categories.                                                                          |
+| `categories`          | Materialized read model for categories. UPSERT with the same LWW guard.                                          |
+| `processed_events`    | Idempotency registry. Stores `(event_id, timestamp)` pairs for every remote event already applied to this device. |
+
+`processed_events` carries the **original emission timestamp** (not the local "observed at") so
+the retention window in `snapshotBuilder` can prune entries deterministically across devices.
+WAL + `synchronous = NORMAL` PRAGMAs are set on every connection in
+[`src/db/databaseProvider.tsx`](src/db/databaseProvider.tsx) so writes don't fsync on every commit
+— a measurable win during the cold-install snapshot bootstrap.
+
+### Conflict Resolution — Strict `>` Last-Write-Wins
+
+The projection UPSERT only fires when the incoming `updatedAt` is **strictly greater than** the
+stored row's `updatedAt`:
+
+```sql
+INSERT INTO expense_projections (...) VALUES (...)
+ON CONFLICT(id) DO UPDATE SET
+    description = excluded.description,
+    amount      = excluded.amount,
+    ...
+    updated_at  = excluded.updated_at
+WHERE excluded.updated_at > expense_projections.updated_at;
+```
+
+This rule applies uniformly to `CREATED`, `UPDATED`, and `DELETED` events. Two consequences:
+
+- **Soft deletes are not terminal.** A `DELETED` event with `updatedAt = T` can be superseded by
+  a later `UPDATED` event with `updatedAt > T` (resurrection).
+- **Equal timestamps are rejected** (strict `>`, not `>=`) — necessary to make the rule symmetric
+  across devices and avoid a "last receiver wins" tiebreak.
+
+### Sync Workflow (cloud-drive cycle)
+
+```
+SyncEngine.performFullSync(adapter)
+  1. adapter.download({ ifNoneMatch: cachedEtag })
+        kind = 'not-modified' → cache hit, skip remote-event processing
+        kind = 'absent'       → first sync, no remote file yet
+        kind = 'modified'     → SyncFileCodec.decode → snapshot? + events[]
+             if snapshot present and version matches:
+                applySnapshot   (bulk LWW UPSERTs + INSERT OR IGNORE into processed_events)
+             for each event past the snapshot:
+                RemoteEventApplier.apply   (processed_events idempotency + projection)
+  2. LocalStore.findUncommittedEvents
+        → dropCoveredEvents against snapshot.coveredEvents
+        → SyncFileCodec.encode
+        → adapter.upload({ ifMatch: etag })
+  3. cache new etag (persist to AsyncStorage for cold-start fast path)
+  4. on 412 Precondition Failed → ConcurrencyError → retry (max 3) — concurrent writer detected
+```
+
+> **One round-trip on a no-op cycle.** The engine never calls a separate `getMetadata()` probe
+> before `download()`. The adapter folds the eTag check into the same request — Google Drive sends
+> HTTP `If-None-Match`; OneDrive folds it into the metadata round-trip it already needs for the
+> item id, so a cache hit never touches `/content`.
+
+**Concurrency.** Both Drive REST and Microsoft Graph return an eTag on the file resource; the
+engine forwards it as `If-Match` on upload. A `412 Precondition Failed` becomes a
+`ConcurrencyError`, the engine reloads the file, re-applies remote events on top, and retries up
+to `MAX_RETRIES = 3` times.
+
+**Sort order.** `(timestamp ASC, eventId ASC)` so every device replays events in the same
+deterministic order.
+
+### Sync File Format
+
+**Path on the cloud drive:** `sync.json.gz` at the root of the per-user OAuth scope — Google Drive
+`appDataFolder` (hidden, app-only) or OneDrive `approot` (hidden under *Apps / Expenses Tracker*).
+The file is gzip-compressed JSON.
+
+```jsonc
+{
+  "snapshot": {
+    "version": 2,
+    "createdAt": 1737475200000,
+    "expenses":   [ /* every ExpenseProjection, including soft-deleted tombstones */ ],
+    "categories": [ /* every Category, including soft-deleted */ ],
+    "coveredEvents": [
+      // Sorted by eventId. Each entry pairs the event id with the
+      // event's original emission timestamp (epoch ms).
+      { "eventId": "…", "timestamp": 1737475100000 }
+    ]
+  },
+  "events":         [ /* events past the snapshot, deterministically sorted */ ],
+  "categoryEvents": [ /* …same for categories */ ]
+}
+```
+
+**Event entry shape** (same shape for `events` and `categoryEvents`):
+
+```jsonc
+{
+  "eventId":   "550e8400-e29b-41d4-a716-446655440000",
+  "timestamp": 1737475200000,
+  "eventType": "CREATED",                                // or UPDATED / DELETED
+  "expenseId": "c4f3d7e9-8b2a-4e6c-9d1f-5a8b3c7e2f0d",
+  "userId":    "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "payload": {
+    "id":          "c4f3d7e9-8b2a-4e6c-9d1f-5a8b3c7e2f0d",
+    "description": "Coffee",
+    "amount":      450,                                  // cents
+    "currency":    "USD",
+    "categoryId":  "7f1c2a3b-4d5e-6f70-8192-a3b4c5d6e7f8",
+    "date":        "2026-01-20T10:00:00Z",
+    "updatedAt":   1737475200000,
+    "deleted":     false
+  }
+}
+```
+
+**Backward compatibility.** Files **without** a `snapshot` field remain readable (the body is
+treated as the full event log). Files **with** a `snapshot` must be read by a build that
+understands `SNAPSHOT_VERSION`; a mismatch raises `IncompatibleSnapshotError` (the cloud file is
+left untouched and the UI surfaces "please update").
+
+### Automatic Sync Triggers, Throttling, and Bandwidth
+
+The mobile module fires sync automatically — components and hooks **never call
+`engine.performFullSync()` directly**. Every trigger goes through `AutoSyncCoordinator`
+([`src/sync/autoSyncCoordinator.ts`](src/sync/autoSyncCoordinator.ts)), which enforces:
+
+- an in-flight guard (one sync at a time),
+- `MIN_AUTO_INTERVAL_MS = 30_000` between two consecutive **auto**-syncs (the manual button passes
+  `{ force: true }` to bypass),
+- after-write debounce: `QUIET_DEBOUNCE_MS = 15_000` collapses a burst of edits into one upload,
+  capped by `CEILING_MS = 60_000` so a continuous edit stream still uploads at least once a minute.
+
+| Trigger           | Fires when                                                  | Coordinator call                          |
+|-------------------|-------------------------------------------------------------|-------------------------------------------|
+| Cold start        | `signedIn && autoSyncEnabled` becomes `true` on mount       | `requestSync('cold-start')`               |
+| Foreground        | `AppState` transitions `background\|inactive → active`      | `requestSync('app-active')`               |
+| After local write | Mutation hooks call `notifyLocalWrite()` on success         | `notifyLocalWrite()` (debounced)          |
+| App backgrounded  | `AppState` transitions `active → background\|inactive`      | `flush('background-flush')`               |
+| Net reconnect     | NetInfo reports offline → online                            | `requestSync('net-reconnect')`            |
+| Manual button     | "Sync now" in `SyncCloudDialog`                             | `requestSync('manual', { force: true })`  |
+
+The user controls auto-sync via a toggle in `SyncCloudDialog` (persisted under
+`expenses-tracker-sync-auto-enabled`, default on). When it's off, every row above except the
+manual button is silenced and any pending after-write debounce is cancelled. NetInfo is
+**soft-imported**: if `@react-native-community/netinfo` is not installed, the net-reconnect
+trigger silently no-ops.
+
+**Conditional download (`If-None-Match` → 304).** Auto-sync triggers fire frequently — cold start,
+foreground, and net reconnect can all hit within seconds of app launch.
+`CloudDriveAdapter.download(opts?)` returns a discriminated union:
+
+```ts
+type DownloadOutcome =
+  | { kind: 'modified';     bytes: Uint8Array; etag: string }
+  | { kind: 'not-modified'; etag: string }   // bandwidth saver — no body
+  | { kind: 'absent' };                       // first sync, file missing
+```
+
+When nothing local is pending and a cached eTag exists, the engine calls
+`download({ ifNoneMatch: cachedEtag })`. When local writes are pending the engine downloads
+unconditionally — the bytes are needed for the merge step anyway. In-memory test adapters expose a
+`notModifiedCount` counter so engine tests can assert the short-circuit fires.
+
+**Persisted eTag across cold starts.** The cached eTag survives process restart. `SyncProvider`
+hydrates the per-provider key `expenses-tracker-sync-etag:<provider>` from `AsyncStorage` and seeds
+the engine via `SyncEngineDeps.initialEtag`. The engine reports updates back through
+`onEtagChange`, which writes fire-and-forget to `AsyncStorage` — it deliberately **does not**
+update React state, since a state update on every sync would rebuild the engine `useMemo` and
+reset the coordinator's 30 s throttle. On sign-out the persisted entry is cleared, so a subsequent
+sign-in to a different account on the same provider never reuses the previous account's
+validator. The engine also reports `undefined` whenever it invalidates the cache (concurrency
+conflict, remote file disappeared), so the persisted copy is dropped at the same moment.
+
+The first sync after install still does one unconditional download — there is nothing to
+revalidate against. Every subsequent cold start should short-circuit at 304.
+
+### Apply-Time Optimizations & Cold-Install Fast Path
+
+The mobile apply pipeline has three layered optimizations on top of the per-event idempotent
+applier. All three run on every sync; together they keep a fresh install bootstrap-able in about a
+minute even when the sync file already carries thousands of historical events.
+
+**1. Batched-transaction apply** ([`src/sync/batchApply.ts`](src/sync/batchApply.ts)). Remote
+events are applied in chunks of `CHUNK_SIZE = 200` inside a single `expo-sqlite` transaction so the
+per-event bridge cost amortizes. A failing chunk falls back to a per-event retry loop so one
+corrupt payload can never abort the rest. Between chunks the helper does a `setTimeout(0)` to let
+the UI thread render — important on a list screen that's open during a large initial sync.
+
+**2. Embedded snapshot in the sync file**
+([`src/sync/snapshotBuilder.ts`](src/sync/snapshotBuilder.ts),
+[`src/sync/snapshotApply.ts`](src/sync/snapshotApply.ts),
+[`src/sync/snapshotPolicy.ts`](src/sync/snapshotPolicy.ts)). The sync file optionally carries a
+materialized view of the read model. Cold-install devices apply the snapshot once — bulk LWW
+UPSERTs for `expense_projections` and `categories`, plus bulk `INSERT OR IGNORE` into
+`processed_events` (`event_id`, `timestamp`) for every `coveredEvents` entry — then iterate the
+small post-cutoff event tail. Warm devices see the snapshot as a no-op because their LWW
+comparison loses for every row (strict `>` by `updatedAt`).
+
+The snapshot is **purely an optimization** for current readers — semantic correctness is
+unchanged once the version matches. But the body is **not** a complete event log:
+`dropCoveredEvents` removes every event already captured by the snapshot before upload, so reading
+just the body without understanding the snapshot would produce partial state.
+
+**Snapshot schema version.** `SNAPSHOT_VERSION` is the integer carried in every snapshot. It acts
+as an emergency fuse for incompatible shape changes that can't be handled by additive evolution.
+A mismatch causes `applySnapshot` to throw `IncompatibleSnapshotError`, which propagates out of
+`performFullSync` (the retry loop only catches `ConcurrencyError`) and surfaces in the UI as
+"this sync file was written by a newer version of the app — please update". The cloud file is
+left untouched. Falling back to the body alone would be unsafe because of the truncation above,
+so the strict abort is intentional: bump the version only for unrenameable/untyped changes you
+don't want older peers to apply blindly.
+
+The on-device `processed_events` table stores `(event_id, timestamp)` pairs so snapshot builds can
+carry the original emission timestamp through to peers. Pairing the timestamp with the id means
+receiving devices preserve enough information to apply the retention window on their own subsequent
+rebuilds. Without it, each cross-device hop would re-stamp the ids with a new "observed at" time
+and pruning would never converge.
+
+**Refresh policy** ([`snapshotPolicy.ts`](src/sync/snapshotPolicy.ts)). Rewriting the snapshot
+every cycle wastes bandwidth; never rewriting it lets cold-install cost grow without bound. The
+chosen heuristic refreshes the snapshot when **more than `SNAPSHOT_REFRESH_THRESHOLD = 500`
+events** have accumulated past the existing snapshot's `createdAt` (counted across both event
+streams). Idle periods produce zero rewrites; busy periods produce exactly enough refreshes to
+bound cold-install cost.
+
+**Retention window** (`PRUNE_WINDOW_MS = 30 days` in
+[`snapshotBuilder.ts`](src/sync/snapshotBuilder.ts)). When the snapshot is rebuilt, entries in
+`coveredEvents` whose `timestamp <= createdAt - PRUNE_WINDOW_MS` are dropped. This bounds the size
+of `coveredEvents` even after years of writes — the projections continue to reflect those events,
+but their ids are no longer enumerated. The trade-off is precise: an event whose id has been
+pruned is no longer detectable as covered by `dropCoveredEvents`, so if a stale copy of that event
+somehow still rides along in a peer's body it will be re-applied on the next sync. Re-apply is a
+no-op by LWW (the projection already reflects the same `updatedAt`), so the correctness cost is
+zero — only a one-time CPU cost on the rare "old straggler" event. The window value is the
+smallest that comfortably exceeds expected sync latency for offline-then-reconnect scenarios
+(cellular dead zones, lost phones turned back on weeks later).
+
+**3. Body truncation against `coveredEvents`.** Every upload — not just refresh cycles — runs
+`dropCoveredEvents(events, snapshot.coveredEvents)` before encoding. The body then carries only
+events past the embedded snapshot, bounding steady-state file growth to one refresh window.
+Always-on truncation is also self-healing: if an upload was ever interrupted and left a stale
+event in the body, the next cycle drops it because a covered event can never re-enter the body
+(until the retention window drops its id, at which point LWW absorbs the re-apply as described
+above).
+
+### Design Alternatives Considered — Why Not Full LSM Compaction?
+
+The current design is, conceptually, a **degenerate two-level LSM tree** collapsed into a single
+sync file. The mapping is direct:
+
+| LSM concept                  | Mobile equivalent                                              |
+|------------------------------|----------------------------------------------------------------|
+| Memtable                     | `expense_events` / `category_events` rows with `committed = 0` |
+| L0 (immutable recent log)    | `EventSyncFile.events` / `categoryEvents` (the body)           |
+| Compacted level (read model) | `EventSyncFile.snapshot` (projections + `coveredEvents`)       |
+| Compaction trigger           | `shouldRefreshSnapshot` (500-event threshold)                  |
+| Tombstone GC                 | 30-day `PRUNE_WINDOW_MS` on `coveredEvents`                    |
+
+A natural extension would be a "proper" LSM with **multiple files per cloud-drive folder** — for
+example a long-lived `snapshot.json.gz` plus per-device `tail-<deviceId>.json.gz` write-only delta
+files, periodically compacted into a new snapshot. This was considered and **deliberately
+rejected** in favor of the single-file model:
+
+1. **Cloud-drive storage gives us per-file eTags only — no cross-file atomicity.** A multi-file
+   design would require a separate manifest with its own concurrency story (write new snapshot →
+   bump manifest → delete tails). Any crash between those steps leaves orphaned objects we'd
+   have to reconcile on every read. The single-file model is *one* atomic unit and one eTag check.
+2. **iCloud Drive's directory listing is lazily consistent.** Newly added files can be invisible
+   to peers for seconds to minutes after upload. That breaks the "read snapshot + every peer's
+   tail" step in subtle ways that are very hard to test on emulators. Reading a single well-known
+   file at a fixed path sidesteps this entirely.
+3. **No leader for compaction.** Server-backed LSMs have one writer choosing when to compact. In
+   a peer-to-peer cloud-drive topology, every device would race to rewrite the snapshot, causing
+   wasted work and constant eTag retries. A "designated compactor" requires consensus, which the
+   mobile sync architecture explicitly avoids.
+4. **Tail-file GC requires a high-water mark we can't compute.** "When can device A delete
+   `tail-A.json.gz`?" → only when *every* peer has observed a snapshot that already absorbed it.
+   We don't have a peer registry. The pragmatic answer ("delete after N days") just recreates the
+   same retention-window trade-off `PRUNE_WINDOW_MS` already solves.
+5. **File-count would grow per device, including orphans.** Reinstalls and new phones generate
+   fresh device ids, leaving stale `tail-<oldDeviceId>.json.gz` objects in the user's drive
+   folder forever. Now we need orphan reaping logic, which is its own correctness problem.
+6. **The savings are modest for the actual workload.** Target users have 1–3 devices and write
+   ~10–100 events/day. With `PRUNE_WINDOW_MS = 30 days` the snapshot stays small (low single-digit
+   MB gzipped even for power users), so the "wasted re-upload" optimized away by an LSM split is
+   on the order of a few KB per sync — well below the noise floor of cellular round-trip variance.
+7. **Cheaper wins capture most of the same benefit on one file.** The current design already
+   does: short-circuit upload when nothing local changed *and* remote eTag is unchanged; skip the
+   snapshot rebuild on most cycles (`shouldRefreshSnapshot`); and reuse the prior snapshot bytes
+   verbatim when only the body changes. These give us LSM-style amortization (less I/O, less CPU,
+   less bandwidth) with **zero new failure modes**.
+
+The two-level conceptual model is the right one for this domain. The cost of physically
+materializing the levels into separate cloud objects is not justified by the savings.
+
+### Idempotency Guarantees
+
+The sync engine is idempotent at three layers — duplicate downloads, network retries, and
+replays after partial-crash recovery are all safe.
+
+**Layer 1: application-level (the `processed_events` table).** Before applying a remote event,
+`RemoteEventApplier` checks the `processed_events` registry:
+
+```ts
+if (await store.isEventProcessed(event.eventId)) {
+  return false;        // already applied, skip
+}
+await projector.apply(event);
+await store.markEventProcessed(event.eventId, event.timestamp);
+```
+
+The check and the apply run inside the same SQLite transaction, so a crash between them can't
+leave the projection updated without a registry entry.
+
+**Layer 2: database-level (the strict-`>` UPSERT).** Even without the registry, applying the same
+event twice is a no-op because the projection UPSERT only fires when
+`excluded.updated_at > expense_projections.updated_at`. The second apply has an equal timestamp
+and is filtered out by the `WHERE` clause.
+
+**Layer 3: network-retry (the eTag dance).** A `412 Precondition Failed` on upload throws
+`ConcurrencyError`, the engine reloads the file, re-applies remote events on top, and retries.
+Because layers 1 and 2 are idempotent, "re-apply" is safe — events that already made it through
+become no-ops.
+
+### Component Diagram (mobile-internal)
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                          Mobile App (one device)                       │
+│                                                                        │
+│  ┌─────────────────────┐                                               │
+│  │ UI / Hooks          │── notifyLocalWrite() ───┐                     │
+│  │ (TanStack Query)    │                         ▼                     │
+│  └──────────┬──────────┘                  ┌──────────────────────┐     │
+│             │                             │ AutoSyncCoordinator  │     │
+│             ▼                             │  (in-flight guard,   │     │
+│   ┌────────────────────┐                  │   30s throttle,      │     │
+│   │ Commands / Queries │                  │   debounce/ceiling)  │     │
+│   │   (CQRS split)     │                  └──────────┬───────────┘     │
+│   └─────────┬──────────┘                             │                 │
+│             │                                        ▼                 │
+│             ▼                          ┌────────────────────────┐      │
+│   ┌─────────────────────┐              │      SyncEngine        │      │
+│   │  LocalStore         │◄────────────►│  performFullSync()     │      │
+│   │ (expo-sqlite, WAL)  │              └──────────┬─────────────┘      │
+│   └─────────────────────┘                         │                    │
+│             ▲                          ┌──────────┴──────────┐         │
+│             │                          ▼                     ▼         │
+│             │            ┌──────────────────────┐  ┌──────────────────┐│
+│             │            │ RemoteEventApplier   │  │  SyncFileCodec   ││
+│             │            │ (processed_events    │  │ (gzip + JSON +   ││
+│             │            │  idempotency check)  │  │  snapshot/body)  ││
+│             │            └──────────┬───────────┘  └────────┬─────────┘│
+│             │                       │                       │          │
+│             └───────────── apply ───┘                       ▼          │
+│                                                  ┌───────────────────┐ │
+│                                                  │ CloudDriveAdapter │ │
+│                                                  │  (eTag, 304, 412) │ │
+│                                                  └────────┬──────────┘ │
+│                                                           │            │
+│                                  ┌────────────────────────┼─────────┐  │
+│                                  ▼                        ▼         ▼  │
+│                          GoogleDriveAdapter        OneDriveAdapter     │
+│                          (appDataFolder)           (approot)           │
+└────────────────────────────────────────────────────────────────────────┘
+                                       ▲
+                                       │  sync.json.gz
+                                       ▼
+                          ┌─────────────────────────┐
+                          │  User's own cloud drive │
+                          │   (no backend involved) │
+                          └─────────────────────────┘
+                                       ▲
+                                       │
+                          ┌─────────────────────────┐
+                          │   Another device of     │
+                          │     the same user       │
+                          │  (same architecture)    │
+                          └─────────────────────────┘
+```
+
+### Mobile Module Layout
+
+| Module                                                                       | Responsibility                                                                |
+|------------------------------------------------------------------------------|-------------------------------------------------------------------------------|
+| [`src/domain/projector.ts`](src/domain/projector.ts)                         | Last-write-wins UPSERT helper used by both local writes and remote applies.   |
+| [`src/domain/commands.ts`](src/domain/commands.ts) / [`queries.ts`](src/domain/queries.ts) | CQRS write/read split. Each command runs in one SQLite transaction.           |
+| [`src/sync/syncEngine.ts`](src/sync/syncEngine.ts)                           | Sync orchestration (`performFullSync`, retry loop, eTag bookkeeping).         |
+| [`src/sync/autoSyncCoordinator.ts`](src/sync/autoSyncCoordinator.ts)         | In-flight guard, 30 s throttle, after-write debounce / ceiling.               |
+| [`src/sync/autoSyncSignal.ts`](src/sync/autoSyncSignal.ts)                   | Module-level `notifyLocalWrite()` exposed to mutation hooks.                  |
+| [`src/sync/codec.ts`](src/sync/codec.ts)                                     | Gzip + JSON encode / decode of the `sync.json.gz` wire format.                |
+| [`src/sync/snapshotBuilder.ts`](src/sync/snapshotBuilder.ts)                 | Build the embedded snapshot (with retention-window pruning).                  |
+| [`src/sync/snapshotApply.ts`](src/sync/snapshotApply.ts)                     | Apply a remote snapshot (bulk LWW + bulk `INSERT OR IGNORE`).                 |
+| [`src/sync/snapshotPolicy.ts`](src/sync/snapshotPolicy.ts)                   | `shouldRefreshSnapshot` heuristic (500-event threshold).                      |
+| [`src/sync/batchApply.ts`](src/sync/batchApply.ts)                           | 200-event-per-transaction batched apply with per-event fallback on failure.   |
+| [`src/sync/remoteEventApplier.ts`](src/sync/remoteEventApplier.ts)           | Per-event idempotency check (`processed_events` registry).                    |
+| [`src/sync/remoteCategoryEventApplier.ts`](src/sync/remoteCategoryEventApplier.ts) | Same, for category events.                                                    |
+| [`src/sync/cloudDriveAdapter.ts`](src/sync/cloudDriveAdapter.ts)             | Adapter interface (DIP boundary for cloud-drive I/O).                         |
+| [`src/sync/googleDriveAdapter.ts`](src/sync/googleDriveAdapter.ts)           | Google Drive `appDataFolder` adapter (REST v3, `If-None-Match`).              |
+| [`src/sync/oneDriveAdapter.ts`](src/sync/oneDriveAdapter.ts)                 | OneDrive `approot` adapter (Microsoft Graph).                                 |
+| [`src/db/databaseProvider.tsx`](src/db/databaseProvider.tsx)                 | SQLite connection provider (WAL, `synchronous = NORMAL`).                     |
+| [`src/db/sqliteLocalStore.ts`](src/db/sqliteLocalStore.ts)                   | `LocalStore` implementation against `expo-sqlite`.                            |
+
+> See [`.github/instructions/expenses-tracker-mobile.instructions.md`](../.github/instructions/expenses-tracker-mobile.instructions.md)
+> for the path-scoped Copilot rules that codify these conventions, the full wiring
+> (`syncProvider.tsx` / `useAutoSync.ts` / `autoSyncSignal.ts`), and the rationale behind each
+> design choice.
 
 ---
 
@@ -1230,12 +1687,12 @@ by accident:
 
 ## 📚 Related Documentation
 
-- [**Root README**](../README.md) — Project pitch, **Sync Engine Architecture** including
-  **Mobile Sync (TypeScript Port)** with the *Automatic Sync Triggers, Throttling, and Bandwidth*
-  subsection, **Why This Architecture**, **Technical Decisions**, CI/CD, References.
-- [**Backend README**](../expenses-tracker-api/README.md) — REST API, event-sourced backend that
-  shares the same sync file format. The mobile app does **not** depend on this — both are independent
-  implementations of the same protocol.
+- [**Root README**](../README.md) — Project pitch, **Backend Architecture (Event Sourcing & CQRS)**,
+  Configuration, Docker Compose runbook, CI/CD, References. (The cross-device sync engine is
+  documented in **this** README — file format, snapshot model, throttling, idempotency, OAuth wiring.)
+- [**Backend README**](../expenses-tracker-api/README.md) — REST API, event-sourced backend.
+  The mobile app does **not** depend on this and the backend has no sync subsystem — they are two
+  independent surfaces.
 - [**Frontend README**](../expenses-tracker-frontend/README.md) — Web client (online-only).
 - [**`.github/instructions/expenses-tracker-mobile.instructions.md`**](../.github/instructions/expenses-tracker-mobile.instructions.md)
   — Path-scoped Copilot rules for this module.

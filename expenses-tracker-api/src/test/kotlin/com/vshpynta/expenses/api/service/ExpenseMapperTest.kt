@@ -1,7 +1,6 @@
 package com.vshpynta.expenses.api.service
 
 import com.vshpynta.expenses.api.controller.dto.ExpenseDto
-import com.vshpynta.expenses.api.model.EventEntry
 import com.vshpynta.expenses.api.model.ExpensePayload
 import com.vshpynta.expenses.api.model.ExpenseProjection
 import com.vshpynta.expenses.api.service.ExpenseMapper.toDto
@@ -13,8 +12,7 @@ import java.util.UUID
 
 /**
  * Pure unit tests for [ExpenseMapper] — verifies field-by-field mapping
- * including nullable fallbacks, currency default, and the `EventEntry`
- * userId fallback rule.
+ * including nullable fallbacks and the currency default.
  */
 class ExpenseMapperTest {
 
@@ -92,46 +90,6 @@ class ExpenseMapperTest {
         assertThatThrownBy { payload.toProjection() }
             .isInstanceOf(IllegalStateException::class.java)
             .hasMessageContaining("userId is required")
-    }
-
-    @Test
-    fun `should fall back to event-level userId when payload userId is null`() {
-        // Given
-        val expenseId = UUID.randomUUID()
-        val entry = EventEntry(
-            eventId = UUID.randomUUID().toString(),
-            timestamp = 1L,
-            eventType = "EXPENSE_CREATED",
-            expenseId = expenseId.toString(),
-            payload = ExpensePayload(id = expenseId, updatedAt = 1L, userId = null),
-            userId = "fallback-user",
-        )
-
-        // When
-        val projection = entry.toProjection()
-
-        // Then
-        assertThat(projection.userId).isEqualTo("fallback-user")
-    }
-
-    @Test
-    fun `should prefer payload userId over event-level userId when both present`() {
-        // Given
-        val expenseId = UUID.randomUUID()
-        val entry = EventEntry(
-            eventId = UUID.randomUUID().toString(),
-            timestamp = 1L,
-            eventType = "EXPENSE_CREATED",
-            expenseId = expenseId.toString(),
-            payload = ExpensePayload(id = expenseId, updatedAt = 1L, userId = "from-payload"),
-            userId = "from-event",
-        )
-
-        // When
-        val projection = entry.toProjection()
-
-        // Then
-        assertThat(projection.userId).isEqualTo("from-payload")
     }
 
     @Test

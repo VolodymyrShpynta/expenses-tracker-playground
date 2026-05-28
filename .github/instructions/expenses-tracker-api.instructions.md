@@ -298,8 +298,7 @@ expenses-tracker-api/src/main/kotlin/com/vshpynta/expenses/api/
 ├── model/                             # Domain entities (@Table data classes) and value types
 ├── repository/                        # CoroutineCrudRepository interfaces
 ├── service/                           # Business logic (suspend / Flow)
-│   ├── ExpenseMapper.kt               # Shared mapping object (DRY — single source of truth)
-│   └── sync/                          # File-based sync logic
+│   └── ExpenseMapper.kt               # Shared mapping object (DRY — single source of truth)
 └── util/                              # Cross-cutting utilities (TimeProvider, etc.)
 ```
 

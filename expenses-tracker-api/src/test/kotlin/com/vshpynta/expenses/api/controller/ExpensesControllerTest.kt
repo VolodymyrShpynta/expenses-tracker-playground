@@ -19,12 +19,12 @@ import org.springframework.test.web.reactive.server.expectBody
 import java.util.UUID
 
 /**
- * Integration tests for sync controller endpoints
+ * Integration tests for ExpensesController endpoints (CRUD + validation).
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @Import(WebTestClientConfig::class, TestContainersConfig::class, TestSecurityConfig::class)
 @ActiveProfiles("test")
-class SyncExpenseControllerTest {
+class ExpensesControllerTest {
 
     @Autowired
     private lateinit var webTestClient: WebTestClient
@@ -163,33 +163,6 @@ class SyncExpenseControllerTest {
             .uri("/api/expenses/${created.id}")
             .exchange()
             .expectStatus().isNotFound
-    }
-
-    @Test
-    fun `should trigger sync`() {
-        // Create some expenses
-        val request = CreateExpenseRequest(
-            description = "Sync Test",
-            amount = 1500,
-            currency = "USD",
-            categoryId = newCategoryId(),
-            date = "2026-01-20T10:00:00Z"
-        )
-
-        webTestClient.post()
-            .uri("/api/expenses")
-            .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(request)
-            .exchange()
-            .expectStatus().isCreated
-
-        // Trigger sync
-        webTestClient.post()
-            .uri("/api/expenses/sync")
-            .exchange()
-            .expectStatus().isOk
-            .expectBody()
-            .jsonPath("$.message").isEqualTo("Sync completed successfully")
     }
 
     @Test

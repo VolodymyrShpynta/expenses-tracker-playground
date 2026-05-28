@@ -48,7 +48,6 @@ class ExpenseQueryServiceTest {
     @BeforeEach
     fun setup() {
         runBlocking {
-            databaseClient.sql("DELETE FROM processed_events").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM expense_events").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM expense_projections").fetch().rowsUpdated().awaitSingle()
             whenever(userContextService.currentUserId()) doReturn TEST_USER_ID

@@ -1,12 +1,12 @@
 # Expenses Tracker with Event Sourcing & CQRS
 
 A production-ready, fully reactive **multi-user** expense tracking application with **Keycloak authentication**,
-**conflict-free, idempotent multi-device synchronization**, built with **Spring Boot 4**, **Kotlin Coroutines**,
-**R2DBC**, and **PostgreSQL**. The project includes a **React 19 + TypeScript + MUI v7** web frontend and a native
-**Expo + React Native + TypeScript** mobile module that ports the same event-sourcing engine to SQLite and syncs
-across devices via the user's own Google Drive or OneDrive (no backend involvement). It implements a complete
-**Event Sourcing** and **CQRS** architecture with an optimized sync engine designed for eventual consistency
-across multiple devices.
+built with **Spring Boot 4**, **Kotlin Coroutines**, **R2DBC**, and **PostgreSQL**. The project includes a
+**React 19 + TypeScript + MUI v7** web frontend and a native **Expo + React Native + TypeScript** mobile module
+with its own event-sourcing engine on SQLite. The backend exposes a CQRS-based REST API; the mobile module is
+fully offline-first and (independently of the backend) syncs across devices via the user's own Google Drive or
+OneDrive. The backend itself does not participate in cross-device sync — backup and migration use the JSON / CSV
+import-export endpoints (`/api/export`, `/api/import`).
 
 ## 🌟 What Makes This Project Special?
 
@@ -15,12 +15,12 @@ across multiple devices.
 - 🎨 **React Web Frontend**: React 19, TypeScript, MUI v7, Vite — responsive for mobile & desktop
 - 📱 **Native Mobile App**: Expo SDK 55 + React Native 0.83 + React Native Paper v5 (Material 3) — fully offline-first
   with its own SQLite event store
-- ☁️ **BYO Cloud Sync**: Mobile app syncs through the user's own Google Drive `appDataFolder` or OneDrive `approot` — no
-  central sync server, no backend dependency
+- ☁️ **BYO Cloud Sync (Mobile Only)**: Mobile app syncs through the user's own Google Drive `appDataFolder` or OneDrive
+  `approot` — no central sync server, no backend dependency
 - 🏗️ **Event Sourcing & CQRS**: Proper event-driven architecture with separate read/write models — the same algorithm
-  runs on the JVM (Kotlin) and in the mobile app (TypeScript), with a byte-identical JSON wire format
-- 🔄 **Multi-Device Sync**: Per-user synchronization via shared file (local filesystem on the backend; cloud-drive on
-  mobile)
+  runs on the JVM (Kotlin) and in the mobile app (TypeScript), with a byte-identical JSON wire format on mobile
+- 💾 **Backup & Migration**: Backend exposes JSON (lossless) and CSV-in-ZIP `/api/export` and `/api/import` endpoints
+  for portable backup between deployments
 - 🛡️ **Battle-Tested**: Comprehensive test suite with Testcontainers and real PostgreSQL on the backend, plus 56 Vitest
   unit tests on mobile
 - 🚀 **Fully Reactive**: Non-blocking I/O with Spring WebFlux and Kotlin Coroutines
@@ -36,7 +36,7 @@ across multiple devices.
   - [✨ Key Features](#-key-features)
     - [Authentication \& Multi-User](#authentication--multi-user)
     - [Event Sourcing \& CQRS Architecture](#event-sourcing--cqrs-architecture)
-    - [Efficient Sync Engine](#efficient-sync-engine)
+    - [Backup \& Migration](#backup--migration)
     - [Technology](#technology)
   - [🛠 Technology Stack](#-technology-stack)
     - [Core Framework](#core-framework)
@@ -49,48 +49,25 @@ across multiple devices.
   - [📁 Project Structure](#-project-structure)
   - [📚 Module Documentation](#-module-documentation)
   - [🔀 Communication Flow](#-communication-flow)
-  - [🏗 Sync Engine Architecture](#-sync-engine-architecture)
+  - [🏗 Backend Architecture: Event Sourcing \& CQRS](#-backend-architecture-event-sourcing--cqrs)
     - [Design Principles](#design-principles)
     - [Event Sourcing Model](#event-sourcing-model)
     - [CQRS Architecture](#cqrs-architecture)
     - [Database Schema](#database-schema)
       - [**Table: `expense_projections`** (Read Model / Materialized View)](#table-expense_projections-read-model--materialized-view)
       - [**Table: `expense_events`** (Event Store / Source of Truth)](#table-expense_events-event-store--source-of-truth)
-      - [**Table: `processed_events`** (Idempotency Registry)](#table-processed_events-idempotency-registry)
       - [**Table: `categories`** (User-Configurable Categories)](#table-categories-user-configurable-categories)
       - [**Table: `default_categories`** (Language-Agnostic Templates)](#table-default_categories-language-agnostic-templates)
     - [Conflict Resolution](#conflict-resolution)
       - [**Projection Update Implementation**](#projection-update-implementation)
-    - [Sync Workflow](#sync-workflow)
-      - [**Phase 1: Local Write (User Action)**](#phase-1-local-write-user-action)
-      - [**Phase 2: Efficient Sync Cycle**](#phase-2-efficient-sync-cycle)
-      - [**Phase 3: Event Processing with Idempotency**](#phase-3-event-processing-with-idempotency)
-      - [**Phase 4: Collect Local Events**](#phase-4-collect-local-events)
-      - [**Phase 5: Upload to Shared File**](#phase-5-upload-to-shared-file)
-      - [**Phase 6: Download from Shared File**](#phase-6-download-from-shared-file)
-      - [**Phase 7: Process Remote Events**](#phase-7-process-remote-events)
-    - [Mobile Sync (TypeScript Port)](#mobile-sync-typescript-port)
-      - [Automatic Sync Triggers, Throttling, and Bandwidth](#automatic-sync-triggers-throttling-and-bandwidth)
-      - [Apply-Time Optimizations \& Cold-Install Fast Path](#apply-time-optimizations--cold-install-fast-path)
-        - [Design Alternatives Considered — Why Not Full LSM Compaction?](#design-alternatives-considered--why-not-full-lsm-compaction)
-    - [Component Architecture](#component-architecture)
-    - [Sync File Format](#sync-file-format)
-    - [Component Diagram](#component-diagram)
-    - [Transaction Boundaries](#transaction-boundaries)
-    - [Idempotency Guarantees](#idempotency-guarantees)
-      - [**Application-Level Idempotency**](#application-level-idempotency)
-      - [**Database-Level Idempotency**](#database-level-idempotency)
-      - [**Network Retry Idempotency**](#network-retry-idempotency)
+    - [Cross-Device Sync (Mobile Only)](#cross-device-sync-mobile-only)
   - [🎨 Why This Architecture?](#-why-this-architecture)
     - [Event Sourcing Benefits](#event-sourcing-benefits)
     - [CQRS Benefits](#cqrs-benefits)
-    - [Efficient Synchronization](#efficient-synchronization)
     - [Clear Domain Model](#clear-domain-model)
-    - [Multi-Device Support](#multi-device-support)
   - [💡 Technical Decisions](#-technical-decisions)
     - [Why Event Sourcing?](#why-event-sourcing)
     - [Why Timestamp-Only Conflict Resolution?](#why-timestamp-only-conflict-resolution)
-    - [Why Separate ExpenseSyncProjector and ExpenseSyncRecorder?](#why-separate-expensesyncprojector-and-expensesyncrecorder)
     - [Why PostgreSQL for Tests?](#why-postgresql-for-tests)
   - [⚙ Configuration](#-configuration)
     - [Docker Compose Configuration](#docker-compose-configuration)
@@ -119,16 +96,20 @@ across multiple devices.
 
 ## 🎯 Project Overview
 
-This is a **multi-user, multi-device expense tracker** with **Keycloak authentication** and **file-based
-synchronization** using a shared file system (emulating cloud storage like Dropbox, Google Drive, etc.).
-Each user's data (expenses, categories, sync files) is fully isolated. The sync engine is designed to be:
+This is a **multi-user expense tracker** with **Keycloak authentication**, an event-sourced backend (PostgreSQL, CQRS),
+a React web frontend, and an Expo / React Native mobile app. Each user's data (expenses, categories) is fully isolated
+by `user_id`. The backend is designed to be:
 
 - ✅ **Conflict-free** - Automatic conflict resolution using last-write-wins
 - ✅ **Idempotent** - Safe to retry operations without duplicates
-- ✅ **Eventually consistent** - All devices converge to the same state
-- ✅ **User-isolated** - Per-user data, categories, and sync files
-- ✅ **Portable** - Simple SQL designed for Android/SQLite migration
+- ✅ **Eventually consistent** - Single PostgreSQL store; all web clients see the same state
+- ✅ **User-isolated** - Per-user data, categories, and JWT validation
+- ✅ **Portable** - Simple SQL designed for Android / SQLite reuse in the mobile module
 - ✅ **Transactional** - Atomic operations prevent partial state
+
+Cross-device sync between **mobile** devices is implemented end-to-end inside the mobile module over Google Drive /
+OneDrive (see [`expenses-tracker-mobile/README.md`](./expenses-tracker-mobile/README.md)). Cross-deployment **backup and
+migration** for the backend is implemented via the JSON / CSV import-export endpoints in `DataExchangeController`.
 
 ### Real-World Use Case
 
@@ -136,10 +117,9 @@ Each user's data (expenses, categories, sync files) is fully isolated. The sync 
 
 - Users authenticate via Keycloak (self-registration enabled)
 - Each user sees only their own expenses and categories
-- Each user's devices sync through per-user sync files
-- No internet connection required for local operations
-- Changes sync automatically when file access available
-- Conflicts resolved automatically (newest change wins)
+- Web clients (one or many tabs) converge through the shared PostgreSQL backend
+- Mobile devices stay fully offline-first and sync between themselves through the user's own cloud drive
+- Conflicts on both surfaces resolve automatically (newest change wins)
 
 ---
 
@@ -149,7 +129,6 @@ Each user's data (expenses, categories, sync files) is fully isolated. The sync 
 
 - ✅ **Keycloak Integration** - OAuth2 / OpenID Connect via Keycloak identity provider
 - ✅ **Per-User Data Isolation** - All data (expenses, events, categories) scoped by `user_id`
-- ✅ **Per-User Sync Files** - Sync files stored in `{basePath}/{userId}/` directories
 - ✅ **JWT Validation** - Backend validates Keycloak JWTs as an OAuth2 Resource Server
 - ✅ **PKCE Flow** - Secure SPA authentication (no client secret)
 - ✅ **Self-Registration** - Users can register directly via Keycloak
@@ -163,15 +142,14 @@ Each user's data (expenses, categories, sync files) is fully isolated. The sync 
 - ✅ **Complete Audit Trail** - Every change is permanently recorded as an event
 - ✅ **Domain-Specific Naming** - Clear, business-focused terminology throughout the codebase
 
-### Efficient Sync Engine
+### Backup & Migration
 
-- ✅ **Network Optimized** - Single file download per sync cycle (minimal bandwidth usage)
-- ✅ **Last-Write-Wins** - Simple, deterministic timestamp-based conflict resolution
-- ✅ **Idempotent Operations** - Duplicate events safely ignored via `processed_events` table
-- ✅ **Out-of-Order Handling** - Events applied correctly regardless of arrival order
-- ✅ **Soft Delete** - Deleted expenses preserved for synchronization
+- ✅ **Lossless JSON export** — `/api/export?format=json` round-trips all events for a user
+- ✅ **CSV-in-ZIP export** — `/api/export?format=csv` produces a portable spreadsheet bundle
+- ✅ **Import via command path** — `/api/import` re-creates events through `ExpenseCommandService.createExpense()` so
+  projections converge exactly as for a normal write
 - ✅ **Transactional Execution** - All-or-nothing operations ensure data consistency
-- ✅ **Comprehensive Testing** - 50+ tests covering all sync scenarios
+- ✅ **Comprehensive Testing** - Full coverage of round-trip and edge cases in `DataExchangeServiceTest`
 
 ### Technology
 
@@ -242,12 +220,13 @@ and syncs across devices via the user's own Google Drive (`appDataFolder`) or On
 - **TypeScript** (strict + `verbatimModuleSyntax` + `exactOptionalPropertyTypes`)
 - **React Native Paper v5** — Material 3 component library
 - **Expo Router** — file-based routing with typed routes
-- **expo-sqlite** — local event store + projection + idempotency registry (port of the backend's three tables)
+- **expo-sqlite** — local event store + projection + idempotency registry (mobile-only schema, ports the same
+  event-sourcing model used by the backend)
 - **TanStack Query** — wraps the local store, mirroring the web frontend's data-fetching layer
 - **expo-auth-session** — OAuth 2.0 + PKCE for Google Drive / OneDrive (no client secret)
 - **expo-secure-store** — Keychain (iOS) / Keystore (Android) for tokens
 - **expo-background-fetch** + **expo-task-manager** — periodic sync when the app is backgrounded
-- **pako** — gzip encode/decode of `sync.json.gz` (byte-identical to the backend's `SyncFileManager` output)
+- **pako** — gzip encode/decode of `sync.json.gz` (mobile-only sync wire format)
 - **i18next** + **react-i18next** — locale JSON copied at build time from the web frontend
 - **Vitest** — pure-TypeScript unit tests for `src/domain/`, `src/sync/`, and `src/test/` (56 tests)
 
@@ -279,32 +258,25 @@ expenses-tracker-playground/
 │   │   │   │   │   ├── CategoryExpenseCount.kt # Aggregate query result
 │   │   │   │   │   ├── DefaultCategory.kt      # Template seed model
 │   │   │   │   │   ├── EventType.kt            # Event types enum
-│   │   │   │   │   ├── EventSyncFile.kt        # Sync file format + EventEntry
-│   │   │   │   │   ├── ExpensePayload.kt       # JSON payload model
-│   │   │   │   │   └── ProcessedEvent.kt       # Idempotency tracking
+│   │   │   │   │   └── ExpensePayload.kt       # JSON payload model
 │   │   │   │   ├── repository/       # Data access layer
 │   │   │   │   │   ├── ExpenseEventRepository.kt      # Event store
 │   │   │   │   │   ├── ExpenseProjectionRepository.kt # Read model
 │   │   │   │   │   ├── CategoryRepository.kt          # Categories
-│   │   │   │   │   ├── DefaultCategoryRepository.kt   # Default category templates
-│   │   │   │   │   └── ProcessedEventRepository.kt    # Idempotency
+│   │   │   │   │   └── DefaultCategoryRepository.kt   # Default category templates
 │   │   │   │   ├── service/          # Business logic
 │   │   │   │   │   ├── ExpenseCommandService.kt       # CQRS write side
 │   │   │   │   │   ├── ExpenseQueryService.kt         # CQRS read side
-│   │   │   │   │   ├── ExpenseEventSyncService.kt     # Sync orchestration
 │   │   │   │   │   ├── ExpenseMapper.kt               # Entity ↔ DTO mapping
-│   │   │   │   │   ├── ExpenseSyncProjector.kt        # Idempotency + cache layer
-│   │   │   │   │   ├── ExpenseSyncRecorder.kt         # Transactional recorder
 │   │   │   │   │   ├── CategoryService.kt             # Category CRUD
 │   │   │   │   │   ├── CategoryMapper.kt              # Category entity ↔ DTO mapping
 │   │   │   │   │   ├── DefaultCategorySeeder.kt       # Lazy default-category seeding
-│   │   │   │   │   ├── ProcessedEventsCache.kt        # In-memory cache
-│   │   │   │   │   ├── auth/                          # Authentication
-│   │   │   │   │   │   └── UserContextService.kt      # Extract userId from JWT
-│   │   │   │   │   └── sync/                          # Sync subsystem
-│   │   │   │   │       ├── FileOperations.kt          # File I/O utilities
-│   │   │   │   │       ├── RemoteEventProcessor.kt    # Remote event processing
-│   │   │   │   │       └── SyncFileManager.kt         # Per-user sync file read/write
+│   │   │   │   │   ├── DataExchangeService.kt         # Backup/migration orchestrator
+│   │   │   │   │   ├── DataExporter.kt                # JSON + CSV-in-ZIP export
+│   │   │   │   │   ├── DataImporter.kt                # Import through command path
+│   │   │   │   │   ├── DataExchangeCsvCodec.kt        # CSV codec
+│   │   │   │   │   └── auth/                          # Authentication
+│   │   │   │   │       └── UserContextService.kt      # Extract userId from JWT
 │   │   │   │   ├── util/             # Utilities
 │   │   │   │   └── ExpensesTrackerApiApplication.kt
 │   │   │   └── resources/
@@ -439,11 +411,7 @@ Key Components:
 - ExpenseCommandService: Handles write operations (CQRS)
 - ExpenseQueryService: Handles read operations (CQRS)
 - CategoryService: Category CRUD operations
-- ExpenseEventSyncService: Orchestrates per-user synchronization
-- ExpenseSyncProjector: Projects events with idempotency checks
-- ExpenseSyncRecorder: Transactional database recorder
-- ProcessedEventsCache: In-memory cache for performance
-- SyncFileManager: Per-user sync file management
+- DataExchangeService / DataExporter / DataImporter: JSON + CSV-in-ZIP backup and migration
 - AuthContext / keycloak.ts: Frontend Keycloak authentication
 - fetchWithAuth: Authenticated fetch wrapper with auto token refresh
 ```
@@ -574,20 +542,18 @@ sequenceDiagram
 
 ---
 
-## 🏗 Sync Engine Architecture
+## 🏗 Backend Architecture: Event Sourcing & CQRS
 
 ### Design Principles
 
-The sync engine is built on these core principles:
+The backend is built on these core principles:
 
 1. **Event Sourcing** - All changes are immutable events in an append-only log
 2. **CQRS** - Command Query Responsibility Segregation (separate read/write models)
-3. **Idempotency** - Events can be processed multiple times safely without side effects
-4. **Eventual Consistency** - All devices converge to the same state over time
-5. **Decentralized** - No central server required - peer-to-peer sync via shared file
-6. **Portable SQL** - Simple queries designed for easy Android/SQLite migration
-7. **Transaction Atomicity** - All operations succeed together or fail together
-8. **Network Efficiency** - Minimized data transfer with smart sync algorithm
+3. **Idempotency** - Repeated commands converge to the same projection state
+4. **Last-Write-Wins** - Conflict resolution is deterministic, by strict timestamp comparison
+5. **Portable SQL** - Simple queries; the same algorithm is mirrored in the mobile module's SQLite implementation
+6. **Transaction Atomicity** - Event append and projection upsert succeed together or fail together
 
 ### Event Sourcing Model
 
@@ -600,7 +566,6 @@ data class ExpenseEvent(
     val eventType: EventType,    // CREATED, UPDATED, DELETED
     val expenseId: UUID,         // The expense this event is about
     val payload: String,         // Complete expense state (JSON)
-    val committed: Boolean = false,  // Has been synced to file?
     val userId: String           // Owner of this event
 ) : Persistable<UUID>
 ```
@@ -640,8 +605,8 @@ Read Side (Queries):
 
 ### Database Schema
 
-The sync engine uses **three tables** working together, plus a **categories** table.
-All data tables include a `user_id` column for per-user data isolation.
+The backend uses **two core tables** for the event-sourced expense data, plus a **categories** table
+and a **default_categories** template table. All data tables include a `user_id` column for per-user data isolation.
 
 #### **Table: `expense_projections`** (Read Model / Materialized View)
 
@@ -683,26 +648,18 @@ CREATE TABLE expense_events
     event_type VARCHAR(20)  NOT NULL CHECK (event_type IN ('CREATED', 'UPDATED', 'DELETED')),
     expense_id VARCHAR(36)  NOT NULL,
     payload    TEXT         NOT NULL, -- JSON
-    committed  BOOLEAN      NOT NULL DEFAULT FALSE,
     user_id    VARCHAR(255) NOT NULL
 );
 
-CREATE INDEX idx_expense_events_committed ON expense_events (committed);
 CREATE INDEX idx_expense_events_timestamp ON expense_events (timestamp);
 CREATE INDEX idx_expense_events_expense_id ON expense_events (expense_id);
 CREATE INDEX idx_expense_events_user_id ON expense_events (user_id);
 ```
 
-#### **Table: `processed_events`** (Idempotency Registry)
-
-Tracks which events have been processed to prevent duplicates:
-
-```sql
-CREATE TABLE processed_events
-(
-    event_id VARCHAR(36) PRIMARY KEY
-);
-```
+> **Note:** The legacy `committed` column and the `processed_events` idempotency registry table existed only for the
+> backend's removed file-sync subsystem and were dropped by `V2__Remove_sync_subsystem.sql`. Mobile-side idempotency is
+> handled inside the mobile module's own SQLite schema; see
+> [`expenses-tracker-mobile/README.md`](./expenses-tracker-mobile/README.md).
 
 #### **Table: `categories`** (User-Configurable Categories)
 
@@ -760,8 +717,7 @@ can evolve (new entries, color/icon tweaks) without piling up `V_` history.
 **Why the tables are designed this way:**
 
 - `expense_projections` - Fast queries for current state (read model), filtered by `user_id`
-- `expense_events` - Complete audit trail + sync source (event store), scoped by `user_id`
-- `processed_events` - Prevents duplicate event processing (idempotency)
+- `expense_events` - Complete audit trail (event store), scoped by `user_id`
 - `categories` - User-configurable expense categories, unique active name per user
 - `default_categories` - Language-agnostic template table; new users are seeded from it on first access
 
@@ -807,809 +763,19 @@ WHERE EXCLUDED.updated_at > expense_projections.updated_at;
 | `updated_at=2000, deleted=false` | DELETED with `timestamp=1000`                | ❌ Rejected (older loses)     |
 | `updated_at=2000, deleted=true`  | UPDATED with `timestamp=3000, deleted=false` | ✅ Resurrected (newer wins)   |
 
-### Sync Workflow
-
-#### **Phase 1: Local Write (User Action)**
-
-When a user creates/updates/deletes an expense (Command Side):
-
-```kotlin
-@Transactional
-suspend fun createExpense(
-    description: String,
-    amount: Long,
-    currency: String,
-    categoryId: UUID,
-    date: String
-): ExpenseProjection {
-    val userId = userContextService.currentUserId()
-    val expenseId = UUID.randomUUID()
-    val now = timeProvider.currentTimeMillis()
-
-    val payload = ExpensePayload(
-        id = expenseId,
-        description = description,
-        amount = amount,
-        currency = currency,
-        categoryId = categoryId,
-        date = date,
-        updatedAt = now,
-        deleted = false,
-        userId = userId
-    )
-
-    // BEGIN TRANSACTION
-    // 1. Append event to event store
-    appendEvent(EventType.CREATED, expenseId, payload)
-
-    // 2. Project event to read model (UPSERT with last-write-wins)
-    projectionRepository.projectFromEvent(payload.toProjection())
-    // COMMIT TRANSACTION
-
-    // 3. Return the created projection
-    return projectionRepository.findByIdOrNull(expenseId)
-        ?: error("Failed to retrieve created expense projection")
-}
-```
-
-**Atomic guarantee:** Both event store and projection updated together or not at all.
-
-#### **Phase 2: Efficient Sync Cycle**
-
-The sync algorithm is designed for minimal network usage while maintaining consistency:
-
-```kotlin
-suspend fun performFullSync() {
-    logger.info("Starting sync cycle")
-
-    runCatching {
-        syncFileManager.getSyncFile().let { file ->
-            // 1. Process remote events if file changed
-            file.takeIf { syncFileManager.hasFileChanged(it) }
-                ?.let { syncFileManager.readEvents(it) }
-                ?.also { remoteEventProcessor.processRemoteEvents(it) }
-                ?: logger.info("Sync file unchanged, skipping remote processing")
-
-            // 2. Upload local uncommitted events if any
-            collectLocalEvents()
-                .takeIf { it.isNotEmpty() }
-                ?.also { events ->
-                    logger.info("Uploading ${events.size} local uncommitted events")
-                    syncFileManager.appendEvents(file, events)
-                }
-
-            // 3. Cache checksum for next sync optimization
-            syncFileManager.cacheFileChecksum(file)
-        }
-
-        logger.info("Sync completed successfully")
-    }
-}
-```
-
-**How it works:**
-
-1. **File Change Detection** - Check if sync file changed using hash comparison (skip processing if unchanged)
-2. **Process Remote** - Apply remote events from all devices to update local read model
-3. **Collect Local** - Gather events created on this device that haven't been synced yet
-4. **Upload** - Append new local events to the shared sync file
-5. **Cache Hash** - Store file checksum for next sync optimization
-
-**Why this order:**
-
-- Minimizes network traffic - only processes file if it changed
-- File hash caching avoids redundant processing (huge performance gain)
-- Local events don't need immediate commit - they'll be processed by all devices in the next sync
-- Maintains eventual consistency across all devices
-- Idempotency ensures correctness even if sync is interrupted
-
-**Deferred Commit Pattern:**
-Local events are marked as `committed=true` during the **next** sync cycle when this device reads them back from the
-shared file. This is safe because:
-
-- Events are already persisted in local database (won't be lost)
-- Events are written to sync file (other devices can see them immediately)
-- The slight delay doesn't affect consistency
-- Reduces network operations significantly
-
-#### **Phase 3: Event Processing with Idempotency**
-
-Events are processed through a two-component architecture for transactional correctness:
-
-**Step 1: ExpenseSyncProjector - Idempotency Check & Cache Management**
-
-```kotlin
-@Component
-class ExpenseSyncProjector {
-    suspend fun projectEvent(eventEntry: EventEntry): Boolean {
-        val eventId = UUID.fromString(eventEntry.eventId)
-
-        // Fast in-memory cache check (100% accurate)
-        if (processedEventsCache.contains(eventId)) {
-            return false  // Already processed
-        }
-
-        // Double-check DB (safety net for cache misses)
-        if (processedEventRepository.hasBeenProcessed(eventId)) {
-            processedEventsCache.add(eventId)
-            return false
-        }
-
-        // Delegate to transactional component
-        val success = expenseSyncRecorder.projectAndCommitEvent(eventEntry, eventId)
-
-        // Update cache AFTER successful transaction commit
-        if (success) {
-            processedEventsCache.add(eventId)
-        }
-
-        return success
-    }
-}
-```
-
-**Step 2: ExpenseSyncRecorder - Transactional Persistence**
-
-```kotlin
-@Component
-class ExpenseSyncRecorder {
-    @Transactional
-    suspend fun projectAndCommitEvent(
-        eventEntry: EventEntry,
-        eventId: UUID
-    ): Boolean {
-        // BEGIN TRANSACTION
-        // 1. Project to materialized view (last-write-wins)
-        when (EventType.valueOf(eventEntry.eventType)) {
-            EventType.CREATED, EventType.UPDATED ->
-                projectionRepository.projectFromEvent(eventEntry.toProjection())
-            EventType.DELETED ->
-                projectionRepository.markAsDeleted(
-                    id = UUID.fromString(eventEntry.expenseId),
-                    updatedAt = eventEntry.payload.updatedAt
-                )
-        }
-
-        // 2. Mark as processed (prevents re-processing)
-        processedEventRepository.markAsProcessed(eventId)
-
-        // 3. Mark as committed (only affects local events)
-        eventRepository.markEventsAsCommitted(listOf(eventId))
-        // COMMIT TRANSACTION
-
-        return true
-    }
-}
-```
-
-**Why two components?**
-
-- **ExpenseSyncProjector**: Fast cache-based checks, delegates to transactional component
-- **ExpenseSyncRecorder**: Ensures @Transactional proxy works correctly (Spring requirement)
-- Cache updated **after** transaction commit (prevents corruption on rollback)
-
-**Transaction guarantees:**
-
-- All 3 steps succeed or all fail together
-- No partial application
-- Safe to retry
-- Idempotent (can process same event multiple times safely)
-
-#### **Phase 4: Collect Local Events**
-
-Query uncommitted events from local event store:
-
-```kotlin
-private suspend fun collectLocalEvents() = withContext(Dispatchers.IO) {
-    eventRepository.findUncommittedEvents().toList()
-}
-```
-
-**SQL Query:**
-
-```sql
-SELECT *
-FROM expense_events
-WHERE committed = false
-ORDER BY timestamp
-```
-
-#### **Phase 5: Upload to Shared File**
-
-Append events to shared JSON file with compression:
-
-```kotlin
-suspend fun appendEvents(file: File, events: List<ExpenseEvent>) {
-    // Read existing events
-    val existingEvents = readEvents(file)
-
-    // Convert and merge events
-    val newEventEntries = events.map { it.toEventEntry() }
-    val allEvents = existingEvents + newEventEntries
-
-    // Write with gzip compression (70% smaller)
-    val json = objectMapper.writeValueAsString(EventSyncFile(allEvents))
-    file.outputStream().use { output ->
-        GZIPOutputStream(output).use { gzip ->
-            gzip.write(json.toByteArray())
-        }
-    }
-
-    logger.info("Appended ${events.size} events to sync file")
-}
-```
-
-**Compression Benefits:**
-
-- 70% smaller file size
-- Faster uploads/downloads
-- Reduced cloud storage costs
-
-#### **Phase 6: Download from Shared File**
-
-Read all events and sort deterministically:
-
-```kotlin
-suspend fun readEvents(file: File): List<EventEntry> = withContext(Dispatchers.IO) {
-    if (!file.exists()) return@withContext emptyList()
-
-    runCatching {
-        // Decompress gzip and parse JSON
-        file.inputStream().use { input ->
-            GZIPInputStream(input).use { gzip ->
-                val json = gzip.readBytes().toString(Charsets.UTF_8)
-                objectMapper.readValue(json, EventSyncFile::class.java).events
-                    .sortedWith(
-                        compareBy<EventEntry> { it.timestamp }
-                            .thenBy { it.eventId }
-                    )
-            }
-        }
-    }.getOrElse { e ->
-        logger.error("Failed to read events from sync file", e)
-        emptyList()
-    }
-}
-```
-
-**Sort order is critical:**
-
-- Primary: `timestamp` - earlier events first (chronological order)
-- Secondary: `eventId` - deterministic ordering for same timestamp (UUID is unique and comparable)
-
-**Why this sorting?**
-
-- Ensures deterministic ordering across all devices
-- Events applied in same order everywhere
-- Guarantees eventual consistency
-- Provides stable sort for events with identical timestamps
-
-#### **Phase 7: Process Remote Events**
-
-For each event, apply it atomically through the projection system:
-
-```kotlin
-suspend fun processRemoteEvents(remoteEvents: List<EventEntry>) {
-    val processedCount = remoteEvents.count { event ->
-        runCatching<Boolean> {
-            expenseSyncProjector.projectEvent(event)
-        }.onFailure { e ->
-            logger.error("Failed to project event: ${event.eventId}", e)
-        }.getOrDefault(false)
-    }
-
-    logger.info("Processed $processedCount out of ${remoteEvents.size} remote events")
-}
-```
-
-**Processing guarantees:**
-
-- Events processed sequentially for consistency
-- Individual event failures don't stop entire process
-- Each event projected via transactional ExpenseSyncRecorder
-- Automatic retry on next sync for failed events
-- Idempotency ensures safe reprocessing
-
-### Mobile Sync (TypeScript Port)
-
-The mobile module ships a **second implementation of the same algorithm** — written in TypeScript over
-`expo-sqlite` instead of Kotlin over R2DBC — and uses cloud drives instead of the local filesystem. The
-JSON wire format (`sync.json.gz`) is **byte-identical** to what the backend's `SyncFileManager` produces,
-so a self-hosted backend instance and a mobile device that share the same Drive folder converge transparently.
-
-**Module-level mapping (mobile ↔ backend):**
-
-| Mobile (TypeScript)                     | Backend (Kotlin)                                | Responsibility                                  |
-|-----------------------------------------|-------------------------------------------------|-------------------------------------------------|
-| `src/domain/projector.ts`               | `ExpenseProjectionRepository`                   | Last-write-wins UPSERT into the projection      |
-| `src/domain/commands.ts` / `queries.ts` | `ExpenseCommandService` / `ExpenseQueryService` | CQRS write/read split (single SQLite tx)        |
-| `src/sync/syncEngine.ts`                | `ExpenseEventSyncService`                       | Sync orchestration                              |
-| `src/sync/codec.ts`                     | `SyncFileManager` (gzip/JSON)                   | Encode/decode the `sync.json.gz` wire format    |
-| `src/sync/remoteEventApplier.ts`        | `ExpenseSyncProjector`                          | Idempotency check before applying remote events |
-| `src/db/sqliteLocalStore.ts`            | `ExpenseSyncRecorder`                           | Transactional persistence (single tx)           |
-| `src/sync/cloudDriveAdapter.ts`         | `FileOperations`                                | I/O abstraction (DIP boundary)                  |
-| `src/sync/googleDriveAdapter.ts`        | _(none — file-based locally)_                   | Google Drive `appDataFolder` adapter            |
-| `src/sync/oneDriveAdapter.ts`           | _(none — file-based locally)_                   | OneDrive `approot` adapter                      |
-
-**Why `RemoteEventApplier` is still a separate module on mobile**
-
-There is no Spring `@Transactional` proxy on mobile and therefore no self-invocation pitfall to worry about.
-The split is preserved anyway because it (a) keeps the projector unit-testable in isolation with an in-memory
-`LocalStore` fake, (b) keeps the wire-format contract tests symmetric with the backend, and (c) makes
-porting algorithmic changes between the two implementations a 1:1 mechanical translation.
-
-**Cloud-drive flow (single device cycle):**
-
-```
-SyncEngine.performFullSync()
-  1. adapter.download({ ifNoneMatch: cachedEtag })
-        kind = 'not-modified' → cache hit, skip remote-event processing
-        kind = 'absent'       → first sync, no remote file yet
-        kind = 'modified'     → SyncFileCodec.decode → events[]
-             for each event:
-                RemoteEventApplier.apply (processed_events idempotency + projection)
-  2. LocalStore.findUncommittedEvents
-        → SyncFileCodec.encode  → adapter.upload(if-match: etag)
-  3. cache new etag for next cycle (and persist it across cold starts — see below)
-  4. on 412 Precondition Failed → retry (max 3) — concurrent writer detected
-```
-
-> **Note:** the engine never calls a separate `getMetadata()` probe before `download()`. The adapter folds
-> the eTag check into the same request (Google Drive: HTTP `If-None-Match`; OneDrive: a single metadata
-> round-trip whose response includes the eTag, so a cache hit never touches `/content`). This keeps the
-> idle-sync round-trip count to one.
-
-**Concurrency:** the mobile sync engine uses **optimistic eTag** concurrency. Both Drive REST and Microsoft
-Graph return an eTag on the file resource; the engine forwards it as `If-Match` on upload. A `412 Precondition
-Failed` is thrown as `ConcurrencyError`, the engine reloads the file, re-applies remote events on top, and
-retries up to `MAX_RETRIES=3` times. This is stricter than the backend's local-file path (which never has
-concurrent writers on the same machine).
-
-**Conflict resolution:** identical to the backend — last-write-wins by timestamp, strict `>`, soft deletes
-can be superseded by a newer non-deleted update (resurrection).
-
-**Sort order:** identical — `(timestamp ASC, eventId ASC)` so all devices replay events in the same
-deterministic order.
-
-#### Automatic Sync Triggers, Throttling, and Bandwidth
-
-The mobile module fires sync automatically — components and hooks **never call `engine.performFullSync()`
-directly**. Every trigger goes through a single `AutoSyncCoordinator` (`src/sync/autoSyncCoordinator.ts`)
-that enforces an in-flight guard (one sync at a time) and a 30-second minimum gap between auto-syncs. The
-manual "Sync now" button passes `{ force: true }` to bypass the throttle.
-
-**Trigger sources:**
-
-| Trigger           | Fires when                                                  | Coordinator call                          |
-|-------------------|-------------------------------------------------------------|-------------------------------------------|
-| Cold start        | `signedIn && autoSyncEnabled` becomes `true` on mount       | `requestSync('cold-start')`               |
-| Foreground        | `AppState` transitions `background\|inactive → active`      | `requestSync('app-active')`               |
-| After local write | Mutation hooks call `notifyLocalWrite()` on success         | `notifyLocalWrite()` (debounced)          |
-| App backgrounded  | `AppState` transitions `active → background\|inactive`      | `flush('background-flush')`               |
-| Net reconnect     | NetInfo reports offline → online                            | `requestSync('net-reconnect')`            |
-| Manual button     | "Sync now" in `SyncCloudDialog`                             | `requestSync('manual', { force: true })`  |
-
-The user controls auto-sync via a toggle in `SyncCloudDialog` (persisted under
-`expenses-tracker-sync-auto-enabled`, default on). When it's off, every row above except the manual button
-is silenced and any pending after-write debounce is cancelled.
-
-After-write debounce constants (in `autoSyncCoordinator.ts`):
-
-- `QUIET_DEBOUNCE_MS = 15_000` — 15 s of quiet collapses a burst of edits into one upload.
-- `CEILING_MS = 60_000` — a continuous edit stream still uploads at least once a minute.
-- `MIN_AUTO_INTERVAL_MS = 30_000` — hard floor between two consecutive auto-syncs.
-
-NetInfo is **soft-imported**: if `@react-native-community/netinfo` is not installed, the net-reconnect
-trigger silently no-ops and the other four still work.
-
-**Conditional download (`If-None-Match` → 304):**
-
-Auto-sync triggers fire frequently — cold start, foreground return, and net reconnect can all hit within
-seconds of app launch. To keep the network footprint small, the engine **never blindly downloads** the sync
-file. `CloudDriveAdapter.download(opts?)` returns a discriminated union:
-
-```ts
-type DownloadOutcome =
-  | { kind: 'modified';     bytes: Uint8Array; etag: string }
-  | { kind: 'not-modified'; etag: string }   // bandwidth saver — no body
-  | { kind: 'absent' };                       // first sync, file missing
-```
-
-When nothing local is pending and a cached eTag exists, the engine calls
-`download({ ifNoneMatch: cachedEtag })`. Google Drive sends HTTP `If-None-Match` and the server returns
-`304 Not Modified`; OneDrive compares the eTag during the metadata round-trip it already needs for the item
-id, and a cache hit never touches `/content`. When local writes are pending the engine downloads
-unconditionally, because it needs the bytes for the merge step anyway. In-memory test adapters expose a
-`notModifiedCount` counter so engine tests can assert the short-circuit fires.
-
-**Persisted eTag across cold starts:**
-
-The cached eTag survives process restart. `SyncProvider` hydrates the per-provider key
-`expenses-tracker-sync-etag:<provider>` from `AsyncStorage` and seeds the engine via
-`SyncEngineDeps.initialEtag`. The engine reports updates back through `onEtagChange`, which writes
-fire-and-forget to `AsyncStorage` — it deliberately **does not** update React state, since a state update on
-every sync would rebuild the engine `useMemo` and reset the coordinator's 30-second throttle. On sign-out
-the persisted entry is cleared, so a subsequent sign-in to a different account on the same provider never
-reuses the previous account's validator. The engine also reports `undefined` whenever it invalidates the
-cache (concurrency conflict, remote file disappeared), so the persisted copy is dropped at the same moment.
-
-The first sync after install still does one unconditional download — there is nothing to revalidate
-against. Every subsequent cold start should short-circuit at 304.
-
-> See [`.github/instructions/expenses-tracker-mobile.instructions.md`](.github/instructions/expenses-tracker-mobile.instructions.md)
-> for the canonical version of these tables, the full wiring (`syncProvider.tsx` / `useAutoSync.ts` /
-> `autoSyncSignal.ts`), and the rationale behind each design choice.
-
-#### Apply-Time Optimizations & Cold-Install Fast Path
-
-The mobile apply pipeline has three layered optimizations on top of the per-event idempotent applier.
-All three run on every sync; together they keep a fresh install bootstrap-able in about a minute even
-when the sync file already carries thousands of historical events.
-
-**1. Batched-transaction apply** (`src/sync/batchApply.ts`). Remote events are applied in chunks of
-`CHUNK_SIZE = 200` inside a single `expo-sqlite` transaction so the per-event bridge cost amortizes. A
-failing chunk falls back to a per-event retry loop so one corrupt payload can never abort the rest. WAL
-+ `synchronous = NORMAL` PRAGMAs are set on every connection in `src/db/databaseProvider.tsx` so writes
-don't fsync on every commit. Between chunks the helper does a `setTimeout(0)` to let the UI thread
-render — important on a list screen that's open during a large initial sync.
-
-**2. Embedded snapshot in the sync file** (`src/sync/snapshotBuilder.ts`, `src/sync/snapshotApply.ts`,
-`src/sync/snapshotPolicy.ts`). The sync file optionally carries a materialized view of the read model:
-
-```jsonc
-{
-  "snapshot": {
-    "version": 2,
-    "createdAt": 1737475200000,
-    "expenses":  [/* every ExpenseProjection, including soft-deleted (tombstones) */],
-    "categories":[/* every Category, including soft-deleted */],
-    "coveredEvents": [
-      // Sorted by eventId. Each entry pairs the event id with the
-      // event's original emission timestamp (epoch ms). The retention
-      // window below operates on `timestamp`.
-      { "eventId": "…", "timestamp": 1737475100000 }
-    ]
-  },
-  "events":         [/* events past the snapshot, deterministically sorted */],
-  "categoryEvents": [/* …same for categories */]
-}
-```
-
-Cold-install devices apply the snapshot once — bulk LWW `UPSERT`s for `expense_projections` and
-`categories`, plus bulk `INSERT OR IGNORE` into `processed_events` (`event_id`, `timestamp`) for every
-`coveredEvents` entry — then iterate the small post-cutoff event tail. Warm devices see the snapshot
-as a no-op because their LWW comparison loses for every row (strict `>` by `updatedAt`).
-
-The snapshot is **purely an optimization** for current readers — semantic correctness is unchanged
-once the version matches. But the body is **not** a complete event log: `dropCoveredEvents` removes
-every event already captured by the snapshot before upload, so reading just the body without
-understanding the snapshot would produce partial state. Files written without a `snapshot` field
-remain backward-compatible (the body is the full log in that case); files **with** a snapshot must
-be read by a build that understands the snapshot's `version`.
-
-**Snapshot schema version.** `SNAPSHOT_VERSION` is the integer carried in every snapshot. It acts as
-an emergency fuse for incompatible shape changes that can't be handled by additive evolution.
-Readers compare it to the version they understand; a mismatch causes `applySnapshot` to throw
-`IncompatibleSnapshotError`, which propagates out of `performFullSync` (the retry loop only catches
-`ConcurrencyError`) and surfaces in the UI as "this sync file was written by a newer version of the
-app — please update". The cloud file is left untouched. Falling back to the body alone would be
-unsafe because of the truncation above, so the strict abort is intentional: bump the version only
-for unrenameable/untyped changes you don't want older peers to apply blindly.
-
-The on-device `processed_events` table stores `(event_id, timestamp)` pairs so snapshot builds can
-carry the original emission timestamp through to peers. The timestamp is what the retention window
-below operates on; pairing it with the id (rather than tracking ids only) means receiving devices
-preserve enough information to apply the same window on their own subsequent rebuilds. Without it,
-each cross-device hop would re-stamp the ids with a new "observed at" time and pruning would never
-converge.
-
-**Refresh policy** (`snapshotPolicy.ts`). Rewriting the snapshot every cycle wastes bandwidth; never
-rewriting it lets cold-install cost grow without bound. The chosen heuristic refreshes the snapshot
-when **more than `SNAPSHOT_REFRESH_THRESHOLD = 500` events** have accumulated past the existing
-snapshot's `createdAt` (counted across both event streams). Idle periods produce zero rewrites; busy
-periods produce exactly enough refreshes to bound cold-install cost.
-
-**Retention window** (`PRUNE_WINDOW_MS = 30 days` in `snapshotBuilder.ts`). When the snapshot is
-rebuilt, entries in `coveredEvents` whose `timestamp <= createdAt - PRUNE_WINDOW_MS` are dropped.
-This bounds the size of `coveredEvents` even after years of writes — the projections continue to
-reflect those events, but their ids are no longer enumerated. The trade-off is precise: an event whose
-id has been pruned is no longer detectable as covered by `dropCoveredEvents`, so if a stale copy of
-that event somehow still rides along in a peer's body it will be re-applied on the next sync. Re-apply
-is a no-op by LWW (the projection already reflects the same `updatedAt`), so the correctness cost is
-zero — only a one-time CPU cost on the rare "old straggler" event. The window value is the smallest
-that comfortably exceeds expected sync latency for offline-then-reconnect scenarios (cellular dead
-zones, lost phones turned back on weeks later).
-
-**3. Body truncation against `coveredEvents`**. Every upload — not just refresh cycles — runs
-`dropCoveredEvents(events, snapshot.coveredEvents)` before encoding. The body then carries only events
-past the embedded snapshot, bounding steady-state file growth to one refresh window. Always-on
-truncation is also self-healing: if an upload was ever interrupted and left a stale event in the body,
-the next cycle drops it because a covered event can never re-enter the body (until the retention
-window drops its id, at which point LWW absorbs the re-apply as described above).
-
-These three optimizations are **mobile-only**. The backend's `SyncFileManager` writes the events-only
-format described below and uses a simpler `Snapshot` shape (in
-[`EventSyncFile.kt`](expenses-tracker-api/src/main/kotlin/com/vshpynta/expenses/api/model/EventSyncFile.kt)).
-Mobile-produced files are a superset; the two implementations are not expected to share files in the
-same Drive folder.
-
-#### Design Alternatives Considered — Why Not Full LSM Compaction?
-
-The current design is, conceptually, a **degenerate two-level LSM tree** collapsed into a single sync
-file. The mapping is direct:
-
-| LSM concept                  | Mobile equivalent                                              |
-|------------------------------|----------------------------------------------------------------|
-| Memtable                     | `expense_events` / `category_events` rows with `committed = 0` |
-| L0 (immutable recent log)    | `EventSyncFile.events` / `categoryEvents` (the body)           |
-| Compacted level (read model) | `EventSyncFile.snapshot` (projections + `coveredEvents`)       |
-| Compaction trigger           | `shouldRefreshSnapshot` (500-event threshold)                  |
-| Tombstone GC                 | 30-day `PRUNE_WINDOW_MS` on `coveredEvents`                    |
-
-A natural extension would be a "proper" LSM with **multiple files per cloud-drive folder** — for
-example a long-lived `snapshot.json.gz` plus per-device `tail-<deviceId>.json.gz` write-only delta
-files, periodically compacted into a new snapshot. This was considered and **deliberately rejected**
-in favor of the single-file model. The rationale, for future maintainers:
-
-**1. Cloud-drive storage gives us per-file eTags only — no cross-file atomicity.** A multi-file design
-would require a separate manifest with its own concurrency story (write new snapshot → bump manifest
-→ delete tails). Any crash between those steps leaves orphaned objects we'd have to reconcile on every
-read. The single-file model is *one* atomic unit and one eTag check; this property is unusually
-valuable on dumb append-only storage.
-
-**2. iCloud Drive's directory listing is lazily consistent.** Newly added files can be invisible to
-peers for seconds to minutes after upload. That breaks the "read snapshot + every peer's tail" step in
-subtle ways that are very hard to test on emulators. Reading a single well-known file at a fixed path
-sidesteps this entirely.
-
-**3. No leader for compaction.** Server-backed LSMs have one writer choosing when to compact. In a
-peer-to-peer cloud-drive topology, every device would race to rewrite the snapshot, causing wasted
-work and constant eTag retries. A "designated compactor" requires consensus, which the mobile sync
-architecture explicitly avoids.
-
-**4. Tail-file GC requires a high-water mark we can't compute.** "When can device A delete
-`tail-A.json.gz`?" → only when *every* peer has observed a snapshot that already absorbed it. We
-don't have a peer registry. The pragmatic answer ("delete after N days") just recreates the same
-retention-window trade-off `PRUNE_WINDOW_MS` already solves.
-
-**5. File-count would grow per device, including orphans.** Reinstalls and new phones generate fresh
-device ids, leaving stale `tail-<oldDeviceId>.json.gz` objects in the user's drive folder forever.
-Now we need orphan reaping logic, which is its own correctness problem.
-
-**6. The savings are modest for the actual workload.** Target users have 1–3 devices and write
-~10–100 events/day. With `PRUNE_WINDOW_MS = 30 days` the snapshot stays small (low single-digit MB
-gzipped even for power users), so the "wasted re-upload" optimized away by an LSM split is on the
-order of a few KB per sync — well below the noise floor of cellular round-trip variance.
-
-**7. Cheaper wins capture most of the same benefit on one file.** The current design already does:
-short-circuit upload when nothing local changed *and* remote eTag is unchanged (handled at the
-adapter level via the `eTagValidator` cache); skip the snapshot rebuild on most cycles
-(`shouldRefreshSnapshot`); and reuse the prior snapshot bytes verbatim when only the body changes.
-These give us LSM-style amortization (less I/O, less CPU, less bandwidth) with **zero new failure
-modes**, no new files, no orphan reaping, no eTag dance across multiple objects.
-
-The two-level conceptual model is the right one for this domain. The cost of physically materializing
-the levels into separate cloud objects is not justified by the savings.
-
-
-
-The sync system uses a well-designed component hierarchy:
-
-**ExpenseEventSyncService** (Orchestrator)
-
-- Coordinates sync cycle
-- Delegates to specialized components
-- Manages file change detection
-
-**SyncFileManager** (File I/O)
-
-- Reads/writes sync file with gzip compression
-- File change detection via checksum
-- Manages file locking
-
-**RemoteEventProcessor** (Event Processing)
-
-- Processes remote events
-- Delegates to ExpenseSyncProjector
-- Error handling and retry logic
-
-**ExpenseSyncProjector** (Idempotency Layer)
-
-- Fast cache-based duplicate detection
-- Delegates to ExpenseSyncRecorder
-
-**ExpenseSyncRecorder** (Transactional Persistence)
-
-- Atomic database operations
-- Last-write-wins conflict resolution
-- Transaction management
-
-### Sync File Format
-
-**File:** `sync-data/{userId}/sync.json` (gzip compressed, per-user directory)
-
-```json
-{
-  "events": [
-    {
-      "eventId": "550e8400-e29b-41d4-a716-446655440000",
-      "timestamp": 1737475200000,
-      "eventType": "CREATED",
-      "expenseId": "c4f3d7e9-8b2a-4e6c-9d1f-5a8b3c7e2f0d",
-      "userId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "payload": {
-        "id": "c4f3d7e9-8b2a-4e6c-9d1f-5a8b3c7e2f0d",
-        "description": "Coffee",
-        "amount": 450,
-        "currency": "USD",
-        "categoryId": "7f1c2a3b-4d5e-6f70-8192-a3b4c5d6e7f8",
-        "date": "2026-01-20T10:00:00Z",
-        "updatedAt": 1737475200000,
-        "deleted": false
-      }
-    },
-    {
-      "eventId": "661f9511-f3ac-52e5-ae27-557766551111",
-      "timestamp": 1737475300000,
-      "eventType": "UPDATED",
-      "expenseId": "c4f3d7e9-8b2a-4e6c-9d1f-5a8b3c7e2f0d",
-      "userId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "payload": {
-        "id": "c4f3d7e9-8b2a-4e6c-9d1f-5a8b3c7e2f0d",
-        "description": "Expensive Coffee",
-        "amount": 950,
-        "currency": "USD",
-        "categoryId": "7f1c2a3b-4d5e-6f70-8192-a3b4c5d6e7f8",
-        "date": "2026-01-20T10:00:00Z",
-        "updatedAt": 1737475300000,
-        "deleted": false
-      }
-    }
-  ]
-}
-```
-
-**Design notes:**
-
-- `events` array is append-only on the backend (never delete or modify); the mobile port additionally
-  truncates events already folded into the embedded snapshot — see
-  [Apply-Time Optimizations & Cold-Install Fast Path](#apply-time-optimizations--cold-install-fast-path).
-- `categoryEvents` is a parallel stream for category mutations, currently emitted by the mobile port only
-  (the backend doesn't event-source categories).
-- `snapshot` is an optional materialized view of the read model — the backend uses a simpler shape
-  (`{ version, expenses }` in `EventSyncFile.kt`) while the mobile port emits a richer shape
-  (`{ version, createdAt, expenses, categories, coveredEvents }`) and uses it as a cold-install
-  fast path.
-- Events contain complete expense state (not deltas).
-- JSON format for human readability and debugging.
-
-### Component Diagram
-
-```
-┌───────────────────────────────────────────────────────────────────┐
-│                         Device A                                  │
-│                                                                   │
-│  ┌─────────────┐      ┌──────────────────┐                        │
-│  │ Controller  │─────►│ Command / Query  │                        │
-│  └─────────────┘      └────────┬─────────┘                        │
-│                                │                                  │
-│                                ▼                                  │
-│                    ┌────────────────────────┐                     │
-│                    │ ExpenseCommandService  │                     │
-│                    │  (@Transactional)      │                     │
-│                    └──────────┬─────────────┘                     │
-│                               │                                   │
-│               ┌───────────────┴────────────────┐                  │
-│               ▼                                ▼                  │
-│    ┌─────────────────────────┐   ┌─────────────────────────────┐  │
-│    │ ExpenseEventRepository  │   │ ExpenseProjectionRepository │  │
-│    │ (expense_events table)  │   │ (expense_projections table) │  │
-│    └─────────────────────────┘   └─────────────────────────────┘  │
-│                                                                   │
-│  ┌─────────────────────────────────────────────────────┐          │
-│  │         ExpenseEventSyncService                     │          │
-│  │  • collectLocalEvents()                             │          │
-│  │  • SyncFileManager.appendEvents()  ───► sync.json   │          │
-│  │  • SyncFileManager.readEvents()    ◄─── sync.json   │          │
-│  │  • RemoteEventProcessor.processRemoteEvents()       │          │
-│  └──────────────────┬──────────────────────────────────┘          │
-│                     │                                             │
-│                     ▼                                             │
-│  ┌───────────────────────────────────────────────────┐            │
-│  │    ExpenseSyncProjector (Idempotency + Cache)     │            │
-│  │    └─► ExpenseSyncRecorder (@Transactional)       │            │
-│  └────────────────┬──────────────────────────────────┘            │
-│                   │                                               │
-│      ┌────────────┴──────────┬────────────────┐                   │
-│      ▼                       ▼                ▼                   │
-│ ┌──────────────┐  ┌───────────────────┐  ┌─────────────────┐      │
-│ │  Projection  │  │ ProcessedEvent    │  │  ExpenseEvent   │      │
-│ │  Repository  │  │ Repository        │  │  Repository     │      │
-│ └──────────────┘  └───────────────────┘  └─────────────────┘      │
-└───────────────────────────────────────────────────────────────────┘
-
-                         ↕ sync.json ↕
-
-┌───────────────────────────────────────────────────────────────┐
-│                         Device B                              │
-│                     (Same architecture)                       │
-└───────────────────────────────────────────────────────────────┘
-```
-
-### Transaction Boundaries
-
-**Local Write Transaction:**
-
-```
-BEGIN TRANSACTION
-    INSERT INTO expense_events (event_id, timestamp, event_type, expense_id, payload, committed)
-    INSERT INTO expense_projections (...) ON CONFLICT DO UPDATE WHERE EXCLUDED.updated_at > ...
-COMMIT
-```
-
-**Remote Event Processing Transaction:**
-
-```
-BEGIN TRANSACTION
-    SELECT FROM processed_events WHERE event_id = ?
-    (if not processed):
-        INSERT INTO expense_projections (...) ON CONFLICT DO UPDATE WHERE EXCLUDED.updated_at > ...
-        INSERT INTO processed_events (event_id)
-        UPDATE expense_events SET committed = true WHERE event_id = ?
-COMMIT
-```
-
-**Why separate transactions?**
-
-- Local write: Single operation, fast commit
-- Remote apply: Many operations, resilient to individual failures
-- Each remote operation independent - one failure doesn't stop others
-
-### Idempotency Guarantees
-
-#### **Application-Level Idempotency**
-
-**Q: What if we apply the same operation twice?**
-
-**A:** Prevented by `processed_events` table:
-
-```kotlin
-// First application
-if (!processedEventRepository.hasBeenProcessed(eventId)) {
-    // Apply operation
-    processedEventRepository.markAsProcessed(eventId)
-}  // Returns true
-
-// Second application (duplicate)
-if (!processedEventRepository.hasBeenProcessed(eventId)) {
-    // Skipped!
-}  // Returns false
-```
-
-#### **Database-Level Idempotency**
-
-**Q: What if UPSERT runs twice with same data?**
-
-**A:** UPSERT with WHERE clause prevents updates:
-
-```sql
-ON CONFLICT (id) DO
-UPDATE SET...WHERE EXCLUDED.updated_at > expense_projections.updated_at
-```
-
-If timestamp not newer → no update (returns 0 rows).
-
-#### **Network Retry Idempotency**
-
-**Q: What if network failure causes operation retry?**
-
-**A:** Same mechanism - event ID already in `processed_events`:
-
-```
-Attempt 1: Apply event-123 → Success, inserted into processed_events
-Network error during response
-Attempt 2: Apply event-123 → Skipped (already in processed_events)
-```
+### Cross-Device Sync (Mobile Only)
+
+The **backend itself does not synchronize between devices.** Web clients converge by reading and writing
+to the shared PostgreSQL instance directly. Backup and migration use the **JSON / CSV import-export**
+endpoints in `DataExchangeController` (`/api/export` and `/api/import`).
+
+Cross-device sync over a user-owned cloud drive (Google Drive `appDataFolder` / OneDrive `approot`) is a
+**mobile-only feature** that lives entirely in the [mobile module](./expenses-tracker-mobile/README.md).
+The mobile README is the canonical reference for the sync engine — see
+[**Sync Engine Architecture**](./expenses-tracker-mobile/README.md#-sync-engine-architecture) for the
+full protocol (design principles, on-device schema, conflict resolution, sync workflow, file format,
+automatic triggers + throttling, apply-time optimizations, design alternatives considered, idempotency
+guarantees, and the mobile component diagram).
 
 ---
 
@@ -1716,62 +882,6 @@ suspend fun createExpense(...): ExpenseProjection {
 - Can have multiple read models for different purposes
 - Event store remains single source of truth
 
-### Efficient Synchronization
-
-**Minimal Network Usage**
-
-The sync algorithm minimizes data transfer:
-
-- Single download per sync cycle (fetch shared file once)
-- Only uncommitted events are uploaded
-- Events are small JSON payloads (~1KB each)
-- Incremental sync - not full state transfer
-
-**Bandwidth Example:**
-
-```
-Sync with 10 new local events + 5 remote events:
-- Download: ~5KB (remote events)
-- Upload: ~10KB (local events appended)
-- Total: ~15KB per sync
-```
-
-Compare to full state sync:
-
-```
-Full state sync with 100 expenses:
-- Download: ~100KB (all expenses)
-- Upload: ~100KB (all expenses)
-- Total: ~200KB per sync
-```
-
-**Idempotency = Safe Retries**
-
-Network issues? No problem:
-
-- Sync interrupted? Just retry - idempotency ensures correctness
-- Same event processed twice? Safely skipped via `processed_events` table
-- File uploaded twice? Idempotency prevents duplicates
-- No risk of data corruption from retries
-
-**Conflict Resolution Made Simple**
-
-Last-write-wins based on timestamp:
-
-- Clear rule: newest timestamp wins
-- Applies to all operations (create, update, delete)
-- Deterministic - all devices agree on final state
-- No complex merge logic needed
-
-**Example:**
-
-```
-Device A (timestamp: 1000): Sets amount to $50
-Device B (timestamp: 2000): Sets amount to $75
-
-Result on all devices: $75 (timestamp 2000 > 1000)
-```
-
 ### Clear Domain Model
 
 **Self-Documenting Code**
@@ -1801,39 +911,6 @@ ExpenseQueryService      // Service for read operations
 - Database tables named after their purpose
 - Method names describe business actions
 - Comments explain "why" not just "what"
-
-### Multi-Device Support
-
-**Decentralized Architecture**
-
-No central sync server needed:
-
-- Devices sync via shared file (Dropbox, Google Drive, etc.)
-- Each user has their own sync directory (`{basePath}/{userId}/`)
-- Works offline - sync when connection available
-- No sync server maintenance or costs
-- Natural fit for individual users across multiple devices
-
-**Eventual Consistency**
-
-All devices eventually see the same data:
-
-- Each device processes all events in same order (sorted by timestamp)
-- Last-write-wins ensures deterministic conflict resolution
-- No coordination required between devices
-- Scales to reasonable number of devices
-
-**Device Isolation**
-
-Each device maintains its own per-user:
-
-- Event store (`expense_events` table, filtered by `user_id`)
-- Read model (`expense_projections` table, filtered by `user_id`)
-- Processed events registry (`processed_events` table)
-- Sync files (`{basePath}/{userId}/sync.json`)
-- Works completely independently until sync
-
----
 
 ## 💡 Technical Decisions
 
@@ -1900,105 +977,6 @@ Giving deletes special priority (e.g., delete always wins regardless of timestam
 - Doesn't actually solve clock skew (affects all operations equally)
 
 The timestamp-only approach is simpler and more predictable.
-
-### Why Separate ExpenseSyncProjector and ExpenseSyncRecorder?
-
-The `ExpenseSyncProjector` and `ExpenseSyncRecorder` are separated to ensure transactions work correctly and optimize
-performance with caching.
-
-**The Problem:** Spring's `@Transactional` uses proxies. When you call a transactional method from within the same
-class, it bypasses the proxy and disables transactions.
-
-**Without separation (doesn't work):**
-
-```kotlin
-class ExpenseEventSyncService {
-    @Transactional
-    suspend fun projectEvent(event: EventEntry) {
-        // Process event atomically
-    }
-
-    suspend fun applyAll(events: List<EventEntry>) {
-        events.forEach { projectEvent(it) }  // ❌ Direct call bypasses proxy!
-        // Transactions don't work!
-    }
-}
-```
-
-**With separation (works correctly):**
-
-```kotlin
-@Service
-class ExpenseEventSyncService(
-    private val remoteEventProcessor: RemoteEventProcessor
-) {
-    suspend fun performFullSync() {
-        val events = syncFileManager.readEvents(file)
-        remoteEventProcessor.processRemoteEvents(events)  // ✅ Delegates to processor
-    }
-}
-
-@Component
-class RemoteEventProcessor(
-    private val expenseSyncProjector: ExpenseSyncProjector
-) {
-    suspend fun processRemoteEvents(events: List<EventEntry>) {
-        events.forEach {
-            expenseSyncProjector.projectEvent(it)  // ✅ Goes through proxy!
-        }
-    }
-}
-
-@Component
-class ExpenseSyncProjector(
-    private val expenseSyncRecorder: ExpenseSyncRecorder,
-    private val processedEventsCache: ProcessedEventsCache
-) {
-    suspend fun projectEvent(eventEntry: EventEntry): Boolean {
-        val eventId = UUID.fromString(eventEntry.eventId)
-
-        // Fast cache check (20ns)
-        if (processedEventsCache.contains(eventId)) return false
-
-        // DB check (500μs)
-        if (processedEventRepository.hasBeenProcessed(eventId)) {
-            processedEventsCache.add(eventId)
-            return false
-        }
-
-        // Delegate to transactional component
-        val success = expenseSyncRecorder.projectAndCommitEvent(eventEntry, eventId)
-
-        // Update cache AFTER transaction commit
-        if (success) processedEventsCache.add(eventId)
-
-        return success
-    }
-}
-
-@Component
-class ExpenseSyncRecorder(
-    private val projectionRepository: ExpenseProjectionRepository,
-    private val processedEventRepository: ProcessedEventRepository,
-    private val eventRepository: ExpenseEventRepository
-) {
-    @Transactional
-    suspend fun projectAndCommitEvent(event: EventEntry, eventId: UUID): Boolean {
-        // This transaction works correctly
-        projectExpenseFromEvent(event)
-        processedEventRepository.markAsProcessed(eventId)
-        eventRepository.markEventsAsCommitted(listOf(eventId))
-        return true
-    }
-}
-```
-
-**Benefits:**
-
-- ✅ Transactions work correctly (all-or-nothing guarantee)
-- ✅ Rollback works on any failure
-- ✅ Clean separation of concerns
-- ✅ Testable components
 
 ### Why PostgreSQL for Tests?
 
@@ -2546,7 +1524,6 @@ environment:
   - EXPENSES_TRACKER_R2DBC_URL=r2dbc:postgresql://postgres:5432/expenses_db
   - EXPENSES_TRACKER_R2DBC_USERNAME=postgres
   - EXPENSES_TRACKER_R2DBC_PASSWORD=postgres
-  - SYNC_FILE_PATH=/app/sync-data/sync.json
   - LOGGING_LEVEL_ROOT=INFO
   - LOGGING_LEVEL_COM_VSHPYNTA=DEBUG
 ```

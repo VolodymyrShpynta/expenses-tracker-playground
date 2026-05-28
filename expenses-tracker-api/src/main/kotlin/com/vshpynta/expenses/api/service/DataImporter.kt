@@ -17,8 +17,8 @@ import java.util.UUID
 
 /**
  * Applies a parsed export snapshot through the standard write paths
- * ([CategoryService] / [ExpenseCommandService]) so events, projections
- * and sync entries are produced exactly as for a regular create.
+ * ([CategoryService] / [ExpenseCommandService]) so events and projections
+ * are produced exactly as for a regular create.
  *
  * Format-agnostic — both the JSON and the CSV-in-ZIP decode paths feed
  * the same orchestrator, so format-specific concerns stay out of the
@@ -94,10 +94,10 @@ class DataImporter(
     }
 
     /**
-     * Inserts each expense via the standard command path so events,
-     * projections and sync entries are produced exactly as for a regular
-     * create. Unknown category labels are auto-created by the resolver,
-     * so an expense is never lost.
+     * Inserts each expense via the standard command path so events and
+     * projections are produced exactly as for a regular create. Unknown
+     * category labels are auto-created by the resolver, so an expense is
+     * never lost.
      */
     private suspend fun importExpenses(
         expenses: List<ExportExpense>,

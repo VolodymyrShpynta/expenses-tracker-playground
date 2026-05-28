@@ -12,9 +12,3 @@ spring:
           # Disabled in tests — TestSecurityConfig provides a mock ReactiveJwtDecoder
           issuer-uri:
           jwk-set-uri:
-
-sync:
-  file:
-    path: ./build/test-sync-data/sync.json
-    compression:
-      enabled: false  # Disable compression in tests for simplicity

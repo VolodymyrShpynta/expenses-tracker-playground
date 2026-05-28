@@ -38,10 +38,3 @@ app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
     allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:}
-
-# Sync configuration
-sync:
-  file:
-    path: ${SYNC_FILE_PATH:./sync-data/sync.json}
-    compression:
-      enabled: ${SYNC_FILE_COMPRESSION_ENABLED:true}

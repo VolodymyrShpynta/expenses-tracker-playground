@@ -8,9 +8,10 @@ These rules apply when working on files under `expenses-tracker-mobile/`.
 
 The mobile app is **fully offline-first** — it has its own SQLite event store
 and a local projection of expenses. It **never** talks to
-`expenses-tracker-api`. Multi-device convergence happens via the same
-`sync.json[.gz]` file format that `SyncFileManager` produces in the backend,
-hosted in the user's own Google Drive `appDataFolder` or OneDrive `approot`.
+`expenses-tracker-api`. Multi-device convergence happens via a mobile-only
+`sync.json[.gz]` wire format (defined in `src/sync/codec.ts`) hosted in the
+user's own Google Drive `appDataFolder` or OneDrive `approot`. The backend has
+no corresponding file-sync subsystem.
 
 ---
 
@@ -137,19 +138,17 @@ SyncEngine.performFullSync(adapter)
   4. cache etag for next cycle
 ```
 
-This algorithm is a 1:1 port of `ExpenseEventSyncService.performFullSync`.
-**The on-disk JSON shape MUST stay byte-identical to what the backend's
-`SyncFileManager` writes today** — so a self-hosted backend instance and a
-mobile device sharing the same Drive folder converge transparently.
+This algorithm runs entirely on-device. **The on-disk JSON shape is the
+mobile-only sync wire format defined in `src/sync/codec.ts`** — the backend
+has no equivalent file-sync subsystem, so the only consumers of this format
+are other mobile instances of the same user sharing the same Drive / OneDrive
+folder.
 
 ### Critical invariant — RemoteEventApplier separation
 
 `RemoteEventApplier` (idempotency check) and the SQLite write (projection
-update) are kept in separate modules. This mirrors the backend's
-`ExpenseSyncProjector` / `ExpenseSyncRecorder` split (documented in
-`AGENTS.md`). The split has no Spring-self-invocation rationale on mobile,
-but it preserves SRP and makes the projector unit-testable in isolation.
-**Do not merge them.**
+update) are kept in separate modules to preserve SRP and keep the projector
+unit-testable in isolation. **Do not merge them.**
 
 ### Conflict resolution
 
@@ -503,10 +502,10 @@ export const systemTime: TimeProvider = {nowMs: () => Date.now()};
   `processed_events` → `expense_events` → `expense_projections`.
 - **In-memory `LocalStore` fake** for unit tests — never hit
   `expo-sqlite` from a Vitest run.
-- **Cross-implementation fixture test**: load a `sync.json.gz` produced
-  by the backend's `SyncFileManager` and assert the mobile projector
-  yields a projection equal to what the backend would produce. This is
-  the contract test that prevents drift.
+- **Round-trip fixture test**: encode a synthetic events array through
+  `SyncFileCodec`, decode it back, and assert the mobile projector
+  produces the expected projections. This guards the mobile sync wire
+  format and the projection algorithm against drift.
 
 ---
 

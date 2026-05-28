@@ -1,17 +1,19 @@
 # Expenses Tracker — Backend API
 
 A **Kotlin + Spring Boot 4 (WebFlux + Coroutines + R2DBC)** reactive REST API that implements
-**event-sourced, CQRS-based** expense tracking with file-based multi-device synchronization.
+**event-sourced, CQRS-based** expense tracking with JSON / CSV import + export for backup and migration.
 
 > **Where this module fits.** This module is the authoritative event store and projection layer for the
-> web frontend ([`expenses-tracker-frontend`](../expenses-tracker-frontend/README.md)). The mobile app
+> web frontend ([`expenses-tracker-frontend`](../expenses-tracker-frontend/README.md)). Web clients converge
+> through PostgreSQL directly — there is no backend-side file-sync subsystem. The mobile app
 > ([`expenses-tracker-mobile`](../expenses-tracker-mobile/README.md)) is fully offline-first and does
-> **not** depend on this backend — it ports the same sync engine to TypeScript and exchanges sync files
-> through Google Drive / OneDrive.
+> **not** depend on this backend at all; it has its own TypeScript sync engine that exchanges files
+> through Google Drive / OneDrive. The canonical reference for that sync engine lives in the
+> [mobile module README](../expenses-tracker-mobile/README.md).
 >
-> For the cross-cutting **Sync Engine Architecture**, **event-sourcing model**, **CQRS rationale**,
-> and the **PKCE authentication flow** diagram, see the [root README](../README.md). This README focuses
-> on running, configuring, testing, and tuning the backend itself.
+> For the cross-cutting **event-sourcing model**, **CQRS rationale**, and **PKCE authentication flow**
+> diagram, see the [root README](../README.md). This README focuses on running, configuring, testing,
+> and tuning the backend itself.
 
 ---
 
@@ -46,7 +48,6 @@ A **Kotlin + Spring Boot 4 (WebFlux + Coroutines + R2DBC)** reactive REST API th
     - [PostgreSQL-Specific Optimization (Most Efficient)](#postgresql-specific-optimization-most-efficient)
 - [Troubleshooting](#-troubleshooting)
     - [Tests Failing](#tests-failing)
-    - [Sync Not Working](#sync-not-working)
     - [Transaction Issues](#transaction-issues)
     - [Connection Issues](#connection-issues)
 - [Related Documentation](#-related-documentation)
@@ -61,8 +62,8 @@ The backend is a reactive Spring Boot application that:
 - Validates JWT Bearer tokens issued by **Keycloak** (resource-server mode, no session cookies).
 - Persists events in `expense_events` (source of truth) and a materialized read model in
   `expense_projections` — both updated atomically in a single `@Transactional` boundary.
-- Synchronizes with other devices through a shared sync file (gzip-compressed JSON), reconciling
-  conflicts last-write-wins by timestamp.
+- Exposes JSON / CSV import + export endpoints (`/api/export`, `/api/import`) via
+  `DataExchangeController` for backup and migration between deployments.
 - Uses **R2DBC** for reactive runtime queries and a separate **JDBC** datasource for Flyway migrations
   (Flyway has no reactive support yet).
 
@@ -78,7 +79,7 @@ The path-scoped Copilot rules for this module live in
 - **Spring Security OAuth2 Resource Server** — validates Keycloak JWTs via JWK Set URI
 - **R2DBC** — reactive PostgreSQL driver (runtime queries)
 - **JDBC** — separate datasource for Flyway only
-- **PostgreSQL 17** — single database for events, projections, idempotency registry, categories
+- **PostgreSQL 17** — single database for events, projections, and categories
 - **Flyway** — versioned (`V1__…`) + repeatable (`R__…`) migrations
 - **JUnit 5** + **Testcontainers** — integration tests with real PostgreSQL
 - **AssertJ** + **Mockito-Kotlin** — assertions + spying for transaction-rollback tests
@@ -147,17 +148,6 @@ The application can be configured via environment variables:
 - `EXPENSES_TRACKER_FLYWAY_USERNAME` — Migration username (default: `postgres`)
 - `EXPENSES_TRACKER_FLYWAY_PASSWORD` — Migration password (default: `postgres`)
 
-**Sync Configuration:**
-
-- `SYNC_FILE_PATH` — Path to sync file (default: `./sync-data/sync.json`)
-- `SYNC_FILE_COMPRESSION_ENABLED` — Enable gzip compression (default: `true`)
-
-> The variables above only configure the **backend's** local-filesystem sync path. The mobile module does
-> not read any of them — its sync configuration lives in source as committed constants
-> (`GOOGLE_OAUTH_CLIENT_ID` and `MICROSOFT_OAUTH_CLIENT_ID`, see
-> [`expenses-tracker-mobile/README.md`](../expenses-tracker-mobile/README.md)). OAuth tokens themselves
-> are persisted in `expo-secure-store` (Keychain / Keystore) at runtime — never in source.
-
 **Authentication (Keycloak):**
 
 - `KEYCLOAK_ISSUER_URI` — Keycloak JWT issuer URI (default: `http://localhost:3000/auth/realms/expenses-tracker`)
@@ -194,12 +184,6 @@ spring:
         jwt:
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:3000/auth/realms/expenses-tracker}
           jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/auth/realms/expenses-tracker/protocol/openid-connect/certs}
-
-sync:
-  file:
-    path: ${SYNC_FILE_PATH:./sync-data/sync.json}
-    compression:
-      enabled: ${SYNC_FILE_COMPRESSION_ENABLED:true}
 ```
 
 > The runtime data path uses R2DBC (`spring.r2dbc.*`) while Flyway uses a **separate JDBC datasource**
@@ -214,11 +198,12 @@ Migrations live under `src/main/resources/db/migration/`:
 
 | File                                  | Type                                       | Purpose                                                 |
 |---------------------------------------|--------------------------------------------|---------------------------------------------------------|
-| `V1__Initial_schema.sql`              | Versioned (runs once, never modified)      | Creates the four core tables + indexes.                 |
+| `V1__Initial_schema.sql`              | Versioned (runs once, never modified)      | Creates the original schema (events, projections, categories, default templates). |
+| `V2__Remove_sync_subsystem.sql`       | Versioned (runs once)                      | Drops the legacy `committed` column on `expense_events` and the `processed_events` table. |
 | `R__Seed_default_categories.sql`      | Repeatable (re-runs when its hash changes) | Seeds language-agnostic default category templates.     |
 
 The schema and the rationale behind each table are documented in detail in the
-[**Sync Engine Architecture — Database Schema** section of the root README](../README.md#database-schema).
+[**Backend Architecture — Database Schema** section of the root README](../README.md#database-schema).
 
 ---
 
@@ -235,7 +220,6 @@ All endpoints (except health check) require a valid JWT Bearer token.
 | GET    | `/api/expenses/{id}`   | Get expense by ID                 |
 | PUT    | `/api/expenses/{id}`   | Update expense                    |
 | DELETE | `/api/expenses/{id}`   | Soft delete expense               |
-| POST   | `/api/expenses/sync`   | Trigger sync manually             |
 | GET    | `/api/categories`      | Get all categories (current user) |
 | GET    | `/api/categories/{id}` | Get category by ID                |
 | POST   | `/api/categories`      | Create category                   |
@@ -271,13 +255,6 @@ curl -X POST http://localhost:8080/api/expenses \
     "category": "Food",
     "date": "2026-01-20T10:00:00Z"
   }'
-```
-
-**Trigger Sync:**
-
-```bash
-curl -X POST http://localhost:8080/api/expenses/sync \
-  -H "Authorization: Bearer $TOKEN"
 ```
 
 ### HTTP Client Environment Configuration
@@ -444,29 +421,20 @@ curl -X POST "$API_URL/api/expenses" \
     - Rollback behavior on failures
     - Event and projection creation in single transaction
 
-2. **Event Projector Transaction Tests** - `ExpenseSyncProjectorTransactionTest`
-    - Transaction rollback scenarios
-    - Idempotency guarantees (event already processed)
-    - Failed projection isolation
-    - Atomic operations across all database tables
-
-3. **Sync Service Integration Tests** - `ExpenseEventSyncServiceTest`
-    - Duplicate event handling (idempotency)
-    - Out-of-order event application
-    - Concurrent device writes simulation
-    - Last-write-wins conflict resolution
-    - Sync file compression and decompression
-
-4. **Controller Integration Tests** - `SyncExpenseControllerTest`
+2. **Controller Integration Tests** - `ExpensesControllerTest`
     - Full API endpoint integration
     - Request/response validation
     - CRUD operations end-to-end testing
 
-5. **Repository Tests** - `ExpenseProjectionRepositoryTest`
+3. **Repository Tests** - `ExpenseProjectionRepositoryTest`
     - UPSERT idempotency verification
     - Last-write-wins conflict resolution
     - Out-of-order operation handling
     - Soft delete behavior
+
+4. **Data Exchange Tests** - `DataExchangeServiceTest`
+    - JSON and CSV-in-ZIP export round-trips
+    - Import re-creates events via the normal command path
 
 ### Running Tests
 
@@ -478,9 +446,9 @@ curl -X POST "$API_URL/api/expenses" \
 ./gradlew test jacocoTestReport
 
 # Run specific test class
-./gradlew test --tests ExpenseEventSyncServiceTest
+./gradlew test --tests ExpensesControllerTest
 ./gradlew test --tests ExpenseCommandServiceTransactionTest
-./gradlew test --tests ExpenseSyncProjectorTransactionTest
+./gradlew test --tests DataExchangeServiceTest
 
 # Run tests with verbose output
 ./gradlew test --info
@@ -510,12 +478,6 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
-
-sync:
-  file:
-    path: ./build/test-sync-data/sync.json
-    compression:
-      enabled: false  # Disable compression in tests for simplicity
 ```
 
 Many tests do **manual DB cleanup via `DatabaseClient` before each test** because reactive tests do not
@@ -527,86 +489,38 @@ Path-scoped test conventions live in
 
 ### Key Test Scenarios
 
-**Idempotency:**
+**Last-Write-Wins (LWW) Projection:**
 
 ```kotlin
 @Test
-fun `should handle duplicate operations idempotently`() = runBlocking {
-        // Create an expense
-        val expense = commandService.createExpense(
-            description = "Test Expense",
-            amount = 10000,
-            currency = "USD",
-            categoryId = categoryId,
-            date = "2026-01-20T10:00:00Z"
-        )
+fun `should reject older event when newer projection exists`() = runBlocking {
+    val expenseId = UUID.randomUUID()
+    val newer = ExpenseProjection(id = expenseId, updatedAt = 2_000, ...)
+    val older = ExpenseProjection(id = expenseId, updatedAt = 1_000, ...)
 
-        // Sync twice (should apply events only once)
-        expenseEventSyncService.performFullSync()
-        val firstSyncExpenses = queryService.findAllExpenses().toList()
-        expenseEventSyncService.performFullSync()
-        val secondSyncExpenses = queryService.findAllExpenses().toList()
+    projectionRepository.projectFromEvent(newer)
+    val rowsAffected = projectionRepository.projectFromEvent(older)
 
-        // Both syncs should result in same state (idempotent)
-        assertEquals(firstSyncExpenses.size, secondSyncExpenses.size)
-    }
-```
-
-**Out-of-Order Events:**
-
-```kotlin
-@Test
-fun `should apply out-of-order operations correctly`() = runBlocking {
-        val expenseId = UUID.randomUUID()
-        val now = System.currentTimeMillis()
-
-        // Create events with different timestamps
-        val event1 = createTestEventEntry(
-            eventId = UUID.randomUUID(),
-            timestamp = now - 1000, amount = 1000
-        )
-        val event2 = createTestEventEntry(
-            eventId = UUID.randomUUID(),
-            timestamp = now, amount = 2000
-        )
-
-        // Apply in reverse order (event2 first, then event1)
-        val syncFile = EventSyncFile(events = listOf(event2, event1))
-        writeSyncFile(syncFile)
-
-        expenseEventSyncService.performFullSync()
-
-        // Should have event2's data (newer timestamp wins)
-        val expenses = queryService.findAllExpenses().toList()
-        assertEquals(2000L, expenses[0].amount)
-    }
+    assertEquals(0, rowsAffected) // strict-greater-than guard rejects equal/older timestamps
+}
 ```
 
 **Transaction Rollback:**
 
 ```kotlin
 @Test
-fun `should rollback all steps when expense projection fails`() = runBlocking {
-        val eventEntry = createTestEventEntry(...)
-        val initialProjectionCount = projectionRepository.findAll().toList().size
-        val initialProcessedEventsCount = getAllProcessedEvents().size
+fun `should rollback event when projection fails`() = runBlocking {
+    val initialEvents = eventRepository.findAll().toList().size
 
-        // Configure spy to fail on projection
-        doAnswer { throw RuntimeException("Simulated projection failure") }
-            .`when`(projectionRepository).projectFromEvent(any())
+    doAnswer { throw RuntimeException("Simulated projection failure") }
+        .`when`(projectionRepository).projectFromEvent(any())
 
-        // Execute and expect failure
-        assertThatThrownBy {
-            runBlocking { expenseSyncProjector.projectEvent(eventEntry) }
-        }.isInstanceOf(RuntimeException::class.java)
+    assertThatThrownBy {
+        runBlocking { commandService.createExpense(...) }
+    }.isInstanceOf(RuntimeException::class.java)
 
-        // Verify rollback - no changes persisted
-        val projectionsAfter = projectionRepository.findAll().toList()
-        val processedEventsAfter = getAllProcessedEvents()
-
-        assertEquals(initialProjectionCount, projectionsAfter.size)
-        assertEquals(initialProcessedEventsCount, processedEventsAfter.size)
-    }
+    assertEquals(initialEvents, eventRepository.findAll().toList().size)
+}
 ```
 
 ---
@@ -954,38 +868,14 @@ docker ps
 - Port conflicts: Stop other services using port 5432
 - Testcontainers timeout: Increase Docker memory allocation
 
-### Sync Not Working
-
-**Check sync file:**
-
-```bash
-ls -la sync-data/
-cat sync-data/sync.json
-```
-
-**Verify sync configuration:**
-
-```bash
-# Check application.yaml for sync settings
-cat expenses-tracker-api/src/main/resources/application.yaml
-```
-
-**Check logs:**
-
-```bash
-docker logs expenses-api | grep -i sync
-# Or in Windows PowerShell:
-docker logs expenses-api | Select-String -Pattern "sync" -CaseSensitive:$false
-```
-
 ### Transaction Issues
 
 **Verify @Transactional working:**
 
-- Check `ExpenseSyncProjector` and `ExpenseSyncRecorder` are separate components
-- Verify injection (not `this.method()` calls)
-- Look for rollback in logs
-- Ensure R2DBC connection pooling is configured correctly
+- `ExpenseCommandService` write methods carry `@Transactional` so the event append + projection upsert succeed or fail together.
+- Never invoke transactional methods from inside the same class — calls must go through the Spring proxy.
+- Look for rollback in logs.
+- Ensure R2DBC connection pooling is configured correctly.
 
 ### Connection Issues
 
@@ -1018,12 +908,13 @@ docker compose up -d postgres
 
 ## 📚 Related Documentation
 
-- [**Root README**](../README.md) — Project pitch, **Sync Engine Architecture (event sourcing, CQRS,
-  conflict resolution, sync workflow)**, **Communication Flow (PKCE auth diagram)**, **Why This
-  Architecture / Technical Decisions**, Docker Compose runbook, CI/CD, References.
+- [**Root README**](../README.md) — Project pitch, **Backend Architecture (event sourcing, CQRS,
+  conflict resolution)**, **Communication Flow (PKCE auth diagram)**, **Why This Architecture /
+  Technical Decisions**, Docker Compose runbook, CI/CD, References.
 - [**Frontend README**](../expenses-tracker-frontend/README.md) — Web frontend (React 19 + MUI v7).
 - [**Mobile README**](../expenses-tracker-mobile/README.md) — Native mobile app (Expo / React Native)
-  with offline-first SQLite store and cloud-drive sync.
+  with offline-first SQLite store and cloud-drive sync. **Canonical reference for the cross-device
+  sync engine** (file format, conflict resolution, snapshot model, throttling).
 - [**`.github/instructions/expenses-tracker-api.instructions.md`**](../.github/instructions/expenses-tracker-api.instructions.md)
   — Path-scoped Copilot rules (Kotlin style, Spring conventions, R2DBC patterns).
 - [**`.github/instructions/test-conventions.instructions.md`**](../.github/instructions/test-conventions.instructions.md)

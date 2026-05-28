@@ -161,7 +161,6 @@ class ExpenseCommandService(
             eventType = eventType,
             expenseId = expenseId,
             payload = jsonOperations.toJson(payload),
-            committed = false,
             userId = userId
         )
 
