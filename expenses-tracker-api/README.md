@@ -1,4 +1,4 @@
-# Expenses Tracker — Backend API
+# Expenses Tracker — Backend API <!-- omit in toc -->
 
 A **Kotlin + Spring Boot 4 (WebFlux + Coroutines + R2DBC)** reactive REST API that implements
 **event-sourced, CQRS-based** expense tracking with JSON / CSV import + export for backup and migration.
@@ -17,40 +17,55 @@ A **Kotlin + Spring Boot 4 (WebFlux + Coroutines + R2DBC)** reactive REST API th
 
 ---
 
-## 📑 Table of Contents
+## 📑 Table of Contents <!-- omit in toc -->
 
-- [Overview](#-overview)
-- [Tech Stack](#-tech-stack)
-- [Running the Backend](#-running-the-backend)
-    - [Prerequisites](#prerequisites)
-    - [Start PostgreSQL and Keycloak](#start-postgresql-and-keycloak)
-    - [Run the API server](#run-the-api-server)
-    - [Building](#building)
-- [Configuration](#-configuration)
-    - [Environment Variables](#environment-variables)
-    - [Application Configuration (`application.yaml`)](#application-configuration-applicationyaml)
-- [Database Migrations (Flyway)](#-database-migrations-flyway)
-- [API Documentation](#-api-documentation)
-    - [Endpoints](#endpoints)
-    - [Quick API Test](#quick-api-test)
-    - [HTTP Client Environment Configuration](#http-client-environment-configuration)
-- [Testing](#-testing)
-    - [Test Coverage](#test-coverage)
-    - [Running Tests](#running-tests)
-    - [Test Infrastructure](#test-infrastructure)
-    - [Key Test Scenarios](#key-test-scenarios)
-- [Performance Optimization: Batch Processing (Recommended)](#-performance-optimization-batch-processing-recommended)
-    - [Current Implementation](#current-implementation)
-    - [Recommended Production Optimization](#recommended-production-optimization)
-    - [Database Compatibility](#database-compatibility)
-    - [Performance Comparison](#performance-comparison)
-    - [When to Optimize](#when-to-optimize)
-    - [PostgreSQL-Specific Optimization (Most Efficient)](#postgresql-specific-optimization-most-efficient)
-- [Troubleshooting](#-troubleshooting)
-    - [Tests Failing](#tests-failing)
-    - [Transaction Issues](#transaction-issues)
-    - [Connection Issues](#connection-issues)
-- [Related Documentation](#-related-documentation)
+- [🎯 Overview](#-overview)
+- [🛠 Tech Stack](#-tech-stack)
+- [🚀 Running the Backend](#-running-the-backend)
+  - [Prerequisites](#prerequisites)
+  - [Start PostgreSQL and Keycloak](#start-postgresql-and-keycloak)
+  - [Run the API server](#run-the-api-server)
+  - [Building](#building)
+- [⚙ Configuration](#-configuration)
+  - [Environment Variables](#environment-variables)
+  - [Application Configuration (`application.yaml`)](#application-configuration-applicationyaml)
+- [🗄 Database Migrations (Flyway)](#-database-migrations-flyway)
+- [📡 API Documentation](#-api-documentation)
+  - [Endpoints](#endpoints)
+  - [Quick API Test](#quick-api-test)
+  - [HTTP Client Environment Configuration](#http-client-environment-configuration)
+    - [File Location](#file-location)
+    - [Configuration Format](#configuration-format)
+    - [Available Environments](#available-environments)
+    - [How to Use](#how-to-use)
+    - [Customizing for Your Environment](#customizing-for-your-environment)
+    - [Tips](#tips)
+    - [Alternative: Using curl](#alternative-using-curl)
+- [🧪 Testing](#-testing)
+  - [Test Coverage](#test-coverage)
+  - [Running Tests](#running-tests)
+  - [Test Infrastructure](#test-infrastructure)
+  - [Key Test Scenarios](#key-test-scenarios)
+- [🚀 Performance Optimization: Batch Projection Writes](#-performance-optimization-batch-projection-writes)
+  - [Today: Sequential Single-Row Writes](#today-sequential-single-row-writes)
+  - [Possible Future Approach](#possible-future-approach)
+    - [Option 1: Multi-Row INSERT (PostgreSQL + SQLite 3.24+)](#option-1-multi-row-insert-postgresql--sqlite-324)
+    - [Option 2: Batch UPDATE with VALUES Clause](#option-2-batch-update-with-values-clause)
+  - [Database Compatibility](#database-compatibility)
+  - [Performance Comparison](#performance-comparison)
+  - [When to Optimize](#when-to-optimize)
+  - [PostgreSQL-Specific Variant (Most Efficient — Also Not Implemented)](#postgresql-specific-variant-most-efficient--also-not-implemented)
+    - [Why PostgreSQL `unnest()` is Better](#why-postgresql-unnest-is-better)
+    - [Implementation with unnest()](#implementation-with-unnest)
+    - [Pros and Cons](#pros-and-cons)
+- [📈 Scaling Notes \& Future Considerations](#-scaling-notes--future-considerations)
+  - [Why this backend has no snapshots or compaction](#why-this-backend-has-no-snapshots-or-compaction)
+  - [Operational scaling levers (apply only after measuring)](#operational-scaling-levers-apply-only-after-measuring)
+- [🔍 Troubleshooting](#-troubleshooting)
+  - [Tests Failing](#tests-failing)
+  - [Transaction Issues](#transaction-issues)
+  - [Connection Issues](#connection-issues)
+- [📚 Related Documentation](#-related-documentation)
 
 ---
 
@@ -525,33 +540,52 @@ fun `should rollback event when projection fails`() = runBlocking {
 
 ---
 
-## 🚀 Performance Optimization: Batch Processing (Recommended)
+## 🚀 Performance Optimization: Batch Projection Writes
 
-### Current Implementation
+> **Status — design notes, not code.** Nothing in this section ships in the codebase today.
+> There is no `projectFromEventBatch` method on `ExpenseProjectionRepository`, and there is no
+> call site that would use one. The current write path is strictly single-row
+> (`ExpenseCommandService` appends one event + UPSERTs one projection per command via
+> `ExpenseProjectionRepository.projectFromEvent`, and `DataImporter` reuses the same per-row
+> command path). This section is kept as a forward-looking design ledger so that when a real
+> batched call site appears, the trade-offs have already been thought through. Read it together
+> with [📈 Scaling Notes & Future Considerations](#-scaling-notes--future-considerations) —
+> the same "only optimize after measuring" rule applies.
 
-The current codebase uses **sequential processing within a transaction**:
+### Today: Sequential Single-Row Writes
+
+Every command produces exactly one event and one projection UPSERT inside a single
+`@Transactional` boundary:
 
 ```kotlin
+// ExpenseProjectionRepository.kt — the only projection write method that exists today
+suspend fun projectFromEvent(projection: ExpenseProjection): Int
+
+// ExpenseCommandService.kt — one call per command
 @Transactional
-suspend fun projectFromEventBatch(projections: List<ExpenseProjection>): Int {
-    return projections.count { projection ->
-        projectFromEvent(projection) > 0  // N database calls
-    }
+suspend fun createExpense(...): ExpenseProjection {
+    eventRepository.save(event)
+    projectionRepository.projectFromEvent(projection)  // single UPSERT, LWW-guarded
+    return projection
 }
 ```
 
-**Characteristics:**
+**Why this is the right default for this codebase:**
 
-- ✅ **Simple & Maintainable** - Easy to understand, reuses existing methods
-- ✅ **Atomic** - Single transaction ensures all-or-nothing
-- ✅ **Portable** - Works on any database
-- ⚠️ **Performance** - Makes N database calls (acceptable for validation/playground)
+- ✅ **Simple & Maintainable** — one code path for create / update / delete / import.
+- ✅ **Atomic** — event append and projection UPSERT share one transaction.
+- ✅ **Portable** — no database-specific SQL.
+- ✅ **Adequate** — WebFlux + R2DBC already pipeline concurrent commands across the pool; there
+  is no per-request batch to amortise.
+- ⚠️ **N round trips per N commands** — would only matter if a batched call site existed.
 
 ---
 
-### Recommended Production Optimization
+### Possible Future Approach
 
-For production systems handling large sync batches, implement **true batch processing** using multi-row SQL operations.
+*If* a genuine batched call site ever appears (e.g. a bulk-import endpoint that intentionally
+bypasses the per-row command path), the patterns below are the ones to evaluate. They are
+**not** in the codebase — treat them as a design sketch, not a target to implement now.
 
 #### Option 1: Multi-Row INSERT (PostgreSQL + SQLite 3.24+)
 
@@ -723,10 +757,11 @@ private fun DatabaseClient.GenericExecuteSpec.bindDeleteBatch(
 
 ---
 
-### PostgreSQL-Specific Optimization (Most Efficient)
+### PostgreSQL-Specific Variant (Most Efficient — Also Not Implemented)
 
-If your production system uses **PostgreSQL exclusively**, you can leverage the `unnest()` function for the **most
-efficient** batch processing.
+If the future batched call site ever materialises and the deployment is committed to PostgreSQL,
+the `unnest()` function gives the cleanest and best-performing variant. **Same status as above:
+this is a design sketch, not code that exists in the repository.**
 
 #### Why PostgreSQL `unnest()` is Better
 
@@ -842,6 +877,76 @@ class PostgresExpenseProjectionRepositoryImpl(
 
 - Use **PostgreSQL unnest()** if you're committed to PostgreSQL in production
 - Use **multi-row VALUES** if you need portability or plan to migrate to SQLite/Android
+
+---
+
+## 📈 Scaling Notes & Future Considerations
+
+This section exists to **prevent two common over-engineering temptations** — bolting on event-sourcing
+snapshots or an LSM-style compaction layer — and to record the operational levers that *do* make
+sense, but only once measured pressure justifies them. The reasoning here is the mirror image of the
+mobile module's
+[**Design Alternatives Considered — Why Not Full LSM Compaction?**](../expenses-tracker-mobile/README.md#design-alternatives-considered--why-not-full-lsm-compaction)
+section; the two modules face opposite constraints and therefore land on opposite designs.
+
+### Why this backend has no snapshots or compaction
+
+Classic event-sourcing snapshots exist to **avoid replaying N events to rehydrate an aggregate on the
+read path.** This service never does that:
+
+- `ExpenseCommandService` appends the event **and** UPSERTs the projection in the *same*
+  `@Transactional` boundary.
+- `ExpenseQueryService` reads **only** from `expense_projections`. It never touches
+  `expense_events`.
+- There is no `Expense.replay(events)` aggregate constructor anywhere in the codebase.
+
+So **`expense_projections` already *is* the snapshot** — continuously maintained, LWW-merged,
+indexed, and queryable in O(log n). Layering a second snapshot on top would be a snapshot of a
+snapshot.
+
+The same logic rules out an application-level LSM compaction layer. The mobile module needs one
+because cloud-drive transport ships a whole-file blob and cold-install devices would otherwise
+re-apply years of events. None of those constraints apply on the server:
+
+| Pressure that motivates LSM on mobile     | Status on this backend                                |
+|-------------------------------------------|-------------------------------------------------------|
+| No per-row query API (whole-file blob)    | ✅ PostgreSQL queries individual rows                  |
+| No cross-file atomic write                | ✅ MVCC + WAL provide it                               |
+| Cold-install must replay all events       | ✅ Projections are always current — no replay         |
+| Bandwidth-bound transport                 | ✅ Local TCP socket                                    |
+
+PostgreSQL's heap + WAL + autovacuum already provide the storage-engine compaction that an
+application-level LSM would otherwise have to reinvent — poorly.
+
+### Operational scaling levers (apply only after measuring)
+
+If real production telemetry ever shows pressure on this backend, the items below are the
+proven, low-regret levers — in roughly the order they typically pay off. **Do not apply any of
+them speculatively.** Each one adds operational surface area and only pays back against a
+demonstrated bottleneck.
+
+| Lever                                       | When it pays off                                                                | Cost / caveats                                                                   |
+|---------------------------------------------|----------------------------------------------------------------------------------|----------------------------------------------------------------------------------|
+| **Read replicas for projection queries**    | Read traffic dominates and the primary's CPU / WAL fsync is saturated.          | Async replication lag (typically <1 s) — acceptable here because reads are non-authoritative. |
+| **Partition `expense_events` by year**      | The event table grows past tens of millions of rows *and* autovacuum / index bloat is measured. | Adds DDL complexity; cross-partition queries get more expensive. Only worth it once `pg_stat_user_tables` proves it. |
+| **HASH partition by `user_id`**             | Per-user index bloat / autovacuum pressure shows up at high user counts, **or** as the prerequisite for future sharding (Citus etc.). | Use `PARTITION BY HASH (user_id)` with a fixed bucket count (16–256) — **never one partition per user** (PostgreSQL's catalog blows up at thousands of partitions). Bucket count is essentially permanent. Does *not* help GDPR delete (multiple users share a bucket) and does *not* give cheap time-based archival. |
+| **Sharding (Citus / app-layer)**            | Single-instance CPU / RAM / WAL becomes the bottleneck and read replicas can't absorb it. | **PostgreSQL does not ship sharding.** Requires Citus (or app-level routing) and brings distributed-transaction caveats (2PC, cross-shard query coordinator, per-shard backups). The hash-partitioning step above is the prerequisite — Citus turns the same `PARTITION BY HASH (user_id)` definition into a distributed table via `create_distributed_table('expense_events', 'user_id')`. |
+| **Cold-storage archival of old events**     | Compliance (GDPR right-to-erasure, retention windows) — *not* performance.       | The `expense_projections` row is the system of record for queries, so archival is mostly a legal/storage-cost lever. |
+| **Outbox pattern**                          | A real downstream consumer appears (analytics warehouse, webhooks, search index). | Adds an `outbox` table + relay process; the single-transaction event append makes this a clean drop-in when needed. |
+
+> **Partitioning vs. sharding — they are not the same.** Declarative partitioning splits one logical
+> table across multiple physical sub-tables on the **same** PostgreSQL instance: same WAL, same
+> autovacuum daemon, same CPU and RAM budget. It improves per-partition vacuum and keeps indexes
+> smaller, but it does **not** give horizontal scale. Sharding spreads the data across **multiple**
+> PostgreSQL instances and only ships as an extension (Citus) or as an external rewrite
+> (CockroachDB, YugabyteDB). The reason hash partitioning by `user_id` is called out as a peer of
+> time-based partitioning is that it doubles as the cheap, reversible pre-step that makes a future
+> Citus migration mechanical instead of architectural.
+
+A practical guardrail: **the smallest of these (read replicas) is a config + connection-routing
+change, not an architecture change.** That ordering is deliberate — the cheaper levers also reverse
+more cleanly if the measured bottleneck turns out to be somewhere else (a missing index, a chatty
+client, an N+1 in a controller).
 
 ---
 

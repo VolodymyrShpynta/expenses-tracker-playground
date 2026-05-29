@@ -186,7 +186,7 @@ sequence diagram, see the [Communication Flow section in the root README](../REA
 
 ---
 
-## � Troubleshooting
+## 🔍 Troubleshooting
 
 ### Docker Build Fails with `npm ci` Error
 
@@ -218,7 +218,7 @@ docker compose up -d
 
 ---
 
-## �📚 Related Documentation
+## 📚 Related Documentation
 
 - [**Root README**](../README.md) — Project pitch, sync architecture, Docker Compose runbook, CI/CD.
 - [**Backend README**](../expenses-tracker-api/README.md) — REST API, JWT validation, database schema,
