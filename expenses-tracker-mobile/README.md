@@ -99,7 +99,7 @@ The mobile app:
   Google Drive `appDataFolder` or OneDrive `approot`. The sync file is gzip-compressed JSON; the wire
   format and snapshot model are documented in this README. **The backend itself has no equivalent
   file-sync subsystem** — web clients converge through PostgreSQL directly and backup / migration use
-  the JSON / CSV `/api/export` and `/api/import` endpoints instead.
+  the JSON / CSV `/api/data/export` and `/api/data/import` endpoints instead.
 - Uses **OAuth 2.0 + PKCE** with no client secret for cloud-drive authentication
   ([Cloud-Drive Sync — Getting OAuth Client IDs](#-cloud-drive-sync--getting-oauth-client-ids)).
 - Has a single `AutoSyncCoordinator` that funnels every sync trigger (cold start, foreground, after-write
@@ -150,6 +150,14 @@ The mobile app implements an **offline-first, peer-to-peer sync engine** over th
 drive. There is no central service — every device runs the same algorithm against a single shared
 file (`sync.json.gz`) in Google Drive `appDataFolder` or OneDrive `approot`. The backend has no
 equivalent file-sync subsystem; this section describes the entire protocol that runs on mobile.
+
+> **Data-protection note.** Because the sync file lives in **the user's own** Google Drive /
+> OneDrive, the user is the data controller for that file and the cloud-drive provider is the
+> user's sub-processor — *not* the app operator's. The app cannot enumerate or delete files in
+> other users' drives, and the OAuth refresh tokens that authorise drive access are kept in
+> `expo-secure-store` (hardware-backed), not in `AsyncStorage`. The full role-taxonomy breakdown
+> and data-subject-rights matrix for all three modules lives in [`GDPR.md`](../GDPR.md) at the
+> repo root.
 
 ### Design Principles
 

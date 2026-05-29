@@ -54,7 +54,7 @@ Understanding these flows is critical before modifying any service code.
 
 Schema defined in `expenses-tracker-api/src/main/resources/db/migration/V1__Initial_schema.sql` (with `V2__Remove_sync_subsystem.sql` dropping the legacy `committed` column and `processed_events` table). Reference data (default category templates) is seeded by the repeatable migration `R__Seed_default_categories.sql`.
 
-> **No backend sync subsystem.** The backend itself does not participate in cross-device sync. Web clients converge through PostgreSQL directly; backup / migration uses the JSON / CSV endpoints in `DataExchangeController` (`/api/export`, `/api/import`). The mobile app has its own independent TypeScript sync engine over Google Drive / OneDrive (see `expenses-tracker-mobile/README.md`).
+> **No backend sync subsystem.** The backend itself does not participate in cross-device sync. Web clients converge through PostgreSQL directly; backup / migration uses the JSON / CSV endpoints in `DataExchangeController` (`/api/data/export`, `/api/data/import`). The mobile app has its own independent TypeScript sync engine over Google Drive / OneDrive (see `expenses-tracker-mobile/README.md`).
 
 ### Write path (local commands)
 

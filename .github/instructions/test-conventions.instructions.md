@@ -76,4 +76,4 @@ assertThat(result).isTrue()
 
 ## Sync file tests
 
-The backend no longer has a sync subsystem (no `SyncFileManager`, `processed_events`, or sync file path). If you need backup / migration coverage, target `DataExchangeService` (JSON + CSV-in-ZIP through `/api/export` and `/api/import`).
+The backend no longer has a sync subsystem (no `SyncFileManager`, `processed_events`, or sync file path). If you need backup / migration coverage, target `DataExchangeService` (JSON + CSV-in-ZIP through `/api/data/export` and `/api/data/import`).

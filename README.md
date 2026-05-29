@@ -6,7 +6,7 @@ built with **Spring Boot 4**, **Kotlin Coroutines**, **R2DBC**, and **PostgreSQL
 with its own event-sourcing engine on SQLite. The backend exposes a CQRS-based REST API; the mobile module is
 fully offline-first and (independently of the backend) syncs across devices via the user's own Google Drive or
 OneDrive. The backend itself does not participate in cross-device sync — backup and migration use the JSON / CSV
-import-export endpoints (`/api/export`, `/api/import`).
+import-export endpoints (`/api/data/export`, `/api/data/import`).
 
 ## 🌟 What Makes This Project Special?
 
@@ -19,7 +19,7 @@ import-export endpoints (`/api/export`, `/api/import`).
   `approot` — no central sync server, no backend dependency
 - 🏗️ **Event Sourcing & CQRS**: Proper event-driven architecture with separate read/write models — the same algorithm
   runs on the JVM (Kotlin) and in the mobile app (TypeScript), with a byte-identical JSON wire format on mobile
-- 💾 **Backup & Migration**: Backend exposes JSON (lossless) and CSV-in-ZIP `/api/export` and `/api/import` endpoints
+- 💾 **Backup & Migration**: Backend exposes JSON (lossless) and CSV-in-ZIP `/api/data/export` and `/api/data/import` endpoints
   for portable backup between deployments
 - 🛡️ **Battle-Tested**: Comprehensive test suite with Testcontainers and real PostgreSQL on the backend, plus 56 Vitest
   unit tests on mobile
@@ -142,9 +142,9 @@ migration** for the backend is implemented via the JSON / CSV import-export endp
 
 ### Backup & Migration
 
-- ✅ **Lossless JSON export** — `/api/export?format=json` round-trips all events for a user
-- ✅ **CSV-in-ZIP export** — `/api/export?format=csv` produces a portable spreadsheet bundle
-- ✅ **Import via command path** — `/api/import` re-creates events through `ExpenseCommandService.createExpense()` so
+- ✅ **Lossless JSON export** — `/api/data/export?format=json` round-trips all events for a user
+- ✅ **CSV-in-ZIP export** — `/api/data/export?format=csv` produces a portable spreadsheet bundle
+- ✅ **Import via command path** — `/api/data/import` re-creates events through `ExpenseCommandService.createExpense()` so
   projections converge exactly as for a normal write
 - ✅ **Transactional Execution** - All-or-nothing operations ensure data consistency
 - ✅ **Comprehensive Testing** - Full coverage of round-trip and edge cases in `DataExchangeServiceTest`
@@ -765,7 +765,7 @@ WHERE EXCLUDED.updated_at > expense_projections.updated_at;
 
 The **backend itself does not synchronize between devices.** Web clients converge by reading and writing
 to the shared PostgreSQL instance directly. Backup and migration use the **JSON / CSV import-export**
-endpoints in `DataExchangeController` (`/api/export` and `/api/import`).
+endpoints in `DataExchangeController` (`/api/data/export` and `/api/data/import`).
 
 Cross-device sync over a user-owned cloud drive (Google Drive `appDataFolder` / OneDrive `approot`) is a
 **mobile-only feature** that lives entirely in the [mobile module](./expenses-tracker-mobile/README.md).

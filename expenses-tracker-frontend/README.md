@@ -184,6 +184,12 @@ The frontend uses **keycloak-js** with the PKCE flow:
 For the full Keycloak setup (realm import, client config, environment variables) and the end-to-end PKCE
 sequence diagram, see the [Communication Flow section in the root README](../README.md#-communication-flow).
 
+> **Where tokens live and what the web app persists.** The web app keeps the access / refresh
+> tokens in memory only (managed by `keycloak-js`), never in `localStorage` / `sessionStorage` /
+> cookies. The only client-side persistence is two UI preferences keyed by user id
+> (`expenses-tracker-main-currency:<userId>`, `expenses-tracker-period-preset:<userId>`). For the
+> full data-handling posture across all modules, see [`GDPR.md`](../GDPR.md) at the repo root.
+
 ---
 
 ## 🔍 Troubleshooting

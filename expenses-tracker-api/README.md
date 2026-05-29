@@ -77,7 +77,7 @@ The backend is a reactive Spring Boot application that:
 - Validates JWT Bearer tokens issued by **Keycloak** (resource-server mode, no session cookies).
 - Persists events in `expense_events` (source of truth) and a materialized read model in
   `expense_projections` — both updated atomically in a single `@Transactional` boundary.
-- Exposes JSON / CSV import + export endpoints (`/api/export`, `/api/import`) via
+- Exposes JSON / CSV import + export endpoints (`/api/data/export`, `/api/data/import`) via
   `DataExchangeController` for backup and migration between deployments.
 - Uses **R2DBC** for reactive runtime queries and a separate **JDBC** datasource for Flyway migrations
   (Flyway has no reactive support yet).
@@ -931,7 +931,7 @@ demonstrated bottleneck.
 | **Partition `expense_events` by year**      | The event table grows past tens of millions of rows *and* autovacuum / index bloat is measured. | Adds DDL complexity; cross-partition queries get more expensive. Only worth it once `pg_stat_user_tables` proves it. |
 | **HASH partition by `user_id`**             | Per-user index bloat / autovacuum pressure shows up at high user counts, **or** as the prerequisite for future sharding (Citus etc.). | Use `PARTITION BY HASH (user_id)` with a fixed bucket count (16–256) — **never one partition per user** (PostgreSQL's catalog blows up at thousands of partitions). Bucket count is essentially permanent. Does *not* help GDPR delete (multiple users share a bucket) and does *not* give cheap time-based archival. |
 | **Sharding (Citus / app-layer)**            | Single-instance CPU / RAM / WAL becomes the bottleneck and read replicas can't absorb it. | **PostgreSQL does not ship sharding.** Requires Citus (or app-level routing) and brings distributed-transaction caveats (2PC, cross-shard query coordinator, per-shard backups). The hash-partitioning step above is the prerequisite — Citus turns the same `PARTITION BY HASH (user_id)` definition into a distributed table via `create_distributed_table('expense_events', 'user_id')`. |
-| **Cold-storage archival of old events**     | Compliance (GDPR right-to-erasure, retention windows) — *not* performance.       | The `expense_projections` row is the system of record for queries, so archival is mostly a legal/storage-cost lever. |
+| **Cold-storage archival of old events**     | **Retention windows / storage cost** — *not* performance, and *not* right-to-erasure. | The `expense_projections` row is the system of record for queries, so archival is a storage-cost lever. Archival on its own does **not** satisfy Art. 17 (the data is still under the controller); use it in combination with the erasure mechanism described in [`GDPR.md`](../GDPR.md#article-17--implementation-guide-for-the-erasure-gap), not instead of it. |
 | **Outbox pattern**                          | A real downstream consumer appears (analytics warehouse, webhooks, search index). | Adds an `outbox` table + relay process; the single-transaction event append makes this a clean drop-in when needed. |
 
 > **Partitioning vs. sharding — they are not the same.** Declarative partitioning splits one logical
@@ -942,6 +942,11 @@ demonstrated bottleneck.
 > (CockroachDB, YugabyteDB). The reason hash partitioning by `user_id` is called out as a peer of
 > time-based partitioning is that it doubles as the cheap, reversible pre-step that makes a future
 > Citus migration mechanical instead of architectural.
+
+> **GDPR posture** — for the data-handling side of all of this (data-subject rights, what's
+> implemented, what isn't, and how to implement Art. 17 erasure when it becomes a real
+> requirement), see [`GDPR.md`](../GDPR.md) at the repo root. The scaling table above is about
+> performance / cost levers; data-protection obligations are a separate axis.
 
 A practical guardrail: **the smallest of these (read replicas) is a config + connection-routing
 change, not an architecture change.** That ordering is deliberate — the cheaper levers also reverse

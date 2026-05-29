@@ -3,8 +3,8 @@
 -- =============================================================================
 -- The backend no longer participates in cross-device sync. Web clients converge
 -- via PostgreSQL directly, and any backup/migration use-case is covered by the
--- JSON / CSV import/export endpoints in `DataExchangeController` (`/api/export`
--- and `/api/import`). The mobile app keeps its own SQLite event store and
+-- JSON / CSV import/export endpoints in `DataExchangeController` (`/api/data/export`
+-- and `/api/data/import`). The mobile app keeps its own SQLite event store and
 -- cloud-drive sync engine — it never depended on the backend's sync file.
 --
 -- Two schema artefacts existed solely to support the sync file mechanism and
