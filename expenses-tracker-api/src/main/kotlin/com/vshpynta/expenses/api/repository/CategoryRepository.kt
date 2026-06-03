@@ -132,4 +132,13 @@ interface CategoryRepository : CoroutineCrudRepository<Category, UUID> {
     """
     )
     suspend fun softDeleteCustomCategories(userId: String, updatedAt: Long): Int
+
+    /**
+     * Hard-delete every category row owned by the user. **Only** used by
+     * the Art. 17 erasure pipeline; normal deletes are soft (see
+     * [markAsDeleted]).
+     */
+    @Modifying
+    @Query("DELETE FROM categories WHERE user_id = :userId")
+    suspend fun deleteAllByUserId(userId: String): Long
 }

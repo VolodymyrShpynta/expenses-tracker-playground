@@ -38,3 +38,36 @@ app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
     allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:}
+
+  # ---------------------------------------------------------------------------
+  # GDPR subsystem
+  # ---------------------------------------------------------------------------
+  # Implementation guide and rationale: see /GDPR.md at the repo root.
+  #
+  # Defaults are conservative and disabled-where-impactful:
+  #   * inactivity.enabled defaults to false — the warning email transport
+  #     must be wired up before turning this on; otherwise accounts would be
+  #     erased without notice.
+  #   * keycloak.enabled  defaults to false — the post-erasure cascade then
+  #     becomes a manual follow-up by the operator.
+  gdpr:
+    fresh-auth:
+      max-age: ${GDPR_FRESH_AUTH_MAX_AGE:PT5M}
+    restriction:
+      lift-dwell: ${GDPR_RESTRICTION_LIFT_DWELL:P7D}
+    inactivity:
+      enabled: ${GDPR_INACTIVITY_ENABLED:false}
+      warning-after: ${GDPR_INACTIVITY_WARNING_AFTER:P1095D}
+      erasure-grace: ${GDPR_INACTIVITY_GRACE:P90D}
+      cron: ${GDPR_INACTIVITY_CRON:0 0 3 * * *}
+    activity:
+      touch-debounce: ${GDPR_ACTIVITY_DEBOUNCE:PT15M}
+      cache-max-entries: ${GDPR_ACTIVITY_CACHE_MAX:100000}
+    keycloak:
+      enabled: ${GDPR_KEYCLOAK_ADMIN_ENABLED:false}
+      base-url: ${GDPR_KEYCLOAK_ADMIN_URL:}
+      realm: ${GDPR_KEYCLOAK_ADMIN_REALM:}
+      client-id: ${GDPR_KEYCLOAK_ADMIN_CLIENT_ID:}
+      client-secret: ${GDPR_KEYCLOAK_ADMIN_CLIENT_SECRET:}
+      token-path: ${GDPR_KEYCLOAK_TOKEN_PATH:/realms/{realm}/protocol/openid-connect/token}
+      user-path: ${GDPR_KEYCLOAK_USER_PATH:/admin/realms/{realm}/users/{userId}}

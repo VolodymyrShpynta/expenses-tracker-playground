@@ -12,6 +12,7 @@ import com.vshpynta.expenses.api.service.ExportDefaults.UNCATEGORIZED_LABEL
 import com.vshpynta.expenses.api.service.auth.UserContextService
 import kotlinx.coroutines.flow.toList
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Service
 import java.util.UUID
 
@@ -23,11 +24,21 @@ import java.util.UUID
  * Format-agnostic — both the JSON and the CSV-in-ZIP decode paths feed
  * the same orchestrator, so format-specific concerns stay out of the
  * apply logic.
+ *
+ * **Bypasses the GDPR decorators by injecting the `default` impls.**
+ * An import can touch thousands of rows in a single request, and
+ * routing every iteration through `GdprAware*Service` would issue one
+ * redundant `processing_restrictions` PK lookup per row. The outer
+ * `GdprAwareDataExchangeService.import*` call has already guarded the
+ * caller exactly once, so the contract "every entry from outside the
+ * service layer is guarded" is preserved.
  */
 @Service
 class DataImporter(
     private val categoryRepository: CategoryRepository,
+    @Qualifier("defaultCategoryService")
     private val categoryService: CategoryService,
+    @Qualifier("defaultExpenseCommandService")
     private val expenseCommandService: ExpenseCommandService,
     private val userContextService: UserContextService
 ) {

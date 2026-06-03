@@ -105,4 +105,14 @@ interface ExpenseProjectionRepository : CoroutineCrudRepository<ExpenseProjectio
     """
     )
     suspend fun markAsDeleted(id: UUID, updatedAt: Long): Int
+
+    /**
+     * Hard-delete every projection row owned by the user. Used **only**
+     * by the Art. 17 erasure pipeline; the normal write path uses
+     * [markAsDeleted] (soft delete) instead so the event history stays
+     * intact.
+     */
+    @Modifying
+    @Query("DELETE FROM expense_projections WHERE user_id = :userId")
+    suspend fun deleteAllByUserId(userId: String): Long
 }

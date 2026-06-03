@@ -6,6 +6,7 @@ spring-dependency-management = "1.1.7"
 flyway = "11.16.0"
 testcontainers = "1.21.4"
 mockito-kotlin = "6.2.1"
+archunit = "1.4.2"
 commons-codec = "1.20.0"
 node-gradle = "7.1.0"
 
@@ -33,6 +34,7 @@ jackson-dataformat-csv = { module = "com.fasterxml.jackson.dataformat:jackson-da
 
 # Utilities
 commons-codec = { module = "commons-codec:commons-codec", version.ref = "commons-codec" }
+caffeine = { module = "com.github.ben-manes.caffeine:caffeine" }
 
 # Database
 r2dbc-postgresql = { module = "org.postgresql:r2dbc-postgresql" }
@@ -50,6 +52,7 @@ spring-boot-testcontainers = { module = "org.springframework.boot:spring-boot-te
 testcontainers-postgresql = { module = "org.testcontainers:postgresql", version.ref = "testcontainers" }
 testcontainers-r2dbc = { module = "org.testcontainers:r2dbc", version.ref = "testcontainers" }
 mockito-kotlin = { module = "org.mockito.kotlin:mockito-kotlin", version.ref = "mockito-kotlin" }
+archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

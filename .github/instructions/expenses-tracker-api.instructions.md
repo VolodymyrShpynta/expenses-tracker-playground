@@ -138,6 +138,20 @@ fun getAll(): Flux<ExpenseDto> {
 - Use `@ConfigurationProperties` with `data class` for type-safe configuration binding.
 - Use `@EnableConfigurationProperties(...)` in `@Configuration` classes.
 
+> ⚠️ **AOP self-invocation is a silent bug.** `@Transactional`, `@Async`, `@Cacheable`, and
+> any other Spring AOP advice is delivered through a CGLIB proxy that wraps the bean.
+> A call like `this.someTransactionalMethod()` (or a bare in-class call like
+> `someTransactionalMethod()`) **bypasses the proxy** — the annotation has no effect:
+> no transaction is opened, no rollback happens on exception, `@Modifying` statements
+> autocommit per call. IntelliJ flags this as *"Not call AOP Spring methods from the
+> same class. Proxy does not work in this case."*
+>
+> **Fix:** either (a) inline the work into the caller and move `@Transactional` to the
+> caller, or (b) extract the transactional method into a second bean and inject it
+> (the SRP pattern used in `service.gdpr.GdprAware*` decorators is a good template).
+> Self-injecting via `@Lazy` is a last resort. For inner transactional blocks, use
+> `TransactionalOperator` instead of an annotation.
+
 > ⚠️ **Never create a `@ConfigurationProperties` class that shadows Spring Boot's own
 > auto-configured properties** (e.g., `spring.flyway.*`, `spring.r2dbc.*`).
 > Doing so creates a parallel, potentially inconsistent binding.
