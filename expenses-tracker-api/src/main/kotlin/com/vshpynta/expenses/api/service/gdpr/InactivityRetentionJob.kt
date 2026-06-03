@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.count
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.toSet
+import kotlinx.coroutines.runBlocking
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.annotation.Scheduled
@@ -57,8 +59,48 @@ class InactivityRetentionJob(
      * [ConditionalOnProperty] above so the bean isn't even constructed
      * when `app.gdpr.inactivity.enabled = false`.
      *
-     * Spring 6.1+ runs `suspend` `@Scheduled` methods on the scheduled
-     * task executor with the reactive bridge — no `runBlocking` needed.
+     * **Why not `suspend fun`?** ShedLock's `@SchedulerLock` works via
+     * a Spring AOP interceptor that conceptually does:
+     * ```
+     * lockProvider.lock(...)
+     * try { invocation.proceed() }
+     * finally { lock.release() }
+     * ```
+     * For a `suspend fun`, the Kotlin compiler rewrites the method
+     * to take a `Continuation` and the bytecode returns
+     * `COROUTINE_SUSPENDED` the instant the body hits its first real
+     * suspension point (e.g. R2DBC I/O). The actual work then
+     * continues asynchronously on whatever dispatcher the coroutine
+     * resumes on. From AOP's point of view `proceed()` has already
+     * returned, so the `finally` block runs and the lock is released
+     * *before* the real work executes — defeating the lock entirely:
+     * a second replica can now acquire the lock and run the same
+     * tick in parallel.
+     *
+     * Wrapping the body in `runBlocking { ... }` turns `runTick` back
+     * into a regular blocking method as observed by the AOP
+     * interceptor: the scheduling thread parks inside `runBlocking`
+     * and `proceed()` does not return until every suspension point
+     * in the coroutine has completed. The `try`/`finally` lock
+     * window therefore covers the full duration of the work.
+     *
+     * Note this is *not* about preventing the coroutine from
+     * switching dispatchers — coroutines inside `runBlocking { ... }`
+     * still suspend and resume freely (e.g. on the Reactor Netty
+     * event loop for R2DBC calls). What `runBlocking` guarantees is
+     * that the *caller thread* (the Spring scheduler's thread that
+     * AOP wrapped) stays inside the `runTick()` stack frame until
+     * the suspending body has finished.
+     *
+     * **Distributed-lock semantics.** `@SchedulerLock` guarantees that
+     * across all replicas, at most one instance runs this tick per
+     * cron fire. Other instances try to acquire the lock, find it
+     * held, and skip silently. `lockAtMostFor = PT15M` is the safety
+     * release if this JVM dies mid-tick (a different replica picks
+     * up the next fire after that window). `lockAtLeastFor = PT0S`
+     * means the lock is released the moment the job completes — fine
+     * for a once-a-day cron where clock skew between replicas would
+     * have to be measured in *hours* to cause a duplicate run.
      *
      * `SchedulerInvalidCronExpression` is suppressed because the IDE's
      * static analyzer eagerly resolves the placeholder chain
@@ -68,15 +110,22 @@ class InactivityRetentionJob(
      */
     @Suppress("SchedulerInvalidCronExpression")
     @Scheduled(cron = "\${app.gdpr.inactivity.cron}")
-    suspend fun runTick() {
-        try {
-            val restrictedUsers = restrictionRepository.findAllRestrictedUserIds().toSet()
-            runWarningStep(restrictedUsers)
-            runErasureStep(restrictedUsers)
-        } catch (ce: CancellationException) {
-            throw ce
-        } catch (t: Throwable) {
-            logger.error("Inactivity retention tick failed", t)
+    @SchedulerLock(
+        name = "gdpr-inactivity-tick",
+        lockAtMostFor = "PT15M",
+        lockAtLeastFor = "PT0S",
+    )
+    fun runTick() {
+        runBlocking {
+            try {
+                val restrictedUsers = restrictionRepository.findAllRestrictedUserIds().toSet()
+                runWarningStep(restrictedUsers)
+                runErasureStep(restrictedUsers)
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (t: Throwable) {
+                logger.error("Inactivity retention tick failed", t)
+            }
         }
     }
 

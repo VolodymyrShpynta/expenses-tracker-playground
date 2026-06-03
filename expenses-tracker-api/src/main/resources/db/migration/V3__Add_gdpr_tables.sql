@@ -118,3 +118,22 @@ CREATE INDEX idx_account_activity_last_seen
 CREATE INDEX idx_account_activity_warning_sent
     ON account_activity(inactivity_warning_sent_at)
     WHERE inactivity_warning_sent_at IS NOT NULL;
+
+
+-- -----------------------------------------------------------------------------
+-- shedlock — distributed lock for @Scheduled methods across HA replicas
+-- -----------------------------------------------------------------------------
+-- Used by ShedLock to serialize cron jobs (currently `gdpr-inactivity-tick`)
+-- across multiple backend instances so the inactivity job runs at most once
+-- per scheduled fire. Schema is the standard ShedLock layout for PostgreSQL
+-- as documented at https://github.com/lukas-krecan/ShedLock#postgresql.
+--
+-- One row per lock name. `lock_until` is the safety-release deadline
+-- (whichever instance holds the lock must release it by then; if the JVM
+-- dies, another instance can take over after this timestamp passes).
+CREATE TABLE shedlock (
+    name        VARCHAR(64)              PRIMARY KEY,
+    lock_until  TIMESTAMP WITH TIME ZONE NOT NULL,
+    locked_at   TIMESTAMP WITH TIME ZONE NOT NULL,
+    locked_by   VARCHAR(255)             NOT NULL
+);
