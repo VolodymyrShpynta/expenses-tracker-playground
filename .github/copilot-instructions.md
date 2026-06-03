@@ -96,6 +96,8 @@ Imports flow through the normal command path so events and projections are produ
 - Event payload is JSON text in `expense_events.payload`; mapped via `JsonOperations` and `ExpenseMapper`.
 - Flyway runs on a separate JDBC datasource (`spring.flyway.datasource.*`), not R2DBC.
 - Jackson 2.x `ObjectMapper` bean is intentionally **not** `@Primary` — WebFlux uses Jackson 3.x; the bean exists for `JsonOperations` (used by `DataExporter`/`DataImporter`).
+- **`testuser` has a pinned Keycloak `id` (`00000000-…-0000000000a`) in `keycloak/realm-export.json`** so `UserSub` in `http-client.env.json` (used by `/api/admin/users/{{UserSub}}/...` in `expenses-tracker-gdpr-api.http`) stays stable across realm re-imports. `adminuser` is not pinned. KC 26 ignores `id` on `POST /admin/realms/{r}/users`, so if `testuser` is erased mid-session either update `local.UserSub` to the new random UUID or `docker compose down -v && up -d` to re-import the realm.
+- **`expenses-tracker-gdpr-api.http` tokens come from the SPA, not a password grant.** Destructive GDPR endpoints require the OIDC `auth_time` claim (enforced by `FreshAuthenticationService.requireFresh()`), which Keycloak emits only on the SPA's auth-code flow. Log in to the SPA, copy the bearer token from DevTools → Network → any `/api/...` request, paste into `local.UserToken` / `local.AdminToken`. The full workflow is in the `.http` file header.
 
 ### Environment variables
 

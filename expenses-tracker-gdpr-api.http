@@ -1,0 +1,170 @@
+# =============================================================================
+# GDPR API smoke-test playbook
+# =============================================================================
+#
+# Pre-requisites:
+#   1. The `gdpr-local` Spring profile is active on the backend. See
+#      `README.md` → "Enabling the GDPR subsystem locally (`gdpr-local` profile)".
+#      Without it, the admin endpoints exist but the cascade is a no-op and
+#      the inactivity cron doesn't tick.
+#   2. Keycloak is running with `keycloak/realm-export.json` imported — this
+#      provisions `testuser`, `adminuser`, the `gdpr-admin` realm role, and
+#      the `expenses-frontend` public client used by the SPA.
+#   3. The SPA is reachable at http://localhost:3000 (Docker stack) or
+#      http://localhost:5173 (`npm run dev`) so you can log in there and copy
+#      tokens from the browser. See "How auth works" below.
+#
+# How auth works:
+#   Every request below sends `Authorization: Bearer {{UserToken}}` (or
+#   `{{AdminToken}}`). Both env vars start empty in `http-client.env.json` —
+#   you populate them by copy-pasting tokens minted by the SPA's auth-code
+#   flow, because that's the only flow Keycloak attaches an `auth_time` claim
+#   to. `FreshAuthenticationService.requireFresh()` rejects tokens without
+#   `auth_time`, so destructive endpoints would otherwise 401 with
+#   `insufficient_user_authentication`.
+#
+#   Workflow per token:
+#     1. Open the SPA: http://localhost:3000 (or :5173 with the Vite dev
+#        server). Log in as `testuser` (password `password`) — the SPA uses
+#        keycloak-js's auth-code flow, so the resulting JWT has `auth_time`.
+#     2. Open browser DevTools → Network tab → click any `/api/...` request
+#        → Headers → copy the value after `Bearer ` in `Authorization`.
+#        Faster alternative: DevTools Console → `await keycloak.token` if the
+#        SPA exposes the instance globally (it does in dev mode).
+#     3. Paste into `local.UserToken` in `http-client.env.json` and save.
+#     4. Log out, log in as `adminuser` (password `adminpassword`), repeat
+#        the copy into `local.AdminToken`.
+#     5. Re-do whichever side hits a 401 (~5 min access-token TTL).
+#
+#   DO NOT commit the populated env file — the tokens are local secrets.
+#
+# Run order for a clean smoke test (clicking individual gutter buttons):
+#   1. Get my restriction          (expect 204)
+#   2. Restrict myself             (expect 201)
+#   3. Get my restriction          (expect 200 with body)
+#   4. Lift my restriction         (1st call → 202 with liftAvailableAt)
+#   5. [wait `restriction.lift-dwell`, default 30s in gdpr-local]
+#   6. Lift my restriction         (2nd call → 204)
+#   7. Admin: restrict user        (expect 201)
+#   8. Admin: lift restriction     (1st → 202, 2nd → 204 after dwell)
+#   9. Admin: erase user           (terminal — `testuser` is gone)
+#        → recover with `docker compose down -v && docker compose up -d`
+#        → then log into the SPA as `testuser` again and re-copy the token.
+#
+# The admin section targets testuser via `{{UserSub}}`, a fixture UUID
+# pinned in `keycloak/realm-export.json` (id `00000000-…-0000000000a`).
+# That UUID is the testuser's Keycloak `sub` claim — it has to match the
+# value of `local.UserSub` in `http-client.env.json` for the admin paths
+# above to resolve to the same user the testuser JWT represents. `adminuser`
+# has no pinned `id` because nothing references it by UUID.
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# Section 1 — Subject-facing endpoints (`/api/users/me/...`)
+# -----------------------------------------------------------------------------
+# All scoped to the caller's own JWT subject — no `userId` path variable.
+# No role required beyond ordinary authentication; destructive ops require
+# fresh `auth_time`.
+
+### GET my current restriction state
+# Art. 15 over the restriction record itself.
+# Returns 204 when no restriction is in place, 200 with the [RestrictionDto]
+# otherwise.
+GET {{ExpensesApiUrl}}/api/users/me/restriction
+Authorization: Bearer {{UserToken}}
+Accept: application/json
+
+### Restrict my own processing
+# Art. 18 — request restriction.
+# Valid `ground` values: ACCURACY_CONTESTED | UNLAWFUL_NOT_ERASED |
+#                       CONTROLLER_NO_LONGER_NEEDS | OBJECTION_PENDING
+# `reasonNote` is optional on the subject path (max 1000 chars).
+# Returns 201 with the [RestrictionDto].
+POST {{ExpensesApiUrl}}/api/users/me/restrict
+Authorization: Bearer {{UserToken}}
+Content-Type: application/json
+
+{
+  "ground": "ACCURACY_CONTESTED",
+  "reasonNote": "Disputing the imported expense amounts from CSV"
+}
+
+### Lift my restriction — STEP 1 (sends the Art. 18(3) pre-lift notice)
+# First call: returns 202 with `liftNoticeSentAt` + `liftAvailableAt`.
+# The dwell between the two calls is the `restriction.lift-dwell` value
+# from the active profile (default `PT30S` in `gdpr-local`).
+DELETE {{ExpensesApiUrl}}/api/users/me/restrict
+Authorization: Bearer {{UserToken}}
+Accept: application/json
+
+### Lift my restriction — STEP 2 (after dwell — performs the actual lift)
+# Wait at least `restriction.lift-dwell` after the first call. Returns 204.
+# Calling this before the dwell elapses returns 202 again (notice already sent).
+# Calling it with no live restriction returns 204 (NothingToLift).
+DELETE {{ExpensesApiUrl}}/api/users/me/restrict
+Authorization: Bearer {{UserToken}}
+Accept: application/json
+
+### DESTRUCTIVE — erase my own account (Art. 17)
+# Returns 200 with the cascade summary (`ErasureResultDto`) including the
+# `followUpInstructions` list (browser localStorage, mobile sync file, etc.).
+# After this call, `testuser` is gone from BOTH the projection tables AND the
+# Keycloak realm. To get it back: `docker compose down -v && docker compose up -d`
+# (wipes the volume → realm re-import re-provisions both users).
+DELETE {{ExpensesApiUrl}}/api/users/me
+Authorization: Bearer {{UserToken}}
+Accept: application/json
+
+
+# -----------------------------------------------------------------------------
+# Section 2 — Operator endpoints (`/api/admin/users/{userId}/...`)
+# -----------------------------------------------------------------------------
+# Requires the `gdpr-admin` realm role (provisioned on `adminuser` by the
+# realm export). All paths take a `{userId}` — we use `{{UserSub}}` from
+# `http-client.env.json`, which mirrors testuser's pinned realm-export id.
+
+### Admin: get another user's restriction state
+GET {{ExpensesApiUrl}}/api/admin/users/{{UserSub}}/restriction
+Authorization: Bearer {{AdminToken}}
+Accept: application/json
+
+### Admin-applied restriction
+# Unlike the subject path, `reasonNote` is REQUIRED here (NotBlank,
+# max 1000 chars) — an operator-applied restriction should always
+# record the operator's justification (court order ref, fraud
+# investigation, etc.).
+POST {{ExpensesApiUrl}}/api/admin/users/{{UserSub}}/restrict
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "ground": "UNLAWFUL_NOT_ERASED",
+  "reasonNote": "Court order 2026-CV-0481 — preserve pending discovery"
+}
+
+### Admin: lift a user's restriction — STEP 1 (pre-lift notice)
+DELETE {{ExpensesApiUrl}}/api/admin/users/{{UserSub}}/restrict
+Authorization: Bearer {{AdminToken}}
+Accept: application/json
+
+### Admin: lift a user's restriction — STEP 2 (after dwell — actual lift)
+DELETE {{ExpensesApiUrl}}/api/admin/users/{{UserSub}}/restrict
+Authorization: Bearer {{AdminToken}}
+Accept: application/json
+
+### DESTRUCTIVE — admin-driven erasure
+# `reasonNote` is REQUIRED on the admin path (NotBlank, max 1000 chars) so
+# the audit row records *why* an operator reached past the user's
+# self-service erasure. The cascade is the same as the subject path:
+# projections wiped, audit hash recorded, Keycloak account deleted (when
+# `gdpr-local` is active). The admin's subject is recorded as `actor_id`
+# (hashed) — the data subject's identifier is NOT retained.
+DELETE {{ExpensesApiUrl}}/api/admin/users/{{UserSub}}
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "reasonNote": "Subject submitted notarised erasure request via postal mail 2026-06-01"
+}

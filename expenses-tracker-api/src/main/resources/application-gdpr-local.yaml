@@ -1,0 +1,76 @@
+# =============================================================================
+# Spring profile: gdpr-local
+# =============================================================================
+# Opt-in overlay that enables the full GDPR subsystem against the
+# docker-compose Keycloak (postgres + keycloak services) using the
+# `expenses-api-admin` confidential client provisioned by
+# `keycloak/realm-export.json`.
+#
+# Activate with either:
+#
+#   ./gradlew :expenses-tracker-api:bootRun --args='--spring.profiles.active=gdpr-local'
+#
+# or, when the API runs inside docker-compose:
+#
+#   SPRING_PROFILES_ACTIVE=gdpr-local docker compose up -d
+#
+# The values below are deliberately aggressive for fast manual exercising
+# (cron every 10 seconds, 10-minute inactivity threshold, 30-minute grace,
+# zero-second activity debounce). They are NOT meant for shared dev
+# environments and obviously not for production.
+#
+# Every property keeps the `${ENV_VAR:fast-default}` placeholder shape so
+# anything can still be tightened or pointed somewhere else (notably the
+# Keycloak admin base-url, which docker-compose overrides to the
+# in-network DNS name `http://keycloak:8180/auth`).
+#
+# DO NOT activate this profile outside local dev. The Keycloak client
+# secret (`local-dev-admin-secret`) is the same value that lives in
+# `keycloak/realm-export.json` and is therefore committed to source.
+# =============================================================================
+
+app:
+  gdpr:
+    # ----- Inactivity retention job ------------------------------------------
+    # Tick every 10 seconds so a freshly-aged account is picked up quickly
+    # without spamming the log on every wall-clock second. Combined with the
+    # 10-minute warning threshold and 30-minute grace below, a fresh account
+    # transitions warned -> erased within roughly 40 minutes of going idle.
+    inactivity:
+      enabled: ${GDPR_INACTIVITY_ENABLED:true}
+      cron: ${GDPR_INACTIVITY_CRON:*/10 * * * * *}
+      warning-after: ${GDPR_INACTIVITY_WARNING_AFTER:PT10M}
+      erasure-grace: ${GDPR_INACTIVITY_GRACE:PT30M}
+
+    # ----- Activity tracking -------------------------------------------------
+    # No debounce: every authenticated request updates last_seen_at, so
+    # you can see the row move in psql as you click around.
+    activity:
+      touch-debounce: ${GDPR_ACTIVITY_DEBOUNCE:PT0S}
+
+    # ----- Art. 18 processing restriction ------------------------------------
+    # 30-second dwell between pre-lift notice and actual lift, instead of
+    # the production default of 7 days.
+    restriction:
+      lift-dwell: ${GDPR_RESTRICTION_LIFT_DWELL:PT30S}
+
+    # ----- Fresh-auth gate ---------------------------------------------------
+    # Generous window so you don't get bounced by 401s while exploring.
+    fresh-auth:
+      max-age: ${GDPR_FRESH_AUTH_MAX_AGE:PT1H}
+
+    # ----- Post-erasure Keycloak cascade -------------------------------------
+    # The `expenses-api-admin` client is created by
+    # `keycloak/realm-export.json` with `serviceAccountsEnabled: true`
+    # and the realm-management `manage-users` + `view-users` roles
+    # assigned to its service-account user.
+    #
+    # `base-url` defaults to the host-side URL for `bootRun`; docker-compose
+    # overrides it to `http://keycloak:8180/auth` (the in-network DNS name)
+    # via the `GDPR_KEYCLOAK_ADMIN_URL` env var.
+    keycloak:
+      enabled: ${GDPR_KEYCLOAK_ADMIN_ENABLED:true}
+      base-url: ${GDPR_KEYCLOAK_ADMIN_URL:http://localhost:8180/auth}
+      realm: ${GDPR_KEYCLOAK_ADMIN_REALM:expenses-tracker}
+      client-id: ${GDPR_KEYCLOAK_ADMIN_CLIENT_ID:expenses-api-admin}
+      client-secret: ${GDPR_KEYCLOAK_ADMIN_CLIENT_SECRET:local-dev-admin-secret}

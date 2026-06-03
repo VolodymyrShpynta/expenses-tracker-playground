@@ -73,6 +73,8 @@ services:
       EXPENSES_TRACKER_FLYWAY_PASSWORD: ${EXPENSES_TRACKER_FLYWAY_PASSWORD:-postgres}
       KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://localhost:3000/auth/realms/expenses-tracker}
       KEYCLOAK_JWK_SET_URI: ${KEYCLOAK_JWK_SET_URI:-http://keycloak:8180/auth/realms/expenses-tracker/protocol/openid-connect/certs}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
+      GDPR_KEYCLOAK_ADMIN_URL: ${GDPR_KEYCLOAK_ADMIN_URL:-http://keycloak:8180/auth}
     ports:
       - "8080:8080"
     networks:

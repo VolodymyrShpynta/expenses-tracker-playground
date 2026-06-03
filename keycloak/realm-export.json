@@ -14,6 +14,10 @@
       {
         "name": "user",
         "description": "Regular expense tracker user"
+      },
+      {
+        "name": "gdpr-admin",
+        "description": "Operator role for /api/admin/users/** GDPR endpoints (Art. 17 admin erasure, Art. 18 admin restriction)"
       }
     ]
   },
@@ -46,10 +50,25 @@
       "enabled": true,
       "bearerOnly": true,
       "protocol": "openid-connect"
+    },
+    {
+      "clientId": "expenses-api-admin",
+      "name": "Expenses API — Keycloak Admin Client (LOCAL DEV ONLY)",
+      "description": "Confidential service-account client used by the backend's KeycloakAdminClient to cascade Art. 17 erasure to the IdP. The secret below is committed for local docker-compose convenience and MUST NOT be reused outside local dev.",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "local-dev-admin-secret",
+      "protocol": "openid-connect"
     }
   ],
   "users": [
     {
+      "id": "00000000-0000-0000-0000-00000000000a",
       "username": "testuser",
       "email": "testuser@example.com",
       "enabled": true,
@@ -64,6 +83,33 @@
         }
       ],
       "realmRoles": ["user"]
+    },
+    {
+      "username": "adminuser",
+      "email": "adminuser@example.com",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "adminpassword",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["user", "gdpr-admin"]
+    },
+    {
+      "username": "service-account-expenses-api-admin",
+      "enabled": true,
+      "serviceAccountClientId": "expenses-api-admin",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users"
+        ]
+      }
     }
   ]
 }

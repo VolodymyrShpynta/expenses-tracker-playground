@@ -28,67 +28,70 @@ import-export endpoints (`/api/data/export`, `/api/data/import`).
 
 ## 📑 Table of Contents
 
-- [🌟 What Makes This Project Special?](#-what-makes-this-project-special)
-- [🎯 Project Overview](#-project-overview)
-  - [Real-World Use Case](#real-world-use-case)
-- [✨ Key Features](#-key-features)
-  - [Authentication \& Multi-User](#authentication--multi-user)
-  - [Event Sourcing \& CQRS Architecture](#event-sourcing--cqrs-architecture)
-  - [Backup \& Migration](#backup--migration)
-  - [Technology](#technology)
-- [🛠 Technology Stack](#-technology-stack)
-  - [Core Framework](#core-framework)
-  - [Authentication](#authentication)
-  - [Reactive Stack](#reactive-stack)
-  - [Database \& Migrations](#database--migrations)
-  - [Build \& Testing](#build--testing)
-  - [Frontend](#frontend)
-  - [Mobile](#mobile)
-- [📁 Project Structure](#-project-structure)
-- [📚 Module Documentation](#-module-documentation)
-- [🔀 Communication Flow](#-communication-flow)
-- [🏗 Backend Architecture: Event Sourcing \& CQRS](#-backend-architecture-event-sourcing--cqrs)
-  - [Design Principles](#design-principles)
-  - [Event Sourcing Model](#event-sourcing-model)
-  - [CQRS Architecture](#cqrs-architecture)
-  - [Database Schema](#database-schema)
-    - [**Table: `expense_projections`** (Read Model / Materialized View)](#table-expense_projections-read-model--materialized-view)
-    - [**Table: `expense_events`** (Event Store / Source of Truth)](#table-expense_events-event-store--source-of-truth)
-    - [**Table: `categories`** (User-Configurable Categories)](#table-categories-user-configurable-categories)
-    - [**Table: `default_categories`** (Language-Agnostic Templates)](#table-default_categories-language-agnostic-templates)
-  - [Conflict Resolution](#conflict-resolution)
-    - [**Projection Update Implementation**](#projection-update-implementation)
-  - [Cross-Device Sync (Mobile Only)](#cross-device-sync-mobile-only)
-- [🎨 Why This Architecture?](#-why-this-architecture)
-  - [Event Sourcing Benefits](#event-sourcing-benefits)
-  - [CQRS Benefits](#cqrs-benefits)
-  - [Clear Domain Model](#clear-domain-model)
-- [💡 Technical Decisions](#-technical-decisions)
-  - [Why Event Sourcing?](#why-event-sourcing)
-  - [Why Timestamp-Only Conflict Resolution?](#why-timestamp-only-conflict-resolution)
-  - [Why PostgreSQL for Tests?](#why-postgresql-for-tests)
-- [⚙ Configuration](#-configuration)
-  - [Docker Compose Configuration](#docker-compose-configuration)
-- [🚀 Getting Started](#-getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Quick Start](#quick-start)
-    - [Clone \& Build](#clone--build)
-    - [Run the Stack](#run-the-stack)
-    - [Production Build (Frontend)](#production-build-frontend)
-  - [Docker Compose (Alternative)](#docker-compose-alternative)
-    - [Configuration Overview](#configuration-overview)
-      - [Using Docker Compose (Recommended)](#using-docker-compose-recommended)
-      - [Useful Docker Compose Commands](#useful-docker-compose-commands)
-      - [Windows PowerShell Equivalents](#windows-powershell-equivalents)
-      - [Troubleshooting Docker Compose](#troubleshooting-docker-compose)
-      - [Docker Environment Variables](#docker-environment-variables)
-      - [Using .env File for Configuration (Recommended)](#using-env-file-for-configuration-recommended)
-- [🔄 CI/CD](#-cicd)
-- [🤖 Copilot Instructions](#-copilot-instructions)
-- [📚 References](#-references)
-  - [Documentation](#documentation)
-  - [Key Learnings](#key-learnings)
-  - [Tech Stack Versions](#tech-stack-versions)
+- [Expenses Tracker with Event Sourcing \& CQRS](#expenses-tracker-with-event-sourcing--cqrs)
+  - [🌟 What Makes This Project Special?](#-what-makes-this-project-special)
+  - [📑 Table of Contents](#-table-of-contents)
+  - [🎯 Project Overview](#-project-overview)
+    - [Real-World Use Case](#real-world-use-case)
+  - [✨ Key Features](#-key-features)
+    - [Authentication \& Multi-User](#authentication--multi-user)
+    - [Event Sourcing \& CQRS Architecture](#event-sourcing--cqrs-architecture)
+    - [Backup \& Migration](#backup--migration)
+    - [Technology](#technology)
+  - [🛠 Technology Stack](#-technology-stack)
+    - [Core Framework](#core-framework)
+    - [Authentication](#authentication)
+    - [Reactive Stack](#reactive-stack)
+    - [Database \& Migrations](#database--migrations)
+    - [Build \& Testing](#build--testing)
+    - [Frontend](#frontend)
+    - [Mobile](#mobile)
+  - [📁 Project Structure](#-project-structure)
+  - [📚 Module Documentation](#-module-documentation)
+  - [🔀 Communication Flow](#-communication-flow)
+  - [🏗 Backend Architecture: Event Sourcing \& CQRS](#-backend-architecture-event-sourcing--cqrs)
+    - [Design Principles](#design-principles)
+    - [Event Sourcing Model](#event-sourcing-model)
+    - [CQRS Architecture](#cqrs-architecture)
+    - [Database Schema](#database-schema)
+      - [**Table: `expense_projections`** (Read Model / Materialized View)](#table-expense_projections-read-model--materialized-view)
+      - [**Table: `expense_events`** (Event Store / Source of Truth)](#table-expense_events-event-store--source-of-truth)
+      - [**Table: `categories`** (User-Configurable Categories)](#table-categories-user-configurable-categories)
+      - [**Table: `default_categories`** (Language-Agnostic Templates)](#table-default_categories-language-agnostic-templates)
+    - [Conflict Resolution](#conflict-resolution)
+      - [**Projection Update Implementation**](#projection-update-implementation)
+    - [Cross-Device Sync (Mobile Only)](#cross-device-sync-mobile-only)
+  - [🎨 Why This Architecture?](#-why-this-architecture)
+    - [Event Sourcing Benefits](#event-sourcing-benefits)
+    - [CQRS Benefits](#cqrs-benefits)
+    - [Clear Domain Model](#clear-domain-model)
+  - [💡 Technical Decisions](#-technical-decisions)
+    - [Why Event Sourcing?](#why-event-sourcing)
+    - [Why Timestamp-Only Conflict Resolution?](#why-timestamp-only-conflict-resolution)
+    - [Why PostgreSQL for Tests?](#why-postgresql-for-tests)
+  - [⚙ Configuration](#-configuration)
+    - [Docker Compose Configuration](#docker-compose-configuration)
+  - [🚀 Getting Started](#-getting-started)
+    - [Prerequisites](#prerequisites)
+    - [Quick Start](#quick-start)
+      - [Clone \& Build](#clone--build)
+      - [Run the Stack](#run-the-stack)
+      - [Enabling the GDPR subsystem locally (`gdpr-local` profile)](#enabling-the-gdpr-subsystem-locally-gdpr-local-profile)
+      - [Production Build (Frontend)](#production-build-frontend)
+    - [Docker Compose (Alternative)](#docker-compose-alternative)
+      - [Configuration Overview](#configuration-overview)
+        - [Using Docker Compose (Recommended)](#using-docker-compose-recommended)
+        - [Useful Docker Compose Commands](#useful-docker-compose-commands)
+        - [Windows PowerShell Equivalents](#windows-powershell-equivalents)
+        - [Troubleshooting Docker Compose](#troubleshooting-docker-compose)
+        - [Docker Environment Variables](#docker-environment-variables)
+        - [Using .env File for Configuration (Recommended)](#using-env-file-for-configuration-recommended)
+  - [🔄 CI/CD](#-cicd)
+  - [🤖 Copilot Instructions](#-copilot-instructions)
+  - [📚 References](#-references)
+    - [Documentation](#documentation)
+    - [Key Learnings](#key-learnings)
+    - [Tech Stack Versions](#tech-stack-versions)
 
 ---
 
@@ -1121,7 +1124,16 @@ docker compose up -d postgres keycloak
 ```
 
 Keycloak starts on **http://localhost:8180** and auto-imports the `expenses-tracker` realm.
-Admin console: **http://localhost:8180/auth/admin** (admin/admin).
+
+Admin console: **http://localhost:3000/auth/admin/** (admin / admin).
+
+> **Why port 3000, not 8180?** `docker-compose.yml` pins `KC_HOSTNAME=http://localhost:3000/auth`
+> so OIDC discovery, the JWT `iss` claim, and the admin console all agree on a single public origin
+> (the SPA's). Hitting `:8180` directly issues a 302 to that canonical URL, which means the admin
+> console must be opened through the front-door origin — either the Vite dev server (Terminal 3
+> below) or the Nginx frontend container (`docker compose up -d expenses-frontend`). Both proxy
+> `/auth/*` → `keycloak:8180`. Switch to the `expenses-tracker` realm in the top-left selector to
+> see the test users.
 
 **Terminal 2 — Backend API:**
 
@@ -1147,6 +1159,138 @@ test user (`testuser` / `password`) or register a new account.
 > **Tip:** `application.yaml` ships with `localhost:5432` (PostgreSQL) and `localhost:8180` (Keycloak)
 > as defaults, so no `.env` file is needed for this workflow. The same applies when running the
 > backend from IntelliJ — just run the main application class.
+
+#### Enabling the GDPR subsystem locally (`gdpr-local` profile)
+
+The GDPR subsystem (Art. 17 erasure cascade to Keycloak, Art. 18 processing restriction with
+two-step lift, Art. 5(e) inactivity retention cron) is **disabled by default** — both in
+`application.yaml` and in `docker-compose.yml` — because the inactivity job would otherwise erase
+accounts on its aggressive local-dev schedule (10-minute inactivity + 30-minute grace) without
+out-of-band notification while
+[`UserNotificationService`](expenses-tracker-api/src/main/kotlin/com/vshpynta/expenses/api/service/gdpr/UserNotificationService.kt)
+is still a structured-log stub. You opt in explicitly via `SPRING_PROFILES_ACTIVE=gdpr-local`.
+
+For local exercising, the API ships a dedicated Spring profile
+[`application-gdpr-local.yaml`](expenses-tracker-api/src/main/resources/application-gdpr-local.yaml)
+that flips all the relevant switches to "on" with aggressive timing (cron every 10 seconds,
+10-minute inactivity threshold, 30-minute grace, 30-second restriction lift-dwell, 1-hour
+fresh-auth window)
+and wires the post-erasure cascade against the `expenses-api-admin` confidential client provisioned
+by [`keycloak/realm-export.json`](keycloak/realm-export.json).
+
+**Running the API from `bootRun`:**
+
+```bash
+# Terminal 1 — supporting services. Only need `down -v` the FIRST time (or after
+# editing realm-export.json) so Keycloak re-imports the realm with adminuser
+# + the expenses-api-admin client. Subsequent runs: just `up -d`.
+docker compose up -d postgres keycloak
+
+# Terminal 2 — API with the profile active
+./gradlew :expenses-tracker-api:bootRun --args='--spring.profiles.active=gdpr-local'
+```
+
+Or via environment variable (works the same from PowerShell, bash, IntelliJ run-config env vars):
+
+```bash
+SPRING_PROFILES_ACTIVE=gdpr-local ./gradlew :expenses-tracker-api:bootRun
+```
+
+**Running the full stack in Docker Compose:**
+
+```bash
+SPRING_PROFILES_ACTIVE=gdpr-local docker compose up -d --build
+```
+
+> The very first run against this branch (or any time you edit
+> `keycloak/realm-export.json`) needs a one-off `docker compose down -v` first
+> so Keycloak re-imports the realm — `start-dev --import-realm` only imports
+> on an empty schema. After that, plain `up -d --build` is enough.
+
+Or persist it in `.env`:
+
+```dotenv
+SPRING_PROFILES_ACTIVE=gdpr-local
+```
+
+The compose file already sets `GDPR_KEYCLOAK_ADMIN_URL=http://keycloak:8180/auth` (the in-network
+service name, not `localhost`) so the cascade resolves correctly inside the docker network —
+no further env-var fiddling is needed.
+
+**Test users provisioned by the realm export:**
+
+| Username    | Password        | Realm roles            | Use for                                              |
+|-------------|-----------------|------------------------|------------------------------------------------------|
+| `testuser`  | `password`      | `user`                 | Subject-facing flows (`/api/users/me/...`)           |
+| `adminuser` | `adminpassword` | `user`, `gdpr-admin`   | Operator-facing flows (`/api/admin/users/{id}/...`)  |
+
+> **Why `testuser` has a pinned `id` in `realm-export.json`:** the admin-facing
+> requests in [`expenses-tracker-gdpr-api.http`](expenses-tracker-gdpr-api.http) hit
+> `/api/admin/users/{{UserSub}}/...` and resolve `{{UserSub}}` from
+> `http-client.env.json` — it has to match testuser's Keycloak `sub` claim.
+> The realm export pins that `sub` to `00000000-…-0000000000a` so the env value
+> stays stable across `docker compose down -v` cycles. `adminuser` has no pinned
+> `id` because nothing references it by UUID — it's only used to obtain tokens.
+>
+> **Caveat:** the pinned id only survives the *initial* realm import.
+> Keycloak 26's `POST /admin/realms/{r}/users` ignores the `id` field, so if
+> `testuser` is erased mid-session you can either:
+>   - Re-create it via the admin console / REST (will get a fresh random UUID,
+>     then update `local.UserSub` in `http-client.env.json` to match), or
+>   - Run `docker compose down -v && docker compose up -d` to re-trigger the
+>     realm import and get the pinned UUID back (also wipes the expenses DB).
+
+> **Why the `.http` file pulls tokens from the SPA instead of doing a password
+> grant:** destructive GDPR endpoints call `FreshAuthenticationService.requireFresh()`
+> which requires the OIDC `auth_time` claim. Keycloak only emits `auth_time`
+> on interactive browser flows (auth code); the OAuth2 password grant doesn't
+> set it, so password-grant tokens would 401 with `insufficient_user_authentication`
+> on any destructive call. Instead, log in to the SPA at http://localhost:3000
+> (or :5173 with `npm run dev`), copy the bearer token from DevTools → Network
+> → any `/api/...` request → `Authorization` header, and paste it into
+> `local.UserToken` / `local.AdminToken` in `http-client.env.json`. The full
+> workflow is documented in the header of `expenses-tracker-gdpr-api.http`.
+
+> **Heads-up:** the realm has `bruteForceProtected: true`. A few bad password attempts will
+> temporarily lock the user out — `docker compose restart keycloak` or use the Keycloak admin
+> console (see below) → Users → *username* → **Unlock**.
+
+**Open the Keycloak admin console (to inspect users / verify the erasure cascade):**
+
+Use **http://localhost:3000/auth/admin/** (`admin` / `admin`) — *not* `localhost:8180` directly.
+`KC_HOSTNAME` in `docker-compose.yml` pins the canonical public origin to `localhost:3000/auth`, so
+Keycloak 302-redirects any direct hit on `:8180` to that URL. The `:3000` origin must therefore
+be alive — pick one:
+
+- **Full Docker stack** (`SPRING_PROFILES_ACTIVE=gdpr-local docker compose up -d --build`) — the
+  Nginx `expenses-frontend` container already proxies `/auth/*` → `keycloak:8180`. Nothing extra to do.
+- **bootRun workflow** (only `postgres` + `keycloak` in Docker) — either start *just* the frontend
+  container (`docker compose up -d expenses-frontend`) or run the Vite dev server
+  (`cd expenses-tracker-frontend && npm run dev`). Both publish on `:3000` and proxy `/auth/*`
+  to Keycloak.
+
+After login, switch the realm dropdown (top-left) from `master` to **`expenses-tracker`** and open
+**Users** to confirm the cascade actually deleted the row (not just disabled it) after the
+inactivity job or an `/api/admin/users/{id}` erasure call. If the row is gone, the cascade succeeded;
+if it lingers with `enabled: false`, the disable step worked but the delete call failed —
+check the `expenses-api` logs for `KeycloakAdminClient` warnings.
+
+**Verify everything is wired:**
+
+```bash
+# Cascade client can mint a token
+curl -s -X POST http://localhost:8180/auth/realms/expenses-tracker/protocol/openid-connect/token \
+  -d 'grant_type=client_credentials' \
+  -d 'client_id=expenses-api-admin' \
+  -d 'client_secret=local-dev-admin-secret' \
+  | python -m json.tool
+
+# Inactivity job ticks every 10 seconds → ShedLock row exists
+docker compose exec postgres psql -U postgres -d expenses_db -c "SELECT * FROM shedlock;"
+```
+
+> **DO NOT** activate `gdpr-local` outside local dev. The Keycloak client secret is committed in
+> both `application-gdpr-local.yaml` (as the default) and `keycloak/realm-export.json`.
 
 #### Production Build (Frontend)
 
@@ -1618,7 +1762,8 @@ EXPENSES_TRACKER_FLYWAY_PASSWORD=postgres
 | `KC_ADMIN`                         | `admin`                                         | Keycloak admin username                          |
 | `KC_ADMIN_PASSWORD`                | `admin`                                         | Keycloak admin password                          |
 | `SERVER_PORT`                      | `8080`                                          | Application HTTP port (optional)                 |
-| `SPRING_PROFILES_ACTIVE`           | (none)                                          | Spring profile: `dev`, `test`, `prod` (optional) |
+| `SPRING_PROFILES_ACTIVE`           | (none)                                          | Spring profile: `dev`, `test`, `prod`, or `gdpr-local` (enables the full GDPR subsystem against the bundled realm — local dev only) |
+| `GDPR_KEYCLOAK_ADMIN_URL`          | `http://keycloak:8180/auth` (in compose)        | Base URL the post-erasure cascade uses to call Keycloak's admin REST API. Only consulted when the `gdpr-local` profile is active. |
 
 **Common Customization Examples:**
 
