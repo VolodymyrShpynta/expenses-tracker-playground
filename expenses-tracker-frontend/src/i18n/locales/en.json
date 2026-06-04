@@ -7,7 +7,9 @@
     "tools": "Tools",
     "exportImport": "Export & Import",
     "settings": "Settings",
-    "openMenu": "Open menu"
+    "openMenu": "Open menu",
+    "privacy": "Privacy",
+    "adminUsers": "User administration"
   },
   "settings": {
     "darkMode": "Dark Mode",
@@ -193,5 +195,161 @@
       "expense": "Expense"
     },
     "importMoreErrors": "…and {{count}} more"
+  },
+  "privacy": {
+    "pageTitle": "Privacy & data",
+    "pageSubtitle": "Manage how your personal data is processed. These tools cover your rights under Articles 17 and 18 GDPR.",
+    "yourData": {
+      "title": "Your account",
+      "username": "Username",
+      "userId": "User ID",
+      "exportHint": "To download a copy of your data (Article 20), use <1>Export & Import</1> in the sidebar."
+    },
+    "restriction": {
+      "title": "Restrict processing",
+      "explainer": "Article 18 lets you put your account on hold. Your data stays in place but we stop processing it — you can lift the restriction later.",
+      "statusNone": "Your data is processed normally. No restriction is in place.",
+      "statusActive": "Your processing is restricted.",
+      "fieldGround": "Ground (Art. 18(1))",
+      "fieldAppliedAt": "Restricted at",
+      "fieldRequestedBy": "Requested by",
+      "fieldReason": "Reason",
+      "fieldLiftNoticeSentAt": "Lift notice sent at",
+      "restrictButton": "Restrict my processing",
+      "liftButton": "Request lift",
+      "loading": "Loading restriction status…",
+      "error": "Could not load restriction status: {{message}}"
+    },
+    "restrictDialog": {
+      "title": "Restrict processing",
+      "body": "Pick the legal ground for your request. You can add an optional note describing why you want processing paused.",
+      "grounds": {
+        "ACCURACY_CONTESTED": "I'm contesting the accuracy of my data (Art. 18(1)(a))",
+        "UNLAWFUL_NOT_ERASED": "Processing is unlawful but I don't want erasure (Art. 18(1)(b))",
+        "CONTROLLER_NO_LONGER_NEEDS": "You no longer need the data, but I do for a legal claim (Art. 18(1)(c))",
+        "OBJECTION_PENDING": "I have objected and verification is pending (Art. 18(1)(d))"
+      },
+      "reasonLabel": "Reason (optional)",
+      "reasonHelper": "Up to 1000 characters. Helps the operator understand the request.",
+      "submit": "Restrict",
+      "submitting": "Restricting…"
+    },
+    "liftDialog": {
+      "title": "Lift restriction",
+      "body": "Lifting happens in two steps. First we record a pre-lift notice (Art. 18(3)) and wait a short period; then you confirm again to actually resume processing.",
+      "step1Button": "Send pre-lift notice",
+      "step1Sending": "Sending notice…",
+      "step1Done": "Pre-lift notice sent. You can finalise the lift after {{time}}.",
+      "step2Button": "Finalise lift",
+      "step2Submitting": "Finalising…",
+      "step2DisabledHint": "Available in {{seconds}}s",
+      "doneTitle": "Restriction lifted",
+      "doneBody": "Processing has resumed. You can close this dialog.",
+      "close": "Close",
+      "error": "Could not lift restriction: {{message}}"
+    },
+    "erasure": {
+      "title": "Delete my account",
+      "dangerLabel": "Danger zone",
+      "explainer": "Article 17 — right to erasure. This permanently deletes your expenses, categories, and identity-provider account. There is no undo.",
+      "expandHint": "Tap to reveal the deletion controls.",
+      "openButton": "I want to delete my account"
+    },
+    "eraseDialog": {
+      "title": "Permanently delete your account",
+      "warningTitle": "This cannot be undone",
+      "warningBody": "Once confirmed, the following will be deleted immediately:",
+      "consequence1": "Every expense and category you have recorded",
+      "consequence2": "Every event in the append-only audit log that names you",
+      "consequence3": "Your Keycloak login account (when the operator's cascade is configured)",
+      "noticeExport": "If you want a copy of your data first, cancel this dialog and use <1>Export & Import</1> in the sidebar.",
+      "ackPermanent": "I understand that deletion is permanent and irreversible.",
+      "ackExported": "I have already exported any data I want to keep.",
+      "ackLogin": "I understand my login account will be removed.",
+      "typeUsernameLabel": "Type your username to confirm",
+      "typeUsernameHelper": "Type exactly: {{username}}",
+      "typeUsernameMismatch": "Username does not match.",
+      "continueButton": "Continue",
+      "cancelButton": "Cancel"
+    },
+    "eraseConfirmDialog": {
+      "title": "Last chance",
+      "body": "You are about to permanently delete the account <1>{{username}}</1>. The button will activate in {{seconds}}s.",
+      "deleteButton": "Delete forever",
+      "deleteButtonReady": "Delete forever ({{seconds}}s)",
+      "deleting": "Deleting…",
+      "error": "Deletion failed: {{message}}"
+    },
+    "erasedSummary": {
+      "title": "Your account has been deleted",
+      "subtitle": "Cascade summary",
+      "eventsDeleted": "{{count}} events removed",
+      "projectionsDeleted": "{{count}} expenses removed",
+      "categoriesDeleted": "{{count}} categories removed",
+      "keycloakDeleted": "Identity-provider account: {{state}}",
+      "keycloakDeletedYes": "removed",
+      "keycloakDeletedNo": "still present — contact the operator",
+      "occurredAt": "Recorded at {{time}}",
+      "followUpTitle": "Follow-up steps",
+      "logoutCountdown": "You will be signed out in {{seconds}}s.",
+      "logoutNow": "Sign out now"
+    }
+  },
+  "admin": {
+    "users": {
+      "pageTitle": "User administration",
+      "pageSubtitle": "GDPR operations against an arbitrary user. Requires the gdpr-admin realm role.",
+      "lookup": {
+        "title": "Look up a user",
+        "label": "User ID (UUID from Keycloak `sub`)",
+        "placeholder": "00000000-0000-0000-0000-00000000000a",
+        "helper": "Paste the Keycloak subject UUID. The user list endpoint is not exposed by the API — IDs come from the IdP admin console.",
+        "loadButton": "Load",
+        "clearButton": "Clear",
+        "selectedLabel": "Currently viewing: <1>{{userId}}</1>"
+      },
+      "restriction": {
+        "title": "Restriction (Art. 18)",
+        "restrictedHeadline": "{{userId}} is restricted.",
+        "noneHeadline": "{{userId}} has no active restriction.",
+        "restrictButton": "Restrict this user",
+        "liftButton": "Lift restriction",
+        "reasonRequiredHelper": "Reason note is required for operator-applied restrictions."
+      },
+      "restrictDialog": {
+        "title": "Restrict user processing",
+        "body": "You are applying a restriction on behalf of the user. The reason note is mandatory and recorded in the audit log.",
+        "reasonLabel": "Reason (required)",
+        "reasonRequired": "Reason is required.",
+        "reasonTooShort": "Reason must be at least 10 characters."
+      },
+      "erasure": {
+        "title": "Erase user (Art. 17)",
+        "dangerLabel": "Operator-driven erasure",
+        "explainer": "Use this only when the user cannot self-serve (locked account, identity verified out-of-band, court order). The audit log records you as the actor.",
+        "openButton": "Erase this user"
+      },
+      "eraseDialog": {
+        "title": "Permanently delete this user",
+        "warningBody": "Once confirmed, the following will be deleted immediately for <1>{{userId}}</1>:",
+        "ackResponsibility": "I confirm I am acting on a verified request or lawful basis.",
+        "ackPermanent": "I understand that deletion is permanent and irreversible.",
+        "ackAuditLog": "I understand my admin subject will be recorded in the audit log.",
+        "reasonLabel": "Reason note (required, recorded in audit log)",
+        "reasonHelper": "Minimum 10 characters. Example: ‘Subject submitted notarised erasure request via postal mail 2026-06-01.’",
+        "reasonRequired": "Reason is required.",
+        "reasonTooShort": "Reason must be at least 10 characters.",
+        "typeUserIdLabel": "Type the user ID to confirm",
+        "typeUserIdHelper": "Type exactly: {{userId}}",
+        "typeUserIdMismatch": "User ID does not match."
+      },
+      "eraseConfirmDialog": {
+        "body": "You are about to permanently delete the account <1>{{userId}}</1>. The button will activate in {{seconds}}s."
+      },
+      "erasedSummary": {
+        "title": "User has been deleted",
+        "doneButton": "Done"
+      }
+    }
   }
 }

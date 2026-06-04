@@ -65,8 +65,8 @@ class UserAccountController(
     @GetMapping("/restriction")
     suspend fun getRestriction(): ResponseEntity<RestrictionDto> {
         val userId = userContextService.currentUserId()
-        val restriction = restrictionService.findRestriction(userId)
-        return restriction?.let { ResponseEntity.ok(it.toDto()) }
+        return restrictionService.findRestriction(userId)
+            ?.let { ResponseEntity.ok(it) }
             ?: ResponseEntity.noContent().build()
     }
 

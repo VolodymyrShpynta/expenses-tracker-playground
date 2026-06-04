@@ -207,7 +207,7 @@ export function Layout() {
 
       {!isDesktop && (
         <BottomNavigation
-          value={activeIdx}
+          value={activeIdx >= 0 ? activeIdx : false}
           onChange={(_: SyntheticEvent, newValue: number) =>
             handleNav(NAV_ITEMS[newValue].path)
           }

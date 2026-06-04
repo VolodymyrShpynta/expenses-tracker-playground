@@ -8,6 +8,8 @@ import { Layout } from './components/Layout';
 import CategoriesPage from './pages/CategoriesPage';
 import TransactionsPage from './pages/TransactionsPage';
 import OverviewPage from './pages/OverviewPage';
+import PrivacyPage from './pages/PrivacyPage';
+import AdminUsersPage from './pages/AdminUsersPage';
 
 function AppContent() {
   return (
@@ -16,6 +18,8 @@ function AppContent() {
         <Route path="/" element={<CategoriesPage />} />
         <Route path="/transactions" element={<TransactionsPage />} />
         <Route path="/overview" element={<OverviewPage />} />
+        <Route path="/account/privacy" element={<PrivacyPage />} />
+        <Route path="/admin/users" element={<AdminUsersPage />} />
       </Route>
     </Routes>
   );

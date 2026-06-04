@@ -1,6 +1,8 @@
 package com.vshpynta.expenses.api.service.gdpr
 
 import com.vshpynta.expenses.api.config.gdpr.GdprProperties
+import com.vshpynta.expenses.api.controller.dto.RestrictionDto
+import com.vshpynta.expenses.api.controller.dto.toDto
 import com.vshpynta.expenses.api.model.gdpr.ProcessingRestriction
 import com.vshpynta.expenses.api.model.gdpr.ProcessingRestrictionLogEntry
 import com.vshpynta.expenses.api.model.gdpr.RestrictionGround
@@ -38,8 +40,14 @@ class ProcessingRestrictionService(
         private val logger = LoggerFactory.getLogger(ProcessingRestrictionService::class.java)
     }
 
-    suspend fun findRestriction(userId: String): ProcessingRestriction? =
-        restrictions.findByUserId(userId)
+    /**
+     * Read-side projection used by the subject and admin controllers.
+     * Returns the full DTO (including the server-computed
+     * `liftAvailableAt` deadline) so controllers stay HTTP-only and
+     * the dwell configuration never leaks past this service.
+     */
+    suspend fun findRestriction(userId: String): RestrictionDto? =
+        restrictions.findByUserId(userId)?.let { it.toDto(liftAvailableAt = liftAvailableAtFor(it)) }
 
     /**
      * Apply a restriction. Rejects with [RestrictionStateConflictException]
@@ -128,6 +136,15 @@ class ProcessingRestrictionService(
      */
     fun liftAvailableAt(noticeSentAt: Instant): Instant =
         noticeSentAt.plus(properties.restriction.liftDwell)
+
+    /**
+     * Convenience wrapper for DTO mapping: returns `liftAvailableAt`
+     * iff a pre-lift notice has been recorded, otherwise `null`. Used
+     * internally by [findRestriction] so the dwell configuration
+     * stays inside this service.
+     */
+    private fun liftAvailableAtFor(restriction: ProcessingRestriction): Instant? =
+        restriction.liftNoticeSentAt?.let(::liftAvailableAt)
 
     /**
      * Single entry point for the two-step lift flow. Encapsulates the

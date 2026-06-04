@@ -65,8 +65,8 @@ class AdminUserController(
 
     @GetMapping("/restriction")
     suspend fun getRestriction(@PathVariable userId: String): ResponseEntity<RestrictionDto> {
-        val restriction = restrictionService.findRestriction(userId)
-        return restriction?.let { ResponseEntity.ok(it.toDto()) }
+        return restrictionService.findRestriction(userId)
+            ?.let { ResponseEntity.ok(it) }
             ?: ResponseEntity.noContent().build()
     }
 

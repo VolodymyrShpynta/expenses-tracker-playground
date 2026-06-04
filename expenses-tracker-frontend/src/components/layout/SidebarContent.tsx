@@ -5,23 +5,27 @@ import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
+import Divider from '@mui/material/Divider';
 import { useTheme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
-import { NAV_ITEMS } from './navItems';
+import { useLocation } from 'react-router-dom';
+import { NAV_ITEMS, ACCOUNT_NAV_ITEMS, ADMIN_NAV_ITEMS, type NavItem } from './navItems';
 import { DRAWER_WIDTH, navItemSx } from './layoutStyles';
 import {
   SidebarSettings,
   SidebarTools,
   SidebarUserSection,
 } from './SidebarSections';
+import { useAuth } from '../../context/AuthContext';
 import type { FontScale } from '../../theme';
 
 /**
- * Pure-render assembly of the sidebar (header, primary nav, Tools and
- * Settings sections, user footer). All state — selection, open/closed
- * sections, dialog triggers — is owned by `Layout` and passed in as
- * props, so the same instance can be rendered inside the permanent
- * desktop drawer or the temporary mobile drawer without duplication.
+ * Pure-render assembly of the sidebar (header, primary nav, account
+ * nav, optional admin nav, Tools and Settings sections, user footer).
+ * All state — selection, open/closed sections, dialog triggers — is
+ * owned by `Layout` and passed in as props, so the same instance can
+ * be rendered inside the permanent desktop drawer or the temporary
+ * mobile drawer without duplication.
  */
 interface SidebarContentProps {
   activeIdx: number;
@@ -44,9 +48,13 @@ interface SidebarContentProps {
   onExportImport: () => void;
 }
 
+const GDPR_ADMIN_ROLE = 'gdpr-admin';
+
 export function SidebarContent(props: SidebarContentProps) {
   const { t: translate } = useTranslation();
   const theme = useTheme();
+  const location = useLocation();
+  const { hasRole } = useAuth();
   const {
     activeIdx,
     onNav,
@@ -103,7 +111,50 @@ export function SidebarContent(props: SidebarContentProps) {
         onPickLanguage={onPickLanguage}
       />
 
+      <Divider sx={{ my: 1 }} />
+      <SecondaryNavList
+        items={ACCOUNT_NAV_ITEMS}
+        currentPath={location.pathname}
+        onNav={onNav}
+      />
+      {hasRole(GDPR_ADMIN_ROLE) && (
+        <SecondaryNavList
+          items={ADMIN_NAV_ITEMS}
+          currentPath={location.pathname}
+          onNav={onNav}
+        />
+      )}
+
       <SidebarUserSection />
     </Box>
+  );
+}
+
+interface SecondaryNavListProps {
+  items: NavItem[];
+  currentPath: string;
+  onNav: (path: string) => void;
+}
+
+function SecondaryNavList({ items, currentPath, onNav }: SecondaryNavListProps) {
+  const { t: translate } = useTranslation();
+  const theme = useTheme();
+  return (
+    <List dense>
+      {items.map((item) => {
+        const active = item.path === currentPath;
+        return (
+          <ListItemButton
+            key={item.path}
+            selected={active}
+            onClick={() => onNav(item.path)}
+            sx={navItemSx(theme, active)}
+          >
+            <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>{item.icon}</ListItemIcon>
+            <ListItemText primary={translate(item.labelKey)} />
+          </ListItemButton>
+        );
+      })}
+    </List>
   );
 }

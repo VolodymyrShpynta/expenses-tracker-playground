@@ -7,7 +7,9 @@
     "tools": "Nástroje",
     "exportImport": "Export a import",
     "settings": "Nastavení",
-    "openMenu": "Otevřít menu"
+    "openMenu": "Otevřít menu",
+    "privacy": "Soukromí",
+    "adminUsers": "Správa uživatelů"
   },
   "settings": {
     "darkMode": "Tmavý režim",
@@ -193,5 +195,161 @@
       "expense": "Výdaj"
     },
     "importMoreErrors": "…a dalších {{count}}"
+  },
+  "privacy": {
+    "pageTitle": "Soukromí a data",
+    "pageSubtitle": "Spravujte zpracování svých osobních údajů. Tyto nástroje pokrývají vaše práva podle článků 17 a 18 GDPR.",
+    "yourData": {
+      "title": "Váš účet",
+      "username": "Uživatelské jméno",
+      "userId": "ID uživatele",
+      "exportHint": "Pro stažení kopie vašich dat (Článek 20) použijte <1>Export a import</1> v postranním panelu."
+    },
+    "restriction": {
+      "title": "Omezit zpracování",
+      "explainer": "Článek 18 umožňuje pozastavit zpracování. Vaše data zůstanou, ale přestaneme je zpracovávat — omezení můžete později zrušit.",
+      "statusNone": "Vaše data jsou zpracovávána běžným způsobem. Žádné omezení není aktivní.",
+      "statusActive": "Vaše zpracování je omezeno.",
+      "fieldGround": "Důvod (Čl. 18(1))",
+      "fieldAppliedAt": "Omezeno v",
+      "fieldRequestedBy": "Požadováno kým",
+      "fieldReason": "Důvod",
+      "fieldLiftNoticeSentAt": "Oznámení o zrušení odesláno v",
+      "restrictButton": "Omezit mé zpracování",
+      "liftButton": "Požádat o zrušení",
+      "loading": "Načítání stavu omezení…",
+      "error": "Stav omezení se nepodařilo načíst: {{message}}"
+    },
+    "restrictDialog": {
+      "title": "Omezit zpracování",
+      "body": "Vyberte právní důvod pro vaši žádost. Můžete přidat volitelnou poznámku s popisem.",
+      "grounds": {
+        "ACCURACY_CONTESTED": "Zpochybňuji přesnost svých dat (Čl. 18(1)(a))",
+        "UNLAWFUL_NOT_ERASED": "Zpracování je nezákonné, ale nechci výmaz (Čl. 18(1)(b))",
+        "CONTROLLER_NO_LONGER_NEEDS": "Data již nepotřebujete, ale já je potřebuji pro právní nárok (Čl. 18(1)(c))",
+        "OBJECTION_PENDING": "Vznesl jsem námitku a čeká se na ověření (Čl. 18(1)(d))"
+      },
+      "reasonLabel": "Důvod (volitelné)",
+      "reasonHelper": "Až 1000 znaků. Pomáhá operátorovi pochopit žádost.",
+      "submit": "Omezit",
+      "submitting": "Omezuji…"
+    },
+    "liftDialog": {
+      "title": "Zrušit omezení",
+      "body": "Zrušení probíhá ve dvou krocích. Nejprve zaznamenáme oznámení před zrušením (Čl. 18(3)) a počkáme krátkou dobu; pak znovu potvrdíte pro skutečné obnovení zpracování.",
+      "step1Button": "Odeslat oznámení před zrušením",
+      "step1Sending": "Odesílám oznámení…",
+      "step1Done": "Oznámení před zrušením odesláno. Zrušení můžete dokončit po {{time}}.",
+      "step2Button": "Dokončit zrušení",
+      "step2Submitting": "Dokončuji…",
+      "step2DisabledHint": "Dostupné za {{seconds}} s",
+      "doneTitle": "Omezení zrušeno",
+      "doneBody": "Zpracování bylo obnoveno. Toto okno můžete zavřít.",
+      "close": "Zavřít",
+      "error": "Omezení se nepodařilo zrušit: {{message}}"
+    },
+    "erasure": {
+      "title": "Smazat můj účet",
+      "dangerLabel": "Nebezpečná zóna",
+      "explainer": "Článek 17 — právo na výmaz. Trvale smaže vaše výdaje, kategorie a účet u poskytovatele identit. Akci nelze vrátit zpět.",
+      "expandHint": "Klepnutím zobrazíte ovládací prvky mazání.",
+      "openButton": "Chci smazat svůj účet"
+    },
+    "eraseDialog": {
+      "title": "Trvale smazat váš účet",
+      "warningTitle": "Tuto akci nelze vrátit zpět",
+      "warningBody": "Po potvrzení bude okamžitě smazáno:",
+      "consequence1": "Každý výdaj a kategorie, které jste vytvořili",
+      "consequence2": "Každá událost v auditním logu, která vás zmiňuje",
+      "consequence3": "Váš Keycloak přihlašovací účet (pokud je kaskáda nakonfigurována)",
+      "noticeExport": "Pokud chcete nejprve uložit kopii dat, zrušte toto okno a použijte <1>Export a import</1>.",
+      "ackPermanent": "Rozumím, že smazání je trvalé a nevratné.",
+      "ackExported": "Již jsem exportoval(a) všechna data, která si chci ponechat.",
+      "ackLogin": "Rozumím, že můj přihlašovací účet bude odstraněn.",
+      "typeUsernameLabel": "Pro potvrzení napište své uživatelské jméno",
+      "typeUsernameHelper": "Napište přesně: {{username}}",
+      "typeUsernameMismatch": "Uživatelské jméno se neshoduje.",
+      "continueButton": "Pokračovat",
+      "cancelButton": "Zrušit"
+    },
+    "eraseConfirmDialog": {
+      "title": "Poslední šance",
+      "body": "Chystáte se trvale smazat účet <1>{{username}}</1>. Tlačítko se aktivuje za {{seconds}} s.",
+      "deleteButton": "Smazat navždy",
+      "deleteButtonReady": "Smazat navždy ({{seconds}} s)",
+      "deleting": "Mažu…",
+      "error": "Smazání selhalo: {{message}}"
+    },
+    "erasedSummary": {
+      "title": "Váš účet byl smazán",
+      "subtitle": "Shrnutí kaskády",
+      "eventsDeleted": "Smazáno událostí: {{count}}",
+      "projectionsDeleted": "Smazáno výdajů: {{count}}",
+      "categoriesDeleted": "Smazáno kategorií: {{count}}",
+      "keycloakDeleted": "Účet u poskytovatele identit: {{state}}",
+      "keycloakDeletedYes": "odstraněn",
+      "keycloakDeletedNo": "stále přítomen — kontaktujte operátora",
+      "occurredAt": "Zaznamenáno v {{time}}",
+      "followUpTitle": "Další kroky",
+      "logoutCountdown": "Budete odhlášeni za {{seconds}} s.",
+      "logoutNow": "Odhlásit nyní"
+    }
+  },
+  "admin": {
+    "users": {
+      "pageTitle": "Správa uživatelů",
+      "pageSubtitle": "GDPR operace nad libovolným uživatelem. Vyžaduje roli realm `gdpr-admin`.",
+      "lookup": {
+        "title": "Vyhledat uživatele",
+        "label": "ID uživatele (UUID z Keycloak `sub`)",
+        "placeholder": "00000000-0000-0000-0000-00000000000a",
+        "helper": "Vložte UUID subjektu Keycloak. API neposkytuje seznam uživatelů — ID získáte z admin konzole IdP.",
+        "loadButton": "Načíst",
+        "clearButton": "Vyčistit",
+        "selectedLabel": "Právě prohlíženo: <1>{{userId}}</1>"
+      },
+      "restriction": {
+        "title": "Omezení (Čl. 18)",
+        "restrictedHeadline": "{{userId}} je omezen.",
+        "noneHeadline": "{{userId}} nemá aktivní omezení.",
+        "restrictButton": "Omezit tohoto uživatele",
+        "liftButton": "Zrušit omezení",
+        "reasonRequiredHelper": "Poznámka s důvodem je povinná pro omezení uložená operátorem."
+      },
+      "restrictDialog": {
+        "title": "Omezit zpracování uživatele",
+        "body": "Ukládáte omezení jménem uživatele. Poznámka s důvodem je povinná a zaznamenává se do auditního logu.",
+        "reasonLabel": "Důvod (povinné)",
+        "reasonRequired": "Důvod je povinný.",
+        "reasonTooShort": "Důvod musí mít alespoň 10 znaků."
+      },
+      "erasure": {
+        "title": "Smazat uživatele (Čl. 17)",
+        "dangerLabel": "Smazání operátorem",
+        "explainer": "Použijte pouze, pokud uživatel nemůže provést akci sám (zablokovaný účet, identita ověřena jinak, soudní rozhodnutí). Auditní log vás zaznamená jako vykonavatele.",
+        "openButton": "Smazat tohoto uživatele"
+      },
+      "eraseDialog": {
+        "title": "Trvale smazat tohoto uživatele",
+        "warningBody": "Po potvrzení bude okamžitě smazáno pro <1>{{userId}}</1>:",
+        "ackResponsibility": "Potvrzuji, že jednám na základě ověřené žádosti nebo zákonného důvodu.",
+        "ackPermanent": "Rozumím, že smazání je trvalé a nevratné.",
+        "ackAuditLog": "Rozumím, že moje ID administrátora bude zaznamenáno v auditním logu.",
+        "reasonLabel": "Poznámka s důvodem (povinné, zaznamenává se v auditu)",
+        "reasonHelper": "Minimum 10 znaků. Příklad: „Subjekt podal notářsky ověřenou žádost o výmaz poštou 2026-06-01.“",
+        "reasonRequired": "Důvod je povinný.",
+        "reasonTooShort": "Důvod musí mít alespoň 10 znaků.",
+        "typeUserIdLabel": "Pro potvrzení napište ID uživatele",
+        "typeUserIdHelper": "Napište přesně: {{userId}}",
+        "typeUserIdMismatch": "ID uživatele se neshoduje."
+      },
+      "eraseConfirmDialog": {
+        "body": "Chystáte se trvale smazat účet <1>{{userId}}</1>. Tlačítko se aktivuje za {{seconds}} s."
+      },
+      "erasedSummary": {
+        "title": "Uživatel byl smazán",
+        "doneButton": "Hotovo"
+      }
+    }
   }
 }

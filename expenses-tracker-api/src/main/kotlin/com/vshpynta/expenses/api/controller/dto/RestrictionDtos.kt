@@ -23,6 +23,12 @@ data class RestrictRequest(
  * Public projection of [ProcessingRestriction]. The subject's
  * `actor_id` is exposed only as `requestedBy` (the role) — the raw
  * actor identifier is internal.
+ *
+ * `liftAvailableAt` is server-computed (`liftNoticeSentAt + dwell`)
+ * and only present when `liftNoticeSentAt` is set. Surfacing it
+ * directly keeps the dwell configuration out of the API contract — a
+ * client refreshing mid-flight always sees the authoritative deadline
+ * without having to know the configured `gdpr.restriction.lift-dwell`.
  */
 data class RestrictionDto(
     val userId: String,
@@ -31,15 +37,17 @@ data class RestrictionDto(
     val requestedBy: RestrictionRequester,
     val reasonNote: String?,
     val liftNoticeSentAt: Instant?,
+    val liftAvailableAt: Instant?,
 )
 
-fun ProcessingRestriction.toDto(): RestrictionDto = RestrictionDto(
+fun ProcessingRestriction.toDto(liftAvailableAt: Instant? = null): RestrictionDto = RestrictionDto(
     userId = userId,
     restrictedAt = restrictedAt,
     ground = ground,
     requestedBy = requestedBy,
     reasonNote = reasonNote,
     liftNoticeSentAt = liftNoticeSentAt,
+    liftAvailableAt = liftAvailableAt,
 )
 
 /**
