@@ -1,6 +1,7 @@
 package com.vshpynta.expenses.api.service.gdpr
 
 import com.vshpynta.expenses.api.model.gdpr.ErasureRequester
+import com.vshpynta.expenses.api.model.gdpr.RevokedBy
 import com.vshpynta.expenses.api.util.IdentifierHasher
 import kotlinx.coroutines.CancellationException
 import org.slf4j.LoggerFactory
@@ -28,22 +29,39 @@ data class GdprErasureResult(
  *
  * Order of operations:
  *
- *  1. expense_events             — hard delete                   ┐
- *  2. expense_projections        — hard delete                   │
- *  3. categories                 — hard delete                   │ one
- *  4. processing_restrictions    — live restriction row, if any  │ `@Transactional`
- *  5. account_activity           — last-seen tracker             │ in
- *  6. gdpr_erasure_log           — append the audit row          │ GdprDbEraser
- *                                  (keycloakDeleted = false)     ┘
- *  7. Keycloak                   — best-effort post-commit delete
- *  8. gdpr_erasure_log           — flip keycloakDeleted = true
- *                                  (only if step 7 reported success)
- *  9. UserNotificationService    — best-effort confirmation to the
- *                                  data subject (failures are logged,
- *                                  never propagated)
+ *   1. expense_events             — hard delete                   ┐
+ *   2. expense_projections        — hard delete                   │
+ *   3. categories                 — hard delete                   │ one
+ *   4. processing_restrictions    — live restriction row, if any  │ `@Transactional`
+ *   5. account_activity           — last-seen tracker             │ in
+ *   6. gdpr_erasure_log           — append the audit row          │ GdprDbEraser
+ *                                   (keycloakDeleted = false)     ┘
+ *   7. session_revocations        — block any still-valid access
+ *                                   token issued before this point
+ *                                   from being accepted at the
+ *                                   resource server. Done *before*
+ *                                   the Keycloak cascade so the row
+ *                                   exists even if the IdP call
+ *                                   fails — the resource server
+ *                                   alone is enough to deny further
+ *                                   requests under the orphan
+ *                                   subject.
+ *   8. Keycloak                   — best-effort `deleteUser`
+ *   9. gdpr_erasure_log           — flip keycloakDeleted = true
+ *                                   (only if step 8 reported success)
+ *  10. Keycloak                   — best-effort `logoutAllSessions`
+ *                                   as a fallback for refresh tokens.
+ *                                   Skipped when step 8 already
+ *                                   removed the account (deleting
+ *                                   the user implicitly logs them
+ *                                   out) or when the cascade is
+ *                                   disabled.
+ *  11. UserNotificationService    — best-effort confirmation to the
+ *                                   data subject (failures are
+ *                                   logged, never propagated)
  *
  * Steps 1–6 are atomic: either all per-user data is gone *and* the
- * audit row exists, or nothing changed. Steps 7–9 run **after** the
+ * audit row exists, or nothing changed. Steps 7–11 run **after** the
  * commit so a Keycloak outage or notification failure cannot leave
  * the DB half-erased; the audit row records what actually happened
  * (including a transient `keycloakDeleted = false`).
@@ -53,6 +71,7 @@ class GdprErasureService(
     private val gdprDbEraser: GdprDbEraser,
     private val keycloakAdmin: KeycloakAdminClient,
     private val notifier: UserNotificationService,
+    private val sessionRevocations: SessionRevocationService,
     private val hasher: IdentifierHasher,
     private val clock: Clock,
 ) {
@@ -75,9 +94,13 @@ class GdprErasureService(
             reasonNote = reasonNote,
         )
 
+        sessionRevocations.revokeAllSessions(userId, RevokedBy.ERASURE)
+
         val keycloakDeleted = keycloakAdmin.deleteUser(userId)
         if (keycloakDeleted) {
             gdprDbEraser.markKeycloakDeleted(erasureRecord.auditLogEntryId)
+        } else {
+            keycloakAdmin.logoutAllSessions(userId)
         }
 
         sendErasureConfirmationSafely(userId)

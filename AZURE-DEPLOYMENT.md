@@ -1110,6 +1110,23 @@ Write-Host "Web origins:         $frontendUrl"
 2. **User registration**: ✅ ON
 3. Click **Save**
 
+### Configure Token Lifespans
+
+The backend's session-revocation subsystem (used by "sign out everywhere" and the Art. 17
+erasure cascade) keeps each revocation row in Postgres for `app.gdpr.revocation.expires-grace`
+(default **15 min**), which must comfortably exceed the realm's access-token lifespan. If a
+token outlives its matching revocation row, the
+[`SessionRevocationFilter`](expenses-tracker-api/src/main/kotlin/com/vshpynta/expenses/api/config/gdpr/SessionRevocationFilter.kt)
+can no longer reject it and the user stays signed in until the JWT's own `exp` is reached.
+
+1. Go to **Realm settings** → **Tokens** tab
+2. **Access Token Lifespan**: `5 Minutes` (matches `realm-export.json` → `accessTokenLifespan: 300`)
+3. Click **Save**
+
+> **Invariant:** `accessTokenLifespan + clockSkew < app.gdpr.revocation.expires-grace`.
+> If you raise the access-token lifespan in production, also raise
+> `GDPR_REVOCATION_EXPIRES_GRACE` on the API container app by the same amount.
+
 ### Create Test User (Optional)
 
 1. Go to **Users** → **Add user**

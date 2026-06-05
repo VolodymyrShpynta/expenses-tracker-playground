@@ -8,6 +8,8 @@ import {
   liftUserRestriction,
   eraseMyself,
   eraseUser,
+  revokeMySessions,
+  revokeUserSessions,
   type RestrictMyselfRequest,
   type AdminRestrictRequest,
   type AdminErasureRequest,
@@ -56,6 +58,20 @@ export function useEraseMyself() {
   });
 }
 
+/**
+ * "Sign me out everywhere" mutation. No cache invalidation — the
+ * caller is expected to trigger `AuthContext.logout()` right after
+ * success, which full-page-redirects through Keycloak SSO logout and
+ * unmounts the React tree. The 401 + `session_revoked` path in
+ * `fetchWithAuth` remains as a safety net if the explicit logout is
+ * skipped or fails.
+ */
+export function useRevokeMySessions() {
+  return useMutation<void, Error, void>({
+    mutationFn: revokeMySessions,
+  });
+}
+
 // ---- admin hooks ----------------------------------------------------------
 
 export function useUserRestriction(userId: string, enabled: boolean) {
@@ -86,6 +102,20 @@ export function useEraseUser(userId: string) {
   const qc = useQueryClient();
   return useMutation<ErasureResultDto, Error, AdminErasureRequest>({
     mutationFn: (req) => eraseUser(userId, req),
+    onSuccess: () => qc.invalidateQueries({ queryKey: userRestrictionKey(userId) }),
+  });
+}
+
+/**
+ * Admin force sign-out. Invalidates the target user's restriction
+ * query for consistency (admin may want to immediately re-check
+ * status afterwards), but the user being kicked obviously cannot see
+ * that.
+ */
+export function useRevokeUserSessions(userId: string) {
+  const qc = useQueryClient();
+  return useMutation<void, Error, void>({
+    mutationFn: () => revokeUserSessions(userId),
     onSuccess: () => qc.invalidateQueries({ queryKey: userRestrictionKey(userId) }),
   });
 }

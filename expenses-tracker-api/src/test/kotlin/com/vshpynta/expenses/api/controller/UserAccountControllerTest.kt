@@ -12,7 +12,9 @@ import com.vshpynta.expenses.api.model.gdpr.RestrictionGround
 import com.vshpynta.expenses.api.model.gdpr.RestrictionRequester
 import com.vshpynta.expenses.api.repository.gdpr.GdprErasureLogRepository
 import com.vshpynta.expenses.api.repository.gdpr.ProcessingRestrictionRepository
+import com.vshpynta.expenses.api.repository.gdpr.SessionRevocationRepository
 import com.vshpynta.expenses.api.service.gdpr.KeycloakAdminClient
+import com.vshpynta.expenses.api.service.gdpr.SessionRevocationService
 import com.vshpynta.expenses.api.service.gdpr.UserNotificationService
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.reactor.awaitSingle
@@ -66,6 +68,12 @@ class UserAccountControllerTest {
     private lateinit var erasureLog: GdprErasureLogRepository
 
     @Autowired
+    private lateinit var sessionRevocations: SessionRevocationRepository
+
+    @Autowired
+    private lateinit var sessionRevocationService: SessionRevocationService
+
+    @Autowired
     private lateinit var databaseClient: DatabaseClient
 
     @Autowired
@@ -83,11 +91,17 @@ class UserAccountControllerTest {
             databaseClient.sql("DELETE FROM gdpr_erasure_log").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM processing_restriction_log").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM processing_restrictions").fetch().rowsUpdated().awaitSingle()
+            databaseClient.sql("DELETE FROM session_revocations").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM account_activity").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM expense_events").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM expense_projections").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM categories").fetch().rowsUpdated().awaitSingle()
         }
+        // The in-memory revocation cache survives DELETE FROM session_revocations
+        // (its per-entry TTL is up to ~15 min), so any revocation written by a
+        // prior test in this class would still cause the SessionRevocationFilter
+        // to reject this test's requests with 401. Drop it explicitly.
+        sessionRevocationService.invalidateAll()
         testClock.advanceTo(NOW)
         runBlocking { whenever(keycloakAdmin.deleteUser(any())) doReturn true }
     }

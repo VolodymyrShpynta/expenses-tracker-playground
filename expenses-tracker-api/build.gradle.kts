@@ -31,7 +31,7 @@ dependencies {
     implementation(libs.flyway.database.postgresql)
     implementation(libs.shedlock.spring)
     implementation(libs.shedlock.provider.jdbc.template)
-    runtimeOnly(libs.r2dbc.postgresql)
+    implementation(libs.r2dbc.postgresql)
     runtimeOnly(libs.postgresql)
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.spring.security.test)

@@ -34,6 +34,7 @@ import {
   useRestrictMyself,
   useLiftMyRestriction,
   useEraseMyself,
+  useRevokeMySessions,
 } from '../hooks/useUserPrivacy';
 import { RestrictionStatusCard } from '../components/privacy/RestrictionStatusCard';
 import { RestrictDialog } from '../components/privacy/RestrictDialog';
@@ -43,13 +44,14 @@ import { EraseConfirmDialog } from '../components/privacy/EraseConfirmDialog';
 
 export default function PrivacyPage() {
   const { t: translate } = useTranslation();
-  const { username, userId, signalErasureComplete } = useAuth();
+  const { username, userId, signalErasureComplete, logout } = useAuth();
   const navigate = useNavigate();
 
   const restriction = useMyRestriction();
   const restrictMutation = useRestrictMyself();
   const liftMutation = useLiftMyRestriction();
   const eraseMutation = useEraseMyself();
+  const revokeMutation = useRevokeMySessions();
 
   const [restrictOpen, setRestrictOpen] = useState(false);
   const [liftOpen, setLiftOpen] = useState(false);
@@ -112,7 +114,33 @@ export default function PrivacyPage() {
             liftButtonLabel={translate('privacy.restriction.liftButton')}
           />
         </Paper>
-
+        {/* ── Sessions — sign me out everywhere ───────────────────────────── */}
+        <Paper variant="outlined" sx={{ p: 2.5 }}>
+          <Typography variant="subtitle1" gutterBottom fontWeight={600}>
+            {translate('privacy.sessions.title')}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {translate('privacy.sessions.explainer')}
+          </Typography>
+          {revokeMutation.error && (
+            <Typography variant="body2" color="error" sx={{ mb: 2 }}>
+              {translate('privacy.sessions.error', { message: revokeMutation.error.message })}
+            </Typography>
+          )}
+          <Button
+            variant="outlined"
+            color="warning"
+            onClick={async () => {
+              await revokeMutation.mutateAsync();
+              logout();
+            }}
+            disabled={revokeMutation.isPending}
+          >
+            {revokeMutation.isPending
+              ? translate('privacy.sessions.signingOut')
+              : translate('privacy.sessions.signOutEverywhereButton')}
+          </Button>
+        </Paper>
         {/* ── Article 17 — erasure (danger zone) ───────────────────────── */}
         <DangerZone
           title={translate('privacy.erasure.title')}

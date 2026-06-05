@@ -90,6 +90,63 @@ class KeycloakAdminClient(
         }
     }
 
+    /**
+     * Terminates every Keycloak-side session for [userId] — server
+     * sessions and refresh tokens — by calling
+     * `POST /admin/realms/{realm}/users/{userId}/logout`. Returns
+     * `true` if the request succeeded (or the user was already
+     * gone, which is the same observable end state), `false` when
+     * the cascade is disabled or a recoverable error occurred.
+     *
+     * Access tokens that were already issued are **not** invalidated
+     * by this call — they remain cryptographically valid until they
+     * expire. The session-revocation table (read by
+     * [com.vshpynta.expenses.api.config.gdpr.SessionRevocationFilter])
+     * is what closes that residual gap; this call only ensures
+     * Keycloak itself stops accepting the user's refresh tokens.
+     *
+     * Network / 5xx failures are caught and logged rather than thrown
+     * so a transient Keycloak outage doesn't undo the local DB
+     * revocation. [CancellationException] is propagated so coroutine
+     * cancellation still works.
+     */
+    suspend fun logoutAllSessions(userId: String): Boolean {
+        val cfg = properties.keycloak
+        if (!cfg.enabled) {
+            logger.warn(
+                "Keycloak admin cascade is disabled — manual logout required for user {}",
+                userId
+            )
+            return false
+        }
+        return try {
+            val token = fetchAdminToken()
+            client.post()
+                .uri(cfg.userLogoutUrl(userId))
+                .header("Authorization", "Bearer $token")
+                .exchangeToMono { response ->
+                    when {
+                        response.statusCode().is2xxSuccessful ||
+                            response.statusCode() == HttpStatus.NOT_FOUND -> response.releaseBody()
+                        else -> response.createException()
+                    }
+                }
+                .awaitSingleOrNull()
+            true
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (ex: WebClientResponseException) {
+            logger.error(
+                "Keycloak admin logout failed for user {}: {} {}",
+                userId, ex.statusCode, ex.responseBodyAsString
+            )
+            false
+        } catch (ex: Throwable) {
+            logger.error("Keycloak admin logout failed for user {}", userId, ex)
+            false
+        }
+    }
+
     private suspend fun fetchAdminToken(): String {
         val cfg = properties.keycloak
         val body = LinkedMultiValueMap<String, String>().apply {

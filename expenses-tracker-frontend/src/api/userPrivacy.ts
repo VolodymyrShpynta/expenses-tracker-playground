@@ -63,6 +63,20 @@ export async function eraseMyself(): Promise<ErasureResultDto> {
   return handleResponse<ErasureResultDto>(res);
 }
 
+/**
+ * `POST /api/users/me/sessions/revoke` — "sign me out everywhere".
+ * Records a revocation cutoff so any already-issued access token is
+ * rejected by the resource server on its next call, then asks
+ * Keycloak to terminate the user's server-side sessions and refresh
+ * tokens. The caller's *own* next request will get 401 +
+ * `session_revoked`; the SPA handles that in `fetchWithAuth` by
+ * forcing a re-login. Requires fresh auth (`auth_time`).
+ */
+export async function revokeMySessions(): Promise<void> {
+  const res = await fetchWithAuth(`${SUBJECT_BASE}/sessions/revoke`, { method: 'POST' });
+  if (res.status !== 204) throw new Error(await readError(res));
+}
+
 // ---------------------------------------------------------------------------
 // Operator (`/api/admin/users/{userId}/...`) — requires `gdpr-admin` role
 // ---------------------------------------------------------------------------
@@ -108,4 +122,17 @@ export async function eraseUser(userId: string, req: AdminErasureRequest): Promi
     body: JSON.stringify(req),
   });
   return handleResponse<ErasureResultDto>(res);
+}
+
+/**
+ * `POST /api/admin/users/{userId}/sessions/revoke` — admin force
+ * sign-out for the target user. Same effect as the subject endpoint
+ * but the row carries `revoked_by = ADMIN` for audit.
+ */
+export async function revokeUserSessions(userId: string): Promise<void> {
+  const res = await fetchWithAuth(
+    `${ADMIN_BASE}/${encodeURIComponent(userId)}/sessions/revoke`,
+    { method: 'POST' },
+  );
+  if (res.status !== 204) throw new Error(await readError(res));
 }

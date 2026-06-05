@@ -1,5 +1,7 @@
 package com.vshpynta.expenses.api.config
 
+import com.vshpynta.expenses.api.config.gdpr.SessionRevocationFilter
+import com.vshpynta.expenses.api.service.gdpr.SessionRevocationService
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -7,6 +9,7 @@ import org.springframework.core.convert.converter.Converter
 import org.springframework.http.HttpMethod
 import org.springframework.security.authentication.AbstractAuthenticationToken
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity
+import org.springframework.security.config.web.server.SecurityWebFiltersOrder
 import org.springframework.security.config.web.server.ServerHttpSecurity
 import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.authority.SimpleGrantedAuthority
@@ -37,8 +40,38 @@ class SecurityConfig(
         private const val GDPR_ADMIN_ROLE = "gdpr-admin"
     }
 
+    /**
+     * Builds the reactive security filter chain. Concerns, in the
+     * order Spring Security applies them to an incoming request:
+     *
+     *  1. **CORS** — driven by the `app.cors.allowed-origins` /
+     *     `allowed-origin-patterns` properties so the SPA dev origins
+     *     and the deployed origin can both be whitelisted without a
+     *     code change.
+     *  2. **CSRF disabled** — this is a stateless REST API; tokens
+     *     are sent as `Authorization: Bearer …`, so there's no
+     *     cookie-bound session for CSRF to protect.
+     *  3. **OAuth2 resource server (authentication)** — validates the
+     *     Keycloak JWT and wires [reactiveJwtAuthenticationConverter]
+     *     so realm roles show up as Spring `ROLE_*` authorities.
+     *  4. **[SessionRevocationFilter]** — inserted after authentication
+     *     (the JWT principal is already on the reactor context) and
+     *     before authorization (see that class's KDoc for the full
+     *     rationale) so a revoked session short-circuits with 401
+     *     even on otherwise-permitted paths.
+     *  5. **Authorization rules** — actuator health probes and CORS
+     *     `OPTIONS` preflights are public; any `/api/admin` path
+     *     requires the `gdpr-admin` realm role; everything else
+     *     requires authentication.
+     *
+     * Note that this is *not* the order of the DSL calls below —
+     * Spring Security re-orders them by [SecurityWebFiltersOrder].
+     */
     @Bean
-    fun securityFilterChain(http: ServerHttpSecurity): SecurityWebFilterChain {
+    fun securityFilterChain(
+        http: ServerHttpSecurity,
+        sessionRevocationService: SessionRevocationService,
+    ): SecurityWebFilterChain {
         return http
             .cors { it.configurationSource(corsConfigurationSource()) }
             .csrf { it.disable() }
@@ -52,6 +85,10 @@ class SecurityConfig(
             .oauth2ResourceServer { resource ->
                 resource.jwt { it.jwtAuthenticationConverter(reactiveJwtAuthenticationConverter()) }
             }
+            .addFilterAfter(
+                SessionRevocationFilter(sessionRevocationService),
+                SecurityWebFiltersOrder.AUTHENTICATION
+            )
             .build()
     }
 

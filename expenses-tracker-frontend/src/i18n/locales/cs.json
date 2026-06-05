@@ -255,6 +255,13 @@
       "expandHint": "Klepnutím zobrazíte ovládací prvky mazání.",
       "openButton": "Chci smazat svůj účet"
     },
+    "sessions": {
+      "title": "Aktivní relace",
+      "explainer": "Odhlásí vás ze všech prohlížečů, panelů a mobilních aplikací, kde jste právě přihlášeni. Bude se třeba znovu přihlásit i zde.",
+      "signOutEverywhereButton": "Odhlásit všude",
+      "signingOut": "Odhlašuji…",
+      "error": "Nepodařilo se odhlásit všude: {{message}}"
+    },
     "eraseDialog": {
       "title": "Trvale smazat váš účet",
       "warningTitle": "Tuto akci nelze vrátit zpět",
@@ -328,6 +335,14 @@
         "dangerLabel": "Smazání operátorem",
         "explainer": "Použijte pouze, pokud uživatel nemůže provést akci sám (zablokovaný účet, identita ověřena jinak, soudní rozhodnutí). Auditní log vás zaznamená jako vykonavatele.",
         "openButton": "Smazat tohoto uživatele"
+      },
+      "sessions": {
+        "title": "Aktivní relace",
+        "explainer": "Vynuceno ukončí každou relaci tohoto uživatele. Jeho další požadavek dostane 401. Použijte pro kompromitované účty, ztracená zařízení nebo když je potřeba okamžitě odvolat přístup.",
+        "signOutButton": "Vynuceno odhlásit",
+        "signingOut": "Odhlašuji…",
+        "success": "Všechny relace uživatele {{userId}} byly ukončeny.",
+        "error": "Nepodařilo se ukončit relace: {{message}}"
       },
       "eraseDialog": {
         "title": "Trvale smazat tohoto uživatele",

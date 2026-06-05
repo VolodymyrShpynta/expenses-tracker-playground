@@ -255,6 +255,13 @@
       "expandHint": "Tap to reveal the deletion controls.",
       "openButton": "I want to delete my account"
     },
+    "sessions": {
+      "title": "Active sessions",
+      "explainer": "Signs you out of every browser, tab, and mobile app where you are currently logged in. You'll need to sign in again here too.",
+      "signOutEverywhereButton": "Sign out everywhere",
+      "signingOut": "Signing out…",
+      "error": "Could not sign out everywhere: {{message}}"
+    },
     "eraseDialog": {
       "title": "Permanently delete your account",
       "warningTitle": "This cannot be undone",
@@ -328,6 +335,14 @@
         "dangerLabel": "Operator-driven erasure",
         "explainer": "Use this only when the user cannot self-serve (locked account, identity verified out-of-band, court order). The audit log records you as the actor.",
         "openButton": "Erase this user"
+      },
+      "sessions": {
+        "title": "Active sessions",
+        "explainer": "Forcibly terminates every session this user has. Their next request gets 401. Use for compromised accounts, lost devices, or when you need to revoke access immediately.",
+        "signOutButton": "Force sign-out",
+        "signingOut": "Signing out…",
+        "success": "All sessions for {{userId}} have been terminated.",
+        "error": "Could not terminate sessions: {{message}}"
       },
       "eraseDialog": {
         "title": "Permanently delete this user",

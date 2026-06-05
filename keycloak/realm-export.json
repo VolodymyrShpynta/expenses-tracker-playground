@@ -9,6 +9,7 @@
   "editUsernameAllowed": false,
   "bruteForceProtected": true,
   "sslRequired": "external",
+  "accessTokenLifespan": 300,
   "roles": {
     "realm": [
       {

@@ -98,6 +98,7 @@ class GdprErasureServiceTest {
             databaseClient.sql("DELETE FROM gdpr_erasure_log").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM account_activity").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM processing_restrictions").fetch().rowsUpdated().awaitSingle()
+            databaseClient.sql("DELETE FROM session_revocations").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM expense_events").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM expense_projections").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM categories").fetch().rowsUpdated().awaitSingle()

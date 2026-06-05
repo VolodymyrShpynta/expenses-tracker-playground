@@ -7,10 +7,13 @@ import com.vshpynta.expenses.api.controller.dto.toDto
 import com.vshpynta.expenses.api.controller.dto.toResponseEntity
 import com.vshpynta.expenses.api.model.gdpr.ErasureRequester
 import com.vshpynta.expenses.api.model.gdpr.RestrictionRequester
+import com.vshpynta.expenses.api.model.gdpr.RevokedBy
 import com.vshpynta.expenses.api.service.auth.UserContextService
 import com.vshpynta.expenses.api.service.gdpr.FreshAuthenticationService
 import com.vshpynta.expenses.api.service.gdpr.GdprErasureService
+import com.vshpynta.expenses.api.service.gdpr.KeycloakAdminClient
 import com.vshpynta.expenses.api.service.gdpr.ProcessingRestrictionService
+import com.vshpynta.expenses.api.service.gdpr.SessionRevocationService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -41,6 +44,8 @@ class UserAccountController(
     private val freshAuth: FreshAuthenticationService,
     private val erasureService: GdprErasureService,
     private val restrictionService: ProcessingRestrictionService,
+    private val sessionRevocations: SessionRevocationService,
+    private val keycloakAdmin: KeycloakAdminClient,
 ) {
 
     /**
@@ -103,6 +108,23 @@ class UserAccountController(
             requestedBy = RestrictionRequester.SUBJECT,
             actorId = userId,
         ).toResponseEntity()
+    }
+
+    /**
+     * "Sign me out everywhere." Records a session-revocation row so
+     * the resource server rejects any already-issued access token on
+     * the next request, then best-effort terminates Keycloak-side
+     * sessions and refresh tokens. Idempotent — calling repeatedly
+     * just refreshes the cutoff. Returns 204; the SPA reacts to the
+     * subsequent 401 + `session_revoked` body on its next request.
+     */
+    @PostMapping("/sessions/revoke")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    suspend fun revokeMySessions() {
+        freshAuth.requireFresh()
+        val userId = userContextService.currentUserId()
+        sessionRevocations.revokeAllSessions(userId, RevokedBy.SUBJECT)
+        keycloakAdmin.logoutAllSessions(userId)
     }
 
     /**

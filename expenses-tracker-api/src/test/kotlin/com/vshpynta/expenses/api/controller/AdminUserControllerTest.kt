@@ -10,6 +10,7 @@ import com.vshpynta.expenses.api.controller.dto.RestrictionDto
 import com.vshpynta.expenses.api.model.gdpr.RestrictionGround
 import com.vshpynta.expenses.api.repository.gdpr.GdprErasureLogRepository
 import com.vshpynta.expenses.api.repository.gdpr.ProcessingRestrictionRepository
+import com.vshpynta.expenses.api.repository.gdpr.SessionRevocationRepository
 import com.vshpynta.expenses.api.service.gdpr.KeycloakAdminClient
 import com.vshpynta.expenses.api.service.gdpr.UserNotificationService
 import com.vshpynta.expenses.api.util.IdentifierHasher
@@ -63,6 +64,9 @@ class AdminUserControllerTest {
     private lateinit var erasureLog: GdprErasureLogRepository
 
     @Autowired
+    private lateinit var sessionRevocations: SessionRevocationRepository
+
+    @Autowired
     private lateinit var hasher: IdentifierHasher
 
     @Autowired
@@ -83,6 +87,7 @@ class AdminUserControllerTest {
             databaseClient.sql("DELETE FROM gdpr_erasure_log").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM processing_restriction_log").fetch().rowsUpdated().awaitSingle()
             databaseClient.sql("DELETE FROM processing_restrictions").fetch().rowsUpdated().awaitSingle()
+            databaseClient.sql("DELETE FROM session_revocations").fetch().rowsUpdated().awaitSingle()
         }
         testClock.advanceTo(NOW)
         runBlocking { whenever(keycloakAdmin.deleteUser(any())) doReturn true }
@@ -164,5 +169,33 @@ class AdminUserControllerTest {
             .bodyValue(RestrictRequest(ground = RestrictionGround.OBJECTION_PENDING, reasonNote = null))
             .exchange()
             .expectStatus().isBadRequest
+    }
+
+    // ---- session revocation (admin force sign-out) ----
+
+    @Test
+    fun `should allow admin to revoke another user's sessions and record ADMIN actor`() {
+        runBlocking { whenever(keycloakAdmin.logoutAllSessions(TARGET_USER_ID)) doReturn true }
+
+        webTestClient.post()
+            .uri("/api/admin/users/$TARGET_USER_ID/sessions/revoke")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer ${TestSecurityConfig.TOKEN_ADMIN}")
+            .exchange()
+            .expectStatus().isNoContent
+
+        runBlocking {
+            val row = sessionRevocations.findByUserId(TARGET_USER_ID)
+            assertThat(row).isNotNull
+            assertThat(row!!.revokedBy.name).isEqualTo("ADMIN")
+            assertThat(row.revokedBeforeIat).isAfter(NOW)
+        }
+    }
+
+    @Test
+    fun `should reject sessions revoke for callers without the gdpr-admin role`() {
+        webTestClient.post()
+            .uri("/api/admin/users/$TARGET_USER_ID/sessions/revoke")
+            .exchange()
+            .expectStatus().isForbidden
     }
 }

@@ -29,6 +29,7 @@ import {
   useRestrictUser,
   useLiftUserRestriction,
   useEraseUser,
+  useRevokeUserSessions,
 } from '../hooks/useUserPrivacy';
 import { RestrictionStatusCard } from '../components/privacy/RestrictionStatusCard';
 import { RestrictDialog } from '../components/privacy/RestrictDialog';
@@ -72,6 +73,7 @@ function AdminUsersPageContent() {
   const restrictMutation = useRestrictUser(selectedUserId ?? '');
   const liftMutation = useLiftUserRestriction(selectedUserId ?? '');
   const eraseMutation = useEraseUser(selectedUserId ?? '');
+  const revokeMutation = useRevokeUserSessions(selectedUserId ?? '');
 
   const handleLoad = () => {
     if (lookupValid) {
@@ -164,6 +166,35 @@ function AdminUsersPageContent() {
                 restrictButtonLabel={translate('admin.users.restriction.restrictButton')}
                 liftButtonLabel={translate('admin.users.restriction.liftButton')}
               />
+            </Paper>
+
+            <Paper variant="outlined" sx={{ p: 2.5 }}>
+              <Typography variant="subtitle1" gutterBottom fontWeight={600}>
+                {translate('admin.users.sessions.title')}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {translate('admin.users.sessions.explainer')}
+              </Typography>
+              {revokeMutation.error && (
+                <Typography variant="body2" color="error" sx={{ mb: 2 }}>
+                  {translate('admin.users.sessions.error', { message: revokeMutation.error.message })}
+                </Typography>
+              )}
+              {revokeMutation.isSuccess && (
+                <Alert severity="success" sx={{ mb: 2 }}>
+                  {translate('admin.users.sessions.success', { userId: selectedUserId })}
+                </Alert>
+              )}
+              <Button
+                variant="outlined"
+                color="warning"
+                onClick={() => revokeMutation.mutate()}
+                disabled={revokeMutation.isPending}
+              >
+                {revokeMutation.isPending
+                  ? translate('admin.users.sessions.signingOut')
+                  : translate('admin.users.sessions.signOutButton')}
+              </Button>
             </Paper>
 
             <DangerZone
