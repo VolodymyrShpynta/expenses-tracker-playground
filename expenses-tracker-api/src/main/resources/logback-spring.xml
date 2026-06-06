@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Spring Boot picks this file up automatically because it lives at
+  classpath root and is named `logback-spring.xml` (NOT `logback.xml`):
+  the `-spring` suffix is what makes Spring evaluate it after the
+  environment is initialized, so `<springProfile>` and `<springProperty>`
+  work.
+
+  Conventions used here:
+    * Include Spring Boot's own defaults instead of redefining patterns
+      from scratch — keeps console output visually consistent with what
+      Spring Boot users expect (colored levels, abbreviated logger name).
+    * Per-package level pulled from the env via `<springProperty>` so a
+      single env var (`LOGGING_LEVEL_APP`) drives the whole app code
+      logger without touching this file. Default is INFO (prod-safe).
+    * `<springProfile>` blocks adjust noise per environment: dev gets
+      DEBUG on app code out of the box; prod stays at INFO unless the
+      env var overrides.
+-->
+<configuration>
+
+    <!-- Spring Boot's color console pattern, file output defaults, etc. -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <!--
+      Maps env var APP_LOG_LEVEL onto the `appLogLevel` Logback
+      property. Default INFO so production deployments stay quiet
+      until someone explicitly opts in to DEBUG.
+    -->
+    <springProperty name="appLogLevel" source="app.log-level" defaultValue="INFO"/>
+
+    <!-- App code: configurable via env, see above. -->
+    <logger name="com.vshpynta.expenses.api" level="${appLogLevel}"/>
+
+    <!--
+      Local dev convenience: when the `local` profile is active, force
+      DEBUG on app code regardless of the env var so IDEA runs are
+      verbose out of the box. Activate with -Dspring.profiles.active=local
+      (or set spring.profiles.active=local in the run configuration).
+    -->
+    <springProfile name="local">
+        <logger name="com.vshpynta.expenses.api" level="DEBUG"/>
+    </springProfile>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>
