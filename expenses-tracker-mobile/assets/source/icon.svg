@@ -4,8 +4,8 @@
     <path d="M896 512 A384 384 0 1 1 512 128 L512 512 Z"/>
     <path d="M512 512 V896 M512 512 H128"/>
   </g>
-  <g transform="translate(-10 -14)">
-    <path d="M572 68 A384 384 0 0 1 956 452 L572 452 Z" fill="#3b44b8" transform="translate(0 25)"/>
+  <g transform="translate(25 -45)">
+    <path d="M572 68 A384 384 0 0 1 956 452 L572 452 Z" fill="#3b44b8" transform="translate(0 40)"/>
     <path d="M572 68 A384 384 0 0 1 956 452 L572 452 Z" fill="#6870fa"/>
   </g>
 </svg>
