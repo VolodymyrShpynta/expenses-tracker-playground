@@ -1167,17 +1167,22 @@ for both iOS and Android.
     - **Audience** — User type: **External**.
     - **Contact Information** — Developer contact email: your Google account.
     - **Finish** — accept the *Google API Services User Data Policy* and click **Create**.
-3. Verify the app is in **Testing** publishing status (this is the default after finishing the wizard
-   with **External** user type — you do not need to change anything, just confirm). From the left
-   sidebar open **Audience** and check:
-    - At the top of the page, the **Publishing status** field shows **Testing**. The alternative is
-      **In production**, which would require Google verification for sensitive scopes and is not
-      needed here.
-    - Under **Test users → + Add users**, add every Google account that will sign into the app during
-      development. While the app is in Testing, only listed test users can complete OAuth — everyone
-      else gets `access_denied`. Because the app only requests the narrow scope
-      `https://www.googleapis.com/auth/drive.appdata`, you can stay in Testing indefinitely for
-      personal use; there is no need to click **Publish app**.
+3. **Move the app out of Testing into Production.** This is critical — Google issues refresh tokens
+   that **expire after 7 days** for any OAuth client whose consent screen is still in **Testing**
+   status, which silently signs users out roughly once a week
+   (<https://developers.google.com/identity/protocols/oauth2#expiration>). OneDrive does not have an
+   equivalent restriction. From the left sidebar open **Audience** and:
+    - At the top of the page check the **Publishing status** field. If it shows **Testing**, click
+      **Publish app** and confirm in the dialog. After publishing the status switches to **In
+      production** and refresh tokens become long-lived (only invalidated by user revocation, ~6
+      months of total inactivity, a password change, or the per-account 50-refresh-token limit).
+    - Because this app requests only the narrow scope
+      `https://www.googleapis.com/auth/drive.appdata` — which Google classifies as **non-sensitive**
+      (access is limited to files this client ID created in the app-private folder; the user's normal
+      Drive is untouched) — publishing is **instant**. Google does **not** require the brand
+      verification / security assessment process that sensitive or restricted scopes trigger.
+    - The **Test users** section becomes irrelevant once the app is in production; you can leave any
+      previously-added entries or remove them, it makes no difference.
 4. *(Optional)* Open **Data Access** (or **Scopes**) and add
    `https://www.googleapis.com/auth/drive.appdata`. This is not required — `expo-auth-session` requests
    the scope dynamically at sign-in time and `drive.appdata` is non-sensitive, so it does not need to

@@ -33,6 +33,31 @@ WebBrowser.maybeCompleteAuthSession();
 /** Refresh `REFRESH_LEEWAY_MS` before actual expiry to avoid 401s in flight. */
 const REFRESH_LEEWAY_MS = 60_000;
 
+/**
+ * Decide whether a failed `POST /token` response means the refresh
+ * token is permanently dead (so we should wipe local tokens and force
+ * a re-sign-in) versus a transient failure we should retry later
+ * without signing the user out.
+ *
+ * RFC 6749 §5.2 defines `invalid_grant` for expired / revoked / unknown
+ * refresh tokens, and `invalid_client` when the client credentials are
+ * rejected — both are terminal for the stored refresh token. Anything
+ * else (5xx, network-shaped 4xx like 408/429, captive-portal HTML, JSON
+ * we cannot parse) is treated as transient: the stored token stays put
+ * and the next sync cycle will retry.
+ */
+async function isRefreshTokenDead(response: Response): Promise<boolean> {
+  if (response.status < 400 || response.status >= 500) return false;
+  try {
+    const body = (await response.clone().json()) as { error?: unknown };
+    return body.error === 'invalid_grant' || body.error === 'invalid_client';
+  } catch {
+    // Non-JSON body (e.g. captive portal HTML, gateway error page) —
+    // treat as transient so we don't sign the user out on infrastructure noise.
+    return false;
+  }
+}
+
 export interface OAuthConfig {
   /** Provider-stable identifier used as the SecureStore key prefix. */
   readonly providerKey: string;
@@ -119,7 +144,11 @@ export function createOAuthClient(config: OAuthConfig): OAuthClient {
         body: body.toString(),
       });
       if (!response.ok) {
-        await clearTokens();
+        // Only wipe tokens on a definitively-dead refresh token; never
+        // on transient 5xx / network failures. See `isRefreshTokenDead`.
+        if (await isRefreshTokenDead(response)) {
+          await clearTokens();
+        }
         throw new Error(`OAuth refresh failed: ${response.status}`);
       }
       const json = (await response.json()) as {
