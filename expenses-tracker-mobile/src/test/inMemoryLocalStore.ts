@@ -99,10 +99,14 @@ export class InMemoryLocalStore implements LocalStore {
 
   // -- LocalStore implementation ------------------------------------------
 
-  transaction = async <T>(action: () => Promise<T>): Promise<T> => {
+  transaction = async <T>(action: (tx: LocalStore) => Promise<T>): Promise<T> => {
     const checkpoint = snapshot(this.state);
     try {
-      return await action();
+      // The in-memory store has only one underlying state object, so the
+      // tx-bound store is just `this`. Production SQLite hands a proxy
+      // bound to the exclusive transaction connection; we don't need
+      // that distinction here because tests are single-threaded.
+      return await action(this);
     } catch (err) {
       restore(this.state, checkpoint);
       throw err;

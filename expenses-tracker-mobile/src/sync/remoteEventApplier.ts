@@ -45,7 +45,7 @@ export async function applyRemoteEvents(
     events,
     (event) => event.eventId,
     (event) => event.timestamp,
-    (event) => projectByEventType(store, event),
+    (event, tx) => projectByEventType(tx, event),
     'remote event',
     log,
   );

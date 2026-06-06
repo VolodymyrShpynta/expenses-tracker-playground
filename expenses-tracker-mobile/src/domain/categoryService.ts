@@ -106,9 +106,11 @@ export function createCategoryService(deps: CategoryServiceDeps): CategoryServic
 
   /**
    * Append a category event inside the current transaction. Caller is
-   * responsible for wrapping the call in `store.transaction(...)`.
+   * responsible for wrapping the call in `store.transaction(...)` and
+   * passing the `tx`-bound store as the first argument.
    */
   async function appendCategoryEventInTx(
+    tx: LocalStore,
     eventType: EventType,
     categoryId: string,
     payload: CategoryPayload,
@@ -121,7 +123,7 @@ export function createCategoryService(deps: CategoryServiceDeps): CategoryServic
       payload: serializePayload(payload),
       committed: false,
     };
-    await store.appendCategoryEvent(event);
+    await tx.appendCategoryEvent(event);
     return event;
   }
 
@@ -154,10 +156,10 @@ export function createCategoryService(deps: CategoryServiceDeps): CategoryServic
     eventType: 'CREATED' | 'UPDATED',
     payload: CategoryPayload,
   ): Promise<Category> {
-    return store.transaction(async () => {
-      await appendCategoryEventInTx(eventType, payload.id, payload);
+    return store.transaction(async (tx) => {
+      await appendCategoryEventInTx(tx, eventType, payload.id, payload);
       const category = categoryPayloadToCategory(payload);
-      await store.projectCategoryFromEvent(category);
+      await tx.projectCategoryFromEvent(category);
       return category;
     });
   }
@@ -183,9 +185,9 @@ export function createCategoryService(deps: CategoryServiceDeps): CategoryServic
         ? { templateKey: existing.templateKey }
         : {}),
     });
-    return store.transaction(async () => {
-      await appendCategoryEventInTx('DELETED', existing.id, payload);
-      const changes = await store.softDeleteCategory(existing.id, now);
+    return store.transaction(async (tx) => {
+      await appendCategoryEventInTx(tx, 'DELETED', existing.id, payload);
+      const changes = await tx.softDeleteCategory(existing.id, now);
       return changes > 0;
     });
   }

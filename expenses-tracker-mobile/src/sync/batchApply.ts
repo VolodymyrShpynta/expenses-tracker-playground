@@ -50,8 +50,9 @@ const CHUNK_SIZE = 200;
  *   be recorded in `processed_events` (the snapshot builder needs it
  *   for the retention-window prune).
  * `applyOne` performs the projection step for a single event WITHIN the
- *   ambient transaction; it must not open its own transaction and must
- *   not write to `processed_events` (that is handled here).
+ *   ambient transaction; it receives the `tx`-bound store opened by
+ *   `LocalStore.transaction`. It must not open its own transaction and
+ *   must not write to `processed_events` (that is handled here).
  * `errorLabel` is prepended to per-event error logs (e.g. "remote event").
  */
 export async function applyEventsBatched<TEvent>(
@@ -59,7 +60,7 @@ export async function applyEventsBatched<TEvent>(
   events: ReadonlyArray<TEvent>,
   getEventId: (event: TEvent) => string,
   getTimestamp: (event: TEvent) => number,
-  applyOne: (event: TEvent) => Promise<void>,
+  applyOne: (event: TEvent, tx: LocalStore) => Promise<void>,
   errorLabel: string,
   log: BatchApplyLog,
 ): Promise<ApplyResult> {
@@ -152,12 +153,12 @@ async function applyChunkAtomically<TEvent>(
   chunk: ReadonlyArray<TEvent>,
   getEventId: (event: TEvent) => string,
   getTimestamp: (event: TEvent) => number,
-  applyOne: (event: TEvent) => Promise<void>,
+  applyOne: (event: TEvent, tx: LocalStore) => Promise<void>,
 ): Promise<void> {
-  await store.transaction(async () => {
+  await store.transaction(async (tx) => {
     for (const event of chunk) {
-      await applyOne(event);
-      await store.recordProcessedEvent(getEventId(event), getTimestamp(event));
+      await applyOne(event, tx);
+      await tx.recordProcessedEvent(getEventId(event), getTimestamp(event));
     }
   });
 }
@@ -173,7 +174,7 @@ async function applyChunkPerEvent<TEvent>(
   chunk: ReadonlyArray<TEvent>,
   getEventId: (event: TEvent) => string,
   getTimestamp: (event: TEvent) => number,
-  applyOne: (event: TEvent) => Promise<void>,
+  applyOne: (event: TEvent, tx: LocalStore) => Promise<void>,
   errorLabel: string,
   log: BatchApplyLog,
   seen: Set<string>,
@@ -183,9 +184,9 @@ async function applyChunkPerEvent<TEvent>(
   for (const event of chunk) {
     const id = getEventId(event);
     try {
-      await store.transaction(async () => {
-        await applyOne(event);
-        await store.recordProcessedEvent(id, getTimestamp(event));
+      await store.transaction(async (tx) => {
+        await applyOne(event, tx);
+        await tx.recordProcessedEvent(id, getTimestamp(event));
       });
       applied += 1;
       seen.add(id);

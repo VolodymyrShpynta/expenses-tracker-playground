@@ -119,27 +119,63 @@ function rowToCategoryEvent(row: CategoryEventRow): CategoryEvent {
 /**
  * Build a `LocalStore` bound to the given database handle. Caller is
  * responsible for calling `migrate(db)` before passing the handle in.
+ *
+ * Transactions are routed through `db.withExclusiveTransactionAsync`,
+ * which opens a dedicated SQLite connection and serializes write
+ * traffic at the native layer. Per the Expo contract, every query
+ * issued inside the callback MUST go through the `txn` proxy — mixing
+ * the outer `db` handle with an active exclusive transaction triggers
+ * `database is locked`. We honour that contract by handing the action a
+ * fresh `LocalStore` built on top of `txn`; callers route their nested
+ * reads/writes through that `tx` argument.
  */
 export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
-  const transaction: TransactionRunner = async <T>(action: () => Promise<T>): Promise<T> => {
+  const transaction: TransactionRunner = async <T>(
+    action: (tx: LocalStore) => Promise<T>,
+  ): Promise<T> => {
     let captured: T | undefined;
     let didCapture = false;
-    await db.withTransactionAsync(async () => {
-      captured = await action();
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      // `txn` is a Transaction (extends SQLiteDatabase) bound to the
+      // exclusive connection. Wrap it in a LocalStore so the action's
+      // store calls hit the transaction connection, not the outer db.
+      const txStore = buildLocalStore(txn);
+      captured = await action(txStore);
       didCapture = true;
     });
     if (!didCapture) {
-      // Should be unreachable: withTransactionAsync only returns on success.
+      // Should be unreachable: withExclusiveTransactionAsync only returns on success.
       throw new Error('SQLite transaction completed without producing a result');
     }
     return captured as T;
   };
 
-  return {
-    transaction,
+  return buildLocalStore(db, transaction);
+}
+
+/**
+ * Construct the `LocalStore` method bag bound to `handle`. `handle` is
+ * either the application's `SQLiteDatabase` (outside any transaction)
+ * or the `Transaction` proxy returned by `withExclusiveTransactionAsync`
+ * (inside one). Both expose the same query surface.
+ *
+ * When called inside an exclusive transaction, `transaction` is omitted
+ * by the caller and we fall back to a passthrough that simply re-invokes
+ * the action with the current `tx` — honouring the (rare) nested-call
+ * pattern without trying to open another BEGIN, which SQLite would
+ * reject.
+ */
+function buildLocalStore(
+  handle: SQLiteDatabase,
+  transaction?: TransactionRunner,
+): LocalStore {
+  const store: LocalStore = {
+    transaction:
+      transaction
+      ?? (async <T>(action: (tx: LocalStore) => Promise<T>): Promise<T> => action(store)),
 
     async appendEvent(event: ExpenseEvent): Promise<void> {
-      await db.runAsync(
+      await handle.runAsync(
         `INSERT INTO expense_events
            (event_id, timestamp, event_type, expense_id, payload, committed)
          VALUES (?, ?, ?, ?, ?, ?)`,
@@ -153,7 +189,7 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
     },
 
     async findUncommittedEvents(): Promise<ReadonlyArray<ExpenseEvent>> {
-      const rows = await db.getAllAsync<EventRow>(
+      const rows = await handle.getAllAsync<EventRow>(
         `SELECT event_id, timestamp, event_type, expense_id, payload, committed
            FROM expense_events
           WHERE committed = 0
@@ -163,7 +199,7 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
     },
 
     async findAllEvents(): Promise<ReadonlyArray<ExpenseEvent>> {
-      const rows = await db.getAllAsync<EventRow>(
+      const rows = await handle.getAllAsync<EventRow>(
         `SELECT event_id, timestamp, event_type, expense_id, payload, committed
            FROM expense_events
           ORDER BY timestamp ASC, event_id ASC`,
@@ -178,7 +214,7 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
       for (let i = 0; i < eventIds.length; i += CHUNK) {
         const chunk = eventIds.slice(i, i + CHUNK);
         const placeholders = chunk.map(() => '?').join(',');
-        await db.runAsync(
+        await handle.runAsync(
           `UPDATE expense_events SET committed = 1 WHERE event_id IN (${placeholders})`,
           ...chunk,
         );
@@ -188,7 +224,7 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
     async projectFromEvent(projection: ExpenseProjection): Promise<number> {
       // Last-write-wins UPSERT — strict `>` so equal timestamps are rejected
       // (matches the backend's `ExpenseProjectionRepository.projectFromEvent`).
-      const result = await db.runAsync(
+      const result = await handle.runAsync(
         `INSERT INTO expense_projections
            (id, description, amount, currency, category_id, date, updated_at, deleted)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -217,7 +253,7 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
       // Strict `>` keeps the operation idempotent and prevents older
       // delete events from clobbering newer non-deleted state. Note: this
       // method does NOT resurrect — only transitions to `deleted = 1`.
-      const result = await db.runAsync(
+      const result = await handle.runAsync(
         `UPDATE expense_projections
             SET deleted = 1, updated_at = ?
           WHERE id = ? AND ? > updated_at`,
@@ -231,7 +267,7 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
     async findProjectionById(
       id: string,
     ): Promise<ExpenseProjection | undefined> {
-      const row = await db.getFirstAsync<ProjectionRow>(
+      const row = await handle.getFirstAsync<ProjectionRow>(
         `SELECT id, description, amount, currency, category_id, date,
                 updated_at, deleted
            FROM expense_projections
@@ -246,7 +282,7 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
       // Last-write-wins UPSERT with strict `>` on `updated_at`. Mirrors
       // `projectFromEvent` above so cross-device sync converges to the
       // same final state regardless of arrival order.
-      const result = await db.runAsync(
+      const result = await handle.runAsync(
         `INSERT INTO categories
            (id, name, template_key, icon, color, sort_order, updated_at, deleted)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -272,7 +308,7 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
     },
 
     async findCategoryById(id: string): Promise<Category | undefined> {
-      const row = await db.getFirstAsync<CategoryRow>(
+      const row = await handle.getFirstAsync<CategoryRow>(
         `SELECT id, name, template_key, icon, color, sort_order,
                 updated_at, deleted
            FROM categories
@@ -283,7 +319,7 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
     },
 
     async findAllCategories(): Promise<ReadonlyArray<Category>> {
-      const rows = await db.getAllAsync<CategoryRow>(
+      const rows = await handle.getAllAsync<CategoryRow>(
         `SELECT id, name, template_key, icon, color, sort_order,
                 updated_at, deleted
            FROM categories
@@ -293,7 +329,7 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
     },
 
     async softDeleteCategory(id: string, updatedAt: number): Promise<number> {
-      const result = await db.runAsync(
+      const result = await handle.runAsync(
         `UPDATE categories
             SET deleted = 1, updated_at = ?
           WHERE id = ? AND ? > updated_at`,
@@ -304,7 +340,7 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
       return result.changes;
     },
     async findActiveProjections(): Promise<ReadonlyArray<ExpenseProjection>> {
-      const rows = await db.getAllAsync<ProjectionRow>(
+      const rows = await handle.getAllAsync<ProjectionRow>(
         `SELECT id, description, amount, currency, category_id, date,
                 updated_at, deleted
            FROM expense_projections
@@ -318,7 +354,7 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
       // Includes soft-deleted rows — snapshot builder needs the full
       // state because a deleted row can still be superseded by a newer
       // non-deleted update on another device (LWW resurrection).
-      const rows = await db.getAllAsync<ProjectionRow>(
+      const rows = await handle.getAllAsync<ProjectionRow>(
         `SELECT id, description, amount, currency, category_id, date,
                 updated_at, deleted
            FROM expense_projections`,
@@ -327,7 +363,7 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
     },
 
     async isEventProcessed(eventId: string): Promise<boolean> {
-      const row = await db.getFirstAsync<{ event_id: string }>(
+      const row = await handle.getFirstAsync<{ event_id: string }>(
         `SELECT event_id FROM processed_events WHERE event_id = ?`,
         eventId,
       );
@@ -342,14 +378,14 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
       // 100k rows this is a few MB of strings + ints — well within memory
       // budget. Returns the timestamps too because `buildSnapshot` needs
       // them for retention-window pruning of `coveredEvents`.
-      const rows = await db.getAllAsync<{ event_id: string; timestamp: number }>(
+      const rows = await handle.getAllAsync<{ event_id: string; timestamp: number }>(
         `SELECT event_id, timestamp FROM processed_events`,
       );
       return rows.map((r) => ({ eventId: r.event_id, timestamp: r.timestamp }));
     },
 
     async recordProcessedEvent(eventId: string, timestamp: number): Promise<void> {
-      await db.runAsync(
+      await handle.runAsync(
         `INSERT OR IGNORE INTO processed_events (event_id, timestamp) VALUES (?, ?)`,
         eventId,
         timestamp,
@@ -357,7 +393,7 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
     },
 
     async appendCategoryEvent(event: CategoryEvent): Promise<void> {
-      await db.runAsync(
+      await handle.runAsync(
         `INSERT INTO category_events
            (event_id, timestamp, event_type, category_id, payload, committed)
          VALUES (?, ?, ?, ?, ?, ?)`,
@@ -371,7 +407,7 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
     },
 
     async findUncommittedCategoryEvents(): Promise<ReadonlyArray<CategoryEvent>> {
-      const rows = await db.getAllAsync<CategoryEventRow>(
+      const rows = await handle.getAllAsync<CategoryEventRow>(
         `SELECT event_id, timestamp, event_type, category_id, payload, committed
            FROM category_events
           WHERE committed = 0
@@ -381,7 +417,7 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
     },
 
     async findAllCategoryEvents(): Promise<ReadonlyArray<CategoryEvent>> {
-      const rows = await db.getAllAsync<CategoryEventRow>(
+      const rows = await handle.getAllAsync<CategoryEventRow>(
         `SELECT event_id, timestamp, event_type, category_id, payload, committed
            FROM category_events
           ORDER BY timestamp ASC, event_id ASC`,
@@ -397,11 +433,12 @@ export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
       for (let i = 0; i < eventIds.length; i += CHUNK) {
         const chunk = eventIds.slice(i, i + CHUNK);
         const placeholders = chunk.map(() => '?').join(',');
-        await db.runAsync(
+        await handle.runAsync(
           `UPDATE category_events SET committed = 1 WHERE event_id IN (${placeholders})`,
           ...chunk,
         );
       }
     },
   };
+  return store;
 }

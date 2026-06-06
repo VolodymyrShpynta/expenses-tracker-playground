@@ -62,6 +62,7 @@ export function createExpenseCommandService(deps: CommandServiceDeps): ExpenseCo
   const { store, time, ids, serializePayload = JSON.stringify } = deps;
 
   async function appendEventInTx(
+    tx: LocalStore,
     eventType: EventType,
     expenseId: string,
     payload: ExpensePayload,
@@ -74,7 +75,7 @@ export function createExpenseCommandService(deps: CommandServiceDeps): ExpenseCo
       payload: serializePayload(payload),
       committed: false,
     };
-    await store.appendEvent(event);
+    await tx.appendEvent(event);
     return event;
   }
 
@@ -93,10 +94,10 @@ export function createExpenseCommandService(deps: CommandServiceDeps): ExpenseCo
         deleted: false,
       };
 
-      const projection = await store.transaction(async () => {
-        await appendEventInTx('CREATED', expenseId, payload);
-        await projectPayload(store, payload);
-        const stored = await store.findProjectionById(expenseId);
+      const projection = await store.transaction(async (tx) => {
+        await appendEventInTx(tx, 'CREATED', expenseId, payload);
+        await projectPayload(tx, payload);
+        const stored = await tx.findProjectionById(expenseId);
         if (!stored) {
           throw new Error(`Failed to retrieve created expense projection: ${expenseId}`);
         }
@@ -133,10 +134,10 @@ export function createExpenseCommandService(deps: CommandServiceDeps): ExpenseCo
         ...(date !== undefined ? { date } : {}),
       };
 
-      return store.transaction(async () => {
-        await appendEventInTx('UPDATED', id, payload);
-        await projectPayload(store, payload);
-        return store.findProjectionById(id);
+      return store.transaction(async (tx) => {
+        await appendEventInTx(tx, 'UPDATED', id, payload);
+        await projectPayload(tx, payload);
+        return tx.findProjectionById(id);
       });
     },
 
@@ -161,9 +162,9 @@ export function createExpenseCommandService(deps: CommandServiceDeps): ExpenseCo
         ...(existing.date !== undefined ? { date: existing.date } : {}),
       };
 
-      return store.transaction(async () => {
-        await appendEventInTx('DELETED', id, payload);
-        await softDelete(store, id, now);
+      return store.transaction(async (tx) => {
+        await appendEventInTx(tx, 'DELETED', id, payload);
+        await softDelete(tx, id, now);
         return true;
       });
     },

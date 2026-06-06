@@ -24,8 +24,15 @@ import type {
  * command service relies on this to keep the event-store append and the
  * projection update atomic — same boundary as the backend's
  * `@Transactional` annotation on `ExpenseCommandService`.
+ *
+ * The closure receives a `tx`-bound `LocalStore` that MUST be used for
+ * every operation inside the transaction. On the SQLite implementation
+ * this is a proxy bound to the exclusive transaction connection opened
+ * by `withExclusiveTransactionAsync`; mixing it with the outer `store`
+ * would re-introduce the "cannot start a transaction within a
+ * transaction" race the exclusive API exists to prevent.
  */
-export type TransactionRunner = <T>(action: () => Promise<T>) => Promise<T>;
+export type TransactionRunner = <T>(action: (tx: LocalStore) => Promise<T>) => Promise<T>;
 
 export interface LocalStore {
   /** Run `action` inside a single transaction. */

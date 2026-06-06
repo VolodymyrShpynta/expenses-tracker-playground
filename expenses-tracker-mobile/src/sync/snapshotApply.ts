@@ -125,8 +125,8 @@ async function applyProjections(
   store: LocalStore,
   projections: ReadonlyArray<ExpenseProjection>,
 ): Promise<number> {
-  return applyInChunks(store, projections, async (row) => {
-    const rows = await store.projectFromEvent(row);
+  return applyInChunks(store, projections, async (row, tx) => {
+    const rows = await tx.projectFromEvent(row);
     return rows > 0;
   });
 }
@@ -136,8 +136,8 @@ async function applyCategories(
   store: LocalStore,
   categories: ReadonlyArray<Category>,
 ): Promise<number> {
-  return applyInChunks(store, categories, async (row) => {
-    const rows = await store.projectCategoryFromEvent(row);
+  return applyInChunks(store, categories, async (row, tx) => {
+    const rows = await tx.projectCategoryFromEvent(row);
     return rows > 0;
   });
 }
@@ -155,9 +155,9 @@ async function markCoveredEvents(
   const processed = await store.findAllProcessedEvents();
   const seen = new Set<string>(processed.map((p) => p.eventId));
 
-  return applyInChunks(store, covered, async (entry) => {
+  return applyInChunks(store, covered, async (entry, tx) => {
     if (seen.has(entry.eventId)) return false;
-    await store.recordProcessedEvent(entry.eventId, entry.timestamp);
+    await tx.recordProcessedEvent(entry.eventId, entry.timestamp);
     seen.add(entry.eventId);
     return true;
   });
@@ -166,22 +166,23 @@ async function markCoveredEvents(
 /**
  * Iterate `items` in `SNAPSHOT_CHUNK_SIZE` slices. Each slice is wrapped
  * in its own transaction; between slices the loop yields to the JS
- * event loop so RN can paint. The `perItem` callback returns `true`
- * whenever it produced an observable change (e.g. an UPSERT that
+ * event loop so RN can paint. The `perItem` callback receives the
+ * `tx`-bound store opened by `LocalStore.transaction` and returns
+ * `true` whenever it produced an observable change (e.g. an UPSERT that
  * actually touched a row, or an INSERT that wasn't a duplicate); the
  * total count of such "true" results is returned to the caller.
  */
 async function applyInChunks<T>(
   store: LocalStore,
   items: ReadonlyArray<T>,
-  perItem: (item: T) => Promise<boolean>,
+  perItem: (item: T, tx: LocalStore) => Promise<boolean>,
 ): Promise<number> {
   let changed = 0;
   for (let start = 0; start < items.length; start += SNAPSHOT_CHUNK_SIZE) {
     const chunk = items.slice(start, start + SNAPSHOT_CHUNK_SIZE);
-    await store.transaction(async () => {
+    await store.transaction(async (tx) => {
       for (const item of chunk) {
-        if (await perItem(item)) changed += 1;
+        if (await perItem(item, tx)) changed += 1;
       }
     });
     if (start + SNAPSHOT_CHUNK_SIZE < items.length) await yieldToEventLoop();

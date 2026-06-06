@@ -100,12 +100,14 @@ export function createExchangeRateStore(db: SQLiteDatabase): ExchangeRateStore {
   return {
     async upsertRates(rows: ReadonlyArray<ExchangeRateRow>): Promise<void> {
       if (rows.length === 0) return;
-      // Single transaction so a partially-failed batch doesn't leave the
-      // cache in a half-written state — matches the convention used by
-      // the event-sourcing store.
-      await db.withTransactionAsync(async () => {
+      // Exclusive transaction so a partially-failed batch doesn't leave
+      // the cache in a half-written state, and so concurrent writers on
+      // the shared connection can't collide on BEGIN. Per the Expo
+      // contract every query MUST go through the `txn` proxy — the
+      // outer `db` handle would deadlock against the exclusive transaction.
+      await db.withExclusiveTransactionAsync(async (txn) => {
         for (const row of rows) {
-          await db.runAsync(
+          await txn.runAsync(
             `INSERT INTO exchange_rates (base, quote, period_start, rate, fetched_at)
                VALUES (?, ?, ?, ?, ?)
              ON CONFLICT(base, quote, period_start) DO UPDATE SET
