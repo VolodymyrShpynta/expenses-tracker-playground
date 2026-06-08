@@ -15,7 +15,7 @@
  * Setup steps the user must complete BEFORE this adapter works:
  *   1. Register an app at https://entra.microsoft.com → App registrations.
  *   2. Add a "Mobile and desktop applications" platform with redirect
- *      URI `expensestracker://redirect`.
+ *      URI `spendium://redirect`.
  *   3. Under API permissions, add Microsoft Graph delegated permissions
  *      `Files.ReadWrite.AppFolder` and `offline_access`.
  *   4. Replace `MICROSOFT_OAUTH_CLIENT_ID` below.
@@ -47,7 +47,7 @@ export function createOneDriveAdapter(
     authorizationEndpoint: 'https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize',
     tokenEndpoint: 'https://login.microsoftonline.com/consumers/oauth2/v2.0/token',
     scopes: ['Files.ReadWrite.AppFolder', 'offline_access'],
-    redirectScheme: 'expensestracker',
+    redirectScheme: 'spendium',
   });
 
   async function authFetch(

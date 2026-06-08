@@ -37,7 +37,7 @@ import {
 import { CATEGORIES_QUERY_KEY, EXPENSES_QUERY_KEY } from '../queryClient';
 import { systemTime } from '../utils/time';
 
-const EXPORT_FILENAME = 'onebudget-export.json';
+const EXPORT_FILENAME = 'spendium-export.json';
 const EXPORT_MIME_TYPE = 'application/json';
 const TEXT_DECODER = new TextDecoder('utf-8');
 
@@ -108,7 +108,7 @@ async function writeViaShareSheet(json: string): Promise<string> {
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(file.uri, {
       mimeType: EXPORT_MIME_TYPE,
-      dialogTitle: 'OneBudget export',
+      dialogTitle: 'Spendium export',
       UTI: 'public.json',
     });
   }

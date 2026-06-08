@@ -1,13 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <rect width="1024" height="1024" fill="#ffffff"/>
+  <rect width="1024" height="1024" fill="#6870fa"/>
   <g transform="translate(205 205) scale(0.60)">
-    <g fill="none" stroke="#6870fa" stroke-width="64" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M896 512 A384 384 0 1 1 512 128 L512 512 Z"/>
-      <path d="M512 512 V896 M512 512 H128"/>
+    <g fill="#ffffff" transform="translate(-50 100)">
+      <rect x="180" y="560" width="130" height="260" rx="28" ry="28"/>
+      <rect x="370" y="440" width="130" height="380" rx="28" ry="28"/>
+      <rect x="560" y="300" width="130" height="520" rx="28" ry="28"/>
     </g>
-    <g transform="translate(25 -45)">
-      <path d="M572 68 A384 384 0 0 1 956 452 L572 452 Z" fill="#3b44b8" transform="translate(0 40)"/>
-      <path d="M572 68 A384 384 0 0 1 956 452 L572 452 Z" fill="#6870fa"/>
+    <circle cx="790" cy="250" r="172" fill="#6870fa" stroke="#ffffff" stroke-width="50"/>
+    <g transform="translate(585 45) scale(0.40)"
+       fill="none" stroke="#ffffff" stroke-width="85"
+       stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 680 360 Q 680 240 512 240 Q 344 240 344 400 Q 344 520 512 520 Q 680 520 680 624 Q 680 784 512 784 Q 344 784 344 664"/>
+      <line x1="512" y1="188" x2="512" y2="838"/>
     </g>
   </g>
 </svg>

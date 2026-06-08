@@ -61,7 +61,7 @@ own Google Drive `appDataFolder` or OneDrive `approot`.
   - [Will other users be able to use my app registration?](#will-other-users-be-able-to-use-my-app-registration)
     - [Who can sign in — the "Supported account types" setting](#who-can-sign-in--the-supported-account-types-setting)
     - ["Unverified publisher" warning](#unverified-publisher-warning)
-  - [How the `expensestracker://redirect` URI actually works](#how-the-expensestrackerredirect-uri-actually-works)
+  - [How the `spendium://redirect` URI actually works](#how-the-spendiumredirect-uri-actually-works)
     - [1. The app *claims* the scheme at install time](#1-the-app-claims-the-scheme-at-install-time)
     - [2. Microsoft *records* the redirect URI as a plain string](#2-microsoft-records-the-redirect-uri-as-a-plain-string)
     - [The handoff](#the-handoff)
@@ -601,7 +601,7 @@ become no-ops.
 >
 > This app uses `expo-sqlite` (bundled with Expo Go ✅) plus `expo-auth-session` and
 > `expo-secure-store` for cloud-drive OAuth (also bundled ✅) **but** OAuth requires a custom URI
-> scheme (`expensestracker://redirect`) that Expo Go cannot register. The practical effect is:
+> scheme (`spendium://redirect`) that Expo Go cannot register. The practical effect is:
 >
 > | Mode            | How to launch                                                                                   | Works for                                  | Doesn't work for          |
 > |-----------------|-------------------------------------------------------------------------------------------------|--------------------------------------------|---------------------------|
@@ -939,7 +939,7 @@ npx eas build --platform android --profile preview
 This uploads the source tarball to Expo's build servers (10–15 min). EAS prints a build URL and a QR
 code; both lead to the finished `.apk`.
 
-> **First-ever build for this `package` (`com.vshpynta.expensestracker`):** EAS prompts to generate a
+> **First-ever build for this `package` (`com.vshpynta.spendium`):** EAS prompts to generate a
 > release keystore and stores it in your Expo account. **Don't lose that account** — every future
 > upgrade of the same app must be signed with the same keystore, or Android will refuse to install
 > over the existing one. Run `npx eas credentials` to back the keystore up locally if you care about
@@ -1054,7 +1054,7 @@ adb install -r path\to\app-release.apk    # -r = reinstall, preserve app data
 `adb` lives in `%ANDROID_HOME%\platform-tools` (added to `PATH` by the simulator-setup section above).
 Enable **Developer Options → USB Debugging** on the phone before plugging it in and accept the
 fingerprint prompt. `-r` only works for upgrades signed with the **same** keystore as the previous
-install — if signatures differ, `adb uninstall com.vshpynta.expensestracker` first.
+install — if signatures differ, `adb uninstall com.vshpynta.spendium` first.
 
 **Wireless (no cable needed)**
 
@@ -1105,14 +1105,14 @@ All three constants ship with a `TODO_REPLACE_WITH_*` sentinel value. Replace th
 leave the iOS constant untouched if you never build for iOS — Google Drive sync simply stays disabled
 on that platform) before running the OAuth flow on a device.
 
-The redirect URI used by both adapters is **`expensestracker://redirect`** — derived from the `scheme`
-field in [`app.json`](./app.json). The bundle / package identifier is **`com.vshpynta.expensestracker`**
+The redirect URI used by both adapters is **`spendium://redirect`** — derived from the `scheme`
+field in [`app.json`](./app.json). The bundle / package identifier is **`com.vshpynta.spendium`**
 for both iOS and Android.
 
 > ⚠️ **You cannot test the OAuth flow in Expo Go.** Expo Go ignores the app's custom `scheme` and
 > generates a sandbox redirect URI like `exp://192.168.x.x:8081/--/redirect`, which neither Microsoft
 > nor Google will accept. You must run the app in a **development build** (or production build) so
-> that the native binary owns the `expensestracker` scheme:
+> that the native binary owns the `spendium` scheme:
 >
 > ```powershell
 > cd expenses-tracker-mobile
@@ -1129,8 +1129,8 @@ for both iOS and Android.
 > npx eas build --profile development --platform android
 > ```
 >
-> Inside a dev build, `AuthSession.makeRedirectUri({ scheme: 'expensestracker', path: 'redirect' })`
-> correctly returns `expensestracker://redirect`. The sign-in dialog in **Settings → Cloud sync** logs
+> Inside a dev build, `AuthSession.makeRedirectUri({ scheme: 'spendium', path: 'redirect' })`
+> correctly returns `spendium://redirect`. The sign-in dialog in **Settings → Cloud sync** logs
 > the live value as `[oauth] redirectUri = …` to Metro so you can verify before talking to the
 > provider's redirect-URI registration.
 
@@ -1141,7 +1141,7 @@ for both iOS and Android.
    If you also need work / school accounts, pick **Accounts in any organizational directory and personal
    Microsoft accounts** and change the tenant in `oneDriveAdapter.ts` from `consumers` to `common`.
 3. Under **Redirect URI**, select **Mobile and desktop applications** and add
-   `expensestracker://redirect` exactly.
+   `spendium://redirect` exactly.
 4. Open **API permissions → Add a permission → Microsoft Graph → Delegated permissions** and add:
     - `Files.ReadWrite.AppFolder`
     - `offline_access` (so the app can refresh tokens silently)
@@ -1189,9 +1189,9 @@ for both iOS and Android.
    be pre-registered — but adding it makes the consent screen wording explicit.
 5. Open **Clients** in the left sidebar (legacy path: **APIs & Services → Credentials**) and click
    **+ Create client → OAuth client ID**. Create **two** clients — one per platform — using the
-   bundle / package identifier `com.vshpynta.expensestracker`:
-    - **iOS** — Application type **iOS**, Bundle ID `com.vshpynta.expensestracker`.
-    - **Android** — Application type **Android**, Package name `com.vshpynta.expensestracker`, plus
+   bundle / package identifier `com.vshpynta.spendium`:
+    - **iOS** — Application type **iOS**, Bundle ID `com.vshpynta.spendium`.
+    - **Android** — Application type **Android**, Package name `com.vshpynta.spendium`, plus
       the **SHA-1 certificate fingerprint** of the keystore that signs your APK. There are two cases
       depending on how you build:
       - **Local Gradle builds** — e.g. `npx expo run:android`, or the typical release-APK command
@@ -1276,7 +1276,7 @@ to redirect after login, and here are the permissions it can ask for."
 When another user installs your mobile app:
 
 1. The app opens the system browser to Microsoft's (or Google's) login page, passing **your client
-   ID** + the redirect URI `expensestracker://redirect` + the requested scopes.
+   ID** + the redirect URI `spendium://redirect` + the requested scopes.
 2. The user signs in with **their own** Microsoft / Google account.
 3. The provider shows a consent screen: *"vs-expenses-tracker wants to access files it creates in your
    OneDrive."*
@@ -1313,7 +1313,7 @@ users other than you will see a yellow *"unverified app"* warning on the Microso
 It is not blocking — for personal use or small-scale testing it is harmless — but for a wider release
 you would want to verify your publisher domain.
 
-### How the `expensestracker://redirect` URI actually works
+### How the `spendium://redirect` URI actually works
 
 This is the part of OAuth that feels like magic until you see what is happening under the hood. The
 short version: **Microsoft does not redirect to anything on the internet. It tells the device's OS to
@@ -1334,7 +1334,7 @@ open a URL with a custom scheme, and the OS routes that URL to your app.**
        │                                          └──────────────────┘
        │                                                   │
        │                                                   │ 3. HTTP 302 Redirect:
-       │                                                   │    Location: expensestracker://redirect?code=...
+       │                                                   │    Location: spendium://redirect?code=...
        │                                                   ▼
        │                                          ┌──────────────────┐
        │                                          │  Browser tries   │
@@ -1342,7 +1342,7 @@ open a URL with a custom scheme, and the OS routes that URL to your app.**
        │                                          └──────────────────┘
        │                                                   │
        │                                                   │ 4. OS sees scheme
-       │                                                   │    "expensestracker://"
+       │                                                   │    "spendium://"
        │                                                   │    and looks up
        │                                                   │    which app owns it
        │                                                   ▼
@@ -1361,7 +1361,7 @@ In [`app.json`](./app.json):
 ```json
 {
   "expo": {
-    "scheme": "expensestracker"
+    "scheme": "spendium"
   }
 }
 ```
@@ -1374,38 +1374,38 @@ When Expo / EAS builds the native binaries, this scheme is compiled into the pla
     <action android:name="android.intent.action.VIEW"/>
     <category android:name="android.intent.category.DEFAULT"/>
     <category android:name="android.intent.category.BROWSABLE"/>
-    <data android:scheme="expensestracker"/>
+    <data android:scheme="spendium"/>
   </intent-filter>
   ```
 - **iOS** — into `Info.plist` as a `CFBundleURLTypes` entry:
   ```xml
   <key>CFBundleURLSchemes</key>
-  <array><string>expensestracker</string></array>
+  <array><string>spendium</string></array>
   ```
 
 When the app is installed, the OS registers this claim in a system-wide *scheme → app* table.
 
 #### 2. Microsoft *records* the redirect URI as a plain string
 
-When you registered the app in Entra, you added `expensestracker://redirect` to the redirect URIs
+When you registered the app in Entra, you added `spendium://redirect` to the redirect URIs
 list. Microsoft's auth server stores this string verbatim. During step 3 of the flow it just emits
 an HTTP 302:
 
 ```
 HTTP/1.1 302 Found
-Location: expensestracker://redirect?code=ABC123&state=xyz
+Location: spendium://redirect?code=ABC123&state=xyz
 ```
 
-Microsoft has no idea what `expensestracker://` is. It does not "look up where your app lives" — it
+Microsoft has no idea what `spendium://` is. It does not "look up where your app lives" — it
 just trusts that whoever registered the app knows what they are doing and emits the URL as-is.
 
 #### The handoff
 
-The browser receives the 302 and tries to navigate to `expensestracker://redirect?code=...`. Since
+The browser receives the 302 and tries to navigate to `spendium://redirect?code=...`. Since
 the scheme is not `http` / `https`, the browser asks the OS:
 
 - **Android** fires `Intent.ACTION_VIEW`; the OS consults its scheme table and launches the app
-  registered for `expensestracker`, passing the full URL as intent data.
+  registered for `spendium`, passing the full URL as intent data.
 - **iOS** invokes `application:openURL:options:` on the app registered for that scheme.
 
 In React Native / Expo this surfaces as a `Linking` event. The
@@ -1416,7 +1416,7 @@ its PKCE verifier) for tokens and finishes the flow.
 
 #### Why this is secure
 
-You might wonder: *"What if a malicious app also claims `expensestracker://`?"* That is exactly why
+You might wonder: *"What if a malicious app also claims `spendium://`?"* That is exactly why
 **PKCE** is required for public clients.
 
 - At the **start** of the flow, the app generates a random `code_verifier` and sends only its
@@ -1441,7 +1441,7 @@ and Google explicitly recommend for native apps without their own backend.
 | Browser shows *"Can't open page — unknown protocol"* | App not installed, or `scheme` in `app.json` doesn't match what's registered           |
 | Microsoft shows error `AADSTS50011`                  | The redirect URI string doesn't match the registration **exactly** (e.g. trailing `/`) |
 | App opens but the auth promise never resolves        | `expo-auth-session` listener not wired up, or the app was killed during the flow       |
-| Two apps both claim `expensestracker://`             | OS shows an app picker (Android) or uses install order (iOS) — pick a unique scheme    |
+| Two apps both claim `spendium://`                    | OS shows an app picker (Android) or uses install order (iOS) — pick a unique scheme    |
 
 ### Are these Client IDs sensitive?
 

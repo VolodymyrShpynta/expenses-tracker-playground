@@ -22,7 +22,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
 
 // Required for Android: when the OAuth provider redirects back via the
-// custom scheme (`expensestracker://redirect`), Chrome Custom Tabs hands
+// custom scheme (`spendium://redirect`), Chrome Custom Tabs hands
 // the URL off to the OS as a deep link. Without this call the deep link
 // reaches Expo Router and renders the not-found screen instead of
 // resolving the in-flight `AuthRequest.promptAsync()` promise. Must run

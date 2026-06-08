@@ -8,13 +8,13 @@
  * The deep links we currently need to special-case are the cloud-drive
  * OAuth redirects:
  *
- *     expensestracker://redirect/?code=...&state=...           (Microsoft)
- *     com.vshpynta.expensestracker:/oauth2redirect?code=...&… (Google)
+ *     spendium://redirect/?code=...&state=...           (Microsoft)
+ *     com.vshpynta.spendium:/oauth2redirect?code=...&… (Google)
  *
  * Google's Android OAuth client requires the redirect URI scheme to be
  * the reverse-DNS of the package name (see
  * `src/sync/googleDriveAdapter.ts`), so it cannot share the
- * `expensestracker://` scheme. The corresponding intent-filter lives in
+ * `spendium://` scheme. The corresponding intent-filter lives in
  * `android/app/src/main/AndroidManifest.xml`.
  *
  * The OS routes either URL to `MainActivity`, at which point two
@@ -41,28 +41,28 @@ export function redirectSystemPath({
   initial: boolean;
 }): string {
   try {
-    // `path` may be a full URL (e.g. `expensestracker://redirect/?…`)
+    // `path` may be a full URL (e.g. `spendium://redirect/?…`)
     // or a bare path. `new URL(path, base)` handles both: absolute URLs
     // ignore the base, relative paths are resolved against it.
-    const url = new URL(path, 'expensestracker://app');
+    const url = new URL(path, 'spendium://app');
     // Expo Router normalizes incoming deep-link URLs to the app's
-    // primary scheme from `app.json` (`expensestracker:`), even when
+    // primary scheme from `app.json` (`spendium:`), even when
     // the OS dispatched a different scheme. So an inbound
-    // `com.vshpynta.expensestracker:/oauth2redirect?…` from Google can
+    // `com.vshpynta.spendium:/oauth2redirect?…` from Google can
     // arrive here as either:
-    //   - the raw URI (protocol `com.vshpynta.expensestracker:`,
+    //   - the raw URI (protocol `com.vshpynta.spendium:`,
     //     pathname `/oauth2redirect`), or
-    //   - the normalized form `expensestracker://oauth2redirect?…`
-    //     (protocol `expensestracker:`, hostname `oauth2redirect`).
+    //   - the normalized form `spendium://oauth2redirect?…`
+    //     (protocol `spendium:`, hostname `oauth2redirect`).
     // Match both. The OAuth-specific path names (`redirect`,
     // `oauth2redirect`) are reserved for callbacks and never used as
     // real routes, so a structural check is safe.
     const isMicrosoftCallback =
-      url.protocol === 'expensestracker:' && url.hostname === 'redirect';
+      url.protocol === 'spendium:' && url.hostname === 'redirect';
     const isGoogleCallback =
-      (url.protocol === 'com.vshpynta.expensestracker:' &&
+      (url.protocol === 'com.vshpynta.spendium:' &&
         url.pathname === '/oauth2redirect') ||
-      (url.protocol === 'expensestracker:' &&
+      (url.protocol === 'spendium:' &&
         url.hostname === 'oauth2redirect');
     if (isMicrosoftCallback || isGoogleCallback) {
       // OAuth callback — let `expo-web-browser` consume it; just send

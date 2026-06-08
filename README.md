@@ -387,7 +387,7 @@ expenses-tracker-playground/
 │   │   └── types/                 # Shared TS interfaces
 │   ├── scripts/
 │   │   └── copy-locales.mjs       # Mirrors locale JSON from web frontend
-│   ├── app.json                   # Expo config (scheme = expensestracker)
+│   ├── app.json                   # Expo config (scheme = spendium)
 │   ├── build.gradle.kts           # Gradle shim driving npm via the node plugin
 │   ├── package.json
 │   └── tsconfig.json

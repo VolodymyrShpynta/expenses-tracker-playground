@@ -40,9 +40,9 @@
  *
  * Redirect URI:
  *   Google's Android client type does NOT honour arbitrary custom
- *   schemes like `expensestracker://`. It accepts only the
+ *   schemes like `spendium://`. It accepts only the
  *   reverse-DNS of the package name **in single-slash form** —
- *   `com.vshpynta.expensestracker:/oauth2redirect`. The double-slash
+ *   `com.vshpynta.spendium:/oauth2redirect`. The double-slash
  *   hierarchical form is rejected by Google's policy enforcer as
  *   `invalid_request`, even after the Custom URI scheme toggle is
  *   enabled. The matching intent-filter lives in
@@ -119,7 +119,7 @@ const APP_DATA_FOLDER = 'appDataFolder';
  * project. Registered as an `<intent-filter>` in
  * `android/app/src/main/AndroidManifest.xml`.
  */
-const GOOGLE_REDIRECT_SCHEME = 'com.vshpynta.expensestracker';
+const GOOGLE_REDIRECT_SCHEME = 'com.vshpynta.spendium';
 /** Path segment Google's docs use for the OAuth redirect URI. */
 const GOOGLE_REDIRECT_PATH = 'oauth2redirect';
 
@@ -153,7 +153,7 @@ export function createGoogleDriveAdapter(
     redirectScheme: GOOGLE_REDIRECT_SCHEME,
     redirectPath: GOOGLE_REDIRECT_PATH,
     // Force the single-slash form. Google rejects the double-slash
-    // form `com.vshpynta.expensestracker://oauth2redirect` with
+    // form `com.vshpynta.spendium://oauth2redirect` with
     // `invalid_request` even with the Custom URI scheme toggle on.
     nativeRedirectUri: `${GOOGLE_REDIRECT_SCHEME}:/${GOOGLE_REDIRECT_PATH}`,
     extraAuthorizationParams: {

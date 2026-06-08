@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "OneBudget",
+    "name": "Spendium",
     "slug": "expenses-tracker-mobile",
     "version": "0.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": ["expensestracker", "com.vshpynta.expensestracker"],
+    "scheme": ["spendium", "com.vshpynta.spendium"],
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -14,17 +14,17 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "bundleIdentifier": "com.vshpynta.expensestracker",
+      "bundleIdentifier": "com.vshpynta.spendium",
       "supportsTablet": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.vshpynta.expensestracker",
+      "package": "com.vshpynta.spendium",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#6870fa"
       },
       "permissions": ["INTERNET"]
     },
