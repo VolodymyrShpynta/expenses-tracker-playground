@@ -1,4 +1,4 @@
-# Expenses Tracker — Mobile App (Expo / React Native)
+# Expenses Tracker — Mobile App (Expo / React Native) <!-- omit in toc -->
 
 A **fully offline-first** native iOS + Android app built with **Expo SDK 55 + React Native 0.83 +
 React Native Paper v5**. It **never talks to [`expenses-tracker-api`](../expenses-tracker-api/README.md)**
@@ -19,7 +19,7 @@ own Google Drive `appDataFolder` or OneDrive `approot`.
 
 ---
 
-## 📑 Table of Contents
+## 📑 Table of Contents <!-- omit in toc -->
 
 - [🎯 Overview](#-overview)
 - [🛠 Tech Stack](#-tech-stack)
@@ -71,8 +71,8 @@ own Google Drive `appDataFolder` or OneDrive `approot`.
 - [📦 Mobile Note (`expo-sqlite`)](#-mobile-note-expo-sqlite)
 - [💱 Historical-Rate Currency Conversion](#-historical-rate-currency-conversion)
   - [Components](#components)
-    - [Runtime flow](#runtime-flow)
-    - [Non-obvious decisions](#non-obvious-decisions)
+  - [Runtime flow](#runtime-flow)
+  - [Non-obvious decisions](#non-obvious-decisions)
 - [⚡ Rendering \& Performance Notes](#-rendering--performance-notes)
   - [Transactions list (the hot spot)](#transactions-list-the-hot-spot)
   - [Cross-cutting providers](#cross-cutting-providers)
@@ -880,16 +880,22 @@ Remove-Item -Recurse -Force app\.cxx, app\build -ErrorAction SilentlyContinue
 This section covers building a release-mode `.apk` and installing it directly on an Android phone
 (no Play Store involved).
 
+> **Publishing to the Play Store?** See
+> [GOOGLE-PLAY-DEPLOYMENT.md](./GOOGLE-PLAY-DEPLOYMENT.md) for the end-to-end Play Console
+> workflow (account setup, AAB build, `eas submit`, Data safety form, staged rollout). The
+> sub-sections below are still relevant — Play deployment reuses the same EAS keystore and
+> [one-time setup](#one-time-setup) — but the artifact format and submission flow differ.
+
 ### Which EAS profile to use
 
 [`eas.json`](./eas.json) ships three build profiles, but **only `preview` produces a directly-installable
 APK**:
 
-| Profile       | Output             | Distribution                                 | Use for                                        |
-|---------------|--------------------|----------------------------------------------|------------------------------------------------|
-| `development` | `.apk` (dev client)| `internal`                                   | Local dev with `expo-dev-client` + Metro       |
-| `preview`     | `.apk`             | `internal`                                   | **Sideloading a release build onto your phone**|
-| `production`  | `.aab`             | `store` (Google Play default)                | Submitting to the Play Store                   |
+| Profile       | Output             | Distribution                                 | Use for                                                                                |
+|---------------|--------------------|----------------------------------------------|----------------------------------------------------------------------------------------|
+| `development` | `.apk` (dev client)| `internal`                                   | Local dev with `expo-dev-client` + Metro                                               |
+| `preview`     | `.apk`             | `internal`                                   | **Sideloading a release build onto your phone**                                        |
+| `production`  | `.aab`             | `store` (Google Play default)                | [Submitting to the Play Store](./GOOGLE-PLAY-DEPLOYMENT.md)                            |
 
 The `production` profile defaults to Android App Bundle (AAB) which Google Play repackages per device —
 you can't install an AAB by tapping it. So the standard "give me a production-quality APK I can
