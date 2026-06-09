@@ -1,0 +1,370 @@
+{
+  "appName": "Spendium",
+  "nav": {
+    "categories": "Catégories",
+    "transactions": "Transactions",
+    "overview": "Aperçu",
+    "tools": "Outils",
+    "exportImport": "Export et import",
+    "settings": "Paramètres",
+    "openMenu": "Ouvrir le menu",
+    "privacy": "Confidentialité",
+    "adminUsers": "Administration des utilisateurs"
+  },
+  "settings": {
+    "darkMode": "Mode sombre",
+    "toggleDarkMode": "Basculer le mode sombre",
+    "manageCategories": "Gérer les catégories",
+    "currency": "Devise",
+    "fontSize": "Taille de police",
+    "language": "Langue",
+    "fontScale": {
+      "small": "Petite",
+      "medium": "Moyenne",
+      "large": "Grande",
+      "xlarge": "Très grande"
+    }
+  },
+  "common": {
+    "save": "Enregistrer",
+    "saving": "Enregistrement…",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "delete": "Supprimer",
+    "deleting": "Suppression…",
+    "confirmDelete": "Confirmer la suppression",
+    "edit": "Modifier",
+    "add": "Ajouter",
+    "ok": "OK",
+    "apply": "Appliquer",
+    "today": "Aujourd’hui",
+    "search": "Rechercher",
+    "loading": "Chargement…"
+  },
+  "expenses": {
+    "totalSpending": "Total des dépenses",
+    "noExpensesYet": "Pas encore de dépenses",
+    "tapPlusHint": "Appuyez sur le bouton + pour ajouter votre première dépense.",
+    "noTransactions": "Pas encore de transactions.",
+    "searchPlaceholder": "Rechercher par description…",
+    "filterByCategory": "Filtrer par catégorie",
+    "addAriaLabel": "Ajouter une dépense",
+    "addCategoryAriaLabel": "Ajouter une dépense dans {{category}}",
+    "editExpenseAriaLabel": "Modifier la dépense {{description}}",
+    "overviewTitle": "Aperçu",
+    "overviewComingSoon": "L’aperçu du budget et les analyses arrivent bientôt."
+  },
+  "expenseDialog": {
+    "date": "Date",
+    "category": "Catégorie",
+    "pickCategory": "Choisir une catégorie",
+    "expense": "Dépense",
+    "description": "Description",
+    "pickCategoryError": "Veuillez choisir une catégorie.",
+    "positiveAmountError": "Le montant doit être un nombre positif."
+  },
+  "categoryTemplates": {
+    "beauty": "Beauté",
+    "car": "Voiture",
+    "charity": "Dons",
+    "children": "Enfants",
+    "clothing": "Vêtements",
+    "communication": "Communication",
+    "education": "Éducation",
+    "entertainment": "Loisirs",
+    "farm": "Ferme",
+    "food": "Alimentation",
+    "gifts": "Cadeaux",
+    "health": "Santé",
+    "house": "Maison",
+    "hygiene": "Hygiène",
+    "parents": "Parents",
+    "pet": "Animaux",
+    "restaurant": "Restaurant",
+    "sport": "Sport",
+    "tech": "Tech",
+    "transportation": "Transport",
+    "travel": "Voyages",
+    "utilities": "Charges"
+  },
+  "categoryDialog": {
+    "pickTitle": "Choisir une catégorie",
+    "filterTitle": "Filtrer par catégorie",
+    "manageTitle": "Gérer les catégories",
+    "addTitle": "Ajouter une catégorie",
+    "editTitle": "Modifier la catégorie",
+    "deleteTitle": "Supprimer la catégorie",
+    "deleteConfirm": "Voulez-vous vraiment supprimer <1>{{name}}</1> ?",
+    "deleteNote": "Les dépenses existantes conserveront le nom de cette catégorie.",
+    "searchPlaceholder": "Rechercher des catégories…",
+    "empty": "Pas encore de catégories. Ajoutez la première !",
+    "emptyShort": "Pas encore de catégories.",
+    "noMatches": "Aucune catégorie correspondante.",
+    "name": "Nom",
+    "nameRequired": "Le nom est requis.",
+    "icon": "Icône",
+    "color": "Couleur",
+    "defaultCategoryLabel": "Catégorie",
+    "editAriaLabel": "Modifier {{name}}",
+    "deleteAriaLabel": "Supprimer {{name}}",
+    "resetButton": "Réinitialiser par défaut",
+    "resetTitle": "Réinitialiser les catégories par défaut ?",
+    "resetConfirm": "Cela rétablira la liste de catégories d’origine. Toutes les catégories que vous avez ajoutées seront supprimées, et celles renommées ou recolorées seront restaurées. Les dépenses existantes conservent leur historique.",
+    "resetConfirmButton": "Réinitialiser",
+    "duplicateActiveTitle": "Utiliser la catégorie existante ?",
+    "duplicateActiveBody": "Vous avez déjà une catégorie nommée <1>{{name}}</1>. L’utiliser, ou en créer une nouvelle quand même ?",
+    "duplicateArchivedTitle": "Restaurer la catégorie précédente ?",
+    "duplicateArchivedBody": "Vous aviez auparavant une catégorie nommée <1>{{name}}</1>. La restaurer pour que les dépenses passées restent groupées, ou en créer une nouvelle ?",
+    "duplicateMultipleArchivedTitle": "Restaurer les catégories précédentes ?",
+    "duplicateMultipleArchivedBody": "Vous aviez auparavant {{count}} catégories nommées <1>{{name}}</1>. Les restaurer en une seule pour que les dépenses passées restent groupées, ou en créer une nouvelle ?",
+    "useExistingButton": "Utiliser l’existante",
+    "createNewButton": "Créer une nouvelle",
+    "createAnywayButton": "Créer quand même",
+    "restoreButton": "Restaurer",
+    "restoreAndMergeButton": "Restaurer et fusionner",
+    "mergeAriaLabel": "Fusionner {{name}} avec une autre catégorie",
+    "mergeTitle": "Fusionner avec une autre catégorie",
+    "mergePickPrompt": "Choisissez une catégorie dans laquelle fusionner <1>{{name}}</1>. Toutes ses dépenses seront déplacées.",
+    "mergeConfirmTitle": "Fusionner les catégories ?",
+    "mergeConfirmBody": "Déplacer toutes les dépenses de <1>{{source}}</1> vers <3>{{target}}</3> ? <1>{{source}}</1> sera ensuite archivée.",
+    "mergeDefaultIntoCustomWarning": "<1>{{source}}</1> est une catégorie par défaut. La fusionner dans <3>{{target}}</3> fera perdre sa traduction et la retirera de « Réinitialiser par défaut ». Préférez plutôt fusionner <3>{{target}}</3> dans <1>{{source}}</1>.",
+    "mergeButton": "Fusionner",
+    "mergeArchivedTooltip": "{{count}} doublon(s) portant le même nom",
+    "mergeArchivedAriaLabel": "Absorber {{count}} doublon(s) de « {{name}} » dans celle-ci",
+    "mergeArchivedTitle": "Absorber les catégories en double ?",
+    "mergeArchivedConfirm": "Déplacer toutes les dépenses depuis {{count}} doublon(s) de <1>{{name}}</1> dans celle-ci. Les autres lignes seront archivées.",
+    "mergeArchivedButton": "Absorber"
+  },
+  "currencyDialog": {
+    "title": "Choisir la devise",
+    "searchPlaceholder": "Rechercher des devises…",
+    "noMatches": "Aucune devise correspondante."
+  },
+  "fontSizeDialog": {
+    "title": "Taille de police"
+  },
+  "languageDialog": {
+    "title": "Langue"
+  },
+  "dateRange": {
+    "period": "Période",
+    "prevPeriodAria": "Période précédente",
+    "nextPeriodAria": "Période suivante",
+    "pickDay": "Choisir un jour",
+    "selectStart": "Sélectionner la date de début",
+    "selectEnd": "Sélectionner la date de fin",
+    "year": "Année {{year}}",
+    "presets": {
+      "range": "Sélectionner une plage",
+      "all": "Tout le temps",
+      "day": "Sélectionner un jour",
+      "week": "Semaine",
+      "today": "Aujourd’hui",
+      "year": "Année",
+      "month": "Mois"
+    }
+  },
+  "calculator": {
+    "enterOrUseCalculator": "Saisir un montant ou utiliser la calculatrice",
+    "amount": "Montant",
+    "openCalculator": "Ouvrir la calculatrice",
+    "searchCurrency": "Rechercher une devise…"
+  },
+  "exportImportDialog": {
+    "title": "Export et import",
+    "formatLabel": "Format",
+    "formatJson": "JSON",
+    "formatCsv": "CSV (zip)",
+    "formatJsonHint": "Sans perte. Recommandé pour transférer des données entre vos appareils.",
+    "formatCsvHint": "Compatible tableur. ZIP contenant categories.csv et expenses.csv.",
+    "exportTitle": "Exporter",
+    "exportBody": "Téléchargez une copie de vos catégories et dépenses.",
+    "exportButton": "Télécharger le fichier",
+    "exporting": "Préparation…",
+    "importTitle": "Importer",
+    "importBody": "Importez un fichier précédemment exporté (.json, .zip ou .csv).",
+    "importWarning": "L’import s’ajoute aux données existantes. Réimporter le même fichier crée des doublons.",
+    "importButton": "Choisir un fichier…",
+    "importing": "Importation…",
+    "importResultTitle": "Import terminé",
+    "importResultSummary": "Créé {{categories}} catégories et {{expenses}} dépenses ({{skipped}} ignorées).",
+    "importFatalTitle": "Échec de l’import",
+    "importRowError": "{{kind}} « {{label}} » : {{message}}",
+    "rowKind": {
+      "category": "Catégorie",
+      "expense": "Dépense"
+    },
+    "importMoreErrors": "…et {{count}} de plus"
+  },
+  "privacy": {
+    "pageTitle": "Confidentialité et données",
+    "pageSubtitle": "Gérez le traitement de vos données personnelles. Ces outils couvrent vos droits au titre des articles 17 et 18 du RGPD.",
+    "yourData": {
+      "title": "Votre compte",
+      "username": "Nom d’utilisateur",
+      "userId": "Identifiant utilisateur",
+      "exportHint": "Pour télécharger une copie de vos données (article 20), utilisez <1>Export et import</1> dans la barre latérale."
+    },
+    "restriction": {
+      "title": "Restreindre le traitement",
+      "explainer": "L’article 18 vous permet de mettre votre compte en pause. Vos données restent en place mais nous cessons leur traitement — vous pouvez lever la restriction plus tard.",
+      "statusNone": "Vos données sont traitées normalement. Aucune restriction n’est en place.",
+      "statusActive": "Votre traitement est restreint.",
+      "fieldGround": "Fondement (art. 18(1))",
+      "fieldAppliedAt": "Restreint le",
+      "fieldRequestedBy": "Demandé par",
+      "fieldReason": "Motif",
+      "fieldLiftNoticeSentAt": "Avis de levée envoyé le",
+      "restrictButton": "Restreindre mon traitement",
+      "liftButton": "Demander la levée",
+      "loading": "Chargement du statut de restriction…",
+      "error": "Impossible de charger le statut de restriction : {{message}}"
+    },
+    "restrictDialog": {
+      "title": "Restreindre le traitement",
+      "body": "Choisissez le fondement juridique de votre demande. Vous pouvez ajouter une note facultative expliquant pourquoi vous souhaitez suspendre le traitement.",
+      "grounds": {
+        "ACCURACY_CONTESTED": "Je conteste l’exactitude de mes données (art. 18(1)(a))",
+        "UNLAWFUL_NOT_ERASED": "Le traitement est illicite mais je ne veux pas l’effacement (art. 18(1)(b))",
+        "CONTROLLER_NO_LONGER_NEEDS": "Vous n’avez plus besoin des données, mais moi si pour une action en justice (art. 18(1)(c))",
+        "OBJECTION_PENDING": "J’ai formé opposition et la vérification est en cours (art. 18(1)(d))"
+      },
+      "reasonLabel": "Motif (facultatif)",
+      "reasonHelper": "Jusqu’à 1000 caractères. Aide l’opérateur à comprendre la demande.",
+      "submit": "Restreindre",
+      "submitting": "Restriction en cours…"
+    },
+    "liftDialog": {
+      "title": "Lever la restriction",
+      "body": "La levée se fait en deux étapes. Nous enregistrons d’abord un avis préalable (art. 18(3)) et patientons un court instant ; puis vous confirmez à nouveau pour réellement reprendre le traitement.",
+      "step1Button": "Envoyer l’avis préalable",
+      "step1Sending": "Envoi de l’avis…",
+      "step1Done": "Avis préalable envoyé. Vous pourrez finaliser la levée après {{time}}.",
+      "step2Button": "Finaliser la levée",
+      "step2Submitting": "Finalisation…",
+      "step2DisabledHint": "Disponible dans {{seconds}} s",
+      "doneTitle": "Restriction levée",
+      "doneBody": "Le traitement a repris. Vous pouvez fermer cette fenêtre.",
+      "close": "Fermer",
+      "error": "Impossible de lever la restriction : {{message}}"
+    },
+    "erasure": {
+      "title": "Supprimer mon compte",
+      "dangerLabel": "Zone dangereuse",
+      "explainer": "Article 17 — droit à l’effacement. Cela supprime définitivement vos dépenses, catégories et compte d’identification. Aucune annulation possible.",
+      "expandHint": "Appuyez pour afficher les commandes de suppression.",
+      "openButton": "Je veux supprimer mon compte"
+    },
+    "sessions": {
+      "title": "Sessions actives",
+      "explainer": "Vous déconnecte de tous les navigateurs, onglets et applications mobiles où vous êtes connecté. Vous devrez aussi vous reconnecter ici.",
+      "signOutEverywhereButton": "Se déconnecter partout",
+      "signingOut": "Déconnexion…",
+      "error": "Impossible de se déconnecter partout : {{message}}"
+    },
+    "eraseDialog": {
+      "title": "Supprimer définitivement votre compte",
+      "warningTitle": "Action irréversible",
+      "warningBody": "Après confirmation, les éléments suivants seront supprimés immédiatement :",
+      "consequence1": "Chaque dépense et catégorie que vous avez enregistrée",
+      "consequence2": "Chaque événement du journal d’audit qui vous mentionne",
+      "consequence3": "Votre compte de connexion Keycloak (si la cascade de l’opérateur est configurée)",
+      "noticeExport": "Si vous voulez d’abord une copie de vos données, annulez ce dialogue et utilisez <1>Export et import</1> dans la barre latérale.",
+      "ackPermanent": "Je comprends que la suppression est définitive et irréversible.",
+      "ackExported": "J’ai déjà exporté toutes les données que je souhaite conserver.",
+      "ackLogin": "Je comprends que mon compte de connexion sera supprimé.",
+      "typeUsernameLabel": "Saisissez votre nom d’utilisateur pour confirmer",
+      "typeUsernameHelper": "Saisissez exactement : {{username}}",
+      "typeUsernameMismatch": "Le nom d’utilisateur ne correspond pas.",
+      "continueButton": "Continuer",
+      "cancelButton": "Annuler"
+    },
+    "eraseConfirmDialog": {
+      "title": "Dernière chance",
+      "body": "Vous êtes sur le point de supprimer définitivement le compte <1>{{username}}</1>. Le bouton s’activera dans {{seconds}} s.",
+      "deleteButton": "Supprimer définitivement",
+      "deleteButtonReady": "Supprimer définitivement ({{seconds}} s)",
+      "deleting": "Suppression…",
+      "error": "Échec de la suppression : {{message}}"
+    },
+    "erasedSummary": {
+      "title": "Votre compte a été supprimé",
+      "subtitle": "Résumé de la cascade",
+      "eventsDeleted": "{{count}} événements supprimés",
+      "projectionsDeleted": "{{count}} dépenses supprimées",
+      "categoriesDeleted": "{{count}} catégories supprimées",
+      "keycloakDeleted": "Compte du fournisseur d’identité : {{state}}",
+      "keycloakDeletedYes": "supprimé",
+      "keycloakDeletedNo": "toujours présent — contactez l’opérateur",
+      "occurredAt": "Enregistré à {{time}}",
+      "followUpTitle": "Étapes suivantes",
+      "logoutCountdown": "Vous serez déconnecté dans {{seconds}} s.",
+      "logoutNow": "Se déconnecter maintenant"
+    }
+  },
+  "admin": {
+    "users": {
+      "pageTitle": "Administration des utilisateurs",
+      "pageSubtitle": "Opérations RGPD sur un utilisateur arbitraire. Nécessite le rôle de realm gdpr-admin.",
+      "lookup": {
+        "title": "Rechercher un utilisateur",
+        "label": "Identifiant utilisateur (UUID du `sub` Keycloak)",
+        "placeholder": "00000000-0000-0000-0000-00000000000a",
+        "helper": "Collez l’UUID de sujet Keycloak. L’API n’expose pas la liste des utilisateurs — les ID viennent de la console d’administration de l’IdP.",
+        "loadButton": "Charger",
+        "clearButton": "Effacer",
+        "selectedLabel": "Affichage actuel : <1>{{userId}}</1>"
+      },
+      "restriction": {
+        "title": "Restriction (art. 18)",
+        "restrictedHeadline": "{{userId}} est restreint.",
+        "noneHeadline": "{{userId}} n’a aucune restriction active.",
+        "restrictButton": "Restreindre cet utilisateur",
+        "liftButton": "Lever la restriction",
+        "reasonRequiredHelper": "Une note de motif est requise pour les restrictions appliquées par l’opérateur."
+      },
+      "restrictDialog": {
+        "title": "Restreindre le traitement de l’utilisateur",
+        "body": "Vous appliquez une restriction au nom de l’utilisateur. La note de motif est obligatoire et consignée dans le journal d’audit.",
+        "reasonLabel": "Motif (obligatoire)",
+        "reasonRequired": "Motif obligatoire.",
+        "reasonTooShort": "Le motif doit comporter au moins 10 caractères."
+      },
+      "erasure": {
+        "title": "Supprimer l’utilisateur (art. 17)",
+        "dangerLabel": "Suppression par l’opérateur",
+        "explainer": "À n’utiliser que lorsque l’utilisateur ne peut pas agir lui-même (compte verrouillé, identité vérifiée par un autre canal, décision de justice). Le journal d’audit vous enregistre comme acteur.",
+        "openButton": "Supprimer cet utilisateur"
+      },
+      "sessions": {
+        "title": "Sessions actives",
+        "explainer": "Termine de force toutes les sessions de cet utilisateur. Sa prochaine requête recevra un 401. À utiliser pour les comptes compromis, les appareils perdus ou quand il faut révoquer l’accès immédiatement.",
+        "signOutButton": "Forcer la déconnexion",
+        "signingOut": "Déconnexion…",
+        "success": "Toutes les sessions de {{userId}} ont été terminées.",
+        "error": "Impossible de terminer les sessions : {{message}}"
+      },
+      "eraseDialog": {
+        "title": "Supprimer définitivement cet utilisateur",
+        "warningBody": "Après confirmation, les éléments suivants seront supprimés immédiatement pour <1>{{userId}}</1> :",
+        "ackResponsibility": "Je confirme agir sur la base d’une demande vérifiée ou d’un fondement légal.",
+        "ackPermanent": "Je comprends que la suppression est définitive et irréversible.",
+        "ackAuditLog": "Je comprends que mon identifiant d’administrateur sera consigné dans le journal d’audit.",
+        "reasonLabel": "Note de motif (obligatoire, consignée dans l’audit)",
+        "reasonHelper": "Minimum 10 caractères. Exemple : « Sujet ayant adressé une demande d’effacement notariée par courrier postal le 2026-06-01. »",
+        "reasonRequired": "Motif obligatoire.",
+        "reasonTooShort": "Le motif doit comporter au moins 10 caractères.",
+        "typeUserIdLabel": "Saisissez l’identifiant utilisateur pour confirmer",
+        "typeUserIdHelper": "Saisissez exactement : {{userId}}",
+        "typeUserIdMismatch": "L’identifiant utilisateur ne correspond pas."
+      },
+      "eraseConfirmDialog": {
+        "body": "Vous êtes sur le point de supprimer définitivement le compte <1>{{userId}}</1>. Le bouton s’activera dans {{seconds}} s."
+      },
+      "erasedSummary": {
+        "title": "L’utilisateur a été supprimé",
+        "doneButton": "Terminé"
+      }
+    }
+  }
+}

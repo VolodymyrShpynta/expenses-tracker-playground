@@ -1,0 +1,370 @@
+{
+  "appName": "Spendium",
+  "nav": {
+    "categories": "カテゴリー",
+    "transactions": "取引",
+    "overview": "概要",
+    "tools": "ツール",
+    "exportImport": "エクスポート & インポート",
+    "settings": "設定",
+    "openMenu": "メニューを開く",
+    "privacy": "プライバシー",
+    "adminUsers": "ユーザー管理"
+  },
+  "settings": {
+    "darkMode": "ダークモード",
+    "toggleDarkMode": "ダークモードを切り替え",
+    "manageCategories": "カテゴリーを管理",
+    "currency": "通貨",
+    "fontSize": "フォントサイズ",
+    "language": "言語",
+    "fontScale": {
+      "small": "小",
+      "medium": "中",
+      "large": "大",
+      "xlarge": "特大"
+    }
+  },
+  "common": {
+    "save": "保存",
+    "saving": "保存中…",
+    "cancel": "キャンセル",
+    "close": "閉じる",
+    "delete": "削除",
+    "deleting": "削除中…",
+    "confirmDelete": "削除を確認",
+    "edit": "編集",
+    "add": "追加",
+    "ok": "OK",
+    "apply": "適用",
+    "today": "今日",
+    "search": "検索",
+    "loading": "読み込み中…"
+  },
+  "expenses": {
+    "totalSpending": "支出合計",
+    "noExpensesYet": "支出はまだありません",
+    "tapPlusHint": "+ ボタンをタップして最初の支出を追加してください。",
+    "noTransactions": "取引はまだありません。",
+    "searchPlaceholder": "説明で検索…",
+    "filterByCategory": "カテゴリーで絞り込む",
+    "addAriaLabel": "支出を追加",
+    "addCategoryAriaLabel": "{{category}} に支出を追加",
+    "editExpenseAriaLabel": "支出 {{description}} を編集",
+    "overviewTitle": "概要",
+    "overviewComingSoon": "予算概要と分析機能は近日対応予定。"
+  },
+  "expenseDialog": {
+    "date": "日付",
+    "category": "カテゴリー",
+    "pickCategory": "カテゴリーを選択",
+    "expense": "支出",
+    "description": "説明",
+    "pickCategoryError": "カテゴリーを選択してください。",
+    "positiveAmountError": "金額は正の数値である必要があります。"
+  },
+  "categoryTemplates": {
+    "beauty": "美容",
+    "car": "車",
+    "charity": "寄付",
+    "children": "子ども",
+    "clothing": "衣類",
+    "communication": "通信",
+    "education": "教育",
+    "entertainment": "娯楽",
+    "farm": "農場",
+    "food": "食費",
+    "gifts": "贈り物",
+    "health": "健康",
+    "house": "住居",
+    "hygiene": "衛生",
+    "parents": "両親",
+    "pet": "ペット",
+    "restaurant": "外食",
+    "sport": "スポーツ",
+    "tech": "テクノロジー",
+    "transportation": "交通",
+    "travel": "旅行",
+    "utilities": "公共料金"
+  },
+  "categoryDialog": {
+    "pickTitle": "カテゴリーを選択",
+    "filterTitle": "カテゴリーで絞り込む",
+    "manageTitle": "カテゴリーを管理",
+    "addTitle": "カテゴリーを追加",
+    "editTitle": "カテゴリーを編集",
+    "deleteTitle": "カテゴリーを削除",
+    "deleteConfirm": "<1>{{name}}</1> を削除してもよろしいですか?",
+    "deleteNote": "このカテゴリーの既存支出はカテゴリー名を維持します。",
+    "searchPlaceholder": "カテゴリーを検索…",
+    "empty": "カテゴリーがありません。最初のカテゴリーを追加してください!",
+    "emptyShort": "カテゴリーがありません。",
+    "noMatches": "一致するカテゴリーがありません。",
+    "name": "名前",
+    "nameRequired": "名前は必須です。",
+    "icon": "アイコン",
+    "color": "色",
+    "defaultCategoryLabel": "カテゴリー",
+    "editAriaLabel": "{{name}} を編集",
+    "deleteAriaLabel": "{{name}} を削除",
+    "resetButton": "既定にリセット",
+    "resetTitle": "カテゴリーを既定にリセットしますか?",
+    "resetConfirm": "これにより元のカテゴリー一覧が復元されます。追加したカテゴリーは削除され、名前や色を変更した既定カテゴリーは元に戻ります。既存の支出はその履歴を保持します。",
+    "resetConfirmButton": "リセット",
+    "duplicateActiveTitle": "既存のカテゴリーを使用しますか?",
+    "duplicateActiveBody": "すでに <1>{{name}}</1> という名前のカテゴリーがあります。それを使うか、新規作成してください。",
+    "duplicateArchivedTitle": "以前のカテゴリーを復元しますか?",
+    "duplicateArchivedBody": "以前 <1>{{name}}</1> というカテゴリーがありました。過去の支出をまとめておくため復元するか、新しく作成してください。",
+    "duplicateMultipleArchivedTitle": "以前のカテゴリーを復元しますか?",
+    "duplicateMultipleArchivedBody": "以前 <1>{{name}}</1> という名前のカテゴリーが {{count}} 個ありました。過去の支出をまとめておくため一つに復元するか、新しく作成してください。",
+    "useExistingButton": "既存を使用",
+    "createNewButton": "新規作成",
+    "createAnywayButton": "それでも作成",
+    "restoreButton": "復元",
+    "restoreAndMergeButton": "復元してマージ",
+    "mergeAriaLabel": "{{name}} を別のカテゴリーにマージ",
+    "mergeTitle": "別のカテゴリーにマージ",
+    "mergePickPrompt": "<1>{{name}}</1> をマージするカテゴリーを選んでください。すべての支出が移動されます。",
+    "mergeConfirmTitle": "カテゴリーをマージしますか?",
+    "mergeConfirmBody": "<1>{{source}}</1> のすべての支出を <3>{{target}}</3> に移しますか? <1>{{source}}</1> は次にアーカイブされます。",
+    "mergeDefaultIntoCustomWarning": "<1>{{source}}</1> は既定のカテゴリーです。これを <3>{{target}}</3> にマージすると翻訳が失われ、「既定にリセット」から消えます。代わりに <3>{{target}}</3> を <1>{{source}}</1> にマージすることをご検討ください。",
+    "mergeButton": "マージ",
+    "mergeArchivedTooltip": "同名の重複 {{count}} 件",
+    "mergeArchivedAriaLabel": "「{{name}}」の重複 {{count}} 件をこれに吸収",
+    "mergeArchivedTitle": "重複したカテゴリーを吸収しますか?",
+    "mergeArchivedConfirm": "<1>{{name}}</1> の重複 {{count}} 件のすべての支出をこれに移動します。他の行はアーカイブされます。",
+    "mergeArchivedButton": "吸収"
+  },
+  "currencyDialog": {
+    "title": "通貨を選択",
+    "searchPlaceholder": "通貨を検索…",
+    "noMatches": "一致する通貨がありません。"
+  },
+  "fontSizeDialog": {
+    "title": "フォントサイズ"
+  },
+  "languageDialog": {
+    "title": "言語"
+  },
+  "dateRange": {
+    "period": "期間",
+    "prevPeriodAria": "前の期間",
+    "nextPeriodAria": "次の期間",
+    "pickDay": "日を選択",
+    "selectStart": "開始日を選択",
+    "selectEnd": "終了日を選択",
+    "year": "{{year}} 年",
+    "presets": {
+      "range": "範囲を選択",
+      "all": "すべての期間",
+      "day": "日を選択",
+      "week": "週",
+      "today": "今日",
+      "year": "年",
+      "month": "月"
+    }
+  },
+  "calculator": {
+    "enterOrUseCalculator": "金額を入力するか電卓を使用",
+    "amount": "金額",
+    "openCalculator": "電卓を開く",
+    "searchCurrency": "通貨を検索…"
+  },
+  "exportImportDialog": {
+    "title": "エクスポート & インポート",
+    "formatLabel": "形式",
+    "formatJson": "JSON",
+    "formatCsv": "CSV (zip)",
+    "formatJsonHint": "ロスレス。自分の端末間でデータを移動する場合に推奨。",
+    "formatCsvHint": "表計算ソフト向け。categories.csv と expenses.csv を含む ZIP。",
+    "exportTitle": "エクスポート",
+    "exportBody": "カテゴリーと支出のコピーをダウンロードします。",
+    "exportButton": "ファイルをダウンロード",
+    "exporting": "準備中…",
+    "importTitle": "インポート",
+    "importBody": "以前エクスポートしたファイル (.json, .zip, .csv) をアップロードします。",
+    "importWarning": "インポートは既存データに追加されます。同じファイルを再インポートすると重複した支出が作成されます。",
+    "importButton": "ファイルを選択…",
+    "importing": "インポート中…",
+    "importResultTitle": "インポート完了",
+    "importResultSummary": "{{categories}} 個のカテゴリーと {{expenses}} 件の支出を作成しました ({{skipped}} 件スキップ)。",
+    "importFatalTitle": "インポート失敗",
+    "importRowError": "{{kind}} 「{{label}}」: {{message}}",
+    "rowKind": {
+      "category": "カテゴリー",
+      "expense": "支出"
+    },
+    "importMoreErrors": "…他 {{count}} 件"
+  },
+  "privacy": {
+    "pageTitle": "プライバシーとデータ",
+    "pageSubtitle": "個人データの処理方法を管理します。これらのツールは GDPR 第 17 条および第 18 条に基づくあなたの権利をカバーします。",
+    "yourData": {
+      "title": "あなたのアカウント",
+      "username": "ユーザー名",
+      "userId": "ユーザー ID",
+      "exportHint": "データのコピーをダウンロードするには (第 20 条)、サイドバーの <1>エクスポート & インポート</1> を使用してください。"
+    },
+    "restriction": {
+      "title": "処理を制限",
+      "explainer": "第 18 条により、アカウントを保留状態にできます。データはそのまま残りますが処理は停止します — 後で制限を解除できます。",
+      "statusNone": "データは通常どおり処理されています。アクティブな制限はありません。",
+      "statusActive": "処理は制限されています。",
+      "fieldGround": "根拠 (第 18(1) 条)",
+      "fieldAppliedAt": "制限日時",
+      "fieldRequestedBy": "リクエスト元",
+      "fieldReason": "理由",
+      "fieldLiftNoticeSentAt": "解除通知送信日時",
+      "restrictButton": "処理を制限する",
+      "liftButton": "解除をリクエスト",
+      "loading": "制限状態を読み込み中…",
+      "error": "制限状態を読み込めませんでした: {{message}}"
+    },
+    "restrictDialog": {
+      "title": "処理を制限",
+      "body": "リクエストの法的根拠を選択してください。処理を停止したい理由を説明する任意のメモを追加できます。",
+      "grounds": {
+        "ACCURACY_CONTESTED": "データの正確性に異議を唱えています (第 18(1)(a) 条)",
+        "UNLAWFUL_NOT_ERASED": "処理は違法ですが消去は望みません (第 18(1)(b) 条)",
+        "CONTROLLER_NO_LONGER_NEEDS": "データは不要になりましたが、私は法的請求のために必要です (第 18(1)(c) 条)",
+        "OBJECTION_PENDING": "異議を申し立てて検証待ちです (第 18(1)(d) 条)"
+      },
+      "reasonLabel": "理由 (任意)",
+      "reasonHelper": "最大 1000 文字。オペレーターがリクエストを理解するのに役立ちます。",
+      "submit": "制限する",
+      "submitting": "制限中…"
+    },
+    "liftDialog": {
+      "title": "制限を解除",
+      "body": "解除は 2 段階で行われます。最初に事前通知 (第 18(3) 条) を記録し短時間待機します。その後、処理を実際に再開するために再度確認します。",
+      "step1Button": "事前通知を送信",
+      "step1Sending": "通知を送信中…",
+      "step1Done": "事前通知を送信しました。{{time}} 以降に解除を確定できます。",
+      "step2Button": "解除を確定",
+      "step2Submitting": "確定中…",
+      "step2DisabledHint": "{{seconds}} 秒で利用可能",
+      "doneTitle": "制限を解除しました",
+      "doneBody": "処理が再開されました。このダイアログを閉じてかまいません。",
+      "close": "閉じる",
+      "error": "制限を解除できませんでした: {{message}}"
+    },
+    "erasure": {
+      "title": "アカウントを削除",
+      "dangerLabel": "危険区域",
+      "explainer": "第 17 条 — 消去の権利。支出、カテゴリー、ID プロバイダーのアカウントを永久に削除します。元に戻せません。",
+      "expandHint": "タップして削除コントロールを表示します。",
+      "openButton": "アカウントを削除したい"
+    },
+    "sessions": {
+      "title": "アクティブセッション",
+      "explainer": "現在ログイン中のすべてのブラウザ、タブ、モバイルアプリからサインアウトします。ここでも再度サインインが必要です。",
+      "signOutEverywhereButton": "すべてからサインアウト",
+      "signingOut": "サインアウト中…",
+      "error": "すべてからサインアウトできませんでした: {{message}}"
+    },
+    "eraseDialog": {
+      "title": "アカウントを永久に削除",
+      "warningTitle": "この操作は取り消せません",
+      "warningBody": "確定すると、以下が直ちに削除されます:",
+      "consequence1": "記録したすべての支出とカテゴリー",
+      "consequence2": "あなたを参照する監査ログのすべてのイベント",
+      "consequence3": "Keycloak ログインアカウント (オペレーターのカスケードが構成されている場合)",
+      "noticeExport": "先にデータのコピーが必要な場合は、このダイアログをキャンセルしてサイドバーの <1>エクスポート & インポート</1> を使用してください。",
+      "ackPermanent": "削除は永久で取り消せないことを理解しています。",
+      "ackExported": "保持したいデータはすでにエクスポート済みです。",
+      "ackLogin": "ログインアカウントが削除されることを理解しています。",
+      "typeUsernameLabel": "確認のためユーザー名を入力",
+      "typeUsernameHelper": "正確に入力: {{username}}",
+      "typeUsernameMismatch": "ユーザー名が一致しません。",
+      "continueButton": "続行",
+      "cancelButton": "キャンセル"
+    },
+    "eraseConfirmDialog": {
+      "title": "最後の確認",
+      "body": "アカウント <1>{{username}}</1> を永久に削除しようとしています。ボタンは {{seconds}} 秒後に有効になります。",
+      "deleteButton": "完全に削除",
+      "deleteButtonReady": "完全に削除 ({{seconds}} 秒)",
+      "deleting": "削除中…",
+      "error": "削除に失敗しました: {{message}}"
+    },
+    "erasedSummary": {
+      "title": "アカウントは削除されました",
+      "subtitle": "カスケードのまとめ",
+      "eventsDeleted": "{{count}} 件のイベントを削除",
+      "projectionsDeleted": "{{count}} 件の支出を削除",
+      "categoriesDeleted": "{{count}} 個のカテゴリーを削除",
+      "keycloakDeleted": "ID プロバイダーのアカウント: {{state}}",
+      "keycloakDeletedYes": "削除済み",
+      "keycloakDeletedNo": "まだ存在 — オペレーターに連絡してください",
+      "occurredAt": "{{time}} に記録",
+      "followUpTitle": "次のステップ",
+      "logoutCountdown": "{{seconds}} 秒後にサインアウトします。",
+      "logoutNow": "今すぐサインアウト"
+    }
+  },
+  "admin": {
+    "users": {
+      "pageTitle": "ユーザー管理",
+      "pageSubtitle": "任意のユーザーに対する GDPR 操作。gdpr-admin レルムロールが必要です。",
+      "lookup": {
+        "title": "ユーザーを検索",
+        "label": "ユーザー ID (Keycloak `sub` の UUID)",
+        "placeholder": "00000000-0000-0000-0000-00000000000a",
+        "helper": "Keycloak のサブジェクト UUID を貼り付けてください。API はユーザー一覧を公開しません — ID は IdP 管理コンソールから取得します。",
+        "loadButton": "読み込み",
+        "clearButton": "クリア",
+        "selectedLabel": "現在の表示: <1>{{userId}}</1>"
+      },
+      "restriction": {
+        "title": "制限 (第 18 条)",
+        "restrictedHeadline": "{{userId}} は制限されています。",
+        "noneHeadline": "{{userId}} にアクティブな制限はありません。",
+        "restrictButton": "このユーザーを制限",
+        "liftButton": "制限を解除",
+        "reasonRequiredHelper": "オペレーターが適用する制限には理由メモが必要です。"
+      },
+      "restrictDialog": {
+        "title": "ユーザー処理を制限",
+        "body": "ユーザーに代わって制限を適用します。理由メモは必須で監査ログに記録されます。",
+        "reasonLabel": "理由 (必須)",
+        "reasonRequired": "理由は必須です。",
+        "reasonTooShort": "理由は 10 文字以上必要です。"
+      },
+      "erasure": {
+        "title": "ユーザーを消去 (第 17 条)",
+        "dangerLabel": "オペレーターによる消去",
+        "explainer": "ユーザーが自分で対応できない場合のみ使用してください (ロックされたアカウント、チャネル外で確認された身元、裁判所命令)。監査ログにはあなたが実行者として記録されます。",
+        "openButton": "このユーザーを消去"
+      },
+      "sessions": {
+        "title": "アクティブセッション",
+        "explainer": "このユーザーのすべてのセッションを強制終了します。次のリクエストは 401 を受け取ります。侵害されたアカウント、紛失デバイス、即座にアクセス取消が必要な場合に使用します。",
+        "signOutButton": "強制サインアウト",
+        "signingOut": "サインアウト中…",
+        "success": "{{userId}} のすべてのセッションを終了しました。",
+        "error": "セッションを終了できませんでした: {{message}}"
+      },
+      "eraseDialog": {
+        "title": "このユーザーを永久に削除",
+        "warningBody": "確定すると、<1>{{userId}}</1> について以下が直ちに削除されます:",
+        "ackResponsibility": "検証済みのリクエストまたは法的根拠に基づいて行動していることを確認します。",
+        "ackPermanent": "削除は永久で取り消せないことを理解しています。",
+        "ackAuditLog": "管理者サブジェクトが監査ログに記録されることを理解しています。",
+        "reasonLabel": "理由メモ (必須、監査に記録)",
+        "reasonHelper": "最小 10 文字。例: 「対象者が 2026-06-01 に郵送で公証付き削除請求を提出。」",
+        "reasonRequired": "理由は必須です。",
+        "reasonTooShort": "理由は 10 文字以上必要です。",
+        "typeUserIdLabel": "確認のためユーザー ID を入力",
+        "typeUserIdHelper": "正確に入力: {{userId}}",
+        "typeUserIdMismatch": "ユーザー ID が一致しません。"
+      },
+      "eraseConfirmDialog": {
+        "body": "アカウント <1>{{userId}}</1> を永久に削除しようとしています。ボタンは {{seconds}} 秒後に有効になります。"
+      },
+      "erasedSummary": {
+        "title": "ユーザーを削除しました",
+        "doneButton": "完了"
+      }
+    }
+  }
+}

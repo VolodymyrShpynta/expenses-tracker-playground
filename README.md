@@ -386,7 +386,7 @@ expenses-tracker-playground/
 │   │   ├── queryClient.ts         # TanStack Query client + query keys
 │   │   └── types/                 # Shared TS interfaces
 │   ├── scripts/
-│   │   └── copy-locales.mjs       # Mirrors locale JSON from web frontend
+│   │   └── check-locale-parity.mjs # Fails build if any locale drifts from en.json
 │   ├── app.json                   # Expo config (scheme = spendium)
 │   ├── build.gradle.kts           # Gradle shim driving npm via the node plugin
 │   ├── package.json

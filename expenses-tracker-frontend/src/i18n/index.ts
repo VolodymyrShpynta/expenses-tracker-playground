@@ -17,15 +17,51 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/en';
 import 'dayjs/locale/uk';
 import 'dayjs/locale/cs';
+import 'dayjs/locale/es';
+import 'dayjs/locale/de';
+import 'dayjs/locale/fr';
+import 'dayjs/locale/pt';
+import 'dayjs/locale/it';
+import 'dayjs/locale/pl';
+import 'dayjs/locale/hi';
+import 'dayjs/locale/id';
+import 'dayjs/locale/tr';
+import 'dayjs/locale/ja';
+import 'dayjs/locale/ko';
+import 'dayjs/locale/zh';
 
 import en from './locales/en.json';
 import uk from './locales/uk.json';
 import cs from './locales/cs.json';
+import es from './locales/es.json';
+import de from './locales/de.json';
+import fr from './locales/fr.json';
+import pt from './locales/pt.json';
+import it from './locales/it.json';
+import pl from './locales/pl.json';
+import hi from './locales/hi.json';
+import id from './locales/id.json';
+import tr from './locales/tr.json';
+import ja from './locales/ja.json';
+import ko from './locales/ko.json';
+import zh from './locales/zh.json';
 
 export const SUPPORTED_LANGUAGES = [
   { code: 'en', label: 'English', nativeLabel: 'English' },
   { code: 'uk', label: 'Ukrainian', nativeLabel: 'Українська' },
   { code: 'cs', label: 'Czech', nativeLabel: 'Čeština' },
+  { code: 'es', label: 'Spanish', nativeLabel: 'Español' },
+  { code: 'de', label: 'German', nativeLabel: 'Deutsch' },
+  { code: 'fr', label: 'French', nativeLabel: 'Français' },
+  { code: 'pt', label: 'Portuguese', nativeLabel: 'Português' },
+  { code: 'it', label: 'Italian', nativeLabel: 'Italiano' },
+  { code: 'pl', label: 'Polish', nativeLabel: 'Polski' },
+  { code: 'hi', label: 'Hindi', nativeLabel: 'हिन्दी' },
+  { code: 'id', label: 'Indonesian', nativeLabel: 'Bahasa Indonesia' },
+  { code: 'tr', label: 'Turkish', nativeLabel: 'Türkçe' },
+  { code: 'ja', label: 'Japanese', nativeLabel: '日本語' },
+  { code: 'ko', label: 'Korean', nativeLabel: '한국어' },
+  { code: 'zh', label: 'Chinese', nativeLabel: '中文' },
 ] as const;
 
 export type LanguageCode = (typeof SUPPORTED_LANGUAGES)[number]['code'];
@@ -40,6 +76,18 @@ void i18n
       en: { translation: en },
       uk: { translation: uk },
       cs: { translation: cs },
+      es: { translation: es },
+      de: { translation: de },
+      fr: { translation: fr },
+      pt: { translation: pt },
+      it: { translation: it },
+      pl: { translation: pl },
+      hi: { translation: hi },
+      id: { translation: id },
+      tr: { translation: tr },
+      ja: { translation: ja },
+      ko: { translation: ko },
+      zh: { translation: zh },
     },
     fallbackLng: 'en',
     supportedLngs: SUPPORTED_LANGUAGES.map((l) => l.code),

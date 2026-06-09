@@ -8,10 +8,12 @@
  *     and the Expo web target).
  *   - `localStorage` → `AsyncStorage` (selected language is persisted).
  *
- * Locale JSON files are copied from the web frontend at scaffold time
- * (see `scripts/copy-locales.mjs`). Both modules render the same keys, so
- * the contract is identical — adding a new key on web means adding it on
- * mobile in the same commit.
+ * Locale JSON is OWNED by the mobile module — translations are independent
+ * from the web frontend (different UX, different surface, different
+ * mobile-only keys, so wording legitimately diverges). To add a new
+ * language, copy `locales/en.json` to `locales/<lang>.json` and translate
+ * in place. Intra-module key parity (every locale matches `en.json`) is
+ * enforced by `scripts/check-locale-parity.mjs` via `npm run typecheck`.
  *
  * Import this file once from `app/_layout.tsx` (side-effectful).
  * Components consume translations via `useTranslation()` from
@@ -26,11 +28,35 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import en from './locales/en.json';
 import uk from './locales/uk.json';
 import cs from './locales/cs.json';
+import es from './locales/es.json';
+import de from './locales/de.json';
+import fr from './locales/fr.json';
+import pt from './locales/pt.json';
+import it from './locales/it.json';
+import pl from './locales/pl.json';
+import hi from './locales/hi.json';
+import id from './locales/id.json';
+import tr from './locales/tr.json';
+import ja from './locales/ja.json';
+import ko from './locales/ko.json';
+import zh from './locales/zh.json';
 
 export const SUPPORTED_LANGUAGES = [
   { code: 'en', label: 'English', nativeLabel: 'English' },
   { code: 'uk', label: 'Ukrainian', nativeLabel: 'Українська' },
   { code: 'cs', label: 'Czech', nativeLabel: 'Čeština' },
+  { code: 'es', label: 'Spanish', nativeLabel: 'Español' },
+  { code: 'de', label: 'German', nativeLabel: 'Deutsch' },
+  { code: 'fr', label: 'French', nativeLabel: 'Français' },
+  { code: 'pt', label: 'Portuguese', nativeLabel: 'Português' },
+  { code: 'it', label: 'Italian', nativeLabel: 'Italiano' },
+  { code: 'pl', label: 'Polish', nativeLabel: 'Polski' },
+  { code: 'hi', label: 'Hindi', nativeLabel: 'हिन्दी' },
+  { code: 'id', label: 'Indonesian', nativeLabel: 'Bahasa Indonesia' },
+  { code: 'tr', label: 'Turkish', nativeLabel: 'Türkçe' },
+  { code: 'ja', label: 'Japanese', nativeLabel: '日本語' },
+  { code: 'ko', label: 'Korean', nativeLabel: '한국어' },
+  { code: 'zh', label: 'Chinese', nativeLabel: '中文' },
 ] as const;
 
 export type LanguageCode = (typeof SUPPORTED_LANGUAGES)[number]['code'];
@@ -66,6 +92,18 @@ export async function initI18n(): Promise<LanguageCode> {
       en: { translation: en },
       uk: { translation: uk },
       cs: { translation: cs },
+      es: { translation: es },
+      de: { translation: de },
+      fr: { translation: fr },
+      pt: { translation: pt },
+      it: { translation: it },
+      pl: { translation: pl },
+      hi: { translation: hi },
+      id: { translation: id },
+      tr: { translation: tr },
+      ja: { translation: ja },
+      ko: { translation: ko },
+      zh: { translation: zh },
     },
     lng: initial,
     fallbackLng: 'en',

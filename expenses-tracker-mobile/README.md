@@ -137,7 +137,9 @@ The path-scoped Copilot rules for this module live in
 - **[Frankfurter](https://api.frankfurter.dev)** (`api.frankfurter.dev/v2`) — free, key-less,
   ECB-backed historical + latest FX rates; powers the
   [historical-rate currency conversion](#-historical-rate-currency-conversion)
-- **i18next** + **react-i18next** — locale JSON copied at build time from the web frontend
+- **i18next** + **react-i18next** — locale JSON owned by the mobile module (independent
+  from the web frontend; to add a new language, copy `src/i18n/locales/en.json`
+  to `<lang>.json` and translate in place)
 - **Vitest** — pure-TypeScript unit tests for `src/domain/`, `src/sync/`, `src/api/`, and `src/utils/`
   (330+ tests across 25 files). React Native components are NOT tested here — that requires
   `jest-expo`, which is out of scope for the current setup.

@@ -1,0 +1,370 @@
+{
+  "appName": "Spendium",
+  "nav": {
+    "categories": "Kategorien",
+    "transactions": "Transaktionen",
+    "overview": "Übersicht",
+    "tools": "Werkzeuge",
+    "exportImport": "Export & Import",
+    "settings": "Einstellungen",
+    "openMenu": "Menü öffnen",
+    "privacy": "Datenschutz",
+    "adminUsers": "Benutzerverwaltung"
+  },
+  "settings": {
+    "darkMode": "Dunkler Modus",
+    "toggleDarkMode": "Dunklen Modus umschalten",
+    "manageCategories": "Kategorien verwalten",
+    "currency": "Währung",
+    "fontSize": "Schriftgröße",
+    "language": "Sprache",
+    "fontScale": {
+      "small": "Klein",
+      "medium": "Mittel",
+      "large": "Groß",
+      "xlarge": "Sehr groß"
+    }
+  },
+  "common": {
+    "save": "Speichern",
+    "saving": "Speichern…",
+    "cancel": "Abbrechen",
+    "close": "Schließen",
+    "delete": "Löschen",
+    "deleting": "Löschen…",
+    "confirmDelete": "Löschen bestätigen",
+    "edit": "Bearbeiten",
+    "add": "Hinzufügen",
+    "ok": "OK",
+    "apply": "Übernehmen",
+    "today": "Heute",
+    "search": "Suchen",
+    "loading": "Lädt…"
+  },
+  "expenses": {
+    "totalSpending": "Gesamtausgaben",
+    "noExpensesYet": "Noch keine Ausgaben",
+    "tapPlusHint": "Tippe auf +, um deine erste Ausgabe hinzuzufügen.",
+    "noTransactions": "Noch keine Transaktionen.",
+    "searchPlaceholder": "Nach Beschreibung suchen…",
+    "filterByCategory": "Nach Kategorie filtern",
+    "addAriaLabel": "Ausgabe hinzufügen",
+    "addCategoryAriaLabel": "Ausgabe in {{category}} hinzufügen",
+    "editExpenseAriaLabel": "Ausgabe {{description}} bearbeiten",
+    "overviewTitle": "Übersicht",
+    "overviewComingSoon": "Budgetübersicht und Analysen folgen bald."
+  },
+  "expenseDialog": {
+    "date": "Datum",
+    "category": "Kategorie",
+    "pickCategory": "Kategorie wählen",
+    "expense": "Ausgabe",
+    "description": "Beschreibung",
+    "pickCategoryError": "Bitte wähle eine Kategorie aus.",
+    "positiveAmountError": "Der Betrag muss eine positive Zahl sein."
+  },
+  "categoryTemplates": {
+    "beauty": "Beauty",
+    "car": "Auto",
+    "charity": "Spenden",
+    "children": "Kinder",
+    "clothing": "Kleidung",
+    "communication": "Kommunikation",
+    "education": "Bildung",
+    "entertainment": "Unterhaltung",
+    "farm": "Hof & Garten",
+    "food": "Lebensmittel",
+    "gifts": "Geschenke",
+    "health": "Gesundheit",
+    "house": "Haus",
+    "hygiene": "Hygiene",
+    "parents": "Eltern",
+    "pet": "Haustier",
+    "restaurant": "Restaurant",
+    "sport": "Sport",
+    "tech": "Technik",
+    "transportation": "Transport",
+    "travel": "Reisen",
+    "utilities": "Nebenkosten"
+  },
+  "categoryDialog": {
+    "pickTitle": "Kategorie wählen",
+    "filterTitle": "Nach Kategorie filtern",
+    "manageTitle": "Kategorien verwalten",
+    "addTitle": "Kategorie hinzufügen",
+    "editTitle": "Kategorie bearbeiten",
+    "deleteTitle": "Kategorie löschen",
+    "deleteConfirm": "Möchtest du <1>{{name}}</1> wirklich löschen?",
+    "deleteNote": "Bestehende Ausgaben behalten den Namen dieser Kategorie.",
+    "searchPlaceholder": "Kategorien suchen…",
+    "empty": "Noch keine Kategorien. Füge deine erste hinzu!",
+    "emptyShort": "Noch keine Kategorien.",
+    "noMatches": "Keine passenden Kategorien.",
+    "name": "Name",
+    "nameRequired": "Name ist erforderlich.",
+    "icon": "Symbol",
+    "color": "Farbe",
+    "defaultCategoryLabel": "Kategorie",
+    "editAriaLabel": "{{name}} bearbeiten",
+    "deleteAriaLabel": "{{name}} löschen",
+    "resetButton": "Auf Standard zurücksetzen",
+    "resetTitle": "Kategorien auf Standard zurücksetzen?",
+    "resetConfirm": "Dadurch wird die ursprüngliche Kategorienliste wiederhergestellt. Alle von dir hinzugefügten Kategorien werden entfernt und umbenannte oder umgefärbte Standardkategorien werden zurückgesetzt. Bestehende Ausgaben behalten ihre Historie.",
+    "resetConfirmButton": "Zurücksetzen",
+    "duplicateActiveTitle": "Bestehende Kategorie verwenden?",
+    "duplicateActiveBody": "Du hast bereits eine Kategorie mit dem Namen <1>{{name}}</1>. Diese verwenden oder trotzdem eine neue erstellen?",
+    "duplicateArchivedTitle": "Vorherige Kategorie wiederherstellen?",
+    "duplicateArchivedBody": "Du hattest zuvor eine Kategorie mit dem Namen <1>{{name}}</1>. Wiederherstellen, damit vergangene Ausgaben gruppiert bleiben, oder eine neue erstellen?",
+    "duplicateMultipleArchivedTitle": "Vorherige Kategorien wiederherstellen?",
+    "duplicateMultipleArchivedBody": "Du hattest zuvor {{count}} Kategorien mit dem Namen <1>{{name}}</1>. Als eine wiederherstellen, damit alle vergangenen Ausgaben gruppiert bleiben, oder eine neue erstellen?",
+    "useExistingButton": "Bestehende verwenden",
+    "createNewButton": "Neue erstellen",
+    "createAnywayButton": "Trotzdem erstellen",
+    "restoreButton": "Wiederherstellen",
+    "restoreAndMergeButton": "Wiederherstellen & zusammenführen",
+    "mergeAriaLabel": "{{name}} mit einer anderen Kategorie zusammenführen",
+    "mergeTitle": "Mit anderer Kategorie zusammenführen",
+    "mergePickPrompt": "Wähle eine Kategorie, in die <1>{{name}}</1> zusammengeführt werden soll. Alle Ausgaben werden verschoben.",
+    "mergeConfirmTitle": "Kategorien zusammenführen?",
+    "mergeConfirmBody": "Alle Ausgaben von <1>{{source}}</1> nach <3>{{target}}</3> verschieben? <1>{{source}}</1> wird danach archiviert.",
+    "mergeDefaultIntoCustomWarning": "<1>{{source}}</1> ist eine Standardkategorie. Ein Zusammenführen in <3>{{target}}</3> lässt die Übersetzung verloren gehen und entfernt sie aus „Auf Standard zurücksetzen“. Erwäge stattdessen, <3>{{target}}</3> in <1>{{source}}</1> zusammenzuführen.",
+    "mergeButton": "Zusammenführen",
+    "mergeArchivedTooltip": "{{count}} Duplikat(e) mit demselben Namen",
+    "mergeArchivedAriaLabel": "{{count}} Duplikat(e) von „{{name}}“ in diese aufnehmen",
+    "mergeArchivedTitle": "Doppelte Kategorien aufnehmen?",
+    "mergeArchivedConfirm": "Alle Ausgaben aus {{count}} Duplikat(en) von <1>{{name}}</1> in diese verschieben. Andere Einträge werden archiviert.",
+    "mergeArchivedButton": "Aufnehmen"
+  },
+  "currencyDialog": {
+    "title": "Währung wählen",
+    "searchPlaceholder": "Währungen suchen…",
+    "noMatches": "Keine passenden Währungen."
+  },
+  "fontSizeDialog": {
+    "title": "Schriftgröße"
+  },
+  "languageDialog": {
+    "title": "Sprache"
+  },
+  "dateRange": {
+    "period": "Zeitraum",
+    "prevPeriodAria": "Vorheriger Zeitraum",
+    "nextPeriodAria": "Nächster Zeitraum",
+    "pickDay": "Tag wählen",
+    "selectStart": "Startdatum wählen",
+    "selectEnd": "Enddatum wählen",
+    "year": "Jahr {{year}}",
+    "presets": {
+      "range": "Bereich wählen",
+      "all": "Gesamt",
+      "day": "Tag wählen",
+      "week": "Woche",
+      "today": "Heute",
+      "year": "Jahr",
+      "month": "Monat"
+    }
+  },
+  "calculator": {
+    "enterOrUseCalculator": "Betrag eingeben oder Rechner verwenden",
+    "amount": "Betrag",
+    "openCalculator": "Rechner öffnen",
+    "searchCurrency": "Währung suchen…"
+  },
+  "exportImportDialog": {
+    "title": "Export & Import",
+    "formatLabel": "Format",
+    "formatJson": "JSON",
+    "formatCsv": "CSV (Zip)",
+    "formatJsonHint": "Verlustfrei. Empfohlen, um Daten zwischen eigenen Geräten zu übertragen.",
+    "formatCsvHint": "Tabellenfreundlich. ZIP mit categories.csv und expenses.csv.",
+    "exportTitle": "Export",
+    "exportBody": "Lade eine Kopie deiner Kategorien und Ausgaben herunter.",
+    "exportButton": "Datei herunterladen",
+    "exporting": "Vorbereiten…",
+    "importTitle": "Import",
+    "importBody": "Lade eine zuvor exportierte Datei hoch (.json, .zip oder .csv).",
+    "importWarning": "Beim Import werden Daten ergänzt. Erneutes Importieren derselben Datei erzeugt doppelte Ausgaben.",
+    "importButton": "Datei auswählen…",
+    "importing": "Import läuft…",
+    "importResultTitle": "Import abgeschlossen",
+    "importResultSummary": "{{categories}} Kategorien und {{expenses}} Ausgaben erstellt ({{skipped}} übersprungen).",
+    "importFatalTitle": "Import fehlgeschlagen",
+    "importRowError": "{{kind}} „{{label}}“: {{message}}",
+    "rowKind": {
+      "category": "Kategorie",
+      "expense": "Ausgabe"
+    },
+    "importMoreErrors": "…und {{count}} weitere"
+  },
+  "privacy": {
+    "pageTitle": "Datenschutz & Daten",
+    "pageSubtitle": "Verwalte, wie deine personenbezogenen Daten verarbeitet werden. Diese Werkzeuge decken deine Rechte nach Art. 17 und 18 DSGVO ab.",
+    "yourData": {
+      "title": "Dein Konto",
+      "username": "Benutzername",
+      "userId": "Benutzer-ID",
+      "exportHint": "Um eine Kopie deiner Daten herunterzuladen (Art. 20), verwende <1>Export & Import</1> in der Seitenleiste."
+    },
+    "restriction": {
+      "title": "Verarbeitung einschränken",
+      "explainer": "Art. 18 erlaubt dir, dein Konto auf Pause zu setzen. Deine Daten bleiben erhalten, werden aber nicht verarbeitet — du kannst die Einschränkung später aufheben.",
+      "statusNone": "Deine Daten werden normal verarbeitet. Es besteht keine Einschränkung.",
+      "statusActive": "Deine Verarbeitung ist eingeschränkt.",
+      "fieldGround": "Grund (Art. 18(1))",
+      "fieldAppliedAt": "Eingeschränkt am",
+      "fieldRequestedBy": "Beantragt von",
+      "fieldReason": "Grund",
+      "fieldLiftNoticeSentAt": "Aufhebungsmitteilung gesendet am",
+      "restrictButton": "Verarbeitung einschränken",
+      "liftButton": "Aufhebung beantragen",
+      "loading": "Status der Einschränkung wird geladen…",
+      "error": "Status der Einschränkung konnte nicht geladen werden: {{message}}"
+    },
+    "restrictDialog": {
+      "title": "Verarbeitung einschränken",
+      "body": "Wähle den rechtlichen Grund für deinen Antrag. Du kannst optional eine Notiz hinzufügen, in der du beschreibst, warum die Verarbeitung pausiert werden soll.",
+      "grounds": {
+        "ACCURACY_CONTESTED": "Ich bestreite die Richtigkeit meiner Daten (Art. 18(1)(a))",
+        "UNLAWFUL_NOT_ERASED": "Die Verarbeitung ist unrechtmäßig, aber ich möchte keine Löschung (Art. 18(1)(b))",
+        "CONTROLLER_NO_LONGER_NEEDS": "Ihr benötigt die Daten nicht mehr, ich aber für einen Rechtsanspruch (Art. 18(1)(c))",
+        "OBJECTION_PENDING": "Ich habe Widerspruch eingelegt und die Prüfung steht aus (Art. 18(1)(d))"
+      },
+      "reasonLabel": "Grund (optional)",
+      "reasonHelper": "Bis zu 1000 Zeichen. Hilft dem Betreiber, den Antrag zu verstehen.",
+      "submit": "Einschränken",
+      "submitting": "Einschränken läuft…"
+    },
+    "liftDialog": {
+      "title": "Einschränkung aufheben",
+      "body": "Die Aufhebung erfolgt in zwei Schritten. Zuerst wird eine Vorab-Mitteilung erfasst (Art. 18(3)) und kurz gewartet; anschließend bestätigst du erneut, um die Verarbeitung wieder aufzunehmen.",
+      "step1Button": "Vorab-Mitteilung senden",
+      "step1Sending": "Mitteilung wird gesendet…",
+      "step1Done": "Vorab-Mitteilung gesendet. Du kannst die Aufhebung nach {{time}} abschließen.",
+      "step2Button": "Aufhebung abschließen",
+      "step2Submitting": "Wird abgeschlossen…",
+      "step2DisabledHint": "Verfügbar in {{seconds}} s",
+      "doneTitle": "Einschränkung aufgehoben",
+      "doneBody": "Die Verarbeitung wurde wieder aufgenommen. Du kannst dieses Fenster schließen.",
+      "close": "Schließen",
+      "error": "Einschränkung konnte nicht aufgehoben werden: {{message}}"
+    },
+    "erasure": {
+      "title": "Mein Konto löschen",
+      "dangerLabel": "Gefahrenbereich",
+      "explainer": "Art. 17 — Recht auf Löschung. Dadurch werden deine Ausgaben, Kategorien und das Konto beim Identitätsanbieter dauerhaft gelöscht. Es gibt kein Zurück.",
+      "expandHint": "Tippe, um die Löschsteuerung anzuzeigen.",
+      "openButton": "Ich möchte mein Konto löschen"
+    },
+    "sessions": {
+      "title": "Aktive Sitzungen",
+      "explainer": "Meldet dich aus jedem Browser, Tab und jeder mobilen App ab, in der du gerade angemeldet bist. Auch hier musst du dich neu anmelden.",
+      "signOutEverywhereButton": "Überall abmelden",
+      "signingOut": "Abmelden…",
+      "error": "Überall abmelden fehlgeschlagen: {{message}}"
+    },
+    "eraseDialog": {
+      "title": "Dein Konto dauerhaft löschen",
+      "warningTitle": "Dies kann nicht rückgängig gemacht werden",
+      "warningBody": "Nach der Bestätigung wird sofort Folgendes gelöscht:",
+      "consequence1": "Jede Ausgabe und Kategorie, die du erfasst hast",
+      "consequence2": "Jedes Ereignis im Audit-Log, das dich nennt",
+      "consequence3": "Dein Keycloak-Anmeldekonto (sofern die Kaskade konfiguriert ist)",
+      "noticeExport": "Wenn du zuerst eine Kopie deiner Daten möchtest, brich diesen Dialog ab und verwende <1>Export & Import</1> in der Seitenleiste.",
+      "ackPermanent": "Mir ist bewusst, dass die Löschung dauerhaft und unwiderruflich ist.",
+      "ackExported": "Ich habe bereits alle Daten exportiert, die ich behalten möchte.",
+      "ackLogin": "Mir ist bewusst, dass mein Anmeldekonto entfernt wird.",
+      "typeUsernameLabel": "Gib zur Bestätigung deinen Benutzernamen ein",
+      "typeUsernameHelper": "Gib genau ein: {{username}}",
+      "typeUsernameMismatch": "Benutzername stimmt nicht überein.",
+      "continueButton": "Weiter",
+      "cancelButton": "Abbrechen"
+    },
+    "eraseConfirmDialog": {
+      "title": "Letzte Chance",
+      "body": "Du bist im Begriff, das Konto <1>{{username}}</1> dauerhaft zu löschen. Der Button wird in {{seconds}} s aktiv.",
+      "deleteButton": "Endgültig löschen",
+      "deleteButtonReady": "Endgültig löschen ({{seconds}} s)",
+      "deleting": "Löschen…",
+      "error": "Löschen fehlgeschlagen: {{message}}"
+    },
+    "erasedSummary": {
+      "title": "Dein Konto wurde gelöscht",
+      "subtitle": "Kaskaden-Zusammenfassung",
+      "eventsDeleted": "{{count}} Ereignisse entfernt",
+      "projectionsDeleted": "{{count}} Ausgaben entfernt",
+      "categoriesDeleted": "{{count}} Kategorien entfernt",
+      "keycloakDeleted": "Konto des Identitätsanbieters: {{state}}",
+      "keycloakDeletedYes": "entfernt",
+      "keycloakDeletedNo": "noch vorhanden — wende dich an den Betreiber",
+      "occurredAt": "Erfasst um {{time}}",
+      "followUpTitle": "Folgeschritte",
+      "logoutCountdown": "Du wirst in {{seconds}} s abgemeldet.",
+      "logoutNow": "Jetzt abmelden"
+    }
+  },
+  "admin": {
+    "users": {
+      "pageTitle": "Benutzerverwaltung",
+      "pageSubtitle": "DSGVO-Operationen für einen beliebigen Benutzer. Erfordert die Realm-Rolle gdpr-admin.",
+      "lookup": {
+        "title": "Benutzer suchen",
+        "label": "Benutzer-ID (UUID aus Keycloak `sub`)",
+        "placeholder": "00000000-0000-0000-0000-00000000000a",
+        "helper": "Füge die Keycloak-Subject-UUID ein. Die API stellt keine Benutzerliste bereit — IDs kommen aus der Admin-Konsole des IdP.",
+        "loadButton": "Laden",
+        "clearButton": "Leeren",
+        "selectedLabel": "Aktuell angezeigt: <1>{{userId}}</1>"
+      },
+      "restriction": {
+        "title": "Einschränkung (Art. 18)",
+        "restrictedHeadline": "{{userId}} ist eingeschränkt.",
+        "noneHeadline": "{{userId}} hat keine aktive Einschränkung.",
+        "restrictButton": "Diesen Benutzer einschränken",
+        "liftButton": "Einschränkung aufheben",
+        "reasonRequiredHelper": "Eine Begründung ist für vom Betreiber angewendete Einschränkungen erforderlich."
+      },
+      "restrictDialog": {
+        "title": "Verarbeitung des Benutzers einschränken",
+        "body": "Du wendest eine Einschränkung im Namen des Benutzers an. Die Begründung ist verpflichtend und wird im Audit-Log festgehalten.",
+        "reasonLabel": "Begründung (erforderlich)",
+        "reasonRequired": "Begründung ist erforderlich.",
+        "reasonTooShort": "Begründung muss mindestens 10 Zeichen lang sein."
+      },
+      "erasure": {
+        "title": "Benutzer löschen (Art. 17)",
+        "dangerLabel": "Löschung durch Betreiber",
+        "explainer": "Verwende dies nur, wenn der Benutzer es nicht selbst tun kann (gesperrtes Konto, Identität anderweitig bestätigt, gerichtliche Anordnung). Das Audit-Log erfasst dich als Akteur.",
+        "openButton": "Diesen Benutzer löschen"
+      },
+      "sessions": {
+        "title": "Aktive Sitzungen",
+        "explainer": "Beendet zwangsweise jede Sitzung dieses Benutzers. Die nächste Anfrage erhält 401. Verwendung für kompromittierte Konten, verlorene Geräte oder wenn Zugriff sofort entzogen werden muss.",
+        "signOutButton": "Abmeldung erzwingen",
+        "signingOut": "Abmelden…",
+        "success": "Alle Sitzungen für {{userId}} wurden beendet.",
+        "error": "Sitzungen konnten nicht beendet werden: {{message}}"
+      },
+      "eraseDialog": {
+        "title": "Diesen Benutzer dauerhaft löschen",
+        "warningBody": "Nach der Bestätigung wird sofort Folgendes für <1>{{userId}}</1> gelöscht:",
+        "ackResponsibility": "Ich bestätige, dass ich auf Basis eines geprüften Antrags oder einer gesetzlichen Grundlage handle.",
+        "ackPermanent": "Mir ist bewusst, dass die Löschung dauerhaft und unwiderruflich ist.",
+        "ackAuditLog": "Mir ist bewusst, dass mein Admin-Subjekt im Audit-Log erfasst wird.",
+        "reasonLabel": "Begründungsnotiz (erforderlich, im Audit-Log erfasst)",
+        "reasonHelper": "Mindestens 10 Zeichen. Beispiel: „Betroffene Person hat am 01.06.2026 einen notariell beglaubigten Löschantrag per Post eingereicht.“",
+        "reasonRequired": "Begründung ist erforderlich.",
+        "reasonTooShort": "Begründung muss mindestens 10 Zeichen lang sein.",
+        "typeUserIdLabel": "Gib zur Bestätigung die Benutzer-ID ein",
+        "typeUserIdHelper": "Gib genau ein: {{userId}}",
+        "typeUserIdMismatch": "Benutzer-ID stimmt nicht überein."
+      },
+      "eraseConfirmDialog": {
+        "body": "Du bist im Begriff, das Konto <1>{{userId}}</1> dauerhaft zu löschen. Der Button wird in {{seconds}} s aktiv."
+      },
+      "erasedSummary": {
+        "title": "Benutzer wurde gelöscht",
+        "doneButton": "Fertig"
+      }
+    }
+  }
+}

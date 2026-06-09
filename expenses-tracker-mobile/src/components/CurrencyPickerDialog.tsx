@@ -25,10 +25,19 @@ import { useTranslation } from 'react-i18next';
 
 import { AppDialog } from './AppDialog';
 
+/**
+ * Curated set of currencies offered in the picker. Frankfurter v2
+ * (see `src/api/exchangeRates.ts`) publishes rates for ~150 ISO codes,
+ * so the limit here is UX, not data: showing every supported currency
+ * would drown the user in scroll. We pick the most commonly used ones
+ * across the regions the app is translated for, plus the major reserve
+ * currencies. The user can search to narrow down.
+ */
 const CURRENCIES: ReadonlyArray<string> = [
   'USD', 'EUR', 'GBP', 'CHF', 'JPY', 'CNY', 'AUD', 'CAD',
   'CZK', 'PLN', 'UAH', 'SEK', 'NOK', 'DKK', 'HUF', 'RON',
   'INR', 'TRY', 'ZAR', 'BRL', 'MXN', 'KRW', 'SGD', 'HKD', 'NZD',
+  'IDR', 'ILS', 'ISK', 'MYR', 'PHP', 'THB',
 ];
 
 /**

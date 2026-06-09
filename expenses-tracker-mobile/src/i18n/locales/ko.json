@@ -1,0 +1,370 @@
+{
+  "appName": "Spendium",
+  "nav": {
+    "categories": "카테고리",
+    "transactions": "거래",
+    "overview": "개요",
+    "tools": "도구",
+    "exportImport": "내보내기 및 가져오기",
+    "settings": "설정",
+    "openMenu": "메뉴 열기",
+    "privacy": "개인정보",
+    "adminUsers": "사용자 관리"
+  },
+  "settings": {
+    "darkMode": "다크 모드",
+    "toggleDarkMode": "다크 모드 전환",
+    "manageCategories": "카테고리 관리",
+    "currency": "통화",
+    "fontSize": "글꼴 크기",
+    "language": "언어",
+    "fontScale": {
+      "small": "작게",
+      "medium": "보통",
+      "large": "크게",
+      "xlarge": "매우 크게"
+    }
+  },
+  "common": {
+    "save": "저장",
+    "saving": "저장 중…",
+    "cancel": "취소",
+    "close": "닫기",
+    "delete": "삭제",
+    "deleting": "삭제 중…",
+    "confirmDelete": "삭제 확인",
+    "edit": "편집",
+    "add": "추가",
+    "ok": "확인",
+    "apply": "적용",
+    "today": "오늘",
+    "search": "검색",
+    "loading": "불러오는 중…"
+  },
+  "expenses": {
+    "totalSpending": "총 지출",
+    "noExpensesYet": "아직 지출이 없습니다",
+    "tapPlusHint": "+ 버튼을 눌러 첫 지출을 추가하세요.",
+    "noTransactions": "아직 거래가 없습니다.",
+    "searchPlaceholder": "설명으로 검색…",
+    "filterByCategory": "카테고리로 필터",
+    "addAriaLabel": "지출 추가",
+    "addCategoryAriaLabel": "{{category}}에 지출 추가",
+    "editExpenseAriaLabel": "지출 {{description}} 편집",
+    "overviewTitle": "개요",
+    "overviewComingSoon": "예산 개요 및 분석 기능은 곧 제공됩니다."
+  },
+  "expenseDialog": {
+    "date": "날짜",
+    "category": "카테고리",
+    "pickCategory": "카테고리 선택",
+    "expense": "지출",
+    "description": "설명",
+    "pickCategoryError": "카테고리를 선택해 주세요.",
+    "positiveAmountError": "금액은 양수여야 합니다."
+  },
+  "categoryTemplates": {
+    "beauty": "미용",
+    "car": "자동차",
+    "charity": "기부",
+    "children": "자녀",
+    "clothing": "의류",
+    "communication": "통신",
+    "education": "교육",
+    "entertainment": "오락",
+    "farm": "농장",
+    "food": "식비",
+    "gifts": "선물",
+    "health": "건강",
+    "house": "주거",
+    "hygiene": "위생",
+    "parents": "부모님",
+    "pet": "반려동물",
+    "restaurant": "외식",
+    "sport": "운동",
+    "tech": "기술",
+    "transportation": "교통",
+    "travel": "여행",
+    "utilities": "공과금"
+  },
+  "categoryDialog": {
+    "pickTitle": "카테고리 선택",
+    "filterTitle": "카테고리로 필터",
+    "manageTitle": "카테고리 관리",
+    "addTitle": "카테고리 추가",
+    "editTitle": "카테고리 편집",
+    "deleteTitle": "카테고리 삭제",
+    "deleteConfirm": "정말 <1>{{name}}</1>을(를) 삭제하시겠습니까?",
+    "deleteNote": "이 카테고리의 기존 지출은 카테고리 이름을 유지합니다.",
+    "searchPlaceholder": "카테고리 검색…",
+    "empty": "아직 카테고리가 없습니다. 첫 카테고리를 추가하세요!",
+    "emptyShort": "아직 카테고리가 없습니다.",
+    "noMatches": "일치하는 카테고리가 없습니다.",
+    "name": "이름",
+    "nameRequired": "이름은 필수입니다.",
+    "icon": "아이콘",
+    "color": "색상",
+    "defaultCategoryLabel": "카테고리",
+    "editAriaLabel": "{{name}} 편집",
+    "deleteAriaLabel": "{{name}} 삭제",
+    "resetButton": "기본값으로 재설정",
+    "resetTitle": "카테고리를 기본값으로 재설정할까요?",
+    "resetConfirm": "원래 카테고리 목록을 복원합니다. 추가한 카테고리는 제거되고, 이름이나 색상이 변경된 기본 카테고리는 되돌려집니다. 기존 지출은 기록을 유지합니다.",
+    "resetConfirmButton": "재설정",
+    "duplicateActiveTitle": "기존 카테고리를 사용하시겠습니까?",
+    "duplicateActiveBody": "이미 <1>{{name}}</1>(이)라는 카테고리가 있습니다. 그것을 사용하거나 그래도 새로 만드세요.",
+    "duplicateArchivedTitle": "이전 카테고리를 복원하시겠습니까?",
+    "duplicateArchivedBody": "이전에 <1>{{name}}</1>(이)라는 카테고리가 있었습니다. 과거 지출을 함께 유지하려면 복원하거나 새로 만드세요.",
+    "duplicateMultipleArchivedTitle": "이전 카테고리를 복원하시겠습니까?",
+    "duplicateMultipleArchivedBody": "이전에 <1>{{name}}</1>(이)라는 카테고리가 {{count}}개 있었습니다. 과거 지출을 함께 유지하려면 하나로 복원하거나 새로 만드세요.",
+    "useExistingButton": "기존 사용",
+    "createNewButton": "새로 만들기",
+    "createAnywayButton": "그래도 만들기",
+    "restoreButton": "복원",
+    "restoreAndMergeButton": "복원하고 병합",
+    "mergeAriaLabel": "{{name}}을(를) 다른 카테고리와 병합",
+    "mergeTitle": "다른 카테고리와 병합",
+    "mergePickPrompt": "<1>{{name}}</1>을(를) 병합할 카테고리를 선택하세요. 모든 지출이 이동됩니다.",
+    "mergeConfirmTitle": "카테고리를 병합하시겠습니까?",
+    "mergeConfirmBody": "<1>{{source}}</1>의 모든 지출을 <3>{{target}}</3>로 옮길까요? <1>{{source}}</1>은(는) 그런 다음 아카이브됩니다.",
+    "mergeDefaultIntoCustomWarning": "<1>{{source}}</1>은(는) 기본 카테고리입니다. 이를 <3>{{target}}</3>로 병합하면 번역이 사라지고 “기본값으로 재설정”에서 제거됩니다. 대신 <3>{{target}}</3>을(를) <1>{{source}}</1>로 병합하는 것을 고려하세요.",
+    "mergeButton": "병합",
+    "mergeArchivedTooltip": "같은 이름의 중복 {{count}}개",
+    "mergeArchivedAriaLabel": "“{{name}}”의 중복 {{count}}개를 이것에 흡수",
+    "mergeArchivedTitle": "중복 카테고리를 흡수하시겠습니까?",
+    "mergeArchivedConfirm": "<1>{{name}}</1>의 중복 {{count}}개에서 모든 지출을 이것으로 이동합니다. 다른 항목은 아카이브됩니다.",
+    "mergeArchivedButton": "흡수"
+  },
+  "currencyDialog": {
+    "title": "통화 선택",
+    "searchPlaceholder": "통화 검색…",
+    "noMatches": "일치하는 통화가 없습니다."
+  },
+  "fontSizeDialog": {
+    "title": "글꼴 크기"
+  },
+  "languageDialog": {
+    "title": "언어"
+  },
+  "dateRange": {
+    "period": "기간",
+    "prevPeriodAria": "이전 기간",
+    "nextPeriodAria": "다음 기간",
+    "pickDay": "날짜 선택",
+    "selectStart": "시작 날짜 선택",
+    "selectEnd": "종료 날짜 선택",
+    "year": "{{year}}년",
+    "presets": {
+      "range": "범위 선택",
+      "all": "전체 기간",
+      "day": "날짜 선택",
+      "week": "주",
+      "today": "오늘",
+      "year": "연",
+      "month": "월"
+    }
+  },
+  "calculator": {
+    "enterOrUseCalculator": "금액을 입력하거나 계산기 사용",
+    "amount": "금액",
+    "openCalculator": "계산기 열기",
+    "searchCurrency": "통화 검색…"
+  },
+  "exportImportDialog": {
+    "title": "내보내기 및 가져오기",
+    "formatLabel": "형식",
+    "formatJson": "JSON",
+    "formatCsv": "CSV (zip)",
+    "formatJsonHint": "무손실. 여러 기기 간 데이터 이동에 권장됩니다.",
+    "formatCsvHint": "스프레드시트 친화적. categories.csv와 expenses.csv가 포함된 ZIP.",
+    "exportTitle": "내보내기",
+    "exportBody": "카테고리와 지출의 사본을 다운로드합니다.",
+    "exportButton": "파일 다운로드",
+    "exporting": "준비 중…",
+    "importTitle": "가져오기",
+    "importBody": "이전에 내보낸 파일(.json, .zip, .csv)을 업로드하세요.",
+    "importWarning": "가져오기는 기존 데이터에 추가됩니다. 같은 파일을 다시 가져오면 중복된 지출이 생성됩니다.",
+    "importButton": "파일 선택…",
+    "importing": "가져오는 중…",
+    "importResultTitle": "가져오기 완료",
+    "importResultSummary": "{{categories}}개 카테고리와 {{expenses}}개 지출 생성 ({{skipped}}개 건너뜀).",
+    "importFatalTitle": "가져오기 실패",
+    "importRowError": "{{kind}} “{{label}}”: {{message}}",
+    "rowKind": {
+      "category": "카테고리",
+      "expense": "지출"
+    },
+    "importMoreErrors": "…외 {{count}}개"
+  },
+  "privacy": {
+    "pageTitle": "개인정보 및 데이터",
+    "pageSubtitle": "개인 데이터 처리 방식을 관리합니다. 이 도구는 GDPR 제17조 및 제18조에 따른 권리를 다룹니다.",
+    "yourData": {
+      "title": "내 계정",
+      "username": "사용자 이름",
+      "userId": "사용자 ID",
+      "exportHint": "데이터 사본을 다운로드하려면(제20조) 사이드바의 <1>내보내기 및 가져오기</1>를 사용하세요."
+    },
+    "restriction": {
+      "title": "처리 제한",
+      "explainer": "제18조는 계정을 일시 정지할 수 있게 합니다. 데이터는 유지되지만 처리는 중단되며 나중에 제한을 해제할 수 있습니다.",
+      "statusNone": "데이터는 정상적으로 처리되고 있습니다. 활성 제한이 없습니다.",
+      "statusActive": "처리가 제한되었습니다.",
+      "fieldGround": "근거 (제18(1)조)",
+      "fieldAppliedAt": "제한 시각",
+      "fieldRequestedBy": "요청자",
+      "fieldReason": "사유",
+      "fieldLiftNoticeSentAt": "해제 통지 발송 시각",
+      "restrictButton": "내 처리를 제한",
+      "liftButton": "해제 요청",
+      "loading": "제한 상태를 불러오는 중…",
+      "error": "제한 상태를 불러올 수 없습니다: {{message}}"
+    },
+    "restrictDialog": {
+      "title": "처리 제한",
+      "body": "요청의 법적 근거를 선택하세요. 처리를 중단하려는 이유를 설명하는 메모를 선택적으로 추가할 수 있습니다.",
+      "grounds": {
+        "ACCURACY_CONTESTED": "데이터의 정확성에 이의를 제기합니다 (제18(1)(a)조)",
+        "UNLAWFUL_NOT_ERASED": "처리는 위법하나 삭제는 원하지 않습니다 (제18(1)(b)조)",
+        "CONTROLLER_NO_LONGER_NEEDS": "더 이상 데이터가 필요 없지만 저는 법적 청구를 위해 필요합니다 (제18(1)(c)조)",
+        "OBJECTION_PENDING": "이의를 제기했고 검증이 보류 중입니다 (제18(1)(d)조)"
+      },
+      "reasonLabel": "사유 (선택)",
+      "reasonHelper": "최대 1000자. 운영자가 요청을 이해하는 데 도움이 됩니다.",
+      "submit": "제한",
+      "submitting": "제한 중…"
+    },
+    "liftDialog": {
+      "title": "제한 해제",
+      "body": "해제는 두 단계로 진행됩니다. 먼저 사전 해제 통지(제18(3)조)를 기록하고 짧게 기다린 후, 실제로 처리를 재개하기 위해 다시 확인합니다.",
+      "step1Button": "사전 해제 통지 전송",
+      "step1Sending": "통지 전송 중…",
+      "step1Done": "사전 해제 통지를 보냈습니다. {{time}} 이후 해제를 완료할 수 있습니다.",
+      "step2Button": "해제 완료",
+      "step2Submitting": "완료 중…",
+      "step2DisabledHint": "{{seconds}}초 후 사용 가능",
+      "doneTitle": "제한이 해제되었습니다",
+      "doneBody": "처리가 재개되었습니다. 이 대화 상자를 닫아도 됩니다.",
+      "close": "닫기",
+      "error": "제한을 해제할 수 없습니다: {{message}}"
+    },
+    "erasure": {
+      "title": "내 계정 삭제",
+      "dangerLabel": "위험 구역",
+      "explainer": "제17조 — 삭제권. 지출, 카테고리, ID 공급자 계정을 영구적으로 삭제합니다. 되돌릴 수 없습니다.",
+      "expandHint": "삭제 컨트롤을 보려면 탭하세요.",
+      "openButton": "내 계정을 삭제하고 싶습니다"
+    },
+    "sessions": {
+      "title": "활성 세션",
+      "explainer": "현재 로그인된 모든 브라우저, 탭, 모바일 앱에서 로그아웃합니다. 여기에서도 다시 로그인해야 합니다.",
+      "signOutEverywhereButton": "모든 곳에서 로그아웃",
+      "signingOut": "로그아웃 중…",
+      "error": "모든 곳에서 로그아웃할 수 없습니다: {{message}}"
+    },
+    "eraseDialog": {
+      "title": "계정을 영구적으로 삭제",
+      "warningTitle": "이 작업은 되돌릴 수 없습니다",
+      "warningBody": "확인하면 다음 항목이 즉시 삭제됩니다:",
+      "consequence1": "기록한 모든 지출과 카테고리",
+      "consequence2": "사용자가 언급된 모든 감사 로그 이벤트",
+      "consequence3": "Keycloak 로그인 계정(운영자의 캐스케이드가 구성된 경우)",
+      "noticeExport": "먼저 데이터 사본이 필요하면 이 대화 상자를 취소하고 사이드바의 <1>내보내기 및 가져오기</1>를 사용하세요.",
+      "ackPermanent": "삭제가 영구적이고 되돌릴 수 없음을 이해합니다.",
+      "ackExported": "보관하고 싶은 데이터는 이미 모두 내보냈습니다.",
+      "ackLogin": "내 로그인 계정이 제거됨을 이해합니다.",
+      "typeUsernameLabel": "확인을 위해 사용자 이름을 입력",
+      "typeUsernameHelper": "정확히 입력: {{username}}",
+      "typeUsernameMismatch": "사용자 이름이 일치하지 않습니다.",
+      "continueButton": "계속",
+      "cancelButton": "취소"
+    },
+    "eraseConfirmDialog": {
+      "title": "마지막 확인",
+      "body": "계정 <1>{{username}}</1>을(를) 영구적으로 삭제하려고 합니다. 버튼은 {{seconds}}초 후 활성화됩니다.",
+      "deleteButton": "영구 삭제",
+      "deleteButtonReady": "영구 삭제 ({{seconds}}초)",
+      "deleting": "삭제 중…",
+      "error": "삭제 실패: {{message}}"
+    },
+    "erasedSummary": {
+      "title": "계정이 삭제되었습니다",
+      "subtitle": "캐스케이드 요약",
+      "eventsDeleted": "{{count}}개 이벤트 삭제",
+      "projectionsDeleted": "{{count}}개 지출 삭제",
+      "categoriesDeleted": "{{count}}개 카테고리 삭제",
+      "keycloakDeleted": "ID 공급자 계정: {{state}}",
+      "keycloakDeletedYes": "삭제됨",
+      "keycloakDeletedNo": "여전히 존재 — 운영자에게 문의하세요",
+      "occurredAt": "{{time}}에 기록됨",
+      "followUpTitle": "후속 조치",
+      "logoutCountdown": "{{seconds}}초 후 로그아웃됩니다.",
+      "logoutNow": "지금 로그아웃"
+    }
+  },
+  "admin": {
+    "users": {
+      "pageTitle": "사용자 관리",
+      "pageSubtitle": "임의의 사용자에 대한 GDPR 작업. gdpr-admin 영역 역할이 필요합니다.",
+      "lookup": {
+        "title": "사용자 찾기",
+        "label": "사용자 ID (Keycloak `sub`의 UUID)",
+        "placeholder": "00000000-0000-0000-0000-00000000000a",
+        "helper": "Keycloak 주체 UUID를 붙여넣으세요. API는 사용자 목록을 노출하지 않습니다 — ID는 IdP 관리 콘솔에서 가져옵니다.",
+        "loadButton": "불러오기",
+        "clearButton": "지우기",
+        "selectedLabel": "현재 보기: <1>{{userId}}</1>"
+      },
+      "restriction": {
+        "title": "제한 (제18조)",
+        "restrictedHeadline": "{{userId}}이(가) 제한되었습니다.",
+        "noneHeadline": "{{userId}}에 활성 제한이 없습니다.",
+        "restrictButton": "이 사용자 제한",
+        "liftButton": "제한 해제",
+        "reasonRequiredHelper": "운영자가 적용하는 제한에는 사유 메모가 필요합니다."
+      },
+      "restrictDialog": {
+        "title": "사용자 처리 제한",
+        "body": "사용자를 대신하여 제한을 적용합니다. 사유 메모는 필수이며 감사 로그에 기록됩니다.",
+        "reasonLabel": "사유 (필수)",
+        "reasonRequired": "사유는 필수입니다.",
+        "reasonTooShort": "사유는 최소 10자 이상이어야 합니다."
+      },
+      "erasure": {
+        "title": "사용자 삭제 (제17조)",
+        "dangerLabel": "운영자 삭제",
+        "explainer": "사용자가 스스로 수행할 수 없는 경우에만 사용하세요(잠긴 계정, 채널 외부에서 확인된 신원, 법원 명령). 감사 로그는 사용자를 행위자로 기록합니다.",
+        "openButton": "이 사용자 삭제"
+      },
+      "sessions": {
+        "title": "활성 세션",
+        "explainer": "이 사용자의 모든 세션을 강제 종료합니다. 다음 요청은 401을 받게 됩니다. 침해된 계정, 분실된 기기, 즉시 액세스를 취소해야 할 때 사용하세요.",
+        "signOutButton": "강제 로그아웃",
+        "signingOut": "로그아웃 중…",
+        "success": "{{userId}}의 모든 세션이 종료되었습니다.",
+        "error": "세션을 종료할 수 없습니다: {{message}}"
+      },
+      "eraseDialog": {
+        "title": "이 사용자를 영구 삭제",
+        "warningBody": "확인하면 <1>{{userId}}</1>에 대해 다음 항목이 즉시 삭제됩니다:",
+        "ackResponsibility": "확인된 요청 또는 법적 근거에 따라 행동하고 있음을 확인합니다.",
+        "ackPermanent": "삭제가 영구적이고 되돌릴 수 없음을 이해합니다.",
+        "ackAuditLog": "관리자 주체가 감사 로그에 기록됨을 이해합니다.",
+        "reasonLabel": "사유 메모 (필수, 감사 기록됨)",
+        "reasonHelper": "최소 10자. 예: “주체가 2026-06-01에 우편으로 공증된 삭제 요청을 보냄.”",
+        "reasonRequired": "사유는 필수입니다.",
+        "reasonTooShort": "사유는 최소 10자 이상이어야 합니다.",
+        "typeUserIdLabel": "확인을 위해 사용자 ID를 입력",
+        "typeUserIdHelper": "정확히 입력: {{userId}}",
+        "typeUserIdMismatch": "사용자 ID가 일치하지 않습니다."
+      },
+      "eraseConfirmDialog": {
+        "body": "계정 <1>{{userId}}</1>을(를) 영구적으로 삭제하려고 합니다. 버튼은 {{seconds}}초 후 활성화됩니다."
+      },
+      "erasedSummary": {
+        "title": "사용자가 삭제되었습니다",
+        "doneButton": "완료"
+      }
+    }
+  }
+}

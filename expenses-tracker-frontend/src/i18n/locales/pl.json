@@ -1,0 +1,370 @@
+{
+  "appName": "Spendium",
+  "nav": {
+    "categories": "Kategorie",
+    "transactions": "Transakcje",
+    "overview": "Przegląd",
+    "tools": "Narzędzia",
+    "exportImport": "Eksport i import",
+    "settings": "Ustawienia",
+    "openMenu": "Otwórz menu",
+    "privacy": "Prywatność",
+    "adminUsers": "Administracja użytkownikami"
+  },
+  "settings": {
+    "darkMode": "Tryb ciemny",
+    "toggleDarkMode": "Przełącz tryb ciemny",
+    "manageCategories": "Zarządzaj kategoriami",
+    "currency": "Waluta",
+    "fontSize": "Rozmiar czcionki",
+    "language": "Język",
+    "fontScale": {
+      "small": "Mały",
+      "medium": "Średni",
+      "large": "Duży",
+      "xlarge": "Bardzo duży"
+    }
+  },
+  "common": {
+    "save": "Zapisz",
+    "saving": "Zapisywanie…",
+    "cancel": "Anuluj",
+    "close": "Zamknij",
+    "delete": "Usuń",
+    "deleting": "Usuwanie…",
+    "confirmDelete": "Potwierdź usunięcie",
+    "edit": "Edytuj",
+    "add": "Dodaj",
+    "ok": "OK",
+    "apply": "Zastosuj",
+    "today": "Dziś",
+    "search": "Szukaj",
+    "loading": "Ładowanie…"
+  },
+  "expenses": {
+    "totalSpending": "Łączne wydatki",
+    "noExpensesYet": "Brak wydatków",
+    "tapPlusHint": "Stuknij przycisk +, aby dodać swój pierwszy wydatek.",
+    "noTransactions": "Brak transakcji.",
+    "searchPlaceholder": "Szukaj po opisie…",
+    "filterByCategory": "Filtruj według kategorii",
+    "addAriaLabel": "Dodaj wydatek",
+    "addCategoryAriaLabel": "Dodaj wydatek w kategorii {{category}}",
+    "editExpenseAriaLabel": "Edytuj wydatek {{description}}",
+    "overviewTitle": "Przegląd",
+    "overviewComingSoon": "Przegląd budżetu i analizy wkrótce."
+  },
+  "expenseDialog": {
+    "date": "Data",
+    "category": "Kategoria",
+    "pickCategory": "Wybierz kategorię",
+    "expense": "Wydatek",
+    "description": "Opis",
+    "pickCategoryError": "Wybierz kategorię.",
+    "positiveAmountError": "Kwota musi być liczbą dodatnią."
+  },
+  "categoryTemplates": {
+    "beauty": "Uroda",
+    "car": "Samochód",
+    "charity": "Charytatywne",
+    "children": "Dzieci",
+    "clothing": "Ubrania",
+    "communication": "Łączność",
+    "education": "Edukacja",
+    "entertainment": "Rozrywka",
+    "farm": "Gospodarstwo",
+    "food": "Jedzenie",
+    "gifts": "Prezenty",
+    "health": "Zdrowie",
+    "house": "Dom",
+    "hygiene": "Higiena",
+    "parents": "Rodzice",
+    "pet": "Zwierzę",
+    "restaurant": "Restauracja",
+    "sport": "Sport",
+    "tech": "Technologia",
+    "transportation": "Transport",
+    "travel": "Podróże",
+    "utilities": "Media"
+  },
+  "categoryDialog": {
+    "pickTitle": "Wybierz kategorię",
+    "filterTitle": "Filtruj według kategorii",
+    "manageTitle": "Zarządzaj kategoriami",
+    "addTitle": "Dodaj kategorię",
+    "editTitle": "Edytuj kategorię",
+    "deleteTitle": "Usuń kategorię",
+    "deleteConfirm": "Czy na pewno chcesz usunąć <1>{{name}}</1>?",
+    "deleteNote": "Istniejące wydatki zachowają nazwę tej kategorii.",
+    "searchPlaceholder": "Szukaj kategorii…",
+    "empty": "Brak kategorii. Dodaj pierwszą!",
+    "emptyShort": "Brak kategorii.",
+    "noMatches": "Brak pasujących kategorii.",
+    "name": "Nazwa",
+    "nameRequired": "Nazwa jest wymagana.",
+    "icon": "Ikona",
+    "color": "Kolor",
+    "defaultCategoryLabel": "Kategoria",
+    "editAriaLabel": "Edytuj {{name}}",
+    "deleteAriaLabel": "Usuń {{name}}",
+    "resetButton": "Przywróć domyślne",
+    "resetTitle": "Przywrócić domyślne kategorie?",
+    "resetConfirm": "Spowoduje to przywrócenie pierwotnej listy kategorii. Dodane przez Ciebie kategorie zostaną usunięte, a wszelkie zmiany nazw lub kolorów domyślnych zostaną cofnięte. Istniejące wydatki zachowają swoją historię.",
+    "resetConfirmButton": "Przywróć",
+    "duplicateActiveTitle": "Użyć istniejącej kategorii?",
+    "duplicateActiveBody": "Masz już kategorię o nazwie <1>{{name}}</1>. Użyj jej lub mimo to utwórz nową.",
+    "duplicateArchivedTitle": "Przywrócić poprzednią kategorię?",
+    "duplicateArchivedBody": "Miałeś już kategorię o nazwie <1>{{name}}</1>. Przywróć ją, aby zachować pogrupowane stare wydatki, lub utwórz nową.",
+    "duplicateMultipleArchivedTitle": "Przywrócić poprzednie kategorie?",
+    "duplicateMultipleArchivedBody": "Miałeś już {{count}} kategorii o nazwie <1>{{name}}</1>. Przywróć je jako jedną, aby zachować pogrupowane stare wydatki, lub utwórz nową.",
+    "useExistingButton": "Użyj istniejącej",
+    "createNewButton": "Utwórz nową",
+    "createAnywayButton": "Utwórz mimo to",
+    "restoreButton": "Przywróć",
+    "restoreAndMergeButton": "Przywróć i scal",
+    "mergeAriaLabel": "Scal {{name}} z inną kategorią",
+    "mergeTitle": "Scal z inną kategorią",
+    "mergePickPrompt": "Wybierz kategorię, z którą scalić <1>{{name}}</1>. Wszystkie jej wydatki zostaną przeniesione.",
+    "mergeConfirmTitle": "Scalić kategorie?",
+    "mergeConfirmBody": "Przenieść wszystkie wydatki z <1>{{source}}</1> do <3>{{target}}</3>? <1>{{source}}</1> zostanie następnie zarchiwizowana.",
+    "mergeDefaultIntoCustomWarning": "<1>{{source}}</1> jest kategorią domyślną. Scalenie jej z <3>{{target}}</3> spowoduje utratę tłumaczenia i usunięcie z „Przywróć domyślne”. Rozważ zamiast tego scalenie <3>{{target}}</3> z <1>{{source}}</1>.",
+    "mergeButton": "Scal",
+    "mergeArchivedTooltip": "{{count}} duplikat(ów) o tej samej nazwie",
+    "mergeArchivedAriaLabel": "Wchłoń {{count}} duplikat(ów) „{{name}}” do tej",
+    "mergeArchivedTitle": "Wchłonąć zduplikowane kategorie?",
+    "mergeArchivedConfirm": "Przenieś wszystkie wydatki z {{count}} duplikat(ów) <1>{{name}}</1> do tej. Pozostałe wiersze zostaną zarchiwizowane.",
+    "mergeArchivedButton": "Wchłoń"
+  },
+  "currencyDialog": {
+    "title": "Wybierz walutę",
+    "searchPlaceholder": "Szukaj walut…",
+    "noMatches": "Brak pasujących walut."
+  },
+  "fontSizeDialog": {
+    "title": "Rozmiar czcionki"
+  },
+  "languageDialog": {
+    "title": "Język"
+  },
+  "dateRange": {
+    "period": "Okres",
+    "prevPeriodAria": "Poprzedni okres",
+    "nextPeriodAria": "Następny okres",
+    "pickDay": "Wybierz dzień",
+    "selectStart": "Wybierz datę początkową",
+    "selectEnd": "Wybierz datę końcową",
+    "year": "Rok {{year}}",
+    "presets": {
+      "range": "Wybierz zakres",
+      "all": "Cały okres",
+      "day": "Wybierz dzień",
+      "week": "Tydzień",
+      "today": "Dziś",
+      "year": "Rok",
+      "month": "Miesiąc"
+    }
+  },
+  "calculator": {
+    "enterOrUseCalculator": "Wprowadź kwotę lub użyj kalkulatora",
+    "amount": "Kwota",
+    "openCalculator": "Otwórz kalkulator",
+    "searchCurrency": "Szukaj waluty…"
+  },
+  "exportImportDialog": {
+    "title": "Eksport i import",
+    "formatLabel": "Format",
+    "formatJson": "JSON",
+    "formatCsv": "CSV (zip)",
+    "formatJsonHint": "Bezstratny. Zalecany do przenoszenia danych między urządzeniami.",
+    "formatCsvHint": "Przyjazny arkuszom kalkulacyjnym. ZIP zawierający categories.csv i expenses.csv.",
+    "exportTitle": "Eksport",
+    "exportBody": "Pobierz kopię swoich kategorii i wydatków.",
+    "exportButton": "Pobierz plik",
+    "exporting": "Przygotowywanie…",
+    "importTitle": "Import",
+    "importBody": "Wczytaj wcześniej wyeksportowany plik (.json, .zip lub .csv).",
+    "importWarning": "Import dodaje do istniejących danych. Ponowny import tego samego pliku utworzy zduplikowane wydatki.",
+    "importButton": "Wybierz plik…",
+    "importing": "Importowanie…",
+    "importResultTitle": "Import zakończony",
+    "importResultSummary": "Utworzono {{categories}} kategorii i {{expenses}} wydatków (pominięto {{skipped}}).",
+    "importFatalTitle": "Import nie powiódł się",
+    "importRowError": "{{kind}} „{{label}}”: {{message}}",
+    "rowKind": {
+      "category": "Kategoria",
+      "expense": "Wydatek"
+    },
+    "importMoreErrors": "…i {{count}} więcej"
+  },
+  "privacy": {
+    "pageTitle": "Prywatność i dane",
+    "pageSubtitle": "Zarządzaj sposobem przetwarzania Twoich danych osobowych. Te narzędzia obejmują Twoje prawa wynikające z art. 17 i 18 RODO.",
+    "yourData": {
+      "title": "Twoje konto",
+      "username": "Nazwa użytkownika",
+      "userId": "Identyfikator użytkownika",
+      "exportHint": "Aby pobrać kopię swoich danych (Artykuł 20), użyj <1>Eksport i import</1> w panelu bocznym."
+    },
+    "restriction": {
+      "title": "Ogranicz przetwarzanie",
+      "explainer": "Art. 18 pozwala wstrzymać przetwarzanie konta. Twoje dane pozostają, ale przestajemy je przetwarzać — możesz później cofnąć ograniczenie.",
+      "statusNone": "Twoje dane są przetwarzane normalnie. Brak aktywnego ograniczenia.",
+      "statusActive": "Twoje przetwarzanie jest ograniczone.",
+      "fieldGround": "Podstawa (Art. 18(1))",
+      "fieldAppliedAt": "Ograniczono w",
+      "fieldRequestedBy": "Zażądane przez",
+      "fieldReason": "Powód",
+      "fieldLiftNoticeSentAt": "Powiadomienie o zniesieniu wysłane",
+      "restrictButton": "Ogranicz moje przetwarzanie",
+      "liftButton": "Zażądaj zniesienia",
+      "loading": "Ładowanie statusu ograniczenia…",
+      "error": "Nie można załadować statusu ograniczenia: {{message}}"
+    },
+    "restrictDialog": {
+      "title": "Ogranicz przetwarzanie",
+      "body": "Wybierz podstawę prawną swojego żądania. Możesz dodać opcjonalną notatkę z wyjaśnieniem.",
+      "grounds": {
+        "ACCURACY_CONTESTED": "Kwestionuję poprawność moich danych (Art. 18(1)(a))",
+        "UNLAWFUL_NOT_ERASED": "Przetwarzanie jest niezgodne z prawem, ale nie chcę usunięcia (Art. 18(1)(b))",
+        "CONTROLLER_NO_LONGER_NEEDS": "Nie potrzebujecie już danych, ale ja potrzebuję ich do roszczenia (Art. 18(1)(c))",
+        "OBJECTION_PENDING": "Wniosłem sprzeciw i oczekuję weryfikacji (Art. 18(1)(d))"
+      },
+      "reasonLabel": "Powód (opcjonalnie)",
+      "reasonHelper": "Do 1000 znaków. Pomaga operatorowi zrozumieć żądanie.",
+      "submit": "Ogranicz",
+      "submitting": "Ograniczanie…"
+    },
+    "liftDialog": {
+      "title": "Znieś ograniczenie",
+      "body": "Zniesienie odbywa się w dwóch krokach. Najpierw rejestrujemy powiadomienie wstępne (Art. 18(3)) i odczekujemy krótki czas; następnie potwierdzasz ponownie, aby faktycznie wznowić przetwarzanie.",
+      "step1Button": "Wyślij powiadomienie wstępne",
+      "step1Sending": "Wysyłanie powiadomienia…",
+      "step1Done": "Powiadomienie wstępne wysłane. Możesz sfinalizować zniesienie po {{time}}.",
+      "step2Button": "Sfinalizuj zniesienie",
+      "step2Submitting": "Finalizowanie…",
+      "step2DisabledHint": "Dostępne za {{seconds}} s",
+      "doneTitle": "Ograniczenie zniesione",
+      "doneBody": "Przetwarzanie zostało wznowione. Możesz zamknąć ten dialog.",
+      "close": "Zamknij",
+      "error": "Nie można znieść ograniczenia: {{message}}"
+    },
+    "erasure": {
+      "title": "Usuń moje konto",
+      "dangerLabel": "Strefa zagrożenia",
+      "explainer": "Artykuł 17 — prawo do usunięcia. Trwale usuwa Twoje wydatki, kategorie i konto u dostawcy tożsamości. Nie ma cofnięcia.",
+      "expandHint": "Stuknij, aby pokazać kontrolki usuwania.",
+      "openButton": "Chcę usunąć moje konto"
+    },
+    "sessions": {
+      "title": "Aktywne sesje",
+      "explainer": "Wylogowuje Cię z każdej przeglądarki, karty i aplikacji mobilnej, w której jesteś aktualnie zalogowany. Tutaj również trzeba będzie zalogować się ponownie.",
+      "signOutEverywhereButton": "Wyloguj wszędzie",
+      "signingOut": "Wylogowywanie…",
+      "error": "Nie można wylogować wszędzie: {{message}}"
+    },
+    "eraseDialog": {
+      "title": "Usuń trwale swoje konto",
+      "warningTitle": "Tego nie można cofnąć",
+      "warningBody": "Po potwierdzeniu natychmiast zostanie usunięte:",
+      "consequence1": "Każdy wydatek i kategoria, którą zarejestrowałeś",
+      "consequence2": "Każde zdarzenie w dzienniku audytu, które Cię wymienia",
+      "consequence3": "Twoje konto logowania Keycloak (jeśli kaskada operatora jest skonfigurowana)",
+      "noticeExport": "Jeśli najpierw chcesz uzyskać kopię danych, anuluj ten dialog i użyj <1>Eksport i import</1> w panelu bocznym.",
+      "ackPermanent": "Rozumiem, że usunięcie jest trwałe i nieodwracalne.",
+      "ackExported": "Wyeksportowałem już wszystkie dane, które chcę zachować.",
+      "ackLogin": "Rozumiem, że moje konto logowania zostanie usunięte.",
+      "typeUsernameLabel": "Wpisz swoją nazwę użytkownika, aby potwierdzić",
+      "typeUsernameHelper": "Wpisz dokładnie: {{username}}",
+      "typeUsernameMismatch": "Nazwa użytkownika nie zgadza się.",
+      "continueButton": "Kontynuuj",
+      "cancelButton": "Anuluj"
+    },
+    "eraseConfirmDialog": {
+      "title": "Ostatnia szansa",
+      "body": "Zamierzasz trwale usunąć konto <1>{{username}}</1>. Przycisk aktywuje się za {{seconds}} s.",
+      "deleteButton": "Usuń na zawsze",
+      "deleteButtonReady": "Usuń na zawsze ({{seconds}} s)",
+      "deleting": "Usuwanie…",
+      "error": "Usunięcie nie powiodło się: {{message}}"
+    },
+    "erasedSummary": {
+      "title": "Twoje konto zostało usunięte",
+      "subtitle": "Podsumowanie kaskady",
+      "eventsDeleted": "Usunięto {{count}} zdarzeń",
+      "projectionsDeleted": "Usunięto {{count}} wydatków",
+      "categoriesDeleted": "Usunięto {{count}} kategorii",
+      "keycloakDeleted": "Konto u dostawcy tożsamości: {{state}}",
+      "keycloakDeletedYes": "usunięte",
+      "keycloakDeletedNo": "nadal obecne — skontaktuj się z operatorem",
+      "occurredAt": "Zarejestrowano o {{time}}",
+      "followUpTitle": "Kolejne kroki",
+      "logoutCountdown": "Zostaniesz wylogowany za {{seconds}} s.",
+      "logoutNow": "Wyloguj teraz"
+    }
+  },
+  "admin": {
+    "users": {
+      "pageTitle": "Administracja użytkownikami",
+      "pageSubtitle": "Operacje RODO na dowolnym użytkowniku. Wymaga roli realm gdpr-admin.",
+      "lookup": {
+        "title": "Wyszukaj użytkownika",
+        "label": "Identyfikator użytkownika (UUID z pola `sub` Keycloak)",
+        "placeholder": "00000000-0000-0000-0000-00000000000a",
+        "helper": "Wklej UUID podmiotu z Keycloak. API nie udostępnia listy użytkowników — identyfikatory pochodzą z konsoli administracyjnej IdP.",
+        "loadButton": "Wczytaj",
+        "clearButton": "Wyczyść",
+        "selectedLabel": "Aktualnie wyświetlany: <1>{{userId}}</1>"
+      },
+      "restriction": {
+        "title": "Ograniczenie (Art. 18)",
+        "restrictedHeadline": "{{userId}} jest ograniczony.",
+        "noneHeadline": "{{userId}} nie ma aktywnego ograniczenia.",
+        "restrictButton": "Ogranicz tego użytkownika",
+        "liftButton": "Znieś ograniczenie",
+        "reasonRequiredHelper": "Notatka z powodem jest wymagana dla ograniczeń nałożonych przez operatora."
+      },
+      "restrictDialog": {
+        "title": "Ogranicz przetwarzanie użytkownika",
+        "body": "Nakładasz ograniczenie w imieniu użytkownika. Notatka z powodem jest obowiązkowa i zapisana w dzienniku audytu.",
+        "reasonLabel": "Powód (wymagany)",
+        "reasonRequired": "Powód jest wymagany.",
+        "reasonTooShort": "Powód musi mieć co najmniej 10 znaków."
+      },
+      "erasure": {
+        "title": "Usuń użytkownika (Art. 17)",
+        "dangerLabel": "Usunięcie przez operatora",
+        "explainer": "Używaj tego tylko wtedy, gdy użytkownik nie może obsłużyć tego sam (zablokowane konto, tożsamość zweryfikowana poza kanałem, orzeczenie sądu). Dziennik audytu rejestruje Cię jako wykonawcę.",
+        "openButton": "Usuń tego użytkownika"
+      },
+      "sessions": {
+        "title": "Aktywne sesje",
+        "explainer": "Wymusza zakończenie każdej sesji tego użytkownika. Następne żądanie otrzyma 401. Używaj dla skompromitowanych kont, zgubionych urządzeń lub gdy musisz natychmiast cofnąć dostęp.",
+        "signOutButton": "Wymuś wylogowanie",
+        "signingOut": "Wylogowywanie…",
+        "success": "Wszystkie sesje {{userId}} zostały zakończone.",
+        "error": "Nie można zakończyć sesji: {{message}}"
+      },
+      "eraseDialog": {
+        "title": "Usuń trwale tego użytkownika",
+        "warningBody": "Po potwierdzeniu natychmiast zostanie usunięte dla <1>{{userId}}</1>:",
+        "ackResponsibility": "Potwierdzam, że działam na podstawie zweryfikowanego żądania lub podstawy prawnej.",
+        "ackPermanent": "Rozumiem, że usunięcie jest trwałe i nieodwracalne.",
+        "ackAuditLog": "Rozumiem, że mój identyfikator administratora zostanie zapisany w dzienniku audytu.",
+        "reasonLabel": "Notatka z powodem (wymagana, zapisywana w audycie)",
+        "reasonHelper": "Minimum 10 znaków. Przykład: „Podmiot złożył poświadczone notarialnie żądanie usunięcia pocztą 2026-06-01.”",
+        "reasonRequired": "Powód jest wymagany.",
+        "reasonTooShort": "Powód musi mieć co najmniej 10 znaków.",
+        "typeUserIdLabel": "Wpisz identyfikator użytkownika, aby potwierdzić",
+        "typeUserIdHelper": "Wpisz dokładnie: {{userId}}",
+        "typeUserIdMismatch": "Identyfikator użytkownika nie zgadza się."
+      },
+      "eraseConfirmDialog": {
+        "body": "Zamierzasz trwale usunąć konto <1>{{userId}}</1>. Przycisk aktywuje się za {{seconds}} s."
+      },
+      "erasedSummary": {
+        "title": "Użytkownik został usunięty",
+        "doneButton": "Gotowe"
+      }
+    }
+  }
+}

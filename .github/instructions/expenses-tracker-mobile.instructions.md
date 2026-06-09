@@ -33,8 +33,11 @@ no corresponding file-sync subsystem.
 - **Testing**: Vitest for pure-TS code (`src/domain/`, `src/sync/`, `src/api/`,
   `src/utils/`). RN component / hook tests are out of scope for the current
   setup — adding them would require `jest-expo`.
-- **i18n**: `i18next` + `react-i18next` (locale JSON files mirrored from
-  `expenses-tracker-frontend/src/i18n/locales/`).
+- **i18n**: `i18next` + `react-i18next`. Locale JSON files are OWNED by
+  the mobile module — translations are independent from the web frontend.
+  To add a new language, copy `src/i18n/locales/en.json` to `<lang>.json`
+  and translate. Intra-module key parity is enforced by
+  `scripts/check-locale-parity.mjs` via `npm run typecheck`.
 
 ---
 
@@ -82,7 +85,7 @@ expenses-tracker-mobile/
 │   ├── context/              # PreferencesProvider, SyncProvider, useAutoSync
 │   ├── components/           # Shared RN Paper components (charts, dialogs, list rows)
 │   ├── theme/                # MD3 light/dark theme (folder, not single file)
-│   ├── i18n/                 # i18next bootstrap + locale JSON (web-mirrored)
+│   ├── i18n/                 # i18next bootstrap + locale JSON (mobile-owned)
 │   ├── utils/                # time, format, dateRange, calculator, chartTicks, …
 │   ├── queryClient.ts        # Singleton TanStack QueryClient
 │   └── test/                 # In-memory fakes (LocalStore, CloudDriveAdapter) + fixtures
@@ -299,11 +302,14 @@ These extend (not replace) the cross-cutting rules in
 
 - One `domain/mapping.ts` for all event ↔ projection conversion. Components
   must not map by hand.
-- Locale JSON copied from `expenses-tracker-frontend/src/i18n/locales/`
-  via a build-time copy step (Phase 4) — single source of truth for keys.
 - **Deliberately NOT DRY**: domain types are duplicated from backend Kotlin
   in TypeScript. The **JSON wire format is the contract**, not the source
   code. Do not extract a shared TS package.
+- **Deliberately NOT DRY**: locale JSON is duplicated between mobile and
+  web. Each module owns its own translations because the UX, surface area,
+  and mobile-only keys diverge. To add a new language in the mobile
+  module, copy `src/i18n/locales/en.json` to `<lang>.json` and translate
+  in place — do NOT copy from the web frontend.
 
 ### Functional DI ("constructor injection in spirit")
 
@@ -416,11 +422,15 @@ Identical rules to the web module:
 - Type any stored key with `ParseKeys` from `i18next`.
 - Never concatenate user-facing strings — always `translate('some.key', { … })`
   with placeholders.
-- Locale JSON files are **copied at build time** from
-  `expenses-tracker-frontend/src/i18n/locales/` so keys stay in sync.
-- Mobile-only keys live in a separate `expenses-tracker-mobile/src/i18n/locales/<lang>.mobile.json`
-  bundle merged at runtime — do not modify the web frontend's locale JSON
-  for mobile-only strings.
+- Locale JSON files in `expenses-tracker-mobile/src/i18n/locales/` are
+  **owned by the mobile module** and edited in place. They are NOT mirrored
+  from the web frontend — each module maintains its own translations
+  because the UX, surface area, and mobile-only keys diverge.
+- To add a new language, copy `src/i18n/locales/en.json` to `<lang>.json`
+  and translate. After that the file is independent — do not copy across
+  modules to "resync" wording.
+- Intra-module key parity (every locale matches `en.json`) is enforced by
+  `scripts/check-locale-parity.mjs`, wired into `npm run typecheck`.
 
 ---
 
