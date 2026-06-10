@@ -1,1 +1,105 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="5" ry="5" fill="#6870fa"/><g fill="#ffffff"><rect x="2.1" y="15.5" width="3.05" height="6.1" rx="0.7"/><rect x="6.55" y="12.65" width="3.05" height="8.95" rx="0.7"/><rect x="11" y="9.4" width="3.05" height="12.2" rx="0.7"/></g><circle cx="17.8" cy="6.3" r="4" fill="#6870fa" stroke="#ffffff" stroke-width="1.2"/><g transform="translate(17.8 6.3) scale(0.0091) translate(-512 -512)" fill="none" stroke="#ffffff" stroke-width="100" stroke-linecap="round" stroke-linejoin="round"><path d="M 680 360 Q 680 240 512 240 Q 344 240 344 400 Q 344 520 512 520 Q 680 520 680 624 Q 680 784 512 784 Q 344 784 344 664"/><line x1="512" y1="188" x2="512" y2="838"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0"    stop-color="#7ec8ff"/>
+      <stop offset="0.35" stop-color="#6870fa"/>
+      <stop offset="0.75" stop-color="#4f57d6"/>
+      <stop offset="1"    stop-color="#1f267d"/>
+    </linearGradient>
+    <radialGradient id="tileGlow" cx="0.85" cy="0.1" r="0.7">
+      <stop offset="0"    stop-color="#6be3ff" stop-opacity="0.55"/>
+      <stop offset="0.55" stop-color="#7c84ff" stop-opacity="0.18"/>
+      <stop offset="1"    stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="tileGlow2" cx="0.1" cy="0.95" r="0.7">
+      <stop offset="0"   stop-color="#a07cff" stop-opacity="0.45"/>
+      <stop offset="0.6" stop-color="#5e67e6" stop-opacity="0.15"/>
+      <stop offset="1"   stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="sheen" cx="0.5" cy="0" r="0.85">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="tileShade" cx="0.5" cy="1" r="0.95">
+      <stop offset="0.55" stop-color="#0f1450" stop-opacity="0"/>
+      <stop offset="1"    stop-color="#0f1450" stop-opacity="0.4"/>
+    </radialGradient>
+    <linearGradient id="surface" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0"    stop-color="#ffffff"/>
+      <stop offset="0.55" stop-color="#eef1ff"/>
+      <stop offset="1"    stop-color="#d1d8ff"/>
+    </linearGradient>
+    <radialGradient id="surfaceGlow" cx="0.3" cy="0.25" r="0.85">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="wedgeA" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0"    stop-color="#c3eaff"/>
+      <stop offset="0.5"  stop-color="#8ec5ff"/>
+      <stop offset="1"    stop-color="#6870fa"/>
+    </linearGradient>
+    <linearGradient id="wedgeB" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"    stop-color="#eef0ff"/>
+      <stop offset="0.55" stop-color="#bcc1ff"/>
+      <stop offset="1"    stop-color="#8a92ff"/>
+    </linearGradient>
+    <linearGradient id="divider" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0"   stop-color="#9ad6ff"/>
+      <stop offset="0.5" stop-color="#2a309e"/>
+      <stop offset="1"   stop-color="#9ad6ff"/>
+    </linearGradient>
+    <linearGradient id="sMono" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0"    stop-color="#5fa9ff"/>
+      <stop offset="0.4"  stop-color="#4f57d6"/>
+      <stop offset="1"    stop-color="#1a1f6e"/>
+    </linearGradient>
+    <linearGradient id="walletBody" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0"    stop-color="#ffffff"/>
+      <stop offset="0.55" stop-color="#e6edff"/>
+      <stop offset="1"    stop-color="#c1c8ff"/>
+    </linearGradient>
+    <linearGradient id="walletFold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"    stop-color="#bcc1ff"/>
+      <stop offset="0.5"  stop-color="#8ec5ff"/>
+      <stop offset="1"    stop-color="#7c84ff"/>
+    </linearGradient>
+    <linearGradient id="clasp" x1="0" y1="0" x2="1" y2="0.6">
+      <stop offset="0"    stop-color="#8ec5ff"/>
+      <stop offset="0.55" stop-color="#4f57d6"/>
+      <stop offset="1"    stop-color="#1a1f6e"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#tile)"/>
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#tileGlow)"/>
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#tileGlow2)"/>
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#sheen)"/>
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#tileShade)"/>
+
+  <g transform="translate(717 338)">
+    <circle r="205" fill="url(#surface)" stroke="#2a309e" stroke-width="7" stroke-opacity="0.35"/>
+    <circle r="205" fill="url(#surfaceGlow)"/>
+    <path d="M 0 0 L 0 -205 A 205 205 0 0 1 205 0 Z" fill="url(#wedgeA)"/>
+    <path d="M 0 0 L 205 0 A 205 205 0 0 1 109 174 Z" fill="url(#wedgeB)"/>
+    <g stroke="url(#divider)" stroke-width="11" stroke-linecap="round" opacity="0.9">
+      <line x1="0" y1="0" x2="0" y2="-205"/>
+      <line x1="0" y1="0" x2="205" y2="0"/>
+      <line x1="0" y1="0" x2="109" y2="174"/>
+    </g>
+  </g>
+
+  <rect x="94" y="434" width="746" height="446" rx="72" ry="72"
+        fill="url(#walletBody)" stroke="#2a309e" stroke-width="7" stroke-opacity="0.32"/>
+  <rect x="94" y="735" width="746" height="145" rx="72" ry="72" fill="url(#walletFold)"/>
+  <line x1="130" y1="735" x2="804" y2="735" stroke="#4f57d6" stroke-width="3.3" stroke-opacity="0.4"/>
+  <rect x="646" y="583" width="194" height="102" rx="29" ry="29" fill="url(#clasp)"/>
+  <rect x="657" y="592" width="172" height="31" rx="16" ry="16" fill="#ffffff" opacity="0.22"/>
+
+  <text x="465" y="785"
+        font-family="Georgia, 'Times New Roman', 'DejaVu Serif', serif"
+        font-size="380"
+        font-weight="bold"
+        font-style="italic"
+        text-anchor="middle"
+        fill="url(#sMono)">S</text>
+</svg>
