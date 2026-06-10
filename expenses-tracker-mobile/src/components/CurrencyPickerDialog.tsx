@@ -24,6 +24,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { AppDialog } from './AppDialog';
+import { PortalSafeTextInput } from './PortalSafeTextInput';
 
 /**
  * Curated set of currencies offered in the picker. Frankfurter v2
@@ -90,7 +91,9 @@ export function CurrencyPickerDialog({
       title={translate('currencyDialog.title')}
     >
       <Dialog.Content style={styles.content}>
-        <TextInput
+        {/* PortalSafeTextInput, not Paper's TextInput directly — see
+            PortalSafeTextInput.tsx for the Portal cursor-jump bug. */}
+        <PortalSafeTextInput
           mode="outlined"
           dense
           placeholder={translate('currencyDialog.searchPlaceholder')}

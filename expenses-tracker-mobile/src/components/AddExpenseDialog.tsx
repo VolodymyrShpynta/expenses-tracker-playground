@@ -23,7 +23,6 @@ import {
   HelperText,
   Portal,
   Text,
-  TextInput,
   useTheme,
 } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,6 +35,7 @@ import { SingleDatePickerDialog } from './DatePickerDialogs';
 import { AmountKeypad } from './AmountKeypad';
 import { HeaderTile } from './HeaderTile';
 import { ExpenseSuggestionList } from './ExpenseSuggestionList';
+import { PortalSafeTextInput } from './PortalSafeTextInput';
 import { useCalculator } from '../utils/useCalculator';
 import { useCategoryLookup } from '../hooks/useCategoryLookup';
 import {
@@ -346,8 +346,10 @@ function AddExpenseDialogContent({
                   </View>
                 </View>
 
-                {/* ---- Description (italic, centered) -------------------- */}
-                <TextInput
+                {/* ---- Description (italic, centered) --------------------
+                  PortalSafeTextInput, not Paper's TextInput directly — see
+                  PortalSafeTextInput.tsx for the Portal cursor-jump bug. */}
+                <PortalSafeTextInput
                   mode="outlined"
                   placeholder={translate('expenseDialog.description')}
                   value={description}

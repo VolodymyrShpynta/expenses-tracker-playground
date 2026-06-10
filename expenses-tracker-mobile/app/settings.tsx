@@ -17,7 +17,6 @@ import {
   Portal,
   RadioButton,
   Text,
-  TextInput,
   TouchableRipple,
   useTheme,
 } from 'react-native-paper';
@@ -28,6 +27,7 @@ import { ThemedButton as Button } from '../src/components/ThemedButton';
 import { AppDialog } from '../src/components/AppDialog';
 import { CategoryAvatar } from '../src/components/CategoryAvatar';
 import { ExportImportDialog } from '../src/components/ExportImportDialog';
+import { PortalSafeTextInput } from '../src/components/PortalSafeTextInput';
 import { SyncCloudDialog } from '../src/components/SyncCloudDialog';
 import { ThemeModePickerDialog } from '../src/components/ThemeModePickerDialog';
 import { FontSizePickerDialog } from '../src/components/FontSizePickerDialog';
@@ -744,7 +744,9 @@ function CategoryFormDialog({
     >
       <Dialog.ScrollArea style={{ paddingHorizontal: 0 }}>
         <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingVertical: 8, gap: 16 }}>
-          <TextInput
+          {/* PortalSafeTextInput, not Paper's TextInput directly — see
+              PortalSafeTextInput.tsx for the Portal cursor-jump bug. */}
+          <PortalSafeTextInput
             mode="outlined"
             label={translate('categoryDialog.name')}
             value={name}

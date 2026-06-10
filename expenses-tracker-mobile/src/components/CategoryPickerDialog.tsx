@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next';
 
 import { AppDialog } from './AppDialog';
 import { CategoryAvatar } from './CategoryAvatar';
+import { PortalSafeTextInput } from './PortalSafeTextInput';
 import { useCategories } from '../hooks/useCategories';
 import { useCategoryLookup } from '../hooks/useCategoryLookup';
 
@@ -72,7 +73,9 @@ export function CategoryPickerDialog({
       title={translate('categoryDialog.pickTitle')}
     >
       <Dialog.Content style={styles.content}>
-        <TextInput
+        {/* PortalSafeTextInput, not Paper's TextInput directly — see
+            PortalSafeTextInput.tsx for the Portal cursor-jump bug. */}
+        <PortalSafeTextInput
           mode="outlined"
           dense
           placeholder={translate('categoryDialog.searchPlaceholder')}
