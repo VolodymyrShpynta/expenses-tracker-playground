@@ -653,7 +653,7 @@ You have three options for running the app during development. Pick whichever fi
 
 > Expo Go is fine for the JS-only parts of this app, but **OAuth via `expo-auth-session` and
 > `expo-secure-store` need a custom dev client**. For full cloud-drive sync testing on a physical
-> device, build a dev client with `npx eas build --profile development --platform <android|ios>`
+> device, build a dev client with `eas build --profile development --platform <android|ios>`
 > and install the resulting `.apk` / `.ipa`.
 
 #### Option 2 — Android emulator (Windows / macOS / Linux)
@@ -749,7 +749,7 @@ Three escalation paths in order of effort:
 2. **Genymotion Personal** (free for non-commercial use). Runs on VirtualBox instead of
    WHPX / Hyper-V and is dramatically more stable on Windows. Pairs cleanly with Android
    Studio's `adb`.
-3. **EAS preview build + same physical device** — `npx eas build --profile preview
+3. **EAS preview build + same physical device** — `eas build --profile preview
    --platform android`, install the APK. Useful for reproducing release-mode bugs.
 
 #### Option 3 — iOS Simulator (macOS only)
@@ -776,7 +776,7 @@ Three escalation paths in order of effort:
 
 > iOS Simulator is **not available on Windows or Linux** — there is no legal way to run it
 > outside macOS. From a Windows machine, use the Android emulator locally and rely on
-> `npx eas build --platform ios` (cloud build) when you need an iOS artifact.
+> `eas build --platform ios` (cloud build) when you need an iOS artifact.
 
 ### Verifying the setup
 
@@ -797,10 +797,10 @@ To produce installable builds via EAS (Expo Application Services):
 
 ```bash
 # Android (works from Windows / macOS / Linux — cloud build by default)
-npx eas build --platform android --profile preview
+eas build --platform android --profile preview
 
 # iOS (requires an Apple developer account and either macOS or EAS cloud)
-npx eas build --platform ios --profile preview
+eas build --platform ios --profile preview
 ```
 
 ---
@@ -914,15 +914,22 @@ auto-increment of `versionCode`.
 
 ```powershell
 cd expenses-tracker-mobile
-npx eas login          # opens a browser; sign up at https://expo.dev if you don't have an account
-npx eas whoami         # verify
+npm install -g eas-cli   # one-time global install of the EAS CLI
+eas login                # opens a browser; sign up at https://expo.dev if you don't have an account
+eas whoami               # verify
 ```
+
+> **Heads up — `npx eas …` does NOT work.** The npm package is named `eas-cli`, but the
+> executable it installs is named `eas`. `npx` looks up *package* names, not bin names, so
+> `npx eas login` fails with `npm error could not determine executable to run`. Either install
+> `eas-cli` globally as above (then run `eas …` directly), or use the explicit package name:
+> `npx eas-cli login`. All `eas …` commands below assume the global install.
 
 **2. Link the project to an EAS project ID** *(Options A & B)* — on first build EAS writes
 `extra.eas.projectId` into [`app.json`](./app.json); accept the prompt and commit the change:
 
 ```powershell
-npx eas project:init
+eas project:init
 ```
 
 **3. Configure OAuth client IDs** *(all options)* so cloud-drive sync works in the release build —
@@ -941,7 +948,7 @@ client IDs are wired in.
 
 ```powershell
 cd expenses-tracker-mobile
-npx eas build --platform android --profile preview
+eas build --platform android --profile preview
 ```
 
 This uploads the source tarball to Expo's build servers (10–15 min). EAS prints a build URL and a QR
@@ -950,14 +957,14 @@ code; both lead to the finished `.apk`.
 > **First-ever build for this `package` (`com.vshpynta.spendium`):** EAS prompts to generate a
 > release keystore and stores it in your Expo account. **Don't lose that account** — every future
 > upgrade of the same app must be signed with the same keystore, or Android will refuse to install
-> over the existing one. Run `npx eas credentials` to back the keystore up locally if you care about
+> over the existing one. Run `eas credentials` to back the keystore up locally if you care about
 > long-term recoverability.
 
 ### Option B — Local cloud-free build (`--local` flag)
 
-```powershell
+```bash
 cd expenses-tracker-mobile
-npx eas build --platform android --profile preview --local
+eas build --platform android --profile preview --local
 ```
 
 This runs the same pipeline as Option A on **your** machine — no Expo cloud round-trip. Requires
@@ -967,8 +974,17 @@ already documents:
 - **JDK 17–21** (not 22+) with `JAVA_HOME` pointed at it.
 - Android SDK (platform 34+), NDK 27.x, and CMake 3.22+ — all installable through Android Studio's
   SDK Manager.
-- **Windows only**: long-path support enabled (registry flag + git config + Ninja override). See the
-  three host-level prerequisites under the `expo run:android` section.
+
+> **Windows is NOT supported by `eas build --local`.** Running it from PowerShell fails immediately
+> with `Unsupported platform, macOS or Linux is required to build apps for Android` — the EAS local
+> pipeline shells out to bash and assumes a POSIX environment. On Windows you have three options:
+>
+> 1. **Stay on Option A** (cloud build) — same artifact, zero extra setup.
+> 2. **Use WSL2 + Ubuntu.** Full one-time setup (install WSL2, JDK 17, Android cmdline-tools, etc.)
+>    is documented in [GOOGLE-PLAY-DEPLOYMENT.md → Option B → Windows: one-time WSL2 setup](GOOGLE-PLAY-DEPLOYMENT.md#windows-one-time-wsl2-setup).
+>    The same setup works for `preview` builds — just swap the profile.
+> 3. **Use Option C** (pure Gradle) below — it's Windows-native and bypasses EAS entirely. The
+>    trade-off is that you manage your own keystore and `versionCode`.
 
 Output is a single `build-<timestamp>.apk` written to `expenses-tracker-mobile/` itself.
 
@@ -1072,7 +1088,7 @@ install — if signatures differ, `adb uninstall com.vshpynta.spendium` first.
   asks **"Allow OneDrive (or Drive / Dropbox / your browser) to install unknown apps"** — enable it
   for that app and proceed. Android then shows a Play-Protect warning ("an unknown developer…"); tap
   **More details → Install anyway**. This is the easiest path when you don't have `adb` set up.
-- **EAS build URL** (Options A & B only). Open the build URL from `npx eas build` on the phone, tap
+- **EAS build URL** (Options A & B only). Open the build URL from `eas build` on the phone, tap
   the `.apk` link, follow the same "Install unknown apps" → "Install anyway" prompts.
 - **Self-hosted HTTP server.** From the APK's directory on your PC, run
   `python -m http.server 8000`, then open `http://<your-PC-LAN-ip>:8000/app-release.apk` on the phone
@@ -1134,7 +1150,7 @@ for both iOS and Android.
 > npx expo run:ios
 >
 > # Or build a dev client in the cloud and install the resulting .apk / .ipa:
-> npx eas build --profile development --platform android
+> eas build --profile development --platform android
 > ```
 >
 > Inside a dev build, `AuthSession.makeRedirectUri({ scheme: 'spendium', path: 'redirect' })`
@@ -1200,28 +1216,52 @@ for both iOS and Android.
    bundle / package identifier `com.vshpynta.spendium`:
     - **iOS** — Application type **iOS**, Bundle ID `com.vshpynta.spendium`.
     - **Android** — Application type **Android**, Package name `com.vshpynta.spendium`, plus
-      the **SHA-1 certificate fingerprint** of the keystore that signs your APK. There are two cases
-      depending on how you build:
-      - **Local Gradle builds** — e.g. `npx expo run:android`, or the typical release-APK command
-        run from `expenses-tracker-mobile/android/`:
-        ```pwsh
-        .\gradlew.bat assembleRelease -PreactNativeArchitectures=arm64-v8a
-        ```
-        The project's `android/app/build.gradle` currently signs both debug *and* release with the
-        bundled `android/app/debug.keystore` (see `signingConfigs.debug`), so this is the SHA-1 you
-        need for the APKs you sideload during development. From the **same `android/` directory**
-        where you ran the build above:
+      the **SHA-1 certificate fingerprint** of the keystore that signs the APK Google delivers to
+      end-user devices. Pick the SHA-1 based on how that APK is actually signed:
+
+      - **Play-distributed builds (Internal/Closed/Production tracks)** — this is the case for any
+        build a tester or end user installs from the Play Store, regardless of whether you uploaded
+        the `.aab` via EAS Cloud (`eas submit`), EAS Local, or pure Gradle. **Play App Signing**
+        strips the upload key on Google's servers and re-signs the APK with Google's own
+        *app signing key* before delivery, so the SHA-1 that matters at OAuth runtime is the
+        **app signing key SHA-1**, not the upload key SHA-1. Find it in Play Console:
+        **Protected with Play** → expand the **Play Store protection** row → **Protect app signing
+        key** sub-item → **Manage Play app signing** button (equivalent direct URL:
+        `https://play.google.com/console/u/0/developers/<DEVELOPER_ID>/app/<APP_ID>/keymanagement`).
+        Copy the **SHA-1 certificate fingerprint** value from the **App signing key certificate**
+        block (the top one — *not* the **Upload key certificate** block underneath) and paste it
+        into the OAuth client form.
+      - **Local Gradle / `npx expo run:android` builds** — only relevant if you sideload the APK
+        instead of installing it from a Play track. The project's `android/app/build.gradle`
+        currently signs both debug *and* release with the bundled `android/app/debug.keystore`
+        (see `signingConfigs.debug`), so use that keystore's SHA-1. From the
+        `expenses-tracker-mobile/android/` directory:
         ```pwsh
         keytool -list -v `
           -keystore "app\debug.keystore" `
           -alias androiddebugkey -storepass android -keypass android
         ```
-        Copy the line labeled `SHA1:` (40 hex chars separated by colons) into the form.
-      - **EAS-signed production builds (`eas build --platform android`).** EAS manages its own upload
-        keystore. Run `npx eas credentials` from `expenses-tracker-mobile/`, pick
-        **Android → production → Keystore: View**, and copy the SHA-1 from the output. Add it as a
-        **second** fingerprint on the same OAuth client — Google allows multiple SHA-1 entries per
-        Android client, so both local and EAS-signed APKs can sign in.
+        Copy the line labeled `SHA1:` (40 hex chars separated by colons).
+
+      > **Single SHA-1 per Android client (Google's current UI).** The Google Cloud Console no
+      > longer lets you register multiple SHA-1 fingerprints on one Android OAuth client — both
+      > the *Create* and *Edit* views accept exactly one. If you need OAuth to work in **both**
+      > the Play-signed track-installed build **and** locally-sideloaded debug builds, pick **one**
+      > of the two workarounds below — do not try to add a second fingerprint, the field doesn't
+      > exist:
+      > 1. **Swap the SHA-1 manually** when you switch which build you're testing OAuth in. Fast,
+      >    no code change. Acceptable when OAuth testing in local dev is rare. The OAuth client ID
+      >    stays the same either way, so the source-code constant
+      >    (`GOOGLE_OAUTH_CLIENT_ID_ANDROID`) doesn't move.
+      > 2. **Create a second OAuth client** (same package name `com.vshpynta.spendium`, different
+      >    SHA-1 — e.g. one for the Play App Signing key, one for the dev keystore). Each client
+      >    gets its own Client ID, so you'd have to inject the right ID at build time (e.g. via
+      >    `app.json` `extra` + `expo-constants`, switched per EAS build profile). More machinery;
+      >    only worth it if you regularly test OAuth in local-sideloaded debug builds.
+      >
+      > For everyday work, **prefer option 1 with the Play App Signing key SHA-1 registered**, since
+      > Play-installed builds are what real users run. The first time you sideload a debug build and
+      > Google rejects sign-in with `redirect_uri_mismatch` or `invalid_client`, you'll know to swap.
 
       After saving the Android client, open it again and scroll to **Advanced settings** at the
       bottom of the edit page. Toggle **Custom URI scheme → Enabled** and click **Save**. Since

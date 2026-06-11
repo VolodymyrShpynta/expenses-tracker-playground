@@ -2,12 +2,14 @@
   "expo": {
     "name": "Spendium",
     "slug": "expenses-tracker-mobile",
-    "version": "0.0.1",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": ["spendium", "com.vshpynta.spendium"],
+    "scheme": [
+      "spendium",
+      "com.vshpynta.spendium"
+    ],
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -27,7 +29,9 @@
         "backgroundImage": "./assets/adaptive-icon-bg.png",
         "backgroundColor": "#4f57d6"
       },
-      "permissions": ["INTERNET"]
+      "permissions": [
+        "INTERNET"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -41,6 +45,19 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b6a0e3ef-b020-4ea1-91d3-36ef42723b2a"
+      }
+    },
+    "owner": "vshpynta",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/b6a0e3ef-b020-4ea1-91d3-36ef42723b2a"
     }
   }
 }
