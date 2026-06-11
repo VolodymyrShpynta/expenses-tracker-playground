@@ -98,6 +98,9 @@
     <rect x="646" y="583" width="194" height="102" rx="29" ry="29" fill="url(#clasp)"/>
     <rect x="657" y="592" width="172" height="31" rx="16" ry="16" fill="#ffffff" opacity="0.22"/>
 
+    <line x1="441" y1="828" x2="498" y2="475"
+          stroke="url(#sMono)" stroke-width="30" stroke-linecap="round"/>
+
     <text x="465" y="785"
           font-family="Georgia, 'Times New Roman', 'DejaVu Serif', serif"
           font-size="380"
