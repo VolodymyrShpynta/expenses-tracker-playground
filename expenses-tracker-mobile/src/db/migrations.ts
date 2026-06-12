@@ -12,6 +12,7 @@
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { MIGRATIONS } from './schema';
+import { withExclusiveWriteTransaction } from './transactions';
 
 /**
  * Apply pending migrations in order. Returns the new schema version.
@@ -28,11 +29,16 @@ export async function migrate(db: SQLiteDatabase): Promise<number> {
   if (pending.length === 0) return current;
 
   for (const migration of pending) {
-    await db.withTransactionAsync(async () => {
-      await db.execAsync(migration.sql);
+    // Use the same exclusive-tx + busy_timeout helper that runtime
+    // writes use, so a startup migration cannot fail with
+    // `database is locked` if another connection (debugger inspector,
+    // background sync from a previous launch) briefly holds the write
+    // lock. Queries inside MUST go through `txn` per the Expo contract.
+    await withExclusiveWriteTransaction(db, async (txn) => {
+      await txn.execAsync(migration.sql);
       // PRAGMA does not accept bound parameters; safe because version is a
       // hard-coded literal from the MIGRATIONS array, not user input.
-      await db.execAsync(`PRAGMA user_version = ${migration.version}`);
+      await txn.execAsync(`PRAGMA user_version = ${migration.version}`);
     });
   }
 

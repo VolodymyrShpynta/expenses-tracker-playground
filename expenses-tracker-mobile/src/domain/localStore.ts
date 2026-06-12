@@ -9,6 +9,23 @@
  * The interface deliberately mirrors the operations exposed by the
  * backend's `ExpenseEventRepository` + `ExpenseProjectionRepository`
  * pair — including the same last-write-wins UPSERT semantics.
+ *
+ * ## Atomicity invariant (paired writes)
+ *
+ * Mutating methods are individually safe to call outside a transaction
+ * (they autocommit), but several MUST be called together as a single
+ * unit to keep the event store and the read-model projection in sync.
+ * Always wrap these in `store.transaction(async (tx) => { ... })` and
+ * use the `tx` argument for every call inside:
+ *
+ *   - `appendEvent` + `projectFromEvent` (or `markAsDeleted`)
+ *   - `appendCategoryEvent` + `projectCategoryFromEvent` (or `softDeleteCategory`)
+ *
+ * Splitting either pair across separate transactions recreates the
+ * consistency hazard the backend's `@Transactional` annotation on
+ * `ExpenseCommandService` prevents. New write code belongs in
+ * `src/domain/commands.ts` / `src/domain/categoryService.ts`; the
+ * sync apply path in `src/sync/` is the only other legitimate caller.
  */
 import type {
   Category,
@@ -40,7 +57,12 @@ export interface LocalStore {
 
   // -- expense_events -------------------------------------------------------
 
-  /** Append a new event to the event store. */
+  /**
+   * Append a new event to the event store.
+   *
+   * Paired-write: must run inside `store.transaction(...)` together with
+   * the matching `projectFromEvent` / `markAsDeleted` call.
+   */
   appendEvent(event: ExpenseEvent): Promise<void>;
 
   /** All uncommitted events, ordered by timestamp ASC. */
@@ -64,6 +86,9 @@ export interface LocalStore {
    * Returns the number of rows affected (`0` when the existing projection
    * has a strictly greater-or-equal `updatedAt`). Mirrors
    * `ExpenseProjectionRepository.projectFromEvent` — strict `>` comparison.
+   *
+   * Paired-write: must run inside `store.transaction(...)` together with
+   * the matching `appendEvent` call.
    */
   projectFromEvent(projection: ExpenseProjection): Promise<number>;
 
@@ -74,6 +99,9 @@ export interface LocalStore {
    * NOTE: this method ONLY transitions to `deleted=true` — it never
    * resurrects. Use `projectFromEvent` with `deleted=false` and a newer
    * timestamp to resurrect.
+   *
+   * Paired-write: must run inside `store.transaction(...)` together with
+   * the matching `appendEvent` call.
    */
   markAsDeleted(id: string, updatedAt: number): Promise<number>;
 
@@ -128,6 +156,9 @@ export interface LocalStore {
    * Used by both the local command path (where the fresh `updatedAt`
    * trivially wins) and the remote-apply path (where LWW resolves
    * cross-device conflicts).
+   *
+   * Paired-write: must run inside `store.transaction(...)` together with
+   * the matching `appendCategoryEvent` call.
    */
   projectCategoryFromEvent(category: Category): Promise<number>;
 
@@ -145,12 +176,20 @@ export interface LocalStore {
    * Soft-delete a category only when `updatedAt` is strictly newer than
    * the stored value. Mirrors `markAsDeleted` for expenses — only
    * transitions to deleted, never resurrects.
+   *
+   * Paired-write: must run inside `store.transaction(...)` together with
+   * the matching `appendCategoryEvent` call.
    */
   softDeleteCategory(id: string, updatedAt: number): Promise<number>;
 
   // -- category_events -----------------------------------------------------
 
-  /** Append a new category event to the event store. */
+  /**
+   * Append a new category event to the event store.
+   *
+   * Paired-write: must run inside `store.transaction(...)` together with
+   * the matching `projectCategoryFromEvent` / `softDeleteCategory` call.
+   */
   appendCategoryEvent(event: CategoryEvent): Promise<void>;
 
   /** All uncommitted category events, ordered by timestamp ASC. */

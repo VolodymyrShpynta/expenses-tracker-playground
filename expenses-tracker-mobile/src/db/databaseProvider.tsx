@@ -99,16 +99,24 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
  *   "every commit is durable" to "every checkpoint is durable", which is
  *   fine for an event-sourced store: the cloud sync file is the source of
  *   truth across devices, and a lost local commit is recoverable.
+ * - `busy_timeout = 5000` makes a writer wait up to 5 s for the lock
+ *   instead of failing immediately with `database is locked` when
+ *   another connection (e.g. an exclusive transaction on a dedicated
+ *   connection) is mid-write. The exclusive-tx connections need the
+ *   same pragma — see `withExclusiveWriteTransaction` in
+ *   `src/db/transactions.ts`.
  *
- * Both PRAGMAs are per-connection and persist across app launches when set
- * once on the database file (WAL mode is sticky in the SQLite file
- * header). Re-running them on every open is cheap and explicit.
+ * Journal mode and synchronous mode persist across opens via the SQLite
+ * file header; `busy_timeout` is per-connection and re-applied here on
+ * every open.
  */
 async function configureConnection(db: SQLite.SQLiteDatabase): Promise<void> {
   // PRAGMA journal_mode = WAL cannot be issued inside a transaction —
   // expo-sqlite's openDatabaseAsync hands us a clean connection so this
   // is safe here.
-  await db.execAsync('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;');
+  await db.execAsync(
+    'PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000;',
+  );
 }
 
 /** Access the shared `LocalStore`. Throws when used outside `DatabaseProvider`. */

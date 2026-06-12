@@ -21,6 +21,7 @@ import type {
   ExpenseProjection,
   EventType,
 } from '../domain/types';
+import { withExclusiveWriteTransaction } from './transactions';
 
 /** Boolean ↔ INTEGER conversions for SQLite (which has no native BOOLEAN). */
 const toInt = (b: boolean): number => (b ? 1 : 0);
@@ -120,34 +121,33 @@ function rowToCategoryEvent(row: CategoryEventRow): CategoryEvent {
  * Build a `LocalStore` bound to the given database handle. Caller is
  * responsible for calling `migrate(db)` before passing the handle in.
  *
- * Transactions are routed through `db.withExclusiveTransactionAsync`,
- * which opens a dedicated SQLite connection and serializes write
- * traffic at the native layer. Per the Expo contract, every query
- * issued inside the callback MUST go through the `txn` proxy — mixing
- * the outer `db` handle with an active exclusive transaction triggers
- * `database is locked`. We honour that contract by handing the action a
- * fresh `LocalStore` built on top of `txn`; callers route their nested
- * reads/writes through that `tx` argument.
+ * Transactions are routed through `withExclusiveWriteTransaction`,
+ * which wraps `db.withExclusiveTransactionAsync` so the dedicated
+ * connection has a `busy_timeout` set — without it, two concurrent
+ * writers on different connections fail immediately with
+ * `database is locked` (see `src/db/transactions.ts`). Per the Expo
+ * contract, every query issued inside the callback MUST go through the
+ * `txn` proxy — mixing the outer `db` handle with an active exclusive
+ * transaction triggers `database is locked`. We honour that contract by
+ * handing the action a fresh `LocalStore` built on top of `txn`;
+ * callers route their nested reads/writes through that `tx` argument.
  */
 export function createSqliteLocalStore(db: SQLiteDatabase): LocalStore {
   const transaction: TransactionRunner = async <T>(
     action: (tx: LocalStore) => Promise<T>,
   ): Promise<T> => {
-    let captured: T | undefined;
-    let didCapture = false;
-    await db.withExclusiveTransactionAsync(async (txn) => {
+    // `withExclusiveWriteTransaction` only returns after the callback
+    // resolves successfully (errors propagate via throw), so the
+    // captured value is guaranteed to be set by the time we read it.
+    let captured!: T;
+    await withExclusiveWriteTransaction(db, async (txn) => {
       // `txn` is a Transaction (extends SQLiteDatabase) bound to the
       // exclusive connection. Wrap it in a LocalStore so the action's
       // store calls hit the transaction connection, not the outer db.
       const txStore = buildLocalStore(txn);
       captured = await action(txStore);
-      didCapture = true;
     });
-    if (!didCapture) {
-      // Should be unreachable: withExclusiveTransactionAsync only returns on success.
-      throw new Error('SQLite transaction completed without producing a result');
-    }
-    return captured as T;
+    return captured;
   };
 
   return buildLocalStore(db, transaction);

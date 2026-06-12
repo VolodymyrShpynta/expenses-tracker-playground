@@ -19,6 +19,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { HistoricalRates, LatestRates } from '../domain/exchangeRates';
+import { withExclusiveWriteTransaction } from './transactions';
 
 /** Sentinel `period_start` value reserved for the live fallback rate. */
 export const LATEST_PERIOD = 'LATEST' as const;
@@ -105,7 +106,10 @@ export function createExchangeRateStore(db: SQLiteDatabase): ExchangeRateStore {
       // the shared connection can't collide on BEGIN. Per the Expo
       // contract every query MUST go through the `txn` proxy — the
       // outer `db` handle would deadlock against the exclusive transaction.
-      await db.withExclusiveTransactionAsync(async (txn) => {
+      // `withExclusiveWriteTransaction` also sets `busy_timeout` so a
+      // concurrent writer on another connection waits for the lock
+      // instead of failing fast with `database is locked`.
+      await withExclusiveWriteTransaction(db, async (txn) => {
         for (const row of rows) {
           await txn.runAsync(
             `INSERT INTO exchange_rates (base, quote, period_start, rate, fetched_at)
