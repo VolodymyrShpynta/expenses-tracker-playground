@@ -17,11 +17,11 @@
  * Two title-bar shapes
  * --------------------
  *   - **Default** (`showCloseButton: true`, the default) — used by the
- *     Category picker and Manage Categories: a custom title row with a
- *     close (X) button on the right edge, because those dialogs do not
- *     auto-dismiss on selection (search-and-pick / multi-action).
+ *     Category picker, Manage Categories, and the Language picker: a
+ *     custom title row with a close (X) button on the right edge, so
+ *     the user can always dismiss without committing to a selection.
  *   - **No close button** (`showCloseButton: false`) — used by the
- *     Language / Currency / Dark mode / Font size pickers: a plain
+ *     Currency / Dark mode / Font size pickers: a plain
  *     `Dialog.Title` row, because those dialogs auto-dismiss as soon as
  *     the user picks a radio option, so the X would be redundant.
  *
@@ -60,8 +60,8 @@ export interface AppDialogProps {
   /**
    * Render a close (X) button on the right side of the title row.
    * Defaults to `true`. Set to `false` for radio-list pickers that
-   * auto-dismiss on selection (Language, Currency, Dark mode, Font
-   * size) so the redundant X doesn't add visual noise.
+   * auto-dismiss on selection (Currency, Dark mode, Font size) so the
+   * redundant X doesn't add visual noise.
    */
   readonly showCloseButton?: boolean;
 }

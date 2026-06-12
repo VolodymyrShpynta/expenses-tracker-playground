@@ -198,7 +198,6 @@ function LanguageDialog({ visible, onDismiss }: { visible: boolean; onDismiss: (
       visible={visible}
       onDismiss={onDismiss}
       title={translate('languageDialog.title')}
-      showCloseButton={false}
     >
       <Dialog.Content>
         <RadioButton.Group
