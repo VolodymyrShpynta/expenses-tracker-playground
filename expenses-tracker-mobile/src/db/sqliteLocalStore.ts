@@ -13,7 +13,11 @@
  * `src/test/inMemoryLocalStore.ts` (which mirrors the same semantics).
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
-import type { LocalStore, TransactionRunner } from '../domain/localStore';
+import type {
+  LocalStore,
+  PruneCommittedEventsResult,
+  TransactionRunner,
+} from '../domain/localStore';
 import type {
   Category,
   CategoryEvent,
@@ -439,6 +443,52 @@ function buildLocalStore(
         );
       }
     },
+
+    // -- retention prune ----------------------------------------------------
+
+    async pruneCommittedEvents(cutoff: number): Promise<PruneCommittedEventsResult> {
+      // When the outer store is in play we open our own exclusive write
+      // transaction so the three DELETEs land atomically. When called
+      // through the tx-bound store (inside `store.transaction(...)`)
+      // there is no outer `transaction` runner and we are already on a
+      // write-locked tx connection, so we just issue the statements.
+      if (transaction === undefined) {
+        return runPruneStatements(handle, cutoff);
+      }
+      let result!: PruneCommittedEventsResult;
+      await withExclusiveWriteTransaction(handle, async (txn) => {
+        result = await runPruneStatements(txn, cutoff);
+      });
+      return result;
+    },
   };
   return store;
+}
+
+/**
+ * Execute the three retention DELETEs on `handle`. Order is fixed for
+ * deterministic test counts; correctness is order-independent because
+ * the three tables share no rows.
+ */
+async function runPruneStatements(
+  handle: SQLiteDatabase,
+  cutoff: number,
+): Promise<PruneCommittedEventsResult> {
+  const expenseResult = await handle.runAsync(
+    'DELETE FROM expense_events WHERE committed = 1 AND timestamp < ?',
+    cutoff,
+  );
+  const categoryResult = await handle.runAsync(
+    'DELETE FROM category_events WHERE committed = 1 AND timestamp < ?',
+    cutoff,
+  );
+  const processedResult = await handle.runAsync(
+    'DELETE FROM processed_events WHERE timestamp < ?',
+    cutoff,
+  );
+  return {
+    expenseEvents: expenseResult.changes,
+    categoryEvents: categoryResult.changes,
+    processedEvents: processedResult.changes,
+  };
 }

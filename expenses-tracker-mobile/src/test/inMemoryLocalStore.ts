@@ -13,7 +13,7 @@
  * This file deliberately lives under `src/test/` so production code
  * cannot import it. The interface contract is `LocalStore`.
  */
-import type { LocalStore } from '../domain/localStore';
+import type { LocalStore, PruneCommittedEventsResult } from '../domain/localStore';
 import type {
   Category,
   CategoryEvent,
@@ -263,5 +263,28 @@ export class InMemoryLocalStore implements LocalStore {
         this.state.categoryEvents[idx] = { ...event, committed: true };
       }
     });
+  }
+
+  async pruneCommittedEvents(cutoff: number): Promise<PruneCommittedEventsResult> {
+    const expenseBefore = this.state.events.length;
+    this.state.events = this.state.events.filter(
+      (e) => !(e.committed && e.timestamp < cutoff),
+    );
+    const categoryBefore = this.state.categoryEvents.length;
+    this.state.categoryEvents = this.state.categoryEvents.filter(
+      (e) => !(e.committed && e.timestamp < cutoff),
+    );
+    let processedDeleted = 0;
+    for (const [eventId, ts] of this.state.processedEvents) {
+      if (ts < cutoff) {
+        this.state.processedEvents.delete(eventId);
+        processedDeleted += 1;
+      }
+    }
+    return {
+      expenseEvents: expenseBefore - this.state.events.length,
+      categoryEvents: categoryBefore - this.state.categoryEvents.length,
+      processedEvents: processedDeleted,
+    };
   }
 }

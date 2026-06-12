@@ -427,6 +427,32 @@ event in the body, the next cycle drops it because a covered event can never re-
 (until the retention window drops its id, at which point LWW absorbs the re-apply as described
 above).
 
+**4. Local event-log retention (`pruneCommittedEvents`).** The wire format already evicts old
+events via `dropCoveredEvents`; the local DB needs the same treatment or the on-device
+`expense_events` / `category_events` / `processed_events` tables grow without bound. After every
+successful sync cycle the engine calls `store.pruneCommittedEvents(Date.now() - PRUNE_WINDOW_MS)`,
+which runs three DELETEs in one transaction:
+
+| Table              | Predicate                                  | Why this is safe                                                                                                                                                                          |
+|--------------------|--------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `expense_events`   | `committed = 1 AND timestamp < cutoff`     | The UI only reads projections; the event row's only consumer is the snapshot builder, which also drops anything outside the same window. `committed = 1` guarantees the cloud has it.     |
+| `category_events`  | `committed = 1 AND timestamp < cutoff`     | Same reasoning as above.                                                                                                                                                                  |
+| `processed_events` | `timestamp < cutoff`                       | Pure idempotency state; the only consumer is `snapshotBuilder.collectCoveredEvents`, which itself filters by the same cutoff before emitting `coveredEvents`. No `committed` flag exists. |
+
+The two windows are shared on purpose — `syncEngine.ts` imports `PRUNE_WINDOW_MS` from
+`snapshotBuilder.ts` so the same `30 days` controls both. If they drifted apart, the engine could
+delete an event whose id still rides in a freshly-uploaded snapshot's `coveredEvents`, and the
+next download would silently re-apply it (a no-op under LWW, but extra CPU and bridge traffic).
+
+Pruning is **best-effort housekeeping**: a transient `database is locked` from concurrent writers
+is swallowed and the cycle still reports success to the caller — the user's data already shipped,
+the next sync retries the prune. The DELETEs are also fully idempotent: re-running with the same
+or older cutoff is a no-op.
+
+Trade-off mirrors `coveredEvents` exactly: an uncommitted event with an ancient timestamp (e.g.
+the user opened the app after months offline) is **always preserved** — the `committed = 1` guard
+is the only signal that the cloud already has it.
+
 ### Design Alternatives Considered — Why Not Full LSM Compaction?
 
 The current design is, conceptually, a **degenerate two-level LSM tree** collapsed into a single
@@ -438,7 +464,8 @@ sync file. The mapping is direct:
 | L0 (immutable recent log)    | `EventSyncFile.events` / `categoryEvents` (the body)           |
 | Compacted level (read model) | `EventSyncFile.snapshot` (projections + `coveredEvents`)       |
 | Compaction trigger           | `shouldRefreshSnapshot` (500-event threshold)                  |
-| Tombstone GC                 | 30-day `PRUNE_WINDOW_MS` on `coveredEvents`                    |
+| Tombstone GC (wire format)   | 30-day `PRUNE_WINDOW_MS` on `coveredEvents`                    |
+| Tombstone GC (on-device)     | `pruneCommittedEvents` over `expense_events` / `category_events` / `processed_events`, same 30-day cutoff |
 
 A natural extension would be a "proper" LSM with **multiple files per cloud-drive folder** — for
 example a long-lived `snapshot.json.gz` plus per-device `tail-<deviceId>.json.gz` write-only delta

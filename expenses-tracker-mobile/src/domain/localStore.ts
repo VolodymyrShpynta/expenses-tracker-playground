@@ -36,6 +36,17 @@ import type {
 } from './types';
 
 /**
+ * Row counts deleted by `pruneCommittedEvents` for each table, in the
+ * same order the underlying transaction processes them. Useful for
+ * logging and for asserting prune behaviour in tests.
+ */
+export interface PruneCommittedEventsResult {
+  readonly expenseEvents: number;
+  readonly categoryEvents: number;
+  readonly processedEvents: number;
+}
+
+/**
  * Atomic transactional unit. Implementations MUST run the closure inside a
  * single underlying transaction (`BEGIN`/`COMMIT` for SQLite). The
  * command service relies on this to keep the event-store append and the
@@ -69,14 +80,43 @@ export interface LocalStore {
   findUncommittedEvents(): Promise<ReadonlyArray<ExpenseEvent>>;
 
   /**
-   * All events (committed + uncommitted), ordered by timestamp ASC.
-   * Used by the export flow to materialise the full history into a sync
-   * file the user can share or restore from.
+   * All events (committed + uncommitted) still retained locally,
+   * ordered by timestamp ASC.
+   *
+   * NOTE: this is NOT the full historical event log. Once an event has
+   * been uploaded (`committed = 1`) and its `timestamp` falls outside
+   * the snapshot retention window, `pruneCommittedEvents` removes it.
+   * The projection still reflects that event — only the event row
+   * itself is gone. Callers that need the full history should read the
+   * uploaded sync file instead.
    */
   findAllEvents(): Promise<ReadonlyArray<ExpenseEvent>>;
 
   /** Mark events committed (called after successful sync upload). */
   markEventsCommitted(eventIds: ReadonlyArray<string>): Promise<void>;
+
+  /**
+   * Drop event-log rows whose contribution to the read model is no
+   * longer needed locally:
+   *
+   *   - `expense_events`  where `committed = 1 AND timestamp < cutoff`
+   *   - `category_events` where `committed = 1 AND timestamp < cutoff`
+   *   - `processed_events` where `timestamp < cutoff`
+   *
+   * Safe because (a) the UI reads projections only, never re-derives
+   * them from events, and (b) the same `cutoff` is used by
+   * `snapshotBuilder` when populating `SyncFileSnapshot.coveredEvents`,
+   * so deleted rows are guaranteed to be outside the snapshot’s
+   * covered-events window. Uncommitted events are always preserved —
+   * the `committed = 1` guard is the only signal that the cloud already
+   * has them.
+   *
+   * The three deletes run inside a single transaction so an interrupted
+   * call cannot leave one table pruned and the others not.
+   *
+   * Idempotent: re-running with the same or older `cutoff` is a no-op.
+   */
+  pruneCommittedEvents(cutoff: number): Promise<PruneCommittedEventsResult>;
 
   // -- expense_projections --------------------------------------------------
 
@@ -196,9 +236,13 @@ export interface LocalStore {
   findUncommittedCategoryEvents(): Promise<ReadonlyArray<CategoryEvent>>;
 
   /**
-   * All category events (committed + uncommitted), ordered by timestamp
-   * ASC. Used by the export flow to materialise the full history into a
-   * sync file the user can share or restore from.
+   * All category events (committed + uncommitted) still retained
+   * locally, ordered by timestamp ASC.
+   *
+   * Same retention caveat as `findAllEvents` — `pruneCommittedEvents`
+   * trims committed rows whose `timestamp` falls outside the snapshot
+   * retention window. Projections reflect those events; the event rows
+   * themselves are gone.
    */
   findAllCategoryEvents(): Promise<ReadonlyArray<CategoryEvent>>;
 

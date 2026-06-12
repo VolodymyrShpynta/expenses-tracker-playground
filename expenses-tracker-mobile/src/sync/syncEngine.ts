@@ -44,9 +44,9 @@ import {
 import { applyRemoteEvents, type ApplyResult } from './remoteEventApplier';
 import { applyRemoteCategoryEvents } from './remoteCategoryEventApplier';
 import { applySnapshot } from './snapshotApply';
-import { buildSnapshot } from './snapshotBuilder';
+import { buildSnapshot, PRUNE_WINDOW_MS } from './snapshotBuilder';
 import { shouldRefreshSnapshot, dropCoveredEvents } from './snapshotPolicy';
-import type { LocalStore } from '../domain/localStore';
+import type { LocalStore, PruneCommittedEventsResult } from '../domain/localStore';
 import { jsonToCategoryPayload, jsonToPayload } from '../domain/mapping';
 import type {
   CategoryEvent,
@@ -98,6 +98,13 @@ export interface SyncResult {
   readonly downloadedRemote: boolean;
   /** Number of cycle retries due to optimistic-concurrency conflicts. */
   readonly retries: number;
+  /**
+   * Per-table row counts deleted by the retention prune that runs at
+   * the end of every successful cycle. All zero on a steady-state
+   * device whose oldest committed events are still inside
+   * `PRUNE_WINDOW_MS`.
+   */
+  readonly pruned: PruneCommittedEventsResult;
 }
 
 export interface SyncEngine {
@@ -105,6 +112,19 @@ export interface SyncEngine {
 }
 
 const EMPTY_APPLY: ApplyResult = { applied: 0, skipped: 0, errors: 0 };
+const EMPTY_PRUNE: PruneCommittedEventsResult = {
+  expenseEvents: 0,
+  categoryEvents: 0,
+  processedEvents: 0,
+};
+
+/**
+ * Subset of `SyncResult` produced by a single cycle. `retries` is set
+ * by `performFullSync`'s outer loop, `pruned` by the post-cycle
+ * housekeeping step, so neither is part of an individual cycle's
+ * return shape.
+ */
+type CycleResult = Omit<SyncResult, 'retries' | 'pruned'>;
 
 /**
  * Build a SyncEngine bound to one (`store`, `adapter`) pair.
@@ -137,7 +157,15 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       while (true) {
         try {
           const result = await runOneCycle();
-          return { ...result, retries: attempt };
+          // Prune AFTER a successful cycle so retries on ConcurrencyError
+          // don't pile up multiple deletes. Safe because the cutoff is
+          // the same window `snapshotBuilder` uses for `coveredEvents` —
+          // any row deleted here is guaranteed to be outside the
+          // snapshot we just uploaded. Failures don't abort the cycle:
+          // we already shipped the user's data, the next sync will
+          // retry the prune.
+          const pruned = await pruneSafely();
+          return { ...result, retries: attempt, pruned };
         } catch (e) {
           if (e instanceof ConcurrencyError && attempt < MAX_RETRIES) {
             attempt += 1;
@@ -152,10 +180,26 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   };
 
   /**
+   * Best-effort retention prune. Pruning is purely a housekeeping
+   * operation — the projection is the read model and the cloud already
+   * has every committed event, so a failed DELETE never affects
+   * correctness. Swallowing the error here keeps a transient SQLite
+   * `database is locked` from masking the sync result the caller
+   * actually cares about.
+   */
+  async function pruneSafely(): Promise<PruneCommittedEventsResult> {
+    try {
+      return await store.pruneCommittedEvents(Date.now() - PRUNE_WINDOW_MS);
+    } catch {
+      return EMPTY_PRUNE;
+    }
+  }
+
+  /**
    * One full sync cycle. Picks the cheaper of two paths based on
    * whether anything local is waiting to be uploaded.
    */
-  async function runOneCycle(): Promise<Omit<SyncResult, 'retries'>> {
+  async function runOneCycle(): Promise<CycleResult> {
     // Probe both aggregates in parallel — they share no data dependency
     // and each pays a JS↔native bridge round-trip on Android.
     const [localUncommitted, localUncommittedCategories] = await Promise.all([
@@ -175,7 +219,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
    * adapter's `not-modified` reply without transferring the body —
    * this is the primary bandwidth saver for auto-syncs.
    */
-  async function runPullOnlyCycle(): Promise<Omit<SyncResult, 'retries'>> {
+  async function runPullOnlyCycle(): Promise<CycleResult> {
     const probe =
       cachedEtag !== undefined
         ? await adapter.download({ ifNoneMatch: cachedEtag })
@@ -214,7 +258,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   async function runMergeAndUploadCycle(
     localUncommitted: ReadonlyArray<ExpenseEvent>,
     localUncommittedCategories: ReadonlyArray<CategoryEvent>,
-  ): Promise<Omit<SyncResult, 'retries'>> {
+  ): Promise<CycleResult> {
     const downloaded = await adapter.download();
 
     // Defensive: we didn't pass ifNoneMatch on this branch, so this
@@ -285,7 +329,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
 }
 
 /** Sentinel return value for cycles that decided to do nothing. */
-const NO_CHANGES_RESULT: Omit<SyncResult, 'retries'> = {
+const NO_CHANGES_RESULT: CycleResult = {
   remote: EMPTY_APPLY,
   remoteCategories: EMPTY_APPLY,
   uploadedLocal: 0,

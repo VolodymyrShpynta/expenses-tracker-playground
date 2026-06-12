@@ -60,8 +60,12 @@ export const SNAPSHOT_VERSION = 2;
  * cross-device arrivals or imports backdated by 30+ days), which are
  * rare under realistic clock-skew bounds. Applying such an event twice
  * is a no-op under LWW.
+ *
+ * Re-exported so `syncEngine.ts` can use the same cutoff when pruning
+ * the local event-log tables — the two must agree, otherwise the
+ * engine could delete a row whose id still rides in `coveredEvents`.
  */
-const PRUNE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+export const PRUNE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
 export interface BuildSnapshotOptions {
   /** Epoch ms cutoff stamped on the snapshot. Defaults to `Date.now()`. */

@@ -321,7 +321,12 @@ describe('SyncEngine.performFullSync', () => {
   });
 
   it('does not double-apply a remote event already in processed_events', async () => {
-    const remote = makeRemoteEvent('r1', 'rx1', 50);
+    // Use a realistic recent timestamp so the post-sync retention prune
+    // does NOT wipe the `processed_events` row between the two cycles
+    // (cutoff is `Date.now() - 30 days`). With a synthetic small int the
+    // first cycle would record-then-prune the idempotency row and the
+    // second cycle would re-apply.
+    const remote = makeRemoteEvent('r1', 'rx1', Date.now() - 1_000);
     adapter.setRemoteBytes(encodeSyncFile({ events: [remote], categoryEvents: [] }, true));
 
     await engine.performFullSync();
@@ -470,7 +475,10 @@ describe('SyncEngine.performFullSync', () => {
   });
 
   it('idempotently skips re-applied category events', async () => {
-    const remote = makeRemoteCategoryEvent('rc1', 'cx1', 50);
+    // Same retention-prune caveat as the expense-event idempotency test
+    // above: use a recent timestamp so the post-sync prune does not
+    // delete the `processed_events` row between the two cycles.
+    const remote = makeRemoteCategoryEvent('rc1', 'cx1', Date.now() - 1_000);
     adapter.setRemoteBytes(encodeSyncFile({ events: [], categoryEvents: [remote] }, true));
 
     await engine.performFullSync();
@@ -480,5 +488,178 @@ describe('SyncEngine.performFullSync', () => {
     const second = await engine.performFullSync();
     expect(second.remoteCategories.applied).toBe(0);
     expect(second.remoteCategories.skipped).toBe(1);
+  });
+
+  // ----- Retention prune ---------------------------------------------------
+  //
+  // After every successful cycle the engine runs `pruneCommittedEvents`
+  // with cutoff `Date.now() - PRUNE_WINDOW_MS` (30 days). Predicate:
+  //   - expense_events / category_events: committed = 1 AND timestamp < cutoff
+  //   - processed_events:                  timestamp < cutoff
+  // Recent rows and uncommitted rows always survive.
+
+  const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+  it('reports zero pruned rows on a steady-state cycle', async () => {
+    const result = await engine.performFullSync();
+
+    expect(result.pruned).toEqual({
+      expenseEvents: 0,
+      categoryEvents: 0,
+      processedEvents: 0,
+    });
+  });
+
+  it('prunes old committed events but keeps recent and uncommitted ones', async () => {
+    const old = Date.now() - THIRTY_DAYS_MS - 1_000;
+    const recent = Date.now() - 1_000;
+
+    // Two old committed events (eligible for prune) + one recent
+    // committed event (just inside the window) + one uncommitted event
+    // (must always survive, even when ancient).
+    const oldCommitted = { ...makeLocalEvent('e-old', 'x-old', old), committed: true };
+    const recentCommitted = { ...makeLocalEvent('e-recent', 'x-recent', recent), committed: true };
+    const oldUncommitted = makeLocalEvent('e-pending', 'x-pending', old);
+    await store.appendEvent(oldCommitted);
+    await store.appendEvent(recentCommitted);
+    await store.appendEvent(oldUncommitted);
+
+    const result = await engine.performFullSync();
+
+    // The pending event was uploaded this cycle and marked committed,
+    // but its timestamp is still inside the window vs `now` (we used
+    // `old` for its timestamp — well outside the window). The prune
+    // runs AFTER mark-committed, so the freshly-committed-but-old event
+    // also gets deleted. That is the intended behaviour: anything the
+    // cloud has and that has aged past the retention window is fair
+    // game.
+    expect(result.pruned.expenseEvents).toBe(2);
+
+    const remaining = await store.findAllEvents();
+    expect(remaining.map((e) => e.eventId)).toEqual(['e-recent']);
+  });
+
+  it('prunes old category events with the same predicate', async () => {
+    const old = Date.now() - THIRTY_DAYS_MS - 1_000;
+    const recent = Date.now() - 1_000;
+
+    await store.appendCategoryEvent({
+      ...makeLocalCategoryEvent('ce-old', 'c-old', old),
+      committed: true,
+    });
+    await store.appendCategoryEvent({
+      ...makeLocalCategoryEvent('ce-recent', 'c-recent', recent),
+      committed: true,
+    });
+    // Pending category event with an ancient timestamp. The engine
+    // uploads it during this cycle and marks it committed; prune then
+    // sees committed = 1 AND timestamp < cutoff and deletes it too —
+    // mirroring the expense-event prune test above. The intended
+    // semantics: anything the cloud has and that has aged past the
+    // retention window is fair game.
+    await store.appendCategoryEvent(makeLocalCategoryEvent('ce-pending', 'c-pending', old));
+
+    const result = await engine.performFullSync();
+
+    expect(result.pruned.categoryEvents).toBe(2);
+    const remaining = await store.findAllCategoryEvents();
+    expect(remaining.map((e) => e.eventId)).toEqual(['ce-recent']);
+  });
+
+  it('prunes old processed_events purely by timestamp (no committed flag)', async () => {
+    const old = Date.now() - THIRTY_DAYS_MS - 1_000;
+    const recent = Date.now() - 1_000;
+
+    await store.recordProcessedEvent('p-old', old);
+    await store.recordProcessedEvent('p-recent', recent);
+
+    const result = await engine.performFullSync();
+
+    expect(result.pruned.processedEvents).toBe(1);
+    expect(await store.isEventProcessed('p-old')).toBe(false);
+    expect(await store.isEventProcessed('p-recent')).toBe(true);
+  });
+
+  it('keeps a successful sync result when the prune step throws', async () => {
+    // The prune is best-effort housekeeping: a transient
+    // `database is locked` from concurrent writers must not mask the
+    // engine's real outcome to the caller.
+    store.pruneCommittedEvents = async () => {
+      throw new Error('database is locked');
+    };
+    await store.appendEvent(makeLocalEvent('e1', 'x1', 100));
+
+    const result = await engine.performFullSync();
+
+    expect(result.uploadedLocal).toBe(1);
+    expect(result.pruned).toEqual({
+      expenseEvents: 0,
+      categoryEvents: 0,
+      processedEvents: 0,
+    });
+  });
+
+  it('uses Date.now() - PRUNE_WINDOW_MS as the prune cutoff', async () => {
+    // Pins the contract that on-device prune and snapshotBuilder share
+    // the same cutoff. If they ever drift, the engine could delete an
+    // event whose id still rides in a freshly-uploaded snapshot's
+    // `coveredEvents`, and the next download would silently re-apply
+    // it (a no-op under LWW, but extra CPU and bridge traffic).
+    let captured: number | undefined;
+    store.pruneCommittedEvents = async (cutoff) => {
+      captured = cutoff;
+      return { expenseEvents: 0, categoryEvents: 0, processedEvents: 0 };
+    };
+
+    const before = Date.now();
+    await engine.performFullSync();
+    const after = Date.now();
+
+    expect(captured).toBeDefined();
+    // The cutoff must equal `someInstant - PRUNE_WINDOW_MS` for an
+    // instant in `[before, after]`. Tolerate clock granularity by
+    // checking the open interval.
+    expect(captured!).toBeGreaterThanOrEqual(before - THIRTY_DAYS_MS);
+    expect(captured!).toBeLessThanOrEqual(after - THIRTY_DAYS_MS);
+  });
+
+  it('does not prune when the cycle fails with a non-ConcurrencyError', async () => {
+    // A genuine failure (network error, decode error, …) re-throws out
+    // of performFullSync — prune must not run, because we don't know
+    // whether our local writes ever made it to the cloud.
+    let pruneCalls = 0;
+    store.pruneCommittedEvents = async () => {
+      pruneCalls += 1;
+      return { expenseEvents: 0, categoryEvents: 0, processedEvents: 0 };
+    };
+    adapter.download = async () => {
+      throw new Error('network down');
+    };
+
+    await expect(engine.performFullSync()).rejects.toThrow('network down');
+    expect(pruneCalls).toBe(0);
+  });
+
+  it('keeps an event whose timestamp equals the cutoff exactly', async () => {
+    // Boundary check on the in-memory store's prune predicate (the
+    // engine just forwards a cutoff to it). The predicate is strict
+    // `<`, so `timestamp === cutoff` must survive — this locks the
+    // in-memory contract to the same semantics the SQLite predicate
+    // enforces (`timestamp < ?`).
+    const cutoff = 1_700_000_000_000;
+    await store.appendEvent({
+      ...makeLocalEvent('e-boundary', 'x-b', cutoff),
+      committed: true,
+    });
+    await store.appendEvent({
+      ...makeLocalEvent('e-just-below', 'x-jb', cutoff - 1),
+      committed: true,
+    });
+
+    const result = await store.pruneCommittedEvents(cutoff);
+
+    expect(result.expenseEvents).toBe(1);
+    const remaining = await store.findAllEvents();
+    expect(remaining.map((e) => e.eventId)).toEqual(['e-boundary']);
   });
 });
