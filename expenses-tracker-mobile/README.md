@@ -46,6 +46,7 @@ own Google Drive `appDataFolder` or OneDrive `approot`.
     - [Option 3 — iOS Simulator (macOS only)](#option-3--ios-simulator-macos-only)
   - [Verifying the setup](#verifying-the-setup)
 - [🔧 Building a Local Dev Client (`npx expo run:android`)](#-building-a-local-dev-client-npx-expo-runandroid)
+  - [Refreshing launcher icons / splash after editing `assets/`](#refreshing-launcher-icons--splash-after-editing-assets)
 - [📦 Building \& Sideloading a Production APK](#-building--sideloading-a-production-apk)
   - [Which EAS profile to use](#which-eas-profile-to-use)
   - [One-time setup](#one-time-setup)
@@ -899,6 +900,52 @@ Remove-Item -Recurse -Force app\.cxx, app\build -ErrorAction SilentlyContinue
 
 > macOS / Linux are unaffected by points 2 and 3 — their filesystems have no 260-char limit.
 > The JDK version requirement (point 1) applies to every host OS.
+
+### Refreshing launcher icons / splash after editing `assets/`
+
+`npx expo run:android` does **not** regenerate Android launcher icons. The `mipmap-*/ic_launcher*.webp`
+files under [`android/app/src/main/res/`](./android/app/src/main/res/) are baked once by
+`expo prebuild` and treated as committed source afterward. If you re-export
+[`assets/source/icon.svg`](./assets/source/icon.svg) → `assets/icon.png` /
+`assets/adaptive-icon.png` / `assets/adaptive-icon-bg.png` (or change `splash-icon.png`), a
+plain `run:android` rebuild reinstalls an APK whose mipmaps still hold yesterday's icons.
+
+On top of that, the Android launcher (Pixel Launcher / system UI) **caches launcher icons by
+package name**, so even an APK with new mipmaps may keep showing the old icon on the home
+screen and app drawer for hours until the OS decides to refresh.
+
+Three commands fix both:
+
+```powershell
+cd expenses-tracker-mobile
+
+# 1. Regenerate android/ from app.json + assets/*.png (rasterizes all six mipmap-*dpi buckets)
+npx expo prebuild --platform android --clean
+
+# 2. Wipe the app + its launcher-icon cache from the emulator / phone
+adb uninstall com.vshpynta.spendium
+
+# 3. Rebuild and reinstall
+npx expo run:android
+```
+
+The `--clean` flag is critical: without it `expo prebuild` is a no-op when `android/` already
+exists. With it, `android/` is regenerated from [`app.json`](./app.json) and the new PNGs are
+re-rasterized into every mipmap density. The same pass also regenerates
+`drawable-*/splashscreen_*` from `splash-icon.png`.
+
+> **Caveat — `prebuild --clean` rewrites `android/`.** Patches under
+> [`patches/`](./patches/) (e.g. `@react-native+gradle-plugin`) re-apply automatically on
+> the next install, but any direct edits to `android/AndroidManifest.xml`,
+> `android/app/build.gradle`, `MainActivity.kt`, etc. that you made *outside* a config
+> plugin will be reverted. Check `git diff android/` after the prebuild before rebuilding.
+
+> **If the home-screen icon is still stale** after all three steps, force-refresh the
+> launcher's icon-pack cache:
+>
+> ```powershell
+> adb shell pm clear com.google.android.apps.nexuslauncher
+> ```
 
 ---
 

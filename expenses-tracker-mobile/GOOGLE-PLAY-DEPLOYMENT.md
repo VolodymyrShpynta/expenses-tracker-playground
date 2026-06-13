@@ -745,30 +745,148 @@ release notes in Play Console → roll out.
 
 ## Step 6 — Fill out the Play Console listing
 
-Play Console → **Grow → Store presence → Main store listing**.
+Play Console has split the old "Main store listing" page into **two
+separate pages** under *Grow users → Store presence*. The text + graphics
+live on **Main store listing**; the category, tags, and contact details
+(including the **Website** URL) live on **Store settings**. The Privacy
+policy URL has moved to its own page under *App content* (covered in
+[Step 8](#step-8--content-rating-target-audience-privacy-policy)).
 
-| Field                            | Limit               | What to put                                                                                                                                                                                              |
-|----------------------------------|---------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| App name                         | 30 chars            | `Spendium`                                                                                                                                                                                               |
-| Short description                | 80 chars            | See [Appendix A](#appendix-a--listing-copy-english)                                                                                                                                                      |
-| Full description                 | 4 000 chars         | See [Appendix A](#appendix-a--listing-copy-english)                                                                                                                                                      |
-| App icon                         | 512×512 PNG, 32-bit | Re-export from [assets/source/](assets/source/) at 512×512. Background must be opaque.                                                                                                                  |
-| Feature graphic                  | 1024×500 PNG/JPEG   | Hero banner for the Play Store header. No transparency.                                                                                                                                                  |
-| Phone screenshots                | 2 minimum, 8 max    | 16:9 or 9:16, 320–3840 px on each side. Capture from the Android emulator or a physical device. Suggested: Categories, Overview chart, Transactions list, Add-expense dialog, Settings (showing sync).  |
-| 7-inch tablet screenshots        | Optional but recommended | Same constraints, different aspect ratio.                                                                                                                                                            |
-| 10-inch tablet screenshots       | Optional            | Same.                                                                                                                                                                                                    |
-| App category                     | dropdown            | **Finance**                                                                                                                                                                                              |
-| Tags                             | up to 5             | Suggested: Expense tracker, Budget, Personal finance, Offline, Cloud sync                                                                                                                                |
-| Contact details                  | Email required      | Add an email you actually monitor. Website + phone optional.                                                                                                                                             |
-| Privacy policy URL               | HTTPS required      | Must mention: data stored on-device; sync writes to user's own Google Drive `appDataFolder` or OneDrive `approot`; OAuth tokens stored in Keychain/Keystore; no third-party analytics.                  |
+#### Main store listing
 
-> **Languages.** You can add localized listings later via **Store
-> presence → Main store listing → Manage translations**. The app itself
-> ships with **15 languages** (English, Czech, Ukrainian, Spanish, German,
-> French, Italian, Portuguese, Polish, Turkish, Indonesian, Hindi,
-> Japanese, Korean, Chinese — see [src/i18n/locales/](src/i18n/locales/)).
+Play Console → **Grow users → Store presence → Main store listing**
+([direct link](https://play.google.com/console/developers/app/main-store-listing)).
+
+| Field                            | Limit                    | What to put                                                                                                                                                                                              |
+|----------------------------------|--------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| App name                         | 30 chars                 | `Spendium`                                                                                                                                                                                               |
+| Short description                | 80 chars                 | See [Appendix A](#appendix-a--listing-copy-english)                                                                                                                                                      |
+| Full description                 | 4 000 chars              | See [Appendix A](#appendix-a--listing-copy-english)                                                                                                                                                      |
+| App icon                         | 512×512 PNG/JPEG, ≤1 MB  | Re-export from [assets/source/icon.svg](assets/source/icon.svg) at 512×512 (resvg / Inkscape — don't upscale a smaller raster). Background must be fully opaque; Play applies its own rounded-square mask. |
+| Feature graphic                  | 1024×500 PNG/JPEG, ≤15 MB | Hero banner shown above screenshots. **No transparency, no screenshots / device frames** (policy rejection bait). Keep the wordmark away from the edges — Play crops ~30 px on some phone surfaces.    |
+| Phone screenshots                | 2 minimum, 8 max         | 16:9 or 9:16, 320–3840 px on each side. Capture flow + suggested screens: see [Capturing screenshots](#capturing-screenshots) below.                                                                       |
+| 7-inch tablet screenshots        | Required if tablet distribution is on (default) | 16:9 or 9:16, 320–3840 px on each side. See [Capturing screenshots](#capturing-screenshots) below — phone screenshots can be reused here as long as they fall in the pixel range.                          |
+| 10-inch tablet screenshots       | Required if tablet distribution is on (default) | 16:9 or 9:16, 1080–7680 px on each side. See [Capturing screenshots](#capturing-screenshots) below — one 1600×2560 portrait capture from `Pixel Tablet` satisfies both the 7-inch and 10-inch slot in one shot. |
+
+#### Store settings
+
+Play Console → **Grow users → Store presence → Store settings**
+([direct link](https://play.google.com/console/developers/app/store-settings)).
+
+| Field                          | Required?         | What to put                                                                                                                                                                                              |
+|--------------------------------|-------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| App category                   | Yes               | Application type **App** → Category **Finance**. Right slot for expense trackers / budget apps / payment apps. *Tools* / *Productivity* / *Lifestyle* all rank worse for finance queries because the category signal contradicts the relevance ranker. The *Financial features* questionnaire in *App content* is separate — answer **No** to every question there (no payments, no loans, no investments, no crypto, no tax filing). |
+| Tags                           | Up to 5, optional | *Manage tags* button. Pick from Play's predefined Finance taxonomy — likely candidates: **Personal finance**, **Budget**, **Expense tracker**, **Money management**, and one of **Currency converter** / **Spending tracker** depending on what Play currently offers. **Don't** add feature claims like "Offline" or "Cloud sync" — they're not in the tag list (only structured taxonomy entries are allowed); put those keywords in the short / full description instead, which IS indexed. Up to 24 h to surface on the store page. |
+| Store listing contact email    | Yes               | An address you actually monitor — Play surfaces it as *Email developer* under the Install button. Use a dedicated alias (e.g. `support@spendium.net`) if you don't want your personal inbox public.    |
+| Store listing contact phone    | Optional          | Skip unless you run a real support line. Once published it's globally visible.                                                                                                                            |
+| Store listing contact website  | Optional but recommended | Full HTTPS URL (e.g. `https://spendium.net/` or, until the custom domain is live, `https://<user>.github.io/spendium-site/`). Must return 200 OK to an anonymous crawler — no bot challenge / auth wall. |
+| External marketing             | Checkbox          | Leave **on** to let Google promote the app across Play surfaces.                                                                                                                                          |
+
+#### Capturing screenshots
+
+All three screenshot slots (phone, 7-inch tablet, 10-inch tablet) under
+*Main store listing* are filled the same way: spin up the matching
+AVD, run Spendium on it, capture from the emulator toolbar, upload the
+resulting PNGs. The Play Console screenshot fields validate **aspect
+ratio + pixel range only**, not the device the PNG came from — which
+opens a couple of useful shortcuts (covered below).
+
+##### Recommended AVDs
+
+| Slot         | AVD (Android Studio → Device Manager → Create Device) | Resolution    | Why this one                                                                                                                                                                       |
+|--------------|-------------------------------------------------------|---------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Phone        | **Pixel 8** (or Pixel 8 Pro / Pixel 7)                | 1080×2400 (9:19.5) | Google's current reference phone. 1080 px short side lands inside Play's 320–3840 px window with room to spare. Same form factor real Pixel users see, so what you ship matches the device the Play editorial team tests on. |
+| 10-inch tablet | **Pixel Tablet**                                    | 2560×1600 (16:10) | Google's reference tablet. 1600 px short side clears the 10-inch slot's 1080 px floor; same image also satisfies the 7-inch slot (320–3840 px). The single AVD that unlocks both tablet slots. |
+| 7-inch tablet | **Nexus 7 (2013)** *(skip if you take the shortcut below)* | 1920×1200 (16:10) | Closest thing to a modern 7-inch reference Android still ships — Google killed the 7-inch line in 2015 and never replaced it. Only worth creating if you want screenshots that actually look 7-inch shaped. |
+
+For each AVD pick **API 35 (Vanilla Ice Cream) Google Play x86_64** as
+the system image (matches what Play currently targets). Each tablet AVD
+is ~6–8 GB of disk; the phone is ~4 GB.
+
+##### Orientation: portrait for all slots
+
+Spendium is a portrait-only app, so every screenshot — phone, 7-inch
+tablet, 10-inch tablet — should be captured in **portrait**. Leave
+each AVD in its default portrait orientation; do **not** press the
+rotate button in the emulator's side toolbar before capturing.
+
+Why this matters even though Play allows both orientations:
+
+- **Carousel real estate.** On the phone Play Store (where the vast
+  majority of installs originate) the screenshot strip fits ~1.3
+  portrait shots per scroll vs. ~0.5 landscape shots — landscape gets
+  shrunk to a thin horizontal sliver and only opens full-size on tap.
+- **Don't mix orientations within a slot.** If a slot contains both
+  portrait and landscape shots, Play renders them at the same height,
+  so the landscape one collapses to ~30 % of the portrait one's width
+  and looks broken. Pick one orientation per slot and stay consistent.
+- **Match what the app actually does.** Play's review team flags
+  landscape screenshots of portrait-locked apps as "not representative
+  of the app experience" — a review delay we don't need.
+
+In portrait the resolutions from the AVD table above come out as
+**1080×2400** (Pixel 8), **1200×1920** (Nexus 7 2013), and
+**1600×2560** (Pixel Tablet). All three sit inside Play's 320–3840 /
+1080–7680 px ranges with room to spare.
+
+##### The pragmatic shortcut: one tablet AVD, both slots
+
+Spendium's React Native UI is a single-column layout that scales
+cleanly to wide canvases. The 7-inch and 10-inch screenshots end up
+looking nearly identical except for resolution — so:
+
+1. Create only the **Pixel Tablet** AVD (skip Nexus 7).
+2. Capture your 5 screens at 1600×2560 (portrait, as above).
+3. Upload the same 5 PNGs to both the **7-inch** and **10-inch** slot.
+
+Play accepts this on the first try because 1600×2560 falls inside
+*both* the 7-inch range (320–3840) and the 10-inch range (1080–7680).
+Net effect: one emulator, one capture pass, both tablet slots filled,
+zero warnings on the listing. Tablet users browsing the 7-inch
+optimized rail will see screenshots that came from a 10-inch device,
+which is invisible for a single-column finance app. For a more
+layout-rich app (multi-pane email, drawing tool, kanban board) you'd
+want genuine 7-inch screenshots — but Spendium doesn't.
+
+##### Capture mechanics
+
+- **Emulator toolbar → camera icon** (top of the side panel) — saves
+  full-resolution PNG to your Desktop, no scaling, no compression.
+  This is what Play wants.
+- **Alternative:** `adb exec-out screencap -p > shot.png` from
+  PowerShell — handy when scripting multiple captures, e.g. seeding
+  the AVD with deterministic demo data then capturing 5 screens in a
+  loop.
+- **Don't** use Windows Snipping Tool / `Win+Shift+S` against the
+  emulator window — it captures at your monitor's DPI, not the
+  emulator's native resolution, so the PNG comes out at the wrong
+  pixel dimensions and Play rejects it.
+
+##### Suggested 5 screens, in order
+
+The first 2 screenshots dominate the carousel because Play crops the
+rest off-screen until the user scrolls — put your most visually
+distinctive screens first.
+
+1. **Overview chart** — most visually informative, leads the carousel.
+2. **Categories** with category-level totals.
+3. **Transactions list**.
+4. **Add-expense dialog open**.
+5. **Settings → Cloud sync** showing the Drive / OneDrive toggle
+   (sells the differentiator that's hard to convey in screenshot 1).
+
+> **Languages.** You can add localized listings later via **Main store
+> listing → Manage translations**. The app itself ships with **15
+> languages** (English, Czech, Ukrainian, Spanish, German, French,
+> Italian, Portuguese, Polish, Turkish, Indonesian, Hindi, Japanese,
+> Korean, Chinese — see [src/i18n/locales/](src/i18n/locales/)).
 > Localizing the *store listing* is optional and independent — you can
 > ship with just `en-US` first.
+
+> **All fields here are editable any time** — during Internal testing,
+> Closed testing, or after Production rollout. Listing edits don't
+> require a new release; they propagate to the store page within
+> minutes (contact-details updates can take up to 24 h to surface).
 
 ---
 
@@ -1302,12 +1420,19 @@ in [src/i18n/locales/](src/i18n/locales/).
 <summary><strong>Expand short description</strong> (paste-ready, 80 chars max)</summary>
 
 ```
-Private expense tracker with Google Drive & OneDrive sync. Works offline. Your data stays in your cloud.
+Private offline expense tracker. Syncs to your Google Drive or OneDrive.
 ```
 
 </details>
 
 ### Full description (4 000 chars max)
+
+> **No decorative bullets.** Play Console's listing-quality filter
+> rejects (or silently strips) `✓` U+2713, `•` U+2022, and emoji-like
+> Unicode glyphs when used as list markers. Use plain `-` for every
+> bullet — the snippet below is already normalized. The native-script
+> language names (`Čeština`, `Українська`, `日本語`, etc.) are
+> fine and stay as-is; Play encourages localized names.
 
 <details>
 <summary><strong>Expand full description</strong> (paste-ready, 4 000 chars max)</summary>
@@ -1330,8 +1455,8 @@ Why Spendium?
 Your Data Stays Yours
 Your financial data is stored in your own cloud storage account.
 Choose your preferred provider:
-• Google Drive
-• Microsoft OneDrive
+- Google Drive
+- Microsoft OneDrive
 You stay in full control of your information.
 
 Works Offline
@@ -1349,10 +1474,10 @@ your transactions. Your financial records remain in your own cloud storage.
 
 Powerful Spending Analysis
 Understand where your money goes with:
-• Spending by category
-• Monthly summaries
-• Expense trends
-• Detailed transaction history
+- Spending by category
+- Monthly summaries
+- Expense trends
+- Detailed transaction history
 
 Multi-Currency Support
 Track expenses in multiple currencies and view spending in your preferred
@@ -1365,18 +1490,18 @@ English, Čeština, Українська, Español, Deutsch, Français, Italiano
 Português, Polski, Türkçe, Bahasa Indonesia, हिन्दी, 日本語, 한국어, 中文.
 
 Key Features
-✓ Expense tracking
-✓ Spending analytics
-✓ Category management
-✓ Offline first
-✓ Google Drive sync
-✓ OneDrive sync
-✓ Multi-device support
-✓ Automatic conflict-free synchronization
-✓ Multi-currency support
-✓ Multi-language support
-✓ Local data ownership
-✓ Privacy first
+- Expense tracking
+- Spending analytics
+- Category management
+- Offline first
+- Google Drive sync
+- OneDrive sync
+- Multi-device support
+- Automatic conflict-free synchronization
+- Multi-currency support
+- Multi-language support
+- Local data ownership
+- Privacy first
 
 Start tracking your expenses with confidence.
 Your cloud. Your data. Your budget.
