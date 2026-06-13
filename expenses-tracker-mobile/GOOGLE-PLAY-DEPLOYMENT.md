@@ -233,6 +233,9 @@ Studio installs.
 
 #### Windows: one-time WSL2 setup
 
+<details>
+<summary><strong>Expand WSL2 setup steps</strong> (install, toolchain, parallelism caps, TMPDIR redirect)</summary>
+
 Skip this subsection on macOS or Linux.
 
 1. **Install WSL2 + Ubuntu** (PowerShell as admin, then reboot when it
@@ -408,6 +411,8 @@ Skip this subsection on macOS or Linux.
    the full ~900 GB to spread across. The setting is harmless for
    non-EAS workloads.
 
+</details>
+
 #### Prereqs (all platforms)
 
 Verify *before* running the build. On Windows these run inside the WSL2
@@ -494,6 +499,9 @@ in [README → Building a Local Dev Client](README.md#-building-a-local-dev-clie
 
 #### One-time setup
 
+<details>
+<summary><strong>Expand one-time setup</strong> (keystore generation, env vars, versionCode wiring)</summary>
+
 **1. Generate your upload keystore** — this `.jks` file and its passwords
 are what Play will use to verify every future update. Pick passwords from a
 password manager.
@@ -542,6 +550,8 @@ export SPENDIUM_KEY_PASSWORD="<key password from step 1>"
   // ...
 }
 ```
+
+</details>
 
 #### Building the AAB
 
@@ -838,6 +848,9 @@ spendium-site/                 ← new dedicated PUBLIC repo on GitHub
 
 #### One-time setup (10 minutes)
 
+<details>
+<summary><strong>Expand one-time setup</strong> (repo, Jekyll config, index/privacy pages, enable Pages, verify)</summary>
+
 1. **Create the repo.** On GitHub: **New repository** → name
    `spendium-site` → **Public** (Pages on free accounts requires public) →
    set the **Description** to e.g. *"Privacy policy and landing page for
@@ -909,7 +922,12 @@ placeholders.
    (Pages builds are not instant) or check the **Actions** tab of the
    repo for the `pages-build-deployment` workflow status.
 
+</details>
+
 #### Privacy policy starter
+
+<details>
+<summary><strong>Expand the privacy-policy template</strong> (paste into <code>privacy.md</code>, edit the bracketed placeholders)</summary>
 
 Paste into `privacy.md` and edit the bracketed values. This covers Play
 Store's "Limited use" requirement, Google Auth Platform's branding
@@ -973,6 +991,8 @@ recent revision. Material changes will be highlighted in the in-app changelog.
 Questions or requests: <your-email>.
 ```
 
+</details>
+
 #### Where to paste each URL once it's live
 
 | URL                                                                       | Paste into                                                            |
@@ -988,6 +1008,9 @@ Questions or requests: <your-email>.
 above.
 
 #### Branding verification on a `*.github.io` subdomain (ownership trap)
+
+<details>
+<summary><strong>Expand only if Cloud Console says &ldquo;home page URL is not registered to you&rdquo;</strong> (Search Console walkthrough + workarounds)</summary>
 
 When you click **Verify branding** in *Google Auth Platform → Branding*,
 Google opens a *Branding verification issues* dialog complaining:
@@ -1064,6 +1087,8 @@ stricter than Search Console's. Two pragmatic options:
   [custom-domain upgrade path below](#when-you-outgrow-it-custom-domain),
   then in Search Console re-verify with the **Domain** option
   (DNS TXT record — always works, sidesteps the `*.github.io` quirk).
+
+</details>
 
 #### When you outgrow it (custom domain)
 
@@ -1197,11 +1222,19 @@ in [src/i18n/locales/](src/i18n/locales/).
 
 ### Short description (80 chars max)
 
+<details>
+<summary><strong>Expand short description</strong> (paste-ready, 80 chars max)</summary>
+
 ```
 Private expense tracker with Google Drive & OneDrive sync. Works offline. Your data stays in your cloud.
 ```
 
+</details>
+
 ### Full description (4 000 chars max)
+
+<details>
+<summary><strong>Expand full description</strong> (paste-ready, 4 000 chars max)</summary>
 
 ```
 Private Expense Tracker with Cloud Sync
@@ -1272,6 +1305,8 @@ Key Features
 Start tracking your expenses with confidence.
 Your cloud. Your data. Your budget.
 ```
+
+</details>
 
 > **Tip.** The short description is what shows up in Play Store search
 > results. Keep the most compelling words ("Private", "offline", "your
