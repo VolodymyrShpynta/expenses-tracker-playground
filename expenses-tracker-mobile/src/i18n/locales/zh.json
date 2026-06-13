@@ -7,23 +7,65 @@
     "tools": "工具",
     "exportImport": "导出与导入",
     "settings": "设置",
-    "openMenu": "打开菜单",
-    "privacy": "隐私",
-    "adminUsers": "用户管理"
+    "openMenu": "打开菜单"
   },
   "settings": {
     "darkMode": "深色模式",
     "toggleDarkMode": "切换深色模式",
     "manageCategories": "管理类别",
+    "resetCategories": "重置类别",
+    "resetCategoriesDescription": "恢复原始类别列表。",
+    "resetSuccess": "重置完成。已归档 {{archived}} 项，新增 {{seeded}} 项。",
+    "resetError": "重置失败。",
     "currency": "货币",
     "fontSize": "字体大小",
     "language": "语言",
+    "exportData": "导出数据",
+    "importData": "导入数据",
+    "exportImport": "导出与导入",
+    "exportSuccess": "已导出 {{categories}} 个类别和 {{expenses}} 笔支出。",
+    "exportError": "导出失败。",
+    "importSuccess": "已创建 {{categories}} 个类别和 {{expenses}} 笔支出（跳过 {{skipped}} 项）。",
+    "importError": "导入失败。",
+    "themeMode": {
+      "system": "跟随系统",
+      "light": "浅色",
+      "dark": "深色"
+    },
     "fontScale": {
       "small": "小",
       "medium": "中",
       "large": "大",
       "xlarge": "特大"
-    }
+    },
+    "sync": "云同步",
+    "syncDescription": "通过你自己的云盘在设备间同步支出。"
+  },
+  "syncDialog": {
+    "title": "云同步",
+    "provider": "提供方",
+    "providers": {
+      "none": "已禁用",
+      "onedrive": "OneDrive",
+      "googledrive": "Google Drive"
+    },
+    "signIn": "登录",
+    "signOut": "退出登录",
+    "signingIn": "正在登录…",
+    "syncNow": "立即同步",
+    "syncing": "同步中…",
+    "autoSync": "自动同步",
+    "autoSyncDescription": "在后台自动同步。",
+    "autoSyncDescriptionFull": "启用后，应用会在启动时、返回应用时、编辑后（短暂停顿之后）以及网络重新连接时自动同步。你随时可以通过\"立即同步\"按钮手动同步。",
+    "autoSyncInfo": "关于自动同步",
+    "lastSynced": "上次同步 {{when}}",
+    "neverSynced": "从未同步",
+    "statusSuccess": "已应用 {{applied}} 项，已上传 {{uploaded}} 项。",
+    "statusUpToDate": "已是最新。",
+    "statusError": "同步失败：{{message}}",
+    "signInPrompt": "登录以启用同步。",
+    "notConfigured": "请先选择云提供方。",
+    "googleDisabled": "Google Drive 尚未配置 — 请先设置 GOOGLE_OAUTH_CLIENT_ID。"
   },
   "common": {
     "save": "保存",
@@ -52,7 +94,16 @@
     "addCategoryAriaLabel": "在 {{category}} 中添加支出",
     "editExpenseAriaLabel": "编辑支出 {{description}}",
     "overviewTitle": "总览",
-    "overviewComingSoon": "预算总览和分析即将推出。"
+    "overviewComingSoon": "预算总览和分析即将推出。",
+    "overviewModeLines": "线条",
+    "overviewModeStackedArea": "堆叠",
+    "overviewOtherSeries": "其他",
+    "overviewNoData": "此时段无数据。",
+    "overviewApproxRatesCaveat": "部分金额使用今日汇率。",
+    "overviewTotalSparklineLabel": "总支出趋势",
+    "overviewTooltipTotal": "总计",
+    "overviewTooltipOverflow": "其他支出",
+    "overviewChartLabel": "各类别随时间的支出"
   },
   "expenseDialog": {
     "date": "日期",
@@ -61,7 +112,9 @@
     "expense": "支出",
     "description": "描述",
     "pickCategoryError": "请选择类别。",
-    "positiveAmountError": "金额必须为正数。"
+    "positiveAmountError": "金额必须为正数。",
+    "suggestionsHeader": "来自以往支出",
+    "suggestionAriaLabel": "使用以往支出中的 {{description}}"
   },
   "categoryTemplates": {
     "beauty": "美容",
@@ -122,6 +175,8 @@
     "createAnywayButton": "仍要创建",
     "restoreButton": "恢复",
     "restoreAndMergeButton": "恢复并合并",
+    "restoreConflictTitle": "恢复并合并？",
+    "restoreConflictBody": "已存在一个名为 {{name}} 的活动类别。恢复操作会将活动重复类别中的所有支出移动到已恢复的类别，然后归档活动重复类别。",
     "mergeAriaLabel": "将 {{name}} 合并到另一类别",
     "mergeTitle": "合并到另一类别",
     "mergePickPrompt": "选择要将 <1>{{name}}</1> 合并到的类别。其所有支出都将转移。",
@@ -162,7 +217,14 @@
       "today": "今天",
       "year": "年",
       "month": "月"
-    }
+    },
+    "custom": "自定义范围…"
+  },
+  "transactions": {
+    "searchPlaceholder": "搜索交易…",
+    "openFilter": "按类别筛选",
+    "add": "添加…",
+    "removeFilter": "移除筛选：{{name}}"
   },
   "calculator": {
     "enterOrUseCalculator": "输入金额或使用计算器",
@@ -195,176 +257,5 @@
       "expense": "支出"
     },
     "importMoreErrors": "…还有 {{count}} 条"
-  },
-  "privacy": {
-    "pageTitle": "隐私与数据",
-    "pageSubtitle": "管理你的个人数据处理方式。这些工具涵盖你在 GDPR 第 17 条和第 18 条下的权利。",
-    "yourData": {
-      "title": "你的账户",
-      "username": "用户名",
-      "userId": "用户 ID",
-      "exportHint": "要下载数据副本(第 20 条),请使用侧边栏中的 <1>导出与导入</1>。"
-    },
-    "restriction": {
-      "title": "限制处理",
-      "explainer": "第 18 条允许你暂停账户。数据保留但停止处理 — 你之后可以解除限制。",
-      "statusNone": "你的数据正在正常处理。没有活跃限制。",
-      "statusActive": "你的处理已受限。",
-      "fieldGround": "依据 (第 18(1) 条)",
-      "fieldAppliedAt": "限制时间",
-      "fieldRequestedBy": "请求人",
-      "fieldReason": "原因",
-      "fieldLiftNoticeSentAt": "解除通知发送时间",
-      "restrictButton": "限制我的处理",
-      "liftButton": "请求解除",
-      "loading": "正在加载限制状态…",
-      "error": "无法加载限制状态:{{message}}"
-    },
-    "restrictDialog": {
-      "title": "限制处理",
-      "body": "选择你请求的法律依据。可以添加一条可选备注以说明为何要暂停处理。",
-      "grounds": {
-        "ACCURACY_CONTESTED": "我对数据准确性提出异议 (第 18(1)(a) 条)",
-        "UNLAWFUL_NOT_ERASED": "处理非法但我不希望删除 (第 18(1)(b) 条)",
-        "CONTROLLER_NO_LONGER_NEEDS": "你不再需要数据,但我需要用于法律主张 (第 18(1)(c) 条)",
-        "OBJECTION_PENDING": "我已提出异议,核实尚未完成 (第 18(1)(d) 条)"
-      },
-      "reasonLabel": "原因(可选)",
-      "reasonHelper": "最多 1000 字符。有助于操作员理解请求。",
-      "submit": "限制",
-      "submitting": "限制中…"
-    },
-    "liftDialog": {
-      "title": "解除限制",
-      "body": "解除分两步进行。我们首先记录预先解除通知 (第 18(3) 条) 并短暂等待;然后你再次确认以真正恢复处理。",
-      "step1Button": "发送预先解除通知",
-      "step1Sending": "正在发送通知…",
-      "step1Done": "已发送预先解除通知。你可以在 {{time}} 之后完成解除。",
-      "step2Button": "完成解除",
-      "step2Submitting": "正在完成…",
-      "step2DisabledHint": "{{seconds}} 秒后可用",
-      "doneTitle": "限制已解除",
-      "doneBody": "处理已恢复。你可以关闭此对话框。",
-      "close": "关闭",
-      "error": "无法解除限制:{{message}}"
-    },
-    "erasure": {
-      "title": "删除我的账户",
-      "dangerLabel": "危险区域",
-      "explainer": "第 17 条 — 删除权。这将永久删除你的支出、类别和身份提供商账户。无法撤销。",
-      "expandHint": "点击以显示删除控件。",
-      "openButton": "我想删除我的账户"
-    },
-    "sessions": {
-      "title": "活跃会话",
-      "explainer": "将你从当前已登录的每个浏览器、标签页和移动应用中注销。你也需要在此重新登录。",
-      "signOutEverywhereButton": "在所有地方注销",
-      "signingOut": "正在注销…",
-      "error": "无法在所有地方注销:{{message}}"
-    },
-    "eraseDialog": {
-      "title": "永久删除你的账户",
-      "warningTitle": "此操作无法撤销",
-      "warningBody": "确认后,以下内容将立即删除:",
-      "consequence1": "你记录的每一笔支出和每一个类别",
-      "consequence2": "提到你的每一条审计日志事件",
-      "consequence3": "你的 Keycloak 登录账户(当操作员级联已配置时)",
-      "noticeExport": "如果你希望先获取数据副本,请取消此对话框并使用侧边栏中的 <1>导出与导入</1>。",
-      "ackPermanent": "我理解删除是永久且不可撤销的。",
-      "ackExported": "我已经导出了想要保留的所有数据。",
-      "ackLogin": "我理解我的登录账户将被删除。",
-      "typeUsernameLabel": "输入你的用户名以确认",
-      "typeUsernameHelper": "完全输入:{{username}}",
-      "typeUsernameMismatch": "用户名不匹配。",
-      "continueButton": "继续",
-      "cancelButton": "取消"
-    },
-    "eraseConfirmDialog": {
-      "title": "最后一次确认",
-      "body": "你即将永久删除账户 <1>{{username}}</1>。按钮将在 {{seconds}} 秒后启用。",
-      "deleteButton": "永久删除",
-      "deleteButtonReady": "永久删除({{seconds}} 秒)",
-      "deleting": "正在删除…",
-      "error": "删除失败:{{message}}"
-    },
-    "erasedSummary": {
-      "title": "你的账户已被删除",
-      "subtitle": "级联摘要",
-      "eventsDeleted": "已删除 {{count}} 个事件",
-      "projectionsDeleted": "已删除 {{count}} 笔支出",
-      "categoriesDeleted": "已删除 {{count}} 个类别",
-      "keycloakDeleted": "身份提供商账户:{{state}}",
-      "keycloakDeletedYes": "已删除",
-      "keycloakDeletedNo": "仍然存在 — 请联系操作员",
-      "occurredAt": "记录于 {{time}}",
-      "followUpTitle": "后续步骤",
-      "logoutCountdown": "你将在 {{seconds}} 秒后被注销。",
-      "logoutNow": "立即注销"
-    }
-  },
-  "admin": {
-    "users": {
-      "pageTitle": "用户管理",
-      "pageSubtitle": "对任意用户的 GDPR 操作。需要 gdpr-admin 领域角色。",
-      "lookup": {
-        "title": "查找用户",
-        "label": "用户 ID(Keycloak `sub` 的 UUID)",
-        "placeholder": "00000000-0000-0000-0000-00000000000a",
-        "helper": "粘贴 Keycloak 主体 UUID。API 不公开用户列表 — ID 来自 IdP 管理控制台。",
-        "loadButton": "加载",
-        "clearButton": "清除",
-        "selectedLabel": "当前查看:<1>{{userId}}</1>"
-      },
-      "restriction": {
-        "title": "限制 (第 18 条)",
-        "restrictedHeadline": "{{userId}} 已被限制。",
-        "noneHeadline": "{{userId}} 没有活跃限制。",
-        "restrictButton": "限制此用户",
-        "liftButton": "解除限制",
-        "reasonRequiredHelper": "操作员施加的限制需要原因备注。"
-      },
-      "restrictDialog": {
-        "title": "限制用户处理",
-        "body": "你正在代表用户施加限制。原因备注为必填且记录在审计日志中。",
-        "reasonLabel": "原因(必填)",
-        "reasonRequired": "原因为必填。",
-        "reasonTooShort": "原因至少需要 10 个字符。"
-      },
-      "erasure": {
-        "title": "删除用户 (第 17 条)",
-        "dangerLabel": "操作员删除",
-        "explainer": "仅在用户无法自助操作时使用(账户锁定、信道外核验身份、法院命令)。审计日志将把你记录为执行者。",
-        "openButton": "删除此用户"
-      },
-      "sessions": {
-        "title": "活跃会话",
-        "explainer": "强制结束此用户的所有会话。其下一次请求将收到 401。用于被入侵的账户、丢失的设备,或你需要立即撤销访问权限的情况。",
-        "signOutButton": "强制注销",
-        "signingOut": "正在注销…",
-        "success": "{{userId}} 的所有会话已结束。",
-        "error": "无法结束会话:{{message}}"
-      },
-      "eraseDialog": {
-        "title": "永久删除此用户",
-        "warningBody": "确认后,以下内容将立即针对 <1>{{userId}}</1> 删除:",
-        "ackResponsibility": "我确认我正基于已核实的请求或法律依据采取行动。",
-        "ackPermanent": "我理解删除是永久且不可撤销的。",
-        "ackAuditLog": "我理解我的管理员主体将被记录在审计日志中。",
-        "reasonLabel": "原因备注(必填,审计记录)",
-        "reasonHelper": "至少 10 个字符。示例:“数据主体于 2026-06-01 通过邮政寄送了经公证的删除请求。”",
-        "reasonRequired": "原因为必填。",
-        "reasonTooShort": "原因至少需要 10 个字符。",
-        "typeUserIdLabel": "输入用户 ID 以确认",
-        "typeUserIdHelper": "完全输入:{{userId}}",
-        "typeUserIdMismatch": "用户 ID 不匹配。"
-      },
-      "eraseConfirmDialog": {
-        "body": "你即将永久删除账户 <1>{{userId}}</1>。按钮将在 {{seconds}} 秒后启用。"
-      },
-      "erasedSummary": {
-        "title": "用户已被删除",
-        "doneButton": "完成"
-      }
-    }
   }
 }

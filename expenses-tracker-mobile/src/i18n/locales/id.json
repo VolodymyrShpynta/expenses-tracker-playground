@@ -7,23 +7,65 @@
     "tools": "Alat",
     "exportImport": "Ekspor & impor",
     "settings": "Pengaturan",
-    "openMenu": "Buka menu",
-    "privacy": "Privasi",
-    "adminUsers": "Administrasi pengguna"
+    "openMenu": "Buka menu"
   },
   "settings": {
     "darkMode": "Mode gelap",
     "toggleDarkMode": "Alihkan mode gelap",
     "manageCategories": "Kelola kategori",
+    "resetCategories": "Reset kategori",
+    "resetCategoriesDescription": "Pulihkan daftar kategori asli.",
+    "resetSuccess": "Reset selesai. {{archived}} diarsipkan, {{seeded}} ditambahkan.",
+    "resetError": "Reset gagal.",
     "currency": "Mata uang",
     "fontSize": "Ukuran huruf",
     "language": "Bahasa",
+    "exportData": "Ekspor data",
+    "importData": "Impor data",
+    "exportImport": "Ekspor & impor",
+    "exportSuccess": "{{categories}} kategori dan {{expenses}} pengeluaran diekspor.",
+    "exportError": "Ekspor gagal.",
+    "importSuccess": "{{categories}} kategori dan {{expenses}} pengeluaran dibuat ({{skipped}} dilewati).",
+    "importError": "Impor gagal.",
+    "themeMode": {
+      "system": "Ikuti sistem",
+      "light": "Terang",
+      "dark": "Gelap"
+    },
     "fontScale": {
       "small": "Kecil",
       "medium": "Sedang",
       "large": "Besar",
       "xlarge": "Sangat besar"
-    }
+    },
+    "sync": "Sinkronisasi cloud",
+    "syncDescription": "Sinkronkan pengeluaran antar perangkat melalui drive cloud Anda sendiri."
+  },
+  "syncDialog": {
+    "title": "Sinkronisasi cloud",
+    "provider": "Penyedia",
+    "providers": {
+      "none": "Nonaktif",
+      "onedrive": "OneDrive",
+      "googledrive": "Google Drive"
+    },
+    "signIn": "Masuk",
+    "signOut": "Keluar",
+    "signingIn": "Sedang masuk…",
+    "syncNow": "Sinkronkan sekarang",
+    "syncing": "Menyinkronkan…",
+    "autoSync": "Sinkronisasi otomatis",
+    "autoSyncDescription": "Sinkronkan secara otomatis di latar belakang.",
+    "autoSyncDescriptionFull": "Jika diaktifkan, aplikasi menyinkronkan secara otomatis saat aplikasi dijalankan, saat kembali ke aplikasi, setelah edit (setelah jeda singkat), dan saat jaringan tersambung kembali. Anda selalu dapat menyinkronkan secara manual dengan tombol \"Sinkronkan sekarang\".",
+    "autoSyncInfo": "Tentang sinkronisasi otomatis",
+    "lastSynced": "Terakhir disinkronkan {{when}}",
+    "neverSynced": "Belum pernah disinkronkan",
+    "statusSuccess": "{{applied}} diterapkan, {{uploaded}} diunggah.",
+    "statusUpToDate": "Sudah terbaru.",
+    "statusError": "Sinkronisasi gagal: {{message}}",
+    "signInPrompt": "Masuk untuk mengaktifkan sinkronisasi.",
+    "notConfigured": "Pilih penyedia cloud terlebih dahulu.",
+    "googleDisabled": "Google Drive belum dikonfigurasi — atur GOOGLE_OAUTH_CLIENT_ID terlebih dahulu."
   },
   "common": {
     "save": "Simpan",
@@ -52,7 +94,16 @@
     "addCategoryAriaLabel": "Tambah pengeluaran {{category}}",
     "editExpenseAriaLabel": "Ubah pengeluaran {{description}}",
     "overviewTitle": "Ringkasan",
-    "overviewComingSoon": "Ringkasan anggaran dan analitik segera hadir."
+    "overviewComingSoon": "Ringkasan anggaran dan analitik segera hadir.",
+    "overviewModeLines": "Garis",
+    "overviewModeStackedArea": "Bertumpuk",
+    "overviewOtherSeries": "Lainnya",
+    "overviewNoData": "Tidak ada data untuk periode ini.",
+    "overviewApproxRatesCaveat": "Beberapa jumlah menggunakan nilai tukar hari ini.",
+    "overviewTotalSparklineLabel": "Tren total pengeluaran",
+    "overviewTooltipTotal": "Total",
+    "overviewTooltipOverflow": "Pengeluaran lain",
+    "overviewChartLabel": "Pengeluaran seiring waktu per kategori"
   },
   "expenseDialog": {
     "date": "Tanggal",
@@ -61,7 +112,9 @@
     "expense": "Pengeluaran",
     "description": "Deskripsi",
     "pickCategoryError": "Silakan pilih kategori.",
-    "positiveAmountError": "Jumlah harus berupa angka positif."
+    "positiveAmountError": "Jumlah harus berupa angka positif.",
+    "suggestionsHeader": "Dari pengeluaran sebelumnya",
+    "suggestionAriaLabel": "Gunakan {{description}} dari pengeluaran sebelumnya"
   },
   "categoryTemplates": {
     "beauty": "Kecantikan",
@@ -122,6 +175,8 @@
     "createAnywayButton": "Tetap buat",
     "restoreButton": "Pulihkan",
     "restoreAndMergeButton": "Pulihkan & gabung",
+    "restoreConflictTitle": "Pulihkan dan gabungkan?",
+    "restoreConflictBody": "Kategori aktif bernama {{name}} sudah ada. Memulihkan akan memindahkan semua pengeluaran dari duplikat aktif ke kategori yang dipulihkan, lalu mengarsipkan duplikat aktif.",
     "mergeAriaLabel": "Gabung {{name}} dengan kategori lain",
     "mergeTitle": "Gabung dengan kategori lain",
     "mergePickPrompt": "Pilih kategori untuk menggabungkan <1>{{name}}</1>. Semua pengeluarannya akan dipindahkan.",
@@ -162,7 +217,14 @@
       "today": "Hari ini",
       "year": "Tahun",
       "month": "Bulan"
-    }
+    },
+    "custom": "Rentang khusus…"
+  },
+  "transactions": {
+    "searchPlaceholder": "Cari transaksi…",
+    "openFilter": "Filter berdasarkan kategori",
+    "add": "Tambah…",
+    "removeFilter": "Hapus filter: {{name}}"
   },
   "calculator": {
     "enterOrUseCalculator": "Masukkan jumlah atau gunakan kalkulator",
@@ -195,176 +257,5 @@
       "expense": "Pengeluaran"
     },
     "importMoreErrors": "…dan {{count}} lagi"
-  },
-  "privacy": {
-    "pageTitle": "Privasi & data",
-    "pageSubtitle": "Kelola cara data pribadi Anda diproses. Alat ini mencakup hak Anda menurut Pasal 17 dan 18 GDPR.",
-    "yourData": {
-      "title": "Akun Anda",
-      "username": "Nama pengguna",
-      "userId": "ID pengguna",
-      "exportHint": "Untuk mengunduh salinan data Anda (Pasal 20), gunakan <1>Ekspor & impor</1> di bilah samping."
-    },
-    "restriction": {
-      "title": "Batasi pemrosesan",
-      "explainer": "Pasal 18 memungkinkan Anda menjeda akun. Data tetap ada tetapi kami berhenti memprosesnya — Anda dapat mencabut pembatasan nanti.",
-      "statusNone": "Data Anda diproses secara normal. Tidak ada pembatasan aktif.",
-      "statusActive": "Pemrosesan Anda dibatasi.",
-      "fieldGround": "Dasar (Pasal 18(1))",
-      "fieldAppliedAt": "Dibatasi pada",
-      "fieldRequestedBy": "Diminta oleh",
-      "fieldReason": "Alasan",
-      "fieldLiftNoticeSentAt": "Pemberitahuan pencabutan dikirim",
-      "restrictButton": "Batasi pemrosesan saya",
-      "liftButton": "Minta pencabutan",
-      "loading": "Memuat status pembatasan…",
-      "error": "Tidak dapat memuat status pembatasan: {{message}}"
-    },
-    "restrictDialog": {
-      "title": "Batasi pemrosesan",
-      "body": "Pilih dasar hukum permintaan Anda. Anda dapat menambahkan catatan opsional yang menjelaskan mengapa Anda ingin menjeda pemrosesan.",
-      "grounds": {
-        "ACCURACY_CONTESTED": "Saya menyangkal keakuratan data saya (Pasal 18(1)(a))",
-        "UNLAWFUL_NOT_ERASED": "Pemrosesan tidak sah tetapi saya tidak ingin penghapusan (Pasal 18(1)(b))",
-        "CONTROLLER_NO_LONGER_NEEDS": "Anda tidak lagi membutuhkan data, tetapi saya membutuhkannya untuk tuntutan hukum (Pasal 18(1)(c))",
-        "OBJECTION_PENDING": "Saya telah mengajukan keberatan dan verifikasi sedang berlangsung (Pasal 18(1)(d))"
-      },
-      "reasonLabel": "Alasan (opsional)",
-      "reasonHelper": "Maks. 1000 karakter. Membantu operator memahami permintaan.",
-      "submit": "Batasi",
-      "submitting": "Membatasi…"
-    },
-    "liftDialog": {
-      "title": "Cabut pembatasan",
-      "body": "Pencabutan terjadi dalam dua langkah. Pertama kami mencatat pemberitahuan pra-pencabutan (Pasal 18(3)) dan menunggu sebentar; kemudian Anda mengonfirmasi ulang untuk benar-benar melanjutkan pemrosesan.",
-      "step1Button": "Kirim pemberitahuan pra-pencabutan",
-      "step1Sending": "Mengirim pemberitahuan…",
-      "step1Done": "Pemberitahuan pra-pencabutan terkirim. Anda dapat menyelesaikan pencabutan setelah {{time}}.",
-      "step2Button": "Selesaikan pencabutan",
-      "step2Submitting": "Menyelesaikan…",
-      "step2DisabledHint": "Tersedia dalam {{seconds}} dtk",
-      "doneTitle": "Pembatasan dicabut",
-      "doneBody": "Pemrosesan telah dilanjutkan. Anda dapat menutup dialog ini.",
-      "close": "Tutup",
-      "error": "Tidak dapat mencabut pembatasan: {{message}}"
-    },
-    "erasure": {
-      "title": "Hapus akun saya",
-      "dangerLabel": "Zona berbahaya",
-      "explainer": "Pasal 17 — hak untuk dihapus. Ini secara permanen menghapus pengeluaran, kategori, dan akun penyedia identitas Anda. Tidak ada pembatalan.",
-      "expandHint": "Ketuk untuk menampilkan kontrol penghapusan.",
-      "openButton": "Saya ingin menghapus akun saya"
-    },
-    "sessions": {
-      "title": "Sesi aktif",
-      "explainer": "Mengeluarkan Anda dari setiap browser, tab, dan aplikasi mobile yang saat ini sedang login. Anda perlu login lagi di sini juga.",
-      "signOutEverywhereButton": "Keluar di mana-mana",
-      "signingOut": "Keluar…",
-      "error": "Tidak dapat keluar di mana-mana: {{message}}"
-    },
-    "eraseDialog": {
-      "title": "Hapus akun Anda secara permanen",
-      "warningTitle": "Tindakan ini tidak dapat dibatalkan",
-      "warningBody": "Setelah dikonfirmasi, hal berikut akan segera dihapus:",
-      "consequence1": "Setiap pengeluaran dan kategori yang Anda catat",
-      "consequence2": "Setiap peristiwa pada log audit yang menyebut Anda",
-      "consequence3": "Akun login Keycloak Anda (jika kaskade operator dikonfigurasi)",
-      "noticeExport": "Jika Anda ingin salinan data terlebih dahulu, batalkan dialog ini dan gunakan <1>Ekspor & impor</1> di bilah samping.",
-      "ackPermanent": "Saya memahami bahwa penghapusan bersifat permanen dan tidak dapat dibatalkan.",
-      "ackExported": "Saya telah mengekspor semua data yang ingin saya simpan.",
-      "ackLogin": "Saya memahami bahwa akun login saya akan dihapus.",
-      "typeUsernameLabel": "Ketik nama pengguna Anda untuk konfirmasi",
-      "typeUsernameHelper": "Ketik persis: {{username}}",
-      "typeUsernameMismatch": "Nama pengguna tidak cocok.",
-      "continueButton": "Lanjutkan",
-      "cancelButton": "Batal"
-    },
-    "eraseConfirmDialog": {
-      "title": "Kesempatan terakhir",
-      "body": "Anda akan menghapus akun <1>{{username}}</1> secara permanen. Tombol akan aktif dalam {{seconds}} dtk.",
-      "deleteButton": "Hapus selamanya",
-      "deleteButtonReady": "Hapus selamanya ({{seconds}} dtk)",
-      "deleting": "Menghapus…",
-      "error": "Penghapusan gagal: {{message}}"
-    },
-    "erasedSummary": {
-      "title": "Akun Anda telah dihapus",
-      "subtitle": "Ringkasan kaskade",
-      "eventsDeleted": "{{count}} peristiwa dihapus",
-      "projectionsDeleted": "{{count}} pengeluaran dihapus",
-      "categoriesDeleted": "{{count}} kategori dihapus",
-      "keycloakDeleted": "Akun penyedia identitas: {{state}}",
-      "keycloakDeletedYes": "dihapus",
-      "keycloakDeletedNo": "masih ada — hubungi operator",
-      "occurredAt": "Tercatat pada {{time}}",
-      "followUpTitle": "Langkah berikutnya",
-      "logoutCountdown": "Anda akan dikeluarkan dalam {{seconds}} dtk.",
-      "logoutNow": "Keluar sekarang"
-    }
-  },
-  "admin": {
-    "users": {
-      "pageTitle": "Administrasi pengguna",
-      "pageSubtitle": "Operasi GDPR terhadap pengguna sembarang. Memerlukan peran realm gdpr-admin.",
-      "lookup": {
-        "title": "Cari pengguna",
-        "label": "ID pengguna (UUID dari `sub` Keycloak)",
-        "placeholder": "00000000-0000-0000-0000-00000000000a",
-        "helper": "Tempel UUID subject Keycloak. API tidak menampilkan daftar pengguna — ID berasal dari konsol admin IdP.",
-        "loadButton": "Muat",
-        "clearButton": "Bersihkan",
-        "selectedLabel": "Saat ini melihat: <1>{{userId}}</1>"
-      },
-      "restriction": {
-        "title": "Pembatasan (Pasal 18)",
-        "restrictedHeadline": "{{userId}} dibatasi.",
-        "noneHeadline": "{{userId}} tidak memiliki pembatasan aktif.",
-        "restrictButton": "Batasi pengguna ini",
-        "liftButton": "Cabut pembatasan",
-        "reasonRequiredHelper": "Catatan alasan diperlukan untuk pembatasan yang diterapkan oleh operator."
-      },
-      "restrictDialog": {
-        "title": "Batasi pemrosesan pengguna",
-        "body": "Anda menerapkan pembatasan atas nama pengguna. Catatan alasan wajib diisi dan dicatat di log audit.",
-        "reasonLabel": "Alasan (wajib)",
-        "reasonRequired": "Alasan wajib diisi.",
-        "reasonTooShort": "Alasan harus minimal 10 karakter."
-      },
-      "erasure": {
-        "title": "Hapus pengguna (Pasal 17)",
-        "dangerLabel": "Penghapusan oleh operator",
-        "explainer": "Gunakan ini hanya jika pengguna tidak dapat melayani diri sendiri (akun terkunci, identitas diverifikasi di luar saluran, perintah pengadilan). Log audit mencatat Anda sebagai pelaku.",
-        "openButton": "Hapus pengguna ini"
-      },
-      "sessions": {
-        "title": "Sesi aktif",
-        "explainer": "Memaksa mengakhiri setiap sesi pengguna ini. Permintaan berikutnya akan mendapat 401. Gunakan untuk akun yang dikompromikan, perangkat hilang, atau ketika Anda perlu mencabut akses segera.",
-        "signOutButton": "Paksa keluar",
-        "signingOut": "Keluar…",
-        "success": "Semua sesi {{userId}} telah diakhiri.",
-        "error": "Tidak dapat mengakhiri sesi: {{message}}"
-      },
-      "eraseDialog": {
-        "title": "Hapus pengguna ini secara permanen",
-        "warningBody": "Setelah dikonfirmasi, hal berikut akan segera dihapus untuk <1>{{userId}}</1>:",
-        "ackResponsibility": "Saya mengonfirmasi bahwa saya bertindak atas permintaan yang terverifikasi atau dasar hukum.",
-        "ackPermanent": "Saya memahami bahwa penghapusan bersifat permanen dan tidak dapat dibatalkan.",
-        "ackAuditLog": "Saya memahami subjek admin saya akan tercatat di log audit.",
-        "reasonLabel": "Catatan alasan (wajib, tercatat di audit)",
-        "reasonHelper": "Minimal 10 karakter. Contoh: “Subjek mengirim permintaan penghapusan bermaterai melalui pos pada 2026-06-01.”",
-        "reasonRequired": "Alasan wajib diisi.",
-        "reasonTooShort": "Alasan harus minimal 10 karakter.",
-        "typeUserIdLabel": "Ketik ID pengguna untuk konfirmasi",
-        "typeUserIdHelper": "Ketik persis: {{userId}}",
-        "typeUserIdMismatch": "ID pengguna tidak cocok."
-      },
-      "eraseConfirmDialog": {
-        "body": "Anda akan menghapus akun <1>{{userId}}</1> secara permanen. Tombol akan aktif dalam {{seconds}} dtk."
-      },
-      "erasedSummary": {
-        "title": "Pengguna telah dihapus",
-        "doneButton": "Selesai"
-      }
-    }
   }
 }

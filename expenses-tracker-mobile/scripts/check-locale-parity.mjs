@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 /**
- * Compares every locale JSON in expenses-tracker-frontend/src/i18n/locales/
+ * Compares every locale JSON in expenses-tracker-mobile/src/i18n/locales/
  * against the canonical en.json. Reports any missing keys (translation will
  * fall back to English) and any extra keys (likely typo / orphan).
+ *
+ * The mobile module owns its own locale resources — they are NOT mirrored
+ * from the web frontend (see `.github/instructions/expenses-tracker-mobile.instructions.md`).
  *
  * Wired into `npm run typecheck` via the `check-locales` script in
  * package.json, so a missing or stray key fails the standard pre-push check.
@@ -13,7 +16,7 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const LOCALES_DIR = resolve(HERE, '..', '..', 'expenses-tracker-frontend', 'src', 'i18n', 'locales');
+const LOCALES_DIR = resolve(HERE, '..', 'src', 'i18n', 'locales');
 
 function flatten(obj, prefix = '') {
   const out = new Set();

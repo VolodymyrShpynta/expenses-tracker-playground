@@ -7,23 +7,65 @@
     "tools": "Herramientas",
     "exportImport": "Exportar e importar",
     "settings": "Ajustes",
-    "openMenu": "Abrir menú",
-    "privacy": "Privacidad",
-    "adminUsers": "Administración de usuarios"
+    "openMenu": "Abrir menú"
   },
   "settings": {
     "darkMode": "Modo oscuro",
     "toggleDarkMode": "Activar modo oscuro",
     "manageCategories": "Gestionar categorías",
+    "resetCategories": "Restablecer categorías",
+    "resetCategoriesDescription": "Restaura la lista original de categorías.",
+    "resetSuccess": "Restablecido. Archivadas {{archived}}, añadidas {{seeded}}.",
+    "resetError": "Error al restablecer.",
     "currency": "Moneda",
     "fontSize": "Tamaño de fuente",
     "language": "Idioma",
+    "exportData": "Exportar datos",
+    "importData": "Importar datos",
+    "exportImport": "Exportar e importar",
+    "exportSuccess": "Exportadas {{categories}} categorías y {{expenses}} gastos.",
+    "exportError": "Error al exportar.",
+    "importSuccess": "Creadas {{categories}} categorías y {{expenses}} gastos ({{skipped}} omitidos).",
+    "importError": "Error al importar.",
+    "themeMode": {
+      "system": "Seguir al sistema",
+      "light": "Claro",
+      "dark": "Oscuro"
+    },
     "fontScale": {
       "small": "Pequeño",
       "medium": "Mediano",
       "large": "Grande",
       "xlarge": "Muy grande"
-    }
+    },
+    "sync": "Sincronización en la nube",
+    "syncDescription": "Sincroniza gastos entre dispositivos con tu propio almacenamiento en la nube."
+  },
+  "syncDialog": {
+    "title": "Sincronización en la nube",
+    "provider": "Proveedor",
+    "providers": {
+      "none": "Desactivado",
+      "onedrive": "OneDrive",
+      "googledrive": "Google Drive"
+    },
+    "signIn": "Iniciar sesión",
+    "signOut": "Cerrar sesión",
+    "signingIn": "Iniciando sesión…",
+    "syncNow": "Sincronizar ahora",
+    "syncing": "Sincronizando…",
+    "autoSync": "Sincronización automática",
+    "autoSyncDescription": "Sincronizar automáticamente en segundo plano.",
+    "autoSyncDescriptionFull": "Cuando está activada, la app sincroniza automáticamente al iniciarse, al volver a la app, después de editar (tras una breve pausa) y cuando se restablece la red. Siempre puedes sincronizar manualmente con el botón «Sincronizar ahora».",
+    "autoSyncInfo": "Sobre la sincronización automática",
+    "lastSynced": "Última sincronización: {{when}}",
+    "neverSynced": "Nunca sincronizado",
+    "statusSuccess": "Aplicados {{applied}}, subidos {{uploaded}}.",
+    "statusUpToDate": "Ya está actualizado.",
+    "statusError": "Error de sincronización: {{message}}",
+    "signInPrompt": "Inicia sesión para activar la sincronización.",
+    "notConfigured": "Elige primero un proveedor en la nube.",
+    "googleDisabled": "Google Drive aún no está configurado — define primero GOOGLE_OAUTH_CLIENT_ID."
   },
   "common": {
     "save": "Guardar",
@@ -52,7 +94,16 @@
     "addCategoryAriaLabel": "Añadir gasto en {{category}}",
     "editExpenseAriaLabel": "Editar gasto {{description}}",
     "overviewTitle": "Resumen",
-    "overviewComingSoon": "El resumen del presupuesto y la analítica llegarán pronto."
+    "overviewComingSoon": "El resumen del presupuesto y la analítica llegarán pronto.",
+    "overviewModeLines": "Líneas",
+    "overviewModeStackedArea": "Apilado",
+    "overviewOtherSeries": "Otros",
+    "overviewNoData": "Sin datos para este periodo.",
+    "overviewApproxRatesCaveat": "Algunos importes usan el tipo de cambio de hoy.",
+    "overviewTotalSparklineLabel": "Tendencia del gasto total",
+    "overviewTooltipTotal": "Total",
+    "overviewTooltipOverflow": "Otros gastos",
+    "overviewChartLabel": "Gasto a lo largo del tiempo por categoría"
   },
   "expenseDialog": {
     "date": "Fecha",
@@ -61,7 +112,9 @@
     "expense": "Gasto",
     "description": "Descripción",
     "pickCategoryError": "Por favor, elige una categoría.",
-    "positiveAmountError": "El importe debe ser un número positivo."
+    "positiveAmountError": "El importe debe ser un número positivo.",
+    "suggestionsHeader": "De gastos anteriores",
+    "suggestionAriaLabel": "Usar {{description}} de un gasto anterior"
   },
   "categoryTemplates": {
     "beauty": "Belleza",
@@ -122,6 +175,8 @@
     "createAnywayButton": "Crear de todos modos",
     "restoreButton": "Restaurar",
     "restoreAndMergeButton": "Restaurar y combinar",
+    "restoreConflictTitle": "¿Restaurar y combinar?",
+    "restoreConflictBody": "Ya existe una categoría activa llamada {{name}}. Al restaurar se moverán todos los gastos del duplicado activo a la restaurada y el duplicado activo se archivará.",
     "mergeAriaLabel": "Combinar {{name}} con otra categoría",
     "mergeTitle": "Combinar con otra categoría",
     "mergePickPrompt": "Elige una categoría con la que combinar <1>{{name}}</1>. Todos sus gastos se trasladarán.",
@@ -162,7 +217,14 @@
       "today": "Hoy",
       "year": "Año",
       "month": "Mes"
-    }
+    },
+    "custom": "Intervalo personalizado…"
+  },
+  "transactions": {
+    "searchPlaceholder": "Buscar transacciones…",
+    "openFilter": "Filtrar por categoría",
+    "add": "Añadir…",
+    "removeFilter": "Quitar filtro: {{name}}"
   },
   "calculator": {
     "enterOrUseCalculator": "Introduce el importe o usa la calculadora",
@@ -195,176 +257,5 @@
       "expense": "Gasto"
     },
     "importMoreErrors": "…y {{count}} más"
-  },
-  "privacy": {
-    "pageTitle": "Privacidad y datos",
-    "pageSubtitle": "Gestiona el tratamiento de tus datos personales. Estas herramientas cubren tus derechos según los artículos 17 y 18 del RGPD.",
-    "yourData": {
-      "title": "Tu cuenta",
-      "username": "Nombre de usuario",
-      "userId": "ID de usuario",
-      "exportHint": "Para descargar una copia de tus datos (artículo 20), usa <1>Exportar e importar</1> en la barra lateral."
-    },
-    "restriction": {
-      "title": "Restringir el tratamiento",
-      "explainer": "El artículo 18 te permite poner tu cuenta en pausa. Tus datos siguen en su lugar pero dejamos de procesarlos — puedes levantar la restricción más adelante.",
-      "statusNone": "Tus datos se procesan normalmente. No hay ninguna restricción.",
-      "statusActive": "Tu tratamiento está restringido.",
-      "fieldGround": "Fundamento (art. 18(1))",
-      "fieldAppliedAt": "Restringido el",
-      "fieldRequestedBy": "Solicitado por",
-      "fieldReason": "Motivo",
-      "fieldLiftNoticeSentAt": "Aviso de levantamiento enviado el",
-      "restrictButton": "Restringir mi tratamiento",
-      "liftButton": "Solicitar levantamiento",
-      "loading": "Cargando estado de la restricción…",
-      "error": "No se pudo cargar el estado de la restricción: {{message}}"
-    },
-    "restrictDialog": {
-      "title": "Restringir el tratamiento",
-      "body": "Elige el fundamento legal de tu solicitud. Puedes añadir una nota opcional explicando por qué quieres pausar el tratamiento.",
-      "grounds": {
-        "ACCURACY_CONTESTED": "Impugno la exactitud de mis datos (art. 18(1)(a))",
-        "UNLAWFUL_NOT_ERASED": "El tratamiento es ilícito pero no quiero la supresión (art. 18(1)(b))",
-        "CONTROLLER_NO_LONGER_NEEDS": "Ya no necesitáis los datos, pero yo sí para una reclamación legal (art. 18(1)(c))",
-        "OBJECTION_PENDING": "He presentado una oposición y queda pendiente la verificación (art. 18(1)(d))"
-      },
-      "reasonLabel": "Motivo (opcional)",
-      "reasonHelper": "Hasta 1000 caracteres. Ayuda al operador a entender la solicitud.",
-      "submit": "Restringir",
-      "submitting": "Restringiendo…"
-    },
-    "liftDialog": {
-      "title": "Levantar la restricción",
-      "body": "El levantamiento ocurre en dos pasos. Primero registramos un aviso previo (art. 18(3)) y esperamos un breve periodo; después confirmas de nuevo para reanudar el tratamiento.",
-      "step1Button": "Enviar aviso previo",
-      "step1Sending": "Enviando aviso…",
-      "step1Done": "Aviso previo enviado. Puedes finalizar el levantamiento después de {{time}}.",
-      "step2Button": "Finalizar levantamiento",
-      "step2Submitting": "Finalizando…",
-      "step2DisabledHint": "Disponible en {{seconds}} s",
-      "doneTitle": "Restricción levantada",
-      "doneBody": "Se ha reanudado el tratamiento. Puedes cerrar este diálogo.",
-      "close": "Cerrar",
-      "error": "No se pudo levantar la restricción: {{message}}"
-    },
-    "erasure": {
-      "title": "Eliminar mi cuenta",
-      "dangerLabel": "Zona peligrosa",
-      "explainer": "Artículo 17 — derecho de supresión. Esto elimina de forma permanente tus gastos, categorías y la cuenta del proveedor de identidad. No hay vuelta atrás.",
-      "expandHint": "Pulsa para mostrar los controles de eliminación.",
-      "openButton": "Quiero eliminar mi cuenta"
-    },
-    "sessions": {
-      "title": "Sesiones activas",
-      "explainer": "Cierra tu sesión en cualquier navegador, pestaña o aplicación móvil donde estés conectado. También tendrás que volver a iniciar sesión aquí.",
-      "signOutEverywhereButton": "Cerrar sesión en todas partes",
-      "signingOut": "Cerrando sesión…",
-      "error": "No se pudo cerrar la sesión en todas partes: {{message}}"
-    },
-    "eraseDialog": {
-      "title": "Eliminar tu cuenta de forma permanente",
-      "warningTitle": "Esto no se puede deshacer",
-      "warningBody": "Una vez confirmado, se eliminará inmediatamente lo siguiente:",
-      "consequence1": "Todos los gastos y categorías que hayas registrado",
-      "consequence2": "Todos los eventos del registro de auditoría que te mencionen",
-      "consequence3": "Tu cuenta de inicio de sesión Keycloak (cuando esté configurada la cascada del operador)",
-      "noticeExport": "Si primero quieres una copia de tus datos, cancela este diálogo y usa <1>Exportar e importar</1> en la barra lateral.",
-      "ackPermanent": "Entiendo que la eliminación es permanente e irreversible.",
-      "ackExported": "Ya he exportado los datos que quiero conservar.",
-      "ackLogin": "Entiendo que se eliminará mi cuenta de inicio de sesión.",
-      "typeUsernameLabel": "Escribe tu nombre de usuario para confirmar",
-      "typeUsernameHelper": "Escribe exactamente: {{username}}",
-      "typeUsernameMismatch": "El nombre de usuario no coincide.",
-      "continueButton": "Continuar",
-      "cancelButton": "Cancelar"
-    },
-    "eraseConfirmDialog": {
-      "title": "Última oportunidad",
-      "body": "Estás a punto de eliminar de forma permanente la cuenta <1>{{username}}</1>. El botón se activará en {{seconds}} s.",
-      "deleteButton": "Eliminar para siempre",
-      "deleteButtonReady": "Eliminar para siempre ({{seconds}} s)",
-      "deleting": "Eliminando…",
-      "error": "La eliminación falló: {{message}}"
-    },
-    "erasedSummary": {
-      "title": "Tu cuenta ha sido eliminada",
-      "subtitle": "Resumen de la cascada",
-      "eventsDeleted": "{{count}} eventos eliminados",
-      "projectionsDeleted": "{{count}} gastos eliminados",
-      "categoriesDeleted": "{{count}} categorías eliminadas",
-      "keycloakDeleted": "Cuenta del proveedor de identidad: {{state}}",
-      "keycloakDeletedYes": "eliminada",
-      "keycloakDeletedNo": "todavía presente — contacta con el operador",
-      "occurredAt": "Registrado a las {{time}}",
-      "followUpTitle": "Pasos siguientes",
-      "logoutCountdown": "Se cerrará tu sesión en {{seconds}} s.",
-      "logoutNow": "Cerrar sesión ahora"
-    }
-  },
-  "admin": {
-    "users": {
-      "pageTitle": "Administración de usuarios",
-      "pageSubtitle": "Operaciones RGPD contra un usuario arbitrario. Requiere el rol de realm gdpr-admin.",
-      "lookup": {
-        "title": "Buscar un usuario",
-        "label": "ID de usuario (UUID del `sub` de Keycloak)",
-        "placeholder": "00000000-0000-0000-0000-00000000000a",
-        "helper": "Pega el UUID del sujeto de Keycloak. La API no expone el listado de usuarios — los IDs vienen de la consola de administración del IdP.",
-        "loadButton": "Cargar",
-        "clearButton": "Limpiar",
-        "selectedLabel": "Viendo actualmente: <1>{{userId}}</1>"
-      },
-      "restriction": {
-        "title": "Restricción (art. 18)",
-        "restrictedHeadline": "{{userId}} está restringido.",
-        "noneHeadline": "{{userId}} no tiene restricción activa.",
-        "restrictButton": "Restringir a este usuario",
-        "liftButton": "Levantar restricción",
-        "reasonRequiredHelper": "La nota con el motivo es obligatoria para las restricciones aplicadas por el operador."
-      },
-      "restrictDialog": {
-        "title": "Restringir el tratamiento del usuario",
-        "body": "Estás aplicando una restricción en nombre del usuario. La nota con el motivo es obligatoria y se registra en el log de auditoría.",
-        "reasonLabel": "Motivo (obligatorio)",
-        "reasonRequired": "El motivo es obligatorio.",
-        "reasonTooShort": "El motivo debe tener al menos 10 caracteres."
-      },
-      "erasure": {
-        "title": "Eliminar usuario (art. 17)",
-        "dangerLabel": "Eliminación por el operador",
-        "explainer": "Úsalo solo cuando el usuario no pueda hacerlo por sí mismo (cuenta bloqueada, identidad verificada por otra vía, orden judicial). El log de auditoría te registra como actor.",
-        "openButton": "Eliminar a este usuario"
-      },
-      "sessions": {
-        "title": "Sesiones activas",
-        "explainer": "Termina forzosamente todas las sesiones de este usuario. Su siguiente petición recibirá un 401. Úsalo para cuentas comprometidas, dispositivos perdidos o cuando necesites revocar el acceso de inmediato.",
-        "signOutButton": "Forzar cierre de sesión",
-        "signingOut": "Cerrando sesión…",
-        "success": "Se han terminado todas las sesiones de {{userId}}.",
-        "error": "No se pudieron terminar las sesiones: {{message}}"
-      },
-      "eraseDialog": {
-        "title": "Eliminar a este usuario de forma permanente",
-        "warningBody": "Una vez confirmado, se eliminará inmediatamente lo siguiente para <1>{{userId}}</1>:",
-        "ackResponsibility": "Confirmo que actúo basándome en una solicitud verificada o un fundamento legal.",
-        "ackPermanent": "Entiendo que la eliminación es permanente e irreversible.",
-        "ackAuditLog": "Entiendo que mi identificador de administrador se registrará en el log de auditoría.",
-        "reasonLabel": "Nota con el motivo (obligatoria, queda registrada en auditoría)",
-        "reasonHelper": "Mínimo 10 caracteres. Ejemplo: «El sujeto presentó una solicitud notarial de supresión por correo postal el 2026-06-01.»",
-        "reasonRequired": "El motivo es obligatorio.",
-        "reasonTooShort": "El motivo debe tener al menos 10 caracteres.",
-        "typeUserIdLabel": "Escribe el ID de usuario para confirmar",
-        "typeUserIdHelper": "Escribe exactamente: {{userId}}",
-        "typeUserIdMismatch": "El ID de usuario no coincide."
-      },
-      "eraseConfirmDialog": {
-        "body": "Estás a punto de eliminar de forma permanente la cuenta <1>{{userId}}</1>. El botón se activará en {{seconds}} s."
-      },
-      "erasedSummary": {
-        "title": "El usuario ha sido eliminado",
-        "doneButton": "Hecho"
-      }
-    }
   }
 }

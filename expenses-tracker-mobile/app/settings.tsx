@@ -199,18 +199,20 @@ function LanguageDialog({ visible, onDismiss }: { visible: boolean; onDismiss: (
       onDismiss={onDismiss}
       title={translate('languageDialog.title')}
     >
-      <Dialog.Content>
-        <RadioButton.Group
-          value={i18n.language}
-          onValueChange={(code) => {
-            void setLanguage(code as LanguageCode).then(onDismiss);
-          }}
-        >
-          {SUPPORTED_LANGUAGES.map((l) => (
-            <RadioButton.Item key={l.code} value={l.code} label={l.nativeLabel} />
-          ))}
-        </RadioButton.Group>
-      </Dialog.Content>
+      <Dialog.ScrollArea style={{ paddingHorizontal: 0 }}>
+        <ScrollView>
+          <RadioButton.Group
+            value={i18n.language}
+            onValueChange={(code) => {
+              void setLanguage(code as LanguageCode).then(onDismiss);
+            }}
+          >
+            {SUPPORTED_LANGUAGES.map((l) => (
+              <RadioButton.Item key={l.code} value={l.code} label={l.nativeLabel} />
+            ))}
+          </RadioButton.Group>
+        </ScrollView>
+      </Dialog.ScrollArea>
     </AppDialog>
   );
 }

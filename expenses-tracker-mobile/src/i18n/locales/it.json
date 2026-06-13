@@ -7,23 +7,65 @@
     "tools": "Strumenti",
     "exportImport": "Esporta e importa",
     "settings": "Impostazioni",
-    "openMenu": "Apri menu",
-    "privacy": "Privacy",
-    "adminUsers": "Amministrazione utenti"
+    "openMenu": "Apri menu"
   },
   "settings": {
     "darkMode": "Tema scuro",
     "toggleDarkMode": "Attiva/disattiva tema scuro",
     "manageCategories": "Gestisci categorie",
+    "resetCategories": "Reimposta categorie",
+    "resetCategoriesDescription": "Ripristina l’elenco originale delle categorie.",
+    "resetSuccess": "Reimpostato. {{archived}} archiviate, {{seeded}} aggiunte.",
+    "resetError": "Reimpostazione non riuscita.",
     "currency": "Valuta",
     "fontSize": "Dimensione carattere",
     "language": "Lingua",
+    "exportData": "Esporta dati",
+    "importData": "Importa dati",
+    "exportImport": "Esporta e importa",
+    "exportSuccess": "Esportate {{categories}} categorie e {{expenses}} spese.",
+    "exportError": "Esportazione non riuscita.",
+    "importSuccess": "Create {{categories}} categorie e {{expenses}} spese ({{skipped}} saltate).",
+    "importError": "Importazione non riuscita.",
+    "themeMode": {
+      "system": "Segui il sistema",
+      "light": "Chiaro",
+      "dark": "Scuro"
+    },
     "fontScale": {
       "small": "Piccolo",
       "medium": "Medio",
       "large": "Grande",
       "xlarge": "Molto grande"
-    }
+    },
+    "sync": "Sincronizzazione cloud",
+    "syncDescription": "Sincronizza le spese tra dispositivi tramite il tuo cloud drive."
+  },
+  "syncDialog": {
+    "title": "Sincronizzazione cloud",
+    "provider": "Provider",
+    "providers": {
+      "none": "Disattivato",
+      "onedrive": "OneDrive",
+      "googledrive": "Google Drive"
+    },
+    "signIn": "Accedi",
+    "signOut": "Esci",
+    "signingIn": "Accesso in corso…",
+    "syncNow": "Sincronizza ora",
+    "syncing": "Sincronizzazione…",
+    "autoSync": "Sincronizzazione automatica",
+    "autoSyncDescription": "Sincronizza automaticamente in background.",
+    "autoSyncDescriptionFull": "Quando è attiva, l’app si sincronizza automaticamente all’avvio, al ritorno nell’app, dopo le modifiche (con una breve pausa) e alla riconnessione di rete. Puoi sempre sincronizzare manualmente con il pulsante «Sincronizza ora».",
+    "autoSyncInfo": "Informazioni sulla sincronizzazione automatica",
+    "lastSynced": "Ultima sincronizzazione: {{when}}",
+    "neverSynced": "Mai sincronizzato",
+    "statusSuccess": "{{applied}} applicate, {{uploaded}} caricate.",
+    "statusUpToDate": "Già aggiornato.",
+    "statusError": "Sincronizzazione non riuscita: {{message}}",
+    "signInPrompt": "Accedi per attivare la sincronizzazione.",
+    "notConfigured": "Scegli prima un provider cloud.",
+    "googleDisabled": "Google Drive non è ancora configurato — imposta prima GOOGLE_OAUTH_CLIENT_ID."
   },
   "common": {
     "save": "Salva",
@@ -52,7 +94,16 @@
     "addCategoryAriaLabel": "Aggiungi spesa in {{category}}",
     "editExpenseAriaLabel": "Modifica spesa {{description}}",
     "overviewTitle": "Panoramica",
-    "overviewComingSoon": "La panoramica del budget e le analisi arrivano presto."
+    "overviewComingSoon": "La panoramica del budget e le analisi arrivano presto.",
+    "overviewModeLines": "Linee",
+    "overviewModeStackedArea": "Impilato",
+    "overviewOtherSeries": "Altro",
+    "overviewNoData": "Nessun dato per questo periodo.",
+    "overviewApproxRatesCaveat": "Alcuni importi usano il tasso di cambio di oggi.",
+    "overviewTotalSparklineLabel": "Andamento spese totali",
+    "overviewTooltipTotal": "Totale",
+    "overviewTooltipOverflow": "Altre spese",
+    "overviewChartLabel": "Spese nel tempo per categoria"
   },
   "expenseDialog": {
     "date": "Data",
@@ -61,7 +112,9 @@
     "expense": "Spesa",
     "description": "Descrizione",
     "pickCategoryError": "Scegli una categoria.",
-    "positiveAmountError": "L’importo deve essere un numero positivo."
+    "positiveAmountError": "L’importo deve essere un numero positivo.",
+    "suggestionsHeader": "Da spese precedenti",
+    "suggestionAriaLabel": "Usa {{description}} da una spesa precedente"
   },
   "categoryTemplates": {
     "beauty": "Bellezza",
@@ -122,6 +175,8 @@
     "createAnywayButton": "Crea comunque",
     "restoreButton": "Ripristina",
     "restoreAndMergeButton": "Ripristina e unisci",
+    "restoreConflictTitle": "Ripristinare e unire?",
+    "restoreConflictBody": "Esiste già una categoria attiva chiamata {{name}}. Il ripristino sposterà tutte le spese dal duplicato attivo a quella ripristinata, poi archivierà il duplicato attivo.",
     "mergeAriaLabel": "Unisci {{name}} a un’altra categoria",
     "mergeTitle": "Unisci a un’altra categoria",
     "mergePickPrompt": "Scegli una categoria in cui unire <1>{{name}}</1>. Tutte le sue spese verranno spostate.",
@@ -162,7 +217,14 @@
       "today": "Oggi",
       "year": "Anno",
       "month": "Mese"
-    }
+    },
+    "custom": "Intervallo personalizzato…"
+  },
+  "transactions": {
+    "searchPlaceholder": "Cerca transazioni…",
+    "openFilter": "Filtra per categoria",
+    "add": "Aggiungi…",
+    "removeFilter": "Rimuovi filtro: {{name}}"
   },
   "calculator": {
     "enterOrUseCalculator": "Inserisci l’importo o usa la calcolatrice",
@@ -195,176 +257,5 @@
       "expense": "Spesa"
     },
     "importMoreErrors": "…e altri {{count}}"
-  },
-  "privacy": {
-    "pageTitle": "Privacy e dati",
-    "pageSubtitle": "Gestisci il trattamento dei tuoi dati personali. Questi strumenti coprono i tuoi diritti ai sensi degli articoli 17 e 18 del GDPR.",
-    "yourData": {
-      "title": "Il tuo account",
-      "username": "Nome utente",
-      "userId": "ID utente",
-      "exportHint": "Per scaricare una copia dei tuoi dati (articolo 20) usa <1>Esporta e importa</1> nella barra laterale."
-    },
-    "restriction": {
-      "title": "Limita il trattamento",
-      "explainer": "L’articolo 18 ti permette di mettere in pausa l’account. I tuoi dati restano, ma smettiamo di trattarli — puoi revocare la limitazione in seguito.",
-      "statusNone": "I tuoi dati vengono trattati normalmente. Nessuna limitazione attiva.",
-      "statusActive": "Il tuo trattamento è limitato.",
-      "fieldGround": "Fondamento (art. 18(1))",
-      "fieldAppliedAt": "Limitato il",
-      "fieldRequestedBy": "Richiesto da",
-      "fieldReason": "Motivo",
-      "fieldLiftNoticeSentAt": "Avviso di revoca inviato il",
-      "restrictButton": "Limita il mio trattamento",
-      "liftButton": "Richiedi la revoca",
-      "loading": "Caricamento dello stato della limitazione…",
-      "error": "Impossibile caricare lo stato della limitazione: {{message}}"
-    },
-    "restrictDialog": {
-      "title": "Limita il trattamento",
-      "body": "Scegli il fondamento giuridico della richiesta. Puoi aggiungere una nota facoltativa che spiega perché vuoi sospendere il trattamento.",
-      "grounds": {
-        "ACCURACY_CONTESTED": "Contesto l’esattezza dei miei dati (art. 18(1)(a))",
-        "UNLAWFUL_NOT_ERASED": "Il trattamento è illecito ma non voglio la cancellazione (art. 18(1)(b))",
-        "CONTROLLER_NO_LONGER_NEEDS": "Non vi servono più i dati, ma a me sì per un’azione legale (art. 18(1)(c))",
-        "OBJECTION_PENDING": "Ho proposto opposizione ed è in attesa di verifica (art. 18(1)(d))"
-      },
-      "reasonLabel": "Motivo (facoltativo)",
-      "reasonHelper": "Fino a 1000 caratteri. Aiuta l’operatore a comprendere la richiesta.",
-      "submit": "Limita",
-      "submitting": "Limitazione…"
-    },
-    "liftDialog": {
-      "title": "Revoca limitazione",
-      "body": "La revoca avviene in due passaggi. Prima registriamo un avviso preliminare (art. 18(3)) e attendiamo un breve periodo; poi confermi di nuovo per riprendere effettivamente il trattamento.",
-      "step1Button": "Invia avviso preliminare",
-      "step1Sending": "Invio dell’avviso…",
-      "step1Done": "Avviso preliminare inviato. Puoi finalizzare la revoca dopo {{time}}.",
-      "step2Button": "Finalizza revoca",
-      "step2Submitting": "Finalizzazione…",
-      "step2DisabledHint": "Disponibile tra {{seconds}} s",
-      "doneTitle": "Limitazione revocata",
-      "doneBody": "Il trattamento è ripreso. Puoi chiudere questa finestra.",
-      "close": "Chiudi",
-      "error": "Impossibile revocare la limitazione: {{message}}"
-    },
-    "erasure": {
-      "title": "Elimina il mio account",
-      "dangerLabel": "Zona pericolosa",
-      "explainer": "Articolo 17 — diritto alla cancellazione. Elimina definitivamente le tue spese, categorie e l’account presso il provider di identità. Non è possibile annullare.",
-      "expandHint": "Tocca per mostrare i controlli di eliminazione.",
-      "openButton": "Voglio eliminare il mio account"
-    },
-    "sessions": {
-      "title": "Sessioni attive",
-      "explainer": "Ti disconnette da ogni browser, scheda e app mobile in cui sei attualmente connesso. Dovrai accedere di nuovo anche qui.",
-      "signOutEverywhereButton": "Esci ovunque",
-      "signingOut": "Disconnessione…",
-      "error": "Impossibile uscire ovunque: {{message}}"
-    },
-    "eraseDialog": {
-      "title": "Elimina definitivamente il tuo account",
-      "warningTitle": "Non è possibile annullare",
-      "warningBody": "Dopo la conferma verrà eliminato subito quanto segue:",
-      "consequence1": "Ogni spesa e categoria che hai registrato",
-      "consequence2": "Ogni evento nel registro di audit che ti nomina",
-      "consequence3": "Il tuo account di accesso Keycloak (se la cascata dell’operatore è configurata)",
-      "noticeExport": "Se vuoi prima una copia dei tuoi dati, annulla questa finestra e usa <1>Esporta e importa</1> nella barra laterale.",
-      "ackPermanent": "Comprendo che l’eliminazione è permanente e irreversibile.",
-      "ackExported": "Ho già esportato i dati che voglio conservare.",
-      "ackLogin": "Comprendo che il mio account di accesso verrà rimosso.",
-      "typeUsernameLabel": "Digita il tuo nome utente per confermare",
-      "typeUsernameHelper": "Digita esattamente: {{username}}",
-      "typeUsernameMismatch": "Il nome utente non corrisponde.",
-      "continueButton": "Continua",
-      "cancelButton": "Annulla"
-    },
-    "eraseConfirmDialog": {
-      "title": "Ultima possibilità",
-      "body": "Stai per eliminare definitivamente l’account <1>{{username}}</1>. Il pulsante si attiverà tra {{seconds}} s.",
-      "deleteButton": "Elimina per sempre",
-      "deleteButtonReady": "Elimina per sempre ({{seconds}} s)",
-      "deleting": "Eliminazione…",
-      "error": "Eliminazione non riuscita: {{message}}"
-    },
-    "erasedSummary": {
-      "title": "Il tuo account è stato eliminato",
-      "subtitle": "Riepilogo della cascata",
-      "eventsDeleted": "Eliminati {{count}} eventi",
-      "projectionsDeleted": "Eliminate {{count}} spese",
-      "categoriesDeleted": "Eliminate {{count}} categorie",
-      "keycloakDeleted": "Account del provider di identità: {{state}}",
-      "keycloakDeletedYes": "rimosso",
-      "keycloakDeletedNo": "ancora presente — contatta l’operatore",
-      "occurredAt": "Registrato alle {{time}}",
-      "followUpTitle": "Passi successivi",
-      "logoutCountdown": "Verrai disconnesso tra {{seconds}} s.",
-      "logoutNow": "Esci ora"
-    }
-  },
-  "admin": {
-    "users": {
-      "pageTitle": "Amministrazione utenti",
-      "pageSubtitle": "Operazioni GDPR su un utente qualsiasi. Richiede il ruolo realm gdpr-admin.",
-      "lookup": {
-        "title": "Cerca un utente",
-        "label": "ID utente (UUID dal `sub` Keycloak)",
-        "placeholder": "00000000-0000-0000-0000-00000000000a",
-        "helper": "Incolla l’UUID del soggetto Keycloak. L’API non espone l’elenco utenti — gli ID si ottengono dalla console di amministrazione dell’IdP.",
-        "loadButton": "Carica",
-        "clearButton": "Pulisci",
-        "selectedLabel": "Visualizzato: <1>{{userId}}</1>"
-      },
-      "restriction": {
-        "title": "Limitazione (art. 18)",
-        "restrictedHeadline": "{{userId}} è limitato.",
-        "noneHeadline": "{{userId}} non ha alcuna limitazione attiva.",
-        "restrictButton": "Limita questo utente",
-        "liftButton": "Revoca limitazione",
-        "reasonRequiredHelper": "La nota motivazionale è obbligatoria per le limitazioni applicate dall’operatore."
-      },
-      "restrictDialog": {
-        "title": "Limita il trattamento dell’utente",
-        "body": "Stai applicando una limitazione per conto dell’utente. La nota motivazionale è obbligatoria e viene registrata nel log di audit.",
-        "reasonLabel": "Motivo (obbligatorio)",
-        "reasonRequired": "Il motivo è obbligatorio.",
-        "reasonTooShort": "Il motivo deve avere almeno 10 caratteri."
-      },
-      "erasure": {
-        "title": "Elimina utente (art. 17)",
-        "dangerLabel": "Eliminazione da parte dell’operatore",
-        "explainer": "Usalo solo quando l’utente non può procedere da solo (account bloccato, identità verificata in altro modo, ordine del giudice). Il log di audit ti registra come esecutore.",
-        "openButton": "Elimina questo utente"
-      },
-      "sessions": {
-        "title": "Sessioni attive",
-        "explainer": "Termina forzatamente tutte le sessioni di questo utente. La sua prossima richiesta riceverà 401. Da usare per account compromessi, dispositivi smarriti o quando bisogna revocare l’accesso immediatamente.",
-        "signOutButton": "Forza disconnessione",
-        "signingOut": "Disconnessione…",
-        "success": "Tutte le sessioni di {{userId}} sono state terminate.",
-        "error": "Impossibile terminare le sessioni: {{message}}"
-      },
-      "eraseDialog": {
-        "title": "Elimina definitivamente questo utente",
-        "warningBody": "Dopo la conferma verrà eliminato subito quanto segue per <1>{{userId}}</1>:",
-        "ackResponsibility": "Confermo di agire sulla base di una richiesta verificata o di una base giuridica.",
-        "ackPermanent": "Comprendo che l’eliminazione è permanente e irreversibile.",
-        "ackAuditLog": "Comprendo che il mio identificativo di amministratore verrà registrato nel log di audit.",
-        "reasonLabel": "Nota motivazionale (obbligatoria, registrata nell’audit)",
-        "reasonHelper": "Minimo 10 caratteri. Esempio: «Il soggetto ha inviato una richiesta di cancellazione notarile per posta il 2026-06-01».",
-        "reasonRequired": "Il motivo è obbligatorio.",
-        "reasonTooShort": "Il motivo deve avere almeno 10 caratteri.",
-        "typeUserIdLabel": "Digita l’ID utente per confermare",
-        "typeUserIdHelper": "Digita esattamente: {{userId}}",
-        "typeUserIdMismatch": "L’ID utente non corrisponde."
-      },
-      "eraseConfirmDialog": {
-        "body": "Stai per eliminare definitivamente l’account <1>{{userId}}</1>. Il pulsante si attiverà tra {{seconds}} s."
-      },
-      "erasedSummary": {
-        "title": "L’utente è stato eliminato",
-        "doneButton": "Fatto"
-      }
-    }
   }
 }

@@ -7,23 +7,65 @@
     "tools": "Araçlar",
     "exportImport": "Dışa & İçe aktar",
     "settings": "Ayarlar",
-    "openMenu": "Menüyü aç",
-    "privacy": "Gizlilik",
-    "adminUsers": "Kullanıcı yönetimi"
+    "openMenu": "Menüyü aç"
   },
   "settings": {
     "darkMode": "Koyu mod",
     "toggleDarkMode": "Koyu modu aç/kapat",
     "manageCategories": "Kategorileri yönet",
+    "resetCategories": "Kategorileri sıfırla",
+    "resetCategoriesDescription": "Orijinal kategori listesini geri yükle.",
+    "resetSuccess": "Sıfırlama tamam. {{archived}} arşivlendi, {{seeded}} eklendi.",
+    "resetError": "Sıfırlama başarısız.",
     "currency": "Para birimi",
     "fontSize": "Yazı boyutu",
     "language": "Dil",
+    "exportData": "Verileri dışa aktar",
+    "importData": "Veri içe aktar",
+    "exportImport": "Dışa & İçe aktar",
+    "exportSuccess": "{{categories}} kategori ve {{expenses}} harcama dışa aktarıldı.",
+    "exportError": "Dışa aktarma başarısız.",
+    "importSuccess": "{{categories}} kategori ve {{expenses}} harcama oluşturuldu ({{skipped}} atlandı).",
+    "importError": "İçe aktarma başarısız.",
+    "themeMode": {
+      "system": "Sistemi izle",
+      "light": "Açık",
+      "dark": "Koyu"
+    },
     "fontScale": {
       "small": "Küçük",
       "medium": "Orta",
       "large": "Büyük",
       "xlarge": "Çok büyük"
-    }
+    },
+    "sync": "Bulut eşitleme",
+    "syncDescription": "Kendi bulut sürücün üzerinden cihazlar arasında harcamaları eşitle."
+  },
+  "syncDialog": {
+    "title": "Bulut eşitleme",
+    "provider": "Sağlayıcı",
+    "providers": {
+      "none": "Devre dışı",
+      "onedrive": "OneDrive",
+      "googledrive": "Google Drive"
+    },
+    "signIn": "Oturum aç",
+    "signOut": "Oturumu kapat",
+    "signingIn": "Oturum açılıyor…",
+    "syncNow": "Şimdi eşitle",
+    "syncing": "Eşitleniyor…",
+    "autoSync": "Otomatik eşitleme",
+    "autoSyncDescription": "Arka planda otomatik eşitle.",
+    "autoSyncDescriptionFull": "Etkinleştirildiğinde uygulama; uygulama başlangıcında, uygulamaya dönüldüğünde, düzenlemelerden sonra (kısa bir bekleme sonrasında) ve ağ yeniden bağlandığında otomatik olarak eşitlenir. \"Şimdi eşitle\" düğmesiyle her zaman elle eşitleyebilirsin.",
+    "autoSyncInfo": "Otomatik eşitleme hakkında",
+    "lastSynced": "Son eşitleme: {{when}}",
+    "neverSynced": "Hiç eşitlenmedi",
+    "statusSuccess": "{{applied}} uygulandı, {{uploaded}} yüklendi.",
+    "statusUpToDate": "Zaten güncel.",
+    "statusError": "Eşitleme başarısız: {{message}}",
+    "signInPrompt": "Eşitlemeyi etkinleştirmek için oturum aç.",
+    "notConfigured": "Önce bir bulut sağlayıcısı seç.",
+    "googleDisabled": "Google Drive henüz yapılandırılmadı — önce GOOGLE_OAUTH_CLIENT_ID ayarla."
   },
   "common": {
     "save": "Kaydet",
@@ -52,7 +94,16 @@
     "addCategoryAriaLabel": "{{category}} kategorisine gider ekle",
     "editExpenseAriaLabel": "{{description}} giderini düzenle",
     "overviewTitle": "Genel bakış",
-    "overviewComingSoon": "Bütçe genel bakışı ve analizler yakında."
+    "overviewComingSoon": "Bütçe genel bakışı ve analizler yakında.",
+    "overviewModeLines": "Çizgiler",
+    "overviewModeStackedArea": "Yığılmış",
+    "overviewOtherSeries": "Diğer",
+    "overviewNoData": "Bu dönem için veri yok.",
+    "overviewApproxRatesCaveat": "Bazı tutarlar bugünün döviz kurunu kullanıyor.",
+    "overviewTotalSparklineLabel": "Toplam harcama eğilimi",
+    "overviewTooltipTotal": "Toplam",
+    "overviewTooltipOverflow": "Diğer harcamalar",
+    "overviewChartLabel": "Zamana göre kategori bazında harcama"
   },
   "expenseDialog": {
     "date": "Tarih",
@@ -61,7 +112,9 @@
     "expense": "Gider",
     "description": "Açıklama",
     "pickCategoryError": "Lütfen bir kategori seçin.",
-    "positiveAmountError": "Tutar pozitif bir sayı olmalıdır."
+    "positiveAmountError": "Tutar pozitif bir sayı olmalıdır.",
+    "suggestionsHeader": "Önceki harcamalardan",
+    "suggestionAriaLabel": "Önceki harcamadan {{description}} kullan"
   },
   "categoryTemplates": {
     "beauty": "Güzellik",
@@ -122,6 +175,8 @@
     "createAnywayButton": "Yine de oluştur",
     "restoreButton": "Geri yükle",
     "restoreAndMergeButton": "Geri yükle ve birleştir",
+    "restoreConflictTitle": "Geri yüklenip birleştirilsin mi?",
+    "restoreConflictBody": "{{name}} adlı etkin bir kategori zaten var. Geri yükleme, etkin kopyadaki tüm harcamaları geri yüklenen kategoriye taşıyacak ve etkin kopyayı arşivleyecek.",
     "mergeAriaLabel": "{{name}} kategorisini başka bir kategoriyle birleştir",
     "mergeTitle": "Başka bir kategoriyle birleştir",
     "mergePickPrompt": "<1>{{name}}</1> birleştirmek için bir kategori seçin. Tüm giderleri taşınacaktır.",
@@ -162,7 +217,14 @@
       "today": "Bugün",
       "year": "Yıl",
       "month": "Ay"
-    }
+    },
+    "custom": "Özel aralık…"
+  },
+  "transactions": {
+    "searchPlaceholder": "İşlemlerde ara…",
+    "openFilter": "Kategoriye göre filtrele",
+    "add": "Ekle…",
+    "removeFilter": "Filtreyi kaldır: {{name}}"
   },
   "calculator": {
     "enterOrUseCalculator": "Tutarı girin veya hesap makinesini kullanın",
@@ -195,176 +257,5 @@
       "expense": "Gider"
     },
     "importMoreErrors": "…ve {{count}} daha"
-  },
-  "privacy": {
-    "pageTitle": "Gizlilik ve veriler",
-    "pageSubtitle": "Kişisel verilerinizin nasıl işlendiğini yönetin. Bu araçlar, GDPR 17. ve 18. maddeleri kapsamındaki haklarınızı kapsar.",
-    "yourData": {
-      "title": "Hesabınız",
-      "username": "Kullanıcı adı",
-      "userId": "Kullanıcı kimliği",
-      "exportHint": "Verilerinizin bir kopyasını indirmek için (Madde 20) yan menüdeki <1>Dışa & İçe aktar</1> öğesini kullanın."
-    },
-    "restriction": {
-      "title": "İşlemeyi kısıtla",
-      "explainer": "Madde 18, hesabınızı duraklatmanıza olanak tanır. Verileriniz kalır ancak işlemeyi durdururuz — daha sonra kısıtlamayı kaldırabilirsiniz.",
-      "statusNone": "Verileriniz normal şekilde işleniyor. Aktif bir kısıtlama yok.",
-      "statusActive": "İşlemeniz kısıtlandı.",
-      "fieldGround": "Gerekçe (Madde 18(1))",
-      "fieldAppliedAt": "Kısıtlandığı tarih",
-      "fieldRequestedBy": "Talep eden",
-      "fieldReason": "Sebep",
-      "fieldLiftNoticeSentAt": "Kaldırma bildirimi gönderildi",
-      "restrictButton": "İşlememi kısıtla",
-      "liftButton": "Kaldırma talep et",
-      "loading": "Kısıtlama durumu yükleniyor…",
-      "error": "Kısıtlama durumu yüklenemedi: {{message}}"
-    },
-    "restrictDialog": {
-      "title": "İşlemeyi kısıtla",
-      "body": "Talebiniz için yasal dayanağı seçin. İşlemeyi neden duraklatmak istediğinizi açıklayan isteğe bağlı bir not ekleyebilirsiniz.",
-      "grounds": {
-        "ACCURACY_CONTESTED": "Verilerimin doğruluğuna itiraz ediyorum (Madde 18(1)(a))",
-        "UNLAWFUL_NOT_ERASED": "İşleme hukuka aykırı ancak silinmesini istemiyorum (Madde 18(1)(b))",
-        "CONTROLLER_NO_LONGER_NEEDS": "Verilere artık ihtiyacınız yok ancak benim hukuki bir talep için ihtiyacım var (Madde 18(1)(c))",
-        "OBJECTION_PENDING": "İtiraz ettim ve doğrulama beklemede (Madde 18(1)(d))"
-      },
-      "reasonLabel": "Sebep (isteğe bağlı)",
-      "reasonHelper": "En fazla 1000 karakter. Operatörün talebi anlamasına yardımcı olur.",
-      "submit": "Kısıtla",
-      "submitting": "Kısıtlanıyor…"
-    },
-    "liftDialog": {
-      "title": "Kısıtlamayı kaldır",
-      "body": "Kaldırma iki aşamada gerçekleşir. Önce ön kaldırma bildirimi kaydederiz (Madde 18(3)) ve kısa bir süre bekleriz; sonra işlemeyi gerçekten devam ettirmek için tekrar onaylarsınız.",
-      "step1Button": "Ön kaldırma bildirimini gönder",
-      "step1Sending": "Bildirim gönderiliyor…",
-      "step1Done": "Ön kaldırma bildirimi gönderildi. {{time}} sonra kaldırmayı tamamlayabilirsiniz.",
-      "step2Button": "Kaldırmayı tamamla",
-      "step2Submitting": "Tamamlanıyor…",
-      "step2DisabledHint": "{{seconds}} sn sonra kullanılabilir",
-      "doneTitle": "Kısıtlama kaldırıldı",
-      "doneBody": "İşleme devam ediyor. Bu pencereyi kapatabilirsiniz.",
-      "close": "Kapat",
-      "error": "Kısıtlama kaldırılamadı: {{message}}"
-    },
-    "erasure": {
-      "title": "Hesabımı sil",
-      "dangerLabel": "Tehlikeli alan",
-      "explainer": "Madde 17 — silme hakkı. Bu işlem, giderlerinizi, kategorilerinizi ve kimlik sağlayıcı hesabınızı kalıcı olarak siler. Geri alma yoktur.",
-      "expandHint": "Silme kontrollerini göstermek için dokunun.",
-      "openButton": "Hesabımı silmek istiyorum"
-    },
-    "sessions": {
-      "title": "Aktif oturumlar",
-      "explainer": "Şu anda oturum açtığınız her tarayıcıdan, sekmeden ve mobil uygulamadan çıkış yapar. Burada da yeniden giriş yapmanız gerekecektir.",
-      "signOutEverywhereButton": "Her yerden çıkış yap",
-      "signingOut": "Çıkış yapılıyor…",
-      "error": "Her yerden çıkış yapılamadı: {{message}}"
-    },
-    "eraseDialog": {
-      "title": "Hesabınızı kalıcı olarak silin",
-      "warningTitle": "Bu işlem geri alınamaz",
-      "warningBody": "Onaylandığında aşağıdakiler hemen silinecektir:",
-      "consequence1": "Kaydettiğiniz her gider ve kategori",
-      "consequence2": "Sizi adlandıran her denetim günlüğü olayı",
-      "consequence3": "Keycloak oturum açma hesabınız (operatörün kaskadı yapılandırıldığında)",
-      "noticeExport": "Önce verilerinizin bir kopyasını istiyorsanız bu pencereyi iptal edin ve yan menüdeki <1>Dışa & İçe aktar</1> öğesini kullanın.",
-      "ackPermanent": "Silmenin kalıcı ve geri alınamaz olduğunu anlıyorum.",
-      "ackExported": "Saklamak istediğim tüm verileri zaten dışa aktardım.",
-      "ackLogin": "Oturum açma hesabımın kaldırılacağını anlıyorum.",
-      "typeUsernameLabel": "Onaylamak için kullanıcı adınızı yazın",
-      "typeUsernameHelper": "Tam olarak şunu yazın: {{username}}",
-      "typeUsernameMismatch": "Kullanıcı adı eşleşmiyor.",
-      "continueButton": "Devam et",
-      "cancelButton": "İptal"
-    },
-    "eraseConfirmDialog": {
-      "title": "Son şans",
-      "body": "<1>{{username}}</1> hesabını kalıcı olarak silmek üzeresiniz. Düğme {{seconds}} sn içinde etkinleşecek.",
-      "deleteButton": "Sonsuza kadar sil",
-      "deleteButtonReady": "Sonsuza kadar sil ({{seconds}} sn)",
-      "deleting": "Siliniyor…",
-      "error": "Silme başarısız: {{message}}"
-    },
-    "erasedSummary": {
-      "title": "Hesabınız silindi",
-      "subtitle": "Kaskad özeti",
-      "eventsDeleted": "{{count}} olay kaldırıldı",
-      "projectionsDeleted": "{{count}} gider kaldırıldı",
-      "categoriesDeleted": "{{count}} kategori kaldırıldı",
-      "keycloakDeleted": "Kimlik sağlayıcı hesabı: {{state}}",
-      "keycloakDeletedYes": "kaldırıldı",
-      "keycloakDeletedNo": "hâlâ mevcut — operatörle iletişime geçin",
-      "occurredAt": "{{time}} kaydedildi",
-      "followUpTitle": "Takip adımları",
-      "logoutCountdown": "{{seconds}} sn içinde oturumunuz kapatılacak.",
-      "logoutNow": "Şimdi çıkış yap"
-    }
-  },
-  "admin": {
-    "users": {
-      "pageTitle": "Kullanıcı yönetimi",
-      "pageSubtitle": "İsteğe bağlı bir kullanıcı üzerinde GDPR işlemleri. gdpr-admin realm rolü gerektirir.",
-      "lookup": {
-        "title": "Kullanıcı ara",
-        "label": "Kullanıcı kimliği (Keycloak `sub` UUID'si)",
-        "placeholder": "00000000-0000-0000-0000-00000000000a",
-        "helper": "Keycloak subject UUID'sini yapıştırın. API, kullanıcı listesini sunmaz — kimlikler IdP yönetici konsolundan gelir.",
-        "loadButton": "Yükle",
-        "clearButton": "Temizle",
-        "selectedLabel": "Şu anda görüntülenen: <1>{{userId}}</1>"
-      },
-      "restriction": {
-        "title": "Kısıtlama (Madde 18)",
-        "restrictedHeadline": "{{userId}} kısıtlandı.",
-        "noneHeadline": "{{userId}} aktif kısıtlamaya sahip değil.",
-        "restrictButton": "Bu kullanıcıyı kısıtla",
-        "liftButton": "Kısıtlamayı kaldır",
-        "reasonRequiredHelper": "Operatör tarafından uygulanan kısıtlamalar için sebep notu zorunludur."
-      },
-      "restrictDialog": {
-        "title": "Kullanıcı işlemeyi kısıtla",
-        "body": "Kullanıcı adına bir kısıtlama uyguluyorsunuz. Sebep notu zorunludur ve denetim günlüğüne kaydedilir.",
-        "reasonLabel": "Sebep (zorunlu)",
-        "reasonRequired": "Sebep zorunludur.",
-        "reasonTooShort": "Sebep en az 10 karakter olmalıdır."
-      },
-      "erasure": {
-        "title": "Kullanıcıyı sil (Madde 17)",
-        "dangerLabel": "Operatör tarafından silme",
-        "explainer": "Bunu yalnızca kullanıcı kendi başına yapamadığında kullanın (kilitli hesap, kanal dışı doğrulanmış kimlik, mahkeme kararı). Denetim günlüğü sizi aktör olarak kaydeder.",
-        "openButton": "Bu kullanıcıyı sil"
-      },
-      "sessions": {
-        "title": "Aktif oturumlar",
-        "explainer": "Bu kullanıcının tüm oturumlarını zorla sonlandırır. Sonraki isteği 401 alır. Tehlikeye atılmış hesaplar, kaybolan cihazlar veya erişimi anında iptal etmeniz gerektiğinde kullanın.",
-        "signOutButton": "Çıkışı zorla",
-        "signingOut": "Çıkış yapılıyor…",
-        "success": "{{userId}} için tüm oturumlar sonlandırıldı.",
-        "error": "Oturumlar sonlandırılamadı: {{message}}"
-      },
-      "eraseDialog": {
-        "title": "Bu kullanıcıyı kalıcı olarak sil",
-        "warningBody": "Onaylandığında <1>{{userId}}</1> için aşağıdakiler hemen silinecektir:",
-        "ackResponsibility": "Doğrulanmış bir talep veya yasal dayanak temelinde hareket ettiğimi onaylıyorum.",
-        "ackPermanent": "Silmenin kalıcı ve geri alınamaz olduğunu anlıyorum.",
-        "ackAuditLog": "Yönetici kimliğimin denetim günlüğüne kaydedileceğini anlıyorum.",
-        "reasonLabel": "Sebep notu (zorunlu, denetimde kayıtlı)",
-        "reasonHelper": "En az 10 karakter. Örnek: “Veri sahibi 2026-06-01 tarihinde noter onaylı silme talebini posta yoluyla iletti.”",
-        "reasonRequired": "Sebep zorunludur.",
-        "reasonTooShort": "Sebep en az 10 karakter olmalıdır.",
-        "typeUserIdLabel": "Onaylamak için kullanıcı kimliğini yazın",
-        "typeUserIdHelper": "Tam olarak şunu yazın: {{userId}}",
-        "typeUserIdMismatch": "Kullanıcı kimliği eşleşmiyor."
-      },
-      "eraseConfirmDialog": {
-        "body": "<1>{{userId}}</1> hesabını kalıcı olarak silmek üzeresiniz. Düğme {{seconds}} sn içinde etkinleşecek."
-      },
-      "erasedSummary": {
-        "title": "Kullanıcı silindi",
-        "doneButton": "Tamam"
-      }
-    }
   }
 }
