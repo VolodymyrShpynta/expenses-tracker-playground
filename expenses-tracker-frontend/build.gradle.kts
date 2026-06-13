@@ -10,8 +10,11 @@ node {
 }
 
 tasks.npmInstall {
-    inputs.file("package.json")
-    inputs.file("package-lock.json")
+    // node_modules contains symlinks, junctions, and transient .bin shims that
+    // Gradle's file-system snapshotter cannot reliably hash on Windows
+    // (e.g. half-written .acorn-XXXX entries left by interrupted installs).
+    // npm itself decides what to reinstall based on package.json + package-lock.json.
+    doNotTrackState("npm manages node_modules; Gradle snapshotting is unreliable on Windows")
 }
 
 val npmBuild = tasks.register<com.github.gradle.node.npm.task.NpmTask>("npmBuild") {

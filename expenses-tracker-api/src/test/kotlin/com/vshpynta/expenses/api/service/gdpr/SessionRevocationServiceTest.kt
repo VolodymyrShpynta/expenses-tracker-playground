@@ -21,6 +21,7 @@ import org.springframework.r2dbc.core.DatabaseClient
 import org.springframework.test.context.ActiveProfiles
 import java.time.Duration
 import java.time.Instant
+import java.util.UUID
 
 /**
  * Integration tests for [SessionRevocationService]. Verifies the
@@ -34,7 +35,6 @@ import java.time.Instant
 class SessionRevocationServiceTest {
 
     companion object {
-        private const val USER_ID = "revocation-user"
         private val NOW: Instant = Instant.parse("2026-06-01T00:00:00Z")
     }
 
@@ -56,26 +56,32 @@ class SessionRevocationServiceTest {
     @Autowired
     private lateinit var properties: GdprProperties
 
+    /**
+     * Fresh user id per test so that an in-flight LISTEN handler from a
+     * prior test (which races against `@BeforeEach` on the I/O dispatcher)
+     * cannot re-populate the cache key under test. The cache is keyed by
+     * `userId`, so a unique id per test gives full isolation without
+     * needing to drain the listener's pending notifications — a separate
+     * key cannot collide.
+     */
+    private lateinit var userId: String
+
     @BeforeEach
     fun setup() {
+        userId = "revocation-user-${UUID.randomUUID()}"
         runBlocking {
             databaseClient.sql("DELETE FROM session_revocations").fetch().rowsUpdated().awaitSingle()
         }
         testClock.advanceTo(NOW)
-        // The cache is loaded at startup via SessionRevocationListener and
-        // mutated by every test; drop the whole thing so each test starts
-        // from the same empty-cache baseline rather than relying on a
-        // single user id.
-        service.invalidateAll()
     }
 
     @Test
     fun `revokeAllSessions should write a row whose cutoff is 1 second past now`() {
         runBlocking {
-            val rows = service.revokeAllSessions(USER_ID, RevokedBy.SUBJECT)
+            val rows = service.revokeAllSessions(userId, RevokedBy.SUBJECT)
 
             assertThat(rows).isEqualTo(1)
-            val row = repository.findByUserId(USER_ID)
+            val row = repository.findByUserId(userId)
             assertThat(row).isNotNull
             // Cutoff is now+1s — strictly greater than NOW so a same-second JWT is rejected
             assertThat(row!!.revokedBeforeIat).isEqualTo(NOW.plusSeconds(1))
@@ -89,14 +95,14 @@ class SessionRevocationServiceTest {
     @Test
     fun `revokeAllSessions twice should overwrite the row with the later cutoff`() {
         runBlocking {
-            service.revokeAllSessions(USER_ID, RevokedBy.SUBJECT)
+            service.revokeAllSessions(userId, RevokedBy.SUBJECT)
             testClock.advanceBy(Duration.ofSeconds(30))
             val later = NOW.plusSeconds(30)
 
-            val rows = service.revokeAllSessions(USER_ID, RevokedBy.ADMIN)
+            val rows = service.revokeAllSessions(userId, RevokedBy.ADMIN)
 
             assertThat(rows).isEqualTo(1)
-            val row = repository.findByUserId(USER_ID)
+            val row = repository.findByUserId(userId)
             assertThat(row!!.revokedAt).isEqualTo(later)
             assertThat(row.revokedBy).isEqualTo(RevokedBy.ADMIN)
             assertThat(row.revokedBeforeIat).isEqualTo(later.plusSeconds(1))
@@ -105,30 +111,31 @@ class SessionRevocationServiceTest {
 
     @Test
     fun `findRevokedBeforeIat should return null for an unknown user`() {
-        assertThat(service.findRevokedBeforeIat("nobody")).isNull()
+        assertThat(service.findRevokedBeforeIat("nobody-${UUID.randomUUID()}")).isNull()
     }
 
     @Test
     fun `findRevokedBeforeIat should return the cutoff after a revocation`() {
         runBlocking {
-            service.revokeAllSessions(USER_ID, RevokedBy.ERASURE)
+            service.revokeAllSessions(userId, RevokedBy.ERASURE)
         }
 
-        assertThat(service.findRevokedBeforeIat(USER_ID)).isEqualTo(NOW.plusSeconds(1))
+        assertThat(service.findRevokedBeforeIat(userId)).isEqualTo(NOW.plusSeconds(1))
     }
 
     @Test
     fun `revokeAllSessions should put the cache entry so the local pod sees its own write`() {
-        // Prime the cache with the "no revocation" answer
-        assertThat(service.findRevokedBeforeIat(USER_ID)).isNull()
+        // Prime the cache with the "no revocation" answer (guaranteed because
+        // userId is unique per test — no prior test's NOTIFY handler can race).
+        assertThat(service.findRevokedBeforeIat(userId)).isNull()
 
         runBlocking {
-            service.revokeAllSessions(USER_ID, RevokedBy.SUBJECT)
+            service.revokeAllSessions(userId, RevokedBy.SUBJECT)
         }
 
         // The writer populates the cache synchronously — no DB round-trip
         // and no listener round-trip needed on the originating pod.
-        assertThat(service.findRevokedBeforeIat(USER_ID)).isEqualTo(NOW.plusSeconds(1))
+        assertThat(service.findRevokedBeforeIat(userId)).isEqualTo(NOW.plusSeconds(1))
     }
 
     /**
@@ -152,7 +159,10 @@ class SessionRevocationServiceTest {
         }
         runBlocking {
             // Prime this pod's cache with the "no revocation" answer.
-            assertThat(service.findRevokedBeforeIat(USER_ID)).isNull()
+            // Safe to assert synchronously because `userId` is unique per test
+            // (see setup) — no prior test's in-flight NOTIFY handler can target
+            // this key.
+            assertThat(service.findRevokedBeforeIat(userId)).isNull()
 
             // Simulate the other pod's effects: write the row and fire NOTIFY.
             // Crucially, do NOT touch this service — we want to prove the
@@ -167,7 +177,7 @@ class SessionRevocationServiceTest {
                     (:userId, :cutoff, :revokedAt, 'SUBJECT', :expiresAt)
                 """.trimIndent()
             )
-                .bind("userId", USER_ID)
+                .bind("userId", userId)
                 .bind("cutoff", cutoff)
                 .bind("revokedAt", revokedAt)
                 .bind("expiresAt", revokedAt.plus(Duration.ofMinutes(15)))
@@ -175,14 +185,14 @@ class SessionRevocationServiceTest {
 
             databaseClient.sql("SELECT pg_notify(:channel, :userId)")
                 .bind("channel", properties.revocation.notifyChannel)
-                .bind("userId", USER_ID)
+                .bind("userId", userId)
                 .then().awaitSingleOrNull()
         }
 
         // The listener processes the notification on its own dispatcher,
         // so poll briefly until the cache reflects the new value.
         await().atMost(Duration.ofSeconds(5)).untilAsserted {
-            assertThat(service.findRevokedBeforeIat(USER_ID)).isEqualTo(NOW.plusSeconds(1))
+            assertThat(service.findRevokedBeforeIat(userId)).isEqualTo(NOW.plusSeconds(1))
         }
     }
 }
