@@ -43,6 +43,7 @@ pick whichever matches your machine and skip the other.
 - [Appendix A — Listing copy (English)](#appendix-a--listing-copy-english)
   - [Short description (80 chars max)](#short-description-80-chars-max)
   - [Full description (4 000 chars max)](#full-description-4-000-chars-max)
+- [Appendix B — Custom domain on GitHub Pages via Cloudflare](#appendix-b--custom-domain-on-github-pages-via-cloudflare)
 
 ---
 
@@ -812,9 +813,24 @@ refuse to proceed until all three are green.
 ### Hosting the privacy policy (and a landing page) on GitHub Pages
 
 If you don't already have a website for Spendium, the cheapest reliable
-option is **GitHub Pages** — free, HTTPS by default, no Cloudflare bot
-challenge or auth wall (which would cause [Play Console's crawler to
-reject the URL](#troubleshooting)), and edits are a normal git commit.
+baseline is **GitHub Pages** — free, HTTPS by default, no Cloudflare
+bot challenge or auth wall (which would cause [Play Console's crawler
+to reject the URL](#troubleshooting)), and edits are a normal git
+commit.
+
+> **Plan for a custom domain if you want OAuth branding verified.**
+> Hosting on `<user>.github.io/<repo>/` works fine for Play Console's
+> privacy-policy fields, but Google Auth Platform's *Branding
+> verification* check **always rejects `*.github.io` URLs** (see the
+> [ownership-trap subsection below](#branding-verification-on-a-githubio-subdomain-ownership-trap)
+> for the technical reason — it's a Public Suffix List issue with no
+> known workaround). If you want the polished "verified app" consent
+> screen instead of the yellow "unverified app" warning, budget
+> ~$12-50/yr for a real domain and ~30 min for the one-time setup in
+> [Appendix B](#appendix-b--custom-domain-on-github-pages-via-cloudflare).
+> You can still start with github.io today and add the custom domain
+> later — the `CNAME` file makes it a 5-minute swap that doesn't
+> break existing URLs.
 
 #### Which pages do I actually need?
 
@@ -830,12 +846,16 @@ A **separate public repo** named `spendium-site`, *not* a folder inside
 this monorepo. This keeps the URL clean (`/spendium-site/privacy` instead
 of `/expenses-tracker-playground/privacy`, which would leak the internal
 repo name onto the Play Store's privacy link forever) and means a single
-entry in *Authorized domains* (`<user>.github.io`) covers everything.
-Bare `github.io` is rejected because it's on the
+entry in *Authorized domains* (`<user>.github.io`) covers the github.io
+baseline. **Note:** that entry passes the Cloud Console form's
+inline validation but **fails the subsequent ownership check** — see
+the [branding verification subsection below](#branding-verification-on-a-githubio-subdomain-ownership-trap)
+for the full ownership-trap walk-through and the two paths forward
+(custom domain via [Appendix B](#appendix-b--custom-domain-on-github-pages-via-cloudflare),
+or skip branding entirely). Bare `github.io` is rejected at the form
+level because it's on the
 [Public Suffix List](https://publicsuffix.org/list/) — Google treats
-each `*.github.io` subdomain as its own registrable domain. See the
-[branding verification subsection below](#branding-verification-on-a-githubio-subdomain-ownership-trap) for
-the full ownership-trap walk-through.
+each `*.github.io` subdomain as its own registrable domain.
 
 ```
 spendium-site/                 ← new dedicated PUBLIC repo on GitHub
@@ -995,33 +1015,107 @@ Questions or requests: <your-email>.
 
 #### Where to paste each URL once it's live
 
-| URL                                                                       | Paste into                                                            |
-|---------------------------------------------------------------------------|-----------------------------------------------------------------------|
-| `https://<user>.github.io/spendium-site/privacy`                          | Play Console → **App content → Privacy policy**                       |
-| `https://<user>.github.io/spendium-site/privacy`                          | Play Console → **Main store listing → Privacy policy URL**            |
-| `https://<user>.github.io/spendium-site/privacy`                          | Google Auth Platform → **Branding → Application privacy policy link** |
-| `https://<user>.github.io/spendium-site/`                                 | Google Auth Platform → **Branding → Application home page**           |
-| `<user>.github.io`                                                        | Google Auth Platform → **Branding → Authorized domains** (one entry covers both URLs above; bare `github.io` is rejected — see the [branding verification subsection below](#branding-verification-on-a-githubio-subdomain-ownership-trap)) |
-| `https://<user>.github.io/spendium-site/privacy`                          | Microsoft Entra → app registration → **Branding & properties → Publisher domain / privacy statement URL** (if you've requested verified publisher status) |
+Not all destinations accept a `*.github.io` URL. Play Console fields
+have no ownership check and accept anything that returns 200 OK. The
+**Google Auth Platform → Branding** fields run an ownership check that
+**rejects `*.github.io`** for the reasons documented in the
+[ownership-trap subsection below](#branding-verification-on-a-githubio-subdomain-ownership-trap)
+— those fields effectively require a real registrable domain (see
+[Appendix B](#appendix-b--custom-domain-on-github-pages-via-cloudflare)).
+
+The table below lists both URLs side by side; use the **github.io
+column** until you set up a custom domain, then sweep to the
+**custom-domain column** (using `spendium.net` as the example — swap
+in your own domain).
+
+| Destination                                                              | github.io URL (baseline)                          | Custom-domain URL (after Appendix B)         | Ownership check?      |
+|--------------------------------------------------------------------------|---------------------------------------------------|----------------------------------------------|-----------------------|
+| Play Console → **App content → Privacy policy**                          | `https://<user>.github.io/spendium-site/privacy`  | `https://spendium.net/privacy/`              | No — both work        |
+| Play Console → **Main store listing → Privacy policy URL**               | `https://<user>.github.io/spendium-site/privacy`  | `https://spendium.net/privacy/`              | No — both work        |
+| Google Auth Platform → **Branding → Application privacy policy link**    | `https://<user>.github.io/spendium-site/privacy`  | `https://spendium.net/privacy/`              | Yes — github.io fails |
+| Google Auth Platform → **Branding → Application home page**              | `https://<user>.github.io/spendium-site/`         | `https://spendium.net/`                      | Yes — github.io fails |
+| Google Auth Platform → **Branding → Authorized domains**                 | `<user>.github.io` (rejected at verification)     | `spendium.net` (one entry covers subdomains) | Yes — github.io fails |
+| Microsoft Entra → app registration → **Branding & properties → Publisher domain / privacy statement URL** (only if you've requested verified publisher status) | `https://<user>.github.io/spendium-site/privacy`  | `https://spendium.net/privacy/`              | Yes — both work (Entra doesn't apply the public-suffix penalty) |
+
+**What "rejected at verification" actually means.** The Branding form
+itself *accepts* the github.io URL and saves it without complaint —
+you only discover the problem when you click **Verify branding**, at
+which point Cloud Console opens the *"home page URL is not registered
+to you"* dialog described below. Pages still serve the URL correctly;
+OAuth sign-in still works; the only user-visible consequence is the
+yellow *"unverified app"* banner on the consent screen. See the
+[ownership-trap subsection below](#branding-verification-on-a-githubio-subdomain-ownership-trap)
+for the two paths forward (custom domain or skip branding entirely).
 
 *Application terms of service link* stays empty — see the decision table
 above.
 
 #### Branding verification on a `*.github.io` subdomain (ownership trap)
 
-<details>
-<summary><strong>Expand only if Cloud Console says &ldquo;home page URL is not registered to you&rdquo;</strong> (Search Console walkthrough + workarounds)</summary>
-
-When you click **Verify branding** in *Google Auth Platform → Branding*,
-Google opens a *Branding verification issues* dialog complaining:
+If you click **Verify branding** in *Google Auth Platform → Branding*
+with a `*.github.io` URL in the *Application home page* field, Google
+opens a *Branding verification issues* dialog complaining:
 
 > The website of your home page URL `https://<user>.github.io/spendium-site/` is not registered to you. Verify ownership of your home page.
 
-The fix is **not** in Cloud Console — it's in **Google Search Console**,
-signed in as the same Google account that owns this Cloud project.
-Cloud Console calls into Search Console to confirm "this account owns
-this URL"; merely hosting a verification file does nothing on its own
-until you click *Verify* inside Search Console.
+**This is a known dead end. The recommended fix is to move the site to
+a real registrable domain — see [Appendix B](#appendix-b--custom-domain-on-github-pages-via-cloudflare).**
+Allow ~$12-50/yr for the domain (Cloudflare Registrar's wholesale
+pricing) and ~30 min of one-time setup. Once `spendium.net` is live,
+the same *"View issues → I have fixed the issues"* button passes in
+seconds because DNS TXT verification on a registrable domain is what
+Cloud Console actually trusts.
+
+<details>
+<summary><strong>Why the github.io HTML-file workaround doesn't satisfy Cloud Console</strong> (don't waste time trying it — read this once, skip to Appendix B)</summary>
+
+`github.io` is on the [Public Suffix List](https://publicsuffix.org/list/),
+which means every user's subdomain (`alice.github.io`, `bob.github.io`,
+…) is treated as an independent registrable entity. Google's identity
+systems handle public-suffix TLDs with extra scrutiny because the
+parent zone is shared infrastructure.
+
+What this means in practice:
+
+- **Search Console accepts URL-prefix verification on `*.github.io`.**
+  You can drop a `google<hash>.html` file at the repo root, push it,
+  click *Verify*, and Search Console turns green. This part works.
+- **Cloud Console's Branding-verification check is stricter and ignores
+  URL-prefix verifications on shared TLDs.** It demands DNS-level
+  ownership proof, which you fundamentally cannot provide on
+  `github.io` because GitHub controls the DNS. The *"home page URL is
+  not registered to you"* error is Cloud Console saying *"I see your
+  Search Console URL-prefix verification, but I don't accept it for
+  this TLD"*.
+- **The *"I have fixed the issues"* button still fails** even after
+  Search Console is green, because Cloud Console re-runs its stricter
+  check and gets the same negative result.
+- **The *"I believe the issues found are incorrect"* button opens a
+  slow manual review** (days to weeks, often denied) and is not
+  recommended for a personal project.
+
+There is no flag, no config, no waiting period that flips Cloud
+Console into accepting URL-prefix evidence on github.io. The only
+paths forward are:
+
+1. **Move to a custom domain** (recommended) →
+   [Appendix B](#appendix-b--custom-domain-on-github-pages-via-cloudflare).
+   The TXT-record verification it enables is the gold standard
+   Cloud Console wants.
+2. **Skip branding verification entirely** (acceptable fallback).
+   Branding verification is *optional*. Without it, the OAuth consent
+   screen shows your developer email instead of the app name + logo.
+   Drive sign-in still works, the app still works — users just see a
+   slightly less polished consent screen with a "this app is not
+   verified" warning. For a hobby / side-project app this is a valid
+   trade-off; click *Cancel* in the *Branding verification issues*
+   dialog and accept the yellow banner.
+
+If you specifically need Search Console for other reasons (analytics,
+indexing, sitemap), the URL-prefix walkthrough below still works for
+those purposes — it just won't satisfy Cloud Console's branding check.
+
+##### URL-prefix verification walkthrough (works for Search Console, NOT for Cloud Console Branding)
 
 1. **Open [Google Search Console](https://search.google.com/search-console)
    under the Cloud-project owner.** Check the avatar top-right — verifying
@@ -1049,55 +1143,37 @@ until you click *Verify* inside Search Console.
    per `(account, property)`, so a different filename than yours is
    proof of a wrong-account session.
 
-5. **Wait 5 minutes.** Cloud Console caches Search Console membership
-   and doesn't always re-query immediately. Re-clicking too fast also
-   counts against a daily re-verification quota.
+5. **The verification HTML file must stay in the repo forever.**
+   Google re-checks it periodically; if it disappears, your verified
+   status revokes. Commit it once and leave it alone — don't delete
+   it during cleanup, even if you also move to a custom domain (the
+   github.io property in Search Console keeps using it).
 
-6. **Back in Cloud Console → *Branding* → *View issues*** → tick
-   **"I have fixed the issues"** → *Proceed*. The yellow banner
-   disappears within a minute. **Do not** pick *"I believe the issues
-   found are incorrect"* — that opens a slow manual-review ticket
-   (days to weeks) and is meant only as a last resort.
-
-Two non-obvious gotchas:
-
-- **The verification HTML file must stay in the repo forever.** Google
-  re-checks it periodically; if it disappears, your verified status
-  revokes and the OAuth consent screen falls back to "unverified app".
-  Commit it once and leave it alone — don't delete it during cleanup.
-- **Search Console *indexing* status is irrelevant.** After verifying,
-  the Search Console overview will show "Data is processing — try again
-  in one day" for *Performance* and *Indexing*. That's about web search
-  crawling, completely unrelated to OAuth branding. Close the tab and
-  ignore it.
-
-If the automated re-check still fails after a successful Search Console
-verification + 5-minute wait, you've hit a real Cloud Console quirk
-with `*.github.io` subdomains where its "registered to you" check is
-stricter than Search Console's. Two pragmatic options:
-
-- **Skip branding verification entirely.** It is *optional*. Without it,
-  the OAuth consent screen shows your developer email instead of the
-  app name + logo. Drive sign-in still works, the app still works —
-  users just see a slightly less polished consent screen. For a hobby /
-  side-project app this is the pragmatic choice; click *Cancel* in the
-  dialog and accept the yellow banner.
-- **Move to a real custom domain.** Buy a cheap domain (~$10/year on
-  Cloudflare / Porkbun / Namecheap), follow the
-  [custom-domain upgrade path below](#when-you-outgrow-it-custom-domain),
-  then in Search Console re-verify with the **Domain** option
-  (DNS TXT record — always works, sidesteps the `*.github.io` quirk).
+Reminder: this gives you a verified Search Console property on the
+github.io URL, but does NOT make Cloud Console's Branding verification
+pass. For that, you need a custom domain →
+[Appendix B](#appendix-b--custom-domain-on-github-pages-via-cloudflare).
 
 </details>
 
-#### When you outgrow it (custom domain)
+#### Recommended next step: move to a custom domain
 
-When you're ready for `https://spendium.app/privacy` instead of the
-`github.io` subpath, register the domain, add a `CNAME` file to
-`spendium-site/` containing just the domain, and set the DNS records per
-GitHub's [custom-domain instructions](https://docs.github.com/pages/configuring-a-custom-domain-for-your-github-pages-site).
-Then update the URLs above. Play Console accepts a privacy-policy URL
-change any time without re-review — just paste the new URL and save.
+For any project that wants OAuth branding verified, moving the site
+behind a real registrable domain (e.g. `spendium.net`) is effectively
+required. It costs ~$12-50/yr depending on TLD, takes ~30 min of
+one-time setup, makes the OAuth consent screen and Play Store privacy
+URL read cleanly, and — most importantly — **is the only way to pass
+Cloud Console's Branding verification**, because DNS-TXT ownership
+proof on a registrable domain is what the check actually accepts.
+If you can't justify the domain cost, the alternative is to skip
+branding verification entirely (see the
+[ownership-trap subsection above](#branding-verification-on-a-githubio-subdomain-ownership-trap)
+for that fallback's user-visible consequences).
+
+End-to-end walkthrough (buy the domain on Cloudflare Registrar, point
+DNS at GitHub Pages, verify in Search Console with the Domain method,
+update Cloud Console Branding, sweep stale URLs):
+[Appendix B — Custom domain on GitHub Pages via Cloudflare](#appendix-b--custom-domain-on-github-pages-via-cloudflare).
 
 ---
 
@@ -1206,7 +1282,7 @@ served to compatible native builds.
 | EAS Cloud build fails with `npm ci ... can only install packages when your package.json and package-lock.json ... are in sync` (e.g. `Missing: @emnapi/core@... from lock file`) | Your lockfile drifted from `package.json`. Common trigger: you accepted the EAS prompt to auto-install a missing package (`expo-updates`, `expo-doctor`, etc.) — the install updates `package.json` but on some npm versions / OSes leaves optional/peer transitive deps out of `package-lock.json`. EAS Cloud uses `npm ci`, which refuses to run with any drift. | Locally: `npm install` (regenerates the lockfile), then `git add package.json package-lock.json && git commit`, then re-run `eas build`. Never edit `package-lock.json` by hand and never run `npm audit fix --force`. |
 | Same error as the row above, but `npm install` on Windows didn't fix it — EAS Cloud still reports `Missing: @emnapi/core@...` (or other Linux-only deps like `@img/sharp-linux-*`) after you committed the regenerated lockfile. | npm's cross-platform `optionalDependencies` bug ([npm/cli#4828](https://github.com/npm/cli/issues/4828)) — `npm install` on Windows skips and *omits from the lockfile* native deps that don't apply to Windows, even though Linux builds need them. EAS Cloud runs Linux + `npm ci`, which then fails. | Regenerate the lockfile from a Linux shell (WSL or any Linux/macOS box): `rm -rf node_modules package-lock.json && npm install`, then commit. Going forward, always run `npm install` from WSL on this repo — see [Option B → step 6](#windows-one-time-wsl2-setup) callout. |
 | OAuth (Google Drive / OneDrive) breaks only in the Play-Store build  | Play App Signing strips the upload key on Google's servers and re-signs the APK with Google's own **app signing key** before delivery, so the SHA-1 attested at OAuth runtime is the *app signing* SHA-1 — not the upload key SHA-1 you originally registered. The redirect handler `com.vshpynta.spendium:/oauth2redirect` is then signed by a key Google doesn't recognise on your OAuth client. | In Google Cloud Console → **Google Auth Platform → Clients** → your Android OAuth client, **replace** the existing SHA-1 with the **app signing key** SHA-1. Get it from Play Console: **Protected with Play** → expand **Play Store protection** → **Protect app signing key** → **Manage Play app signing** button (direct URL: `https://play.google.com/console/u/0/developers/<DEVELOPER_ID>/app/<APP_ID>/keymanagement`). Copy from the **App signing key certificate** block (top one — *not* **Upload key certificate** below). The current Google UI only accepts **one** SHA-1 per Android client (the *Add fingerprint* button no longer exists), so swap rather than try to add. Trade-off: sideloaded local-debug builds can no longer sign in to Drive until the SHA-1 is swapped back — acceptable for now since Play-installed builds are what real users run. |
-| Branding dialog: *"The website of your home page URL '...github.io/...' is not registered to you"* | Google Auth Platform's *Verify branding* flow calls into Google Search Console under the same account for proof of ownership of the home-page URL. Hosting a `google<hash>.html` file at the URL alone does **not** count — you must explicitly click *Verify* inside Search Console, signed in as the Cloud-project owner, against a `URL prefix` property (not `Domain`, which requires DNS access you don't have on `*.github.io`). | Full walk-through with the `*.github.io` ownership-trap gotchas: [Step 8 → Branding verification on a `*.github.io` subdomain](#branding-verification-on-a-githubio-subdomain-ownership-trap). TL;DR: verify in [Search Console](https://search.google.com/search-console) with **URL prefix** + **HTML file**, wait 5 min, then in Cloud Console pick **"I have fixed the issues"** (never *"I believe the issues found are incorrect"* — that opens a slow manual-review ticket). If the automated re-check still fails after a confirmed green Search Console verification, branding is optional — cancel the dialog and ship without it, or switch to a real custom domain. |
+| Branding dialog: *"The website of your home page URL '...github.io/...' is not registered to you"* | Cloud Console's Branding *Verify* flow calls into Google Search Console to confirm "this Google account owns this URL". For shared TLDs on the [Public Suffix List](https://publicsuffix.org/list/) (`github.io` is one), Cloud Console **ignores URL-prefix (HTML-file) Search Console verifications** and only accepts the **Domain** verification type — which needs DNS TXT records you fundamentally can't create on `github.io` because GitHub owns the DNS. There is no flag or workaround that flips Cloud Console into accepting URL-prefix evidence on github.io. | **Recommended:** move the site behind a real registrable domain (~$12-50/yr, ~30 min setup) and verify via DNS TXT. Full walkthrough: [Appendix B — Custom domain on GitHub Pages via Cloudflare](#appendix-b--custom-domain-on-github-pages-via-cloudflare) (Steps 1-5 set up the domain, Step 6 does the Search Console Domain-method verification, Step 7 updates Cloud Console). After that, *View issues* → **"I have fixed the issues"** (never *"I believe the issues found are incorrect"* — that opens a slow manual review) passes on the first try. **Acceptable fallback if you can't justify the domain cost:** branding is *optional*. Cancel the dialog and ship without it — OAuth still works, the consent screen just shows your developer email instead of the app name + logo and displays an "unverified app" warning. See [Step 8 → Branding verification on a `*.github.io` subdomain](#branding-verification-on-a-githubio-subdomain-ownership-trap) for the full rationale and why the URL-prefix workaround is a dead end. |
 | Gradle exits immediately with `Timeout waiting to lock journal cache (~/.gradle/caches/journal-1). It is currently in use by another process. Owner PID: …` | A previous `eas build` was interrupted (Ctrl+C, OOM, terminal crash) and left a Gradle daemon JVM alive holding the journal lock. Gradle daemons idle for 3 hours by default, so they don't release on their own. | `pkill -f GradleDaemon ; rm -f ~/.gradle/caches/journal-1/journal-1.lock` from inside WSL, then retry. If it happens often, add `org.gradle.daemon=false` to `~/.gradle/gradle.properties` — slower startup per build but no orphan daemons. |
 | `eas build --local` exits with `Terminated` + `[ABORT] Received termination signal` mid-CMake, **no error message** above the abort line. | OOM killer. CMake compiles RN's C++ for 4 ABIs in parallel; on a many-core WSL VM (default = one `clang++` per core, ~22 jobs) total resident memory exceeds the VM's RAM limit and the kernel kills the build with `SIGKILL`, which doesn't print anything. | Cap **both** Gradle workers (`org.gradle.workers.max` in `~/.gradle/gradle.properties`) **and** Ninja parallelism (`export CMAKE_BUILD_PARALLEL_LEVEL=4` in `~/.bashrc`) — see [Option B → step 7](#windows-one-time-wsl2-setup). Note: `CMAKE_BUILD_PARALLEL_LEVEL` is *not* a Gradle property and putting it in `gradle.properties` silently does nothing — it must be a real shell env var. As a bigger hammer, also raise the WSL memory limit in `%UserProfile%\.wslconfig` (`memory=12GB`, `swap=8GB`, then `wsl --shutdown`). |
 | `eas build --local` fails late (~18 min in, past CMake) at `:app:mergeReleaseNativeLibs` with `java.io.IOException: No space left on device`, even though `df -h /` inside WSL shows hundreds of GB free. | WSL2's `/tmp` is a **tmpfs** sized at ~50% of the VM's RAM (~7.8 GB), separate from the ext4 root. EAS Local extracts the project and runs the entire Gradle build under `/tmp/<user>/eas-build-local-nodejs/<uuid>/...`, and peak intermediates (per-ABI `.so` copies in `merged_native_libs/` + `stripped_native_libs/` + Gradle cache + a copy of `node_modules`) blow past tmpfs. Confirm with `findmnt /tmp` showing `tmpfs`. | Redirect EAS scratch onto the ext4 disk: `mkdir -p /var/tmp/eas-build && echo 'export TMPDIR=/var/tmp/eas-build' >> ~/.bashrc && source ~/.bashrc`. See [Option B → step 8](#windows-one-time-wsl2-setup) for the full explanation. Resizing tmpfs (`sudo mount -o remount,size=32G /tmp`) also works but permanently reserves that much VM RAM. |
@@ -1312,3 +1388,361 @@ Your cloud. Your data. Your budget.
 > results. Keep the most compelling words ("Private", "offline", "your
 > cloud") in the first 60 characters because the rest is often truncated
 > on small screens.
+
+---
+
+## Appendix B — Custom domain on GitHub Pages via Cloudflare
+
+This appendix is the end-to-end walkthrough for moving the
+`spendium-site` (created in [Step 8](#hosting-the-privacy-policy-and-a-landing-page-on-github-pages))
+behind a real registrable domain — e.g. swapping
+`https://<user>.github.io/spendium-site/` for `https://spendium.net/`.
+
+**Why this is worth doing:**
+
+- The OAuth *Branding verification* dialog rejects `*.github.io` URLs as
+  *"not registered to you"* even after a successful Search Console
+  HTML-file verification — because `github.io` is on the
+  [Public Suffix List](https://publicsuffix.org/list/) and Cloud
+  Console's ownership check is stricter than Search Console's for those
+  TLDs. A real registrable domain with a DNS TXT record satisfies the
+  check on the first try. This is the primary motivator for most
+  Spendium-style projects — see
+  [Step 8 → Branding verification on a `*.github.io` subdomain](#branding-verification-on-a-githubio-subdomain-ownership-trap)
+  for the failure mode this fixes.
+- The OAuth consent screen and Play Store privacy URL read more
+  professionally as `spendium.net` than as a github.io subpath.
+- Single, stable URL that survives if you ever change GitHub usernames
+  or move the site to a different host (Cloudflare Pages, Netlify, S3,
+  whatever) — just re-point DNS.
+
+**Cost (annual, at Cloudflare Registrar's wholesale pricing):**
+
+| TLD     | Annual | 10-year total | Brand vibe                                    |
+|---------|--------|---------------|-----------------------------------------------|
+| `.net`  | ~$12   | ~$120         | Neutral, scales to web + mobile + API         |
+| `.com`  | ~$10   | ~$100         | Best if available; most are aftermarket-only  |
+| `.app`  | ~$14   | ~$140         | Mobile-app focused; HTTPS-enforced by TLD     |
+| `.dev`  | ~$15   | ~$150         | Developer tool; HTTPS-enforced by TLD         |
+| `.io`   | ~$50   | ~$500         | Tech-startup vibe; expensive                  |
+
+Use [Cloudflare's domain search](https://dash.cloudflare.com/?to=/:account/domains/register)
+to check availability. The walkthrough below uses `spendium.net` on
+Cloudflare as the concrete example — substitute your own domain.
+
+> **Cloudflare vs GoDaddy.** Cloudflare sells at literal registry
+> wholesale cost with no upsells and free WHOIS privacy. GoDaddy's
+> "$0.01 first year" headline requires a 3-year prepay with full-price
+> years 2-3 (~$80/yr for `.io`), making the 3-year total ~30-40% higher
+> than Cloudflare's flat pricing. Recommend Cloudflare unless you
+> already have an account / TLD-specific reason elsewhere.
+
+### 1. Buy the domain on Cloudflare Registrar
+
+1. Open [Cloudflare Registrar](https://dash.cloudflare.com/?to=/:account/domains/register).
+2. Type your domain in the search box, click **Search**.
+3. Find the green row matching your exact domain — confirm the
+   *Renews at* price equals the first-year price (no intro discount
+   tricks). Click **Purchase**.
+4. Skip every add-on offered. WHOIS privacy, DNS hosting, email
+   forwarding, and SSL are all included free under the *Websites* tab.
+
+The domain shows up in your Cloudflare dashboard within a minute.
+
+### 2. Configure DNS to point at GitHub Pages
+
+Cloudflare dashboard → click your new domain → **DNS** → **Records**.
+Add these five records (do **not** add anything else at the apex):
+
+| Type    | Name  | Content                       | Proxy status         |
+|---------|-------|-------------------------------|----------------------|
+| `A`     | `@`   | `185.199.108.153`             | DNS only (gray cloud)|
+| `A`     | `@`   | `185.199.109.153`             | DNS only (gray cloud)|
+| `A`     | `@`   | `185.199.110.153`             | DNS only (gray cloud)|
+| `A`     | `@`   | `185.199.111.153`             | DNS only (gray cloud)|
+| `CNAME` | `www` | `<your-github-user>.github.io`| DNS only (gray cloud)|
+
+The four `A` records are GitHub Pages' [official anycast IPs](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site#configuring-an-apex-domain)
+— all four are needed for redundancy. The `CNAME www` record makes
+`https://www.spendium.net/` 301 to the apex automatically.
+
+> **Why `<user>.github.io` and not `github.com`?** They're two
+> different services on different infrastructure. `github.com` is the
+> Git hosting web UI (repo browser, PRs, API) on GitHub's own
+> `140.82.*.*` netblock — pointing DNS at it would just return a 404
+> for your `Host` header. `<user>.github.io` is the Pages CDN edge on
+> Fastly's `185.199.*.153` anycast, which does host-header-based
+> routing: the request arrives, Fastly looks up which user owns
+> `www.spendium.net` (via the `CNAME` file you'll commit in
+> [step 3](#3-add-a-cname-file-to-the-site-repo)), and serves that
+> repo's Pages output. The DNS `CNAME` is what gets traffic to the
+> Pages CDN at all; the `CNAME` file in the repo is what tells the CDN
+> which repo to serve. The four apex `A` records exist because the DNS
+> spec forbids a `CNAME` at the zone apex \u2014 GitHub publishes anycast
+> IPs specifically to work around that.
+
+> **Sanity-check the IPs before pasting.** GitHub's anycast IPs have
+> been stable for years, but treat any IPs copied from a third-party
+> doc (including this one) as untrusted. Cross-check with at least one
+> of the following:
+>
+> - **Canonical source** —
+>   [docs.github.com → Managing a custom domain → Configuring an apex domain](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site#configuring-an-apex-domain)
+>   is the authoritative list. If GitHub ever rotates them, that page
+>   is what gets updated first.
+> - **Reverse DNS** — `Resolve-DnsName -Type PTR 185.199.108.153`
+>   should return a `cdn-185-199-*-153.github.com` PTR record
+>   (Fastly-hosted GitHub anycast).
+> - **Live A-record from a known `github.io` site** —
+>   `nslookup octocat.github.io 8.8.8.8` should return those same four
+>   IPs in some order.
+> - **HTTP probe** —
+>   `curl.exe -I -H "Host: octocat.github.io" http://185.199.108.153/`
+>   should respond with a `Server: GitHub.com` header.
+
+**Critical: every record must be GRAY cloud (DNS only), not orange
+(proxied).** Cloudflare defaults to orange, which double-wraps TLS and
+breaks GitHub Pages' Let's Encrypt cert provisioning. Click the cloud
+icon on each row until it turns gray before saving.
+
+### 3. Add a `CNAME` file to the site repo
+
+This file tells GitHub which custom domain owns the Pages output of
+the repo. Filename is exactly `CNAME` (no extension, all caps),
+contents is exactly the bare domain on a single line with no trailing
+whitespace.
+
+```powershell
+cd C:\dev\tools\GitRepo\spendium-site
+"spendium.net" | Out-File -Encoding ascii -NoNewline CNAME
+git add CNAME
+git commit -m "Add CNAME for spendium.net custom domain"
+git push
+```
+
+> **Sanity-check the file is exactly N bytes** (where N = length of
+> your bare domain — 12 for `spendium.net`). PowerShell's `Out-File`
+> with `-Encoding ascii -NoNewline` writes raw ASCII with no BOM and
+> no trailing newline, which is what GitHub Pages requires. Verify
+> with `Format-Hex CNAME` — the byte dump should show only the
+> domain characters, nothing else.
+
+### 4. Confirm GitHub Pages auto-registered the domain
+
+**You do not need to manually type the domain into the Pages settings.**
+Once you push the `CNAME` file, GitHub Pages' next build (~30 s) reads
+it and populates *Settings → Pages → Custom domain* automatically. The
+two are interchangeable representations of the same setting.
+
+1. Repo → **Settings** → **Pages**. The *Custom domain* field should
+   already show `spendium.net` (read from the file you just pushed). If
+   it's empty, the build hasn't finished yet — wait 30 s and reload.
+2. Below the field, you'll see one of three statuses:
+   - **`DNS Check in Progress`** (orange) — GitHub is resolving your
+     domain. Takes 1-10 min depending on resolver staleness. No action
+     needed; the check auto-retries.
+   - **`DNS check successful`** (green) — DNS is verified; Let's
+     Encrypt provisioning starts in the background.
+   - A red error (e.g. *"Domain's DNS record could not be retrieved"*)
+     — DNS records are wrong. Go back to step 2 and re-check.
+3. Once DNS is green, wait another ~5-15 min for the Let's Encrypt
+   cert. The **Enforce HTTPS** checkbox is greyed out while
+   provisioning. When it becomes enabled, **tick it** — there's no
+   *Save* button, the change auto-applies on click (you'll see a green
+   ✓ next to the label).
+4. The **Save** button next to the *Custom domain* field stays
+   disabled the whole time — that's normal. It only lights up if you
+   *change* the domain (e.g. swap `spendium.net` for `www.spendium.net`).
+   Since the field already matches the `CNAME` file, there's nothing
+   to save.
+
+> **One gotcha if you ever edit the domain in the UI.** Typing a
+> different value into the *Custom domain* field and clicking *Save*
+> will rewrite the `CNAME` file in the repo on the next Pages build
+> (GitHub auto-commits the change as the `github-pages[bot]`). If you
+> want the file in the repo to be canonical, only edit it via
+> `git commit` — never via the UI.
+
+### 5. Verify end-to-end
+
+```powershell
+# All three should return HTTP/2 200; www should 301 → apex.
+curl.exe -I https://spendium.net/
+curl.exe -I https://spendium.net/privacy/
+curl.exe -I https://www.spendium.net/
+```
+
+If the apex `curl` fails or returns wrong content, check
+`nslookup spendium.net` — it must return the four `185.199.*.153`
+addresses. If it doesn't, common causes:
+
+- DNS records mis-named (use `@` not the literal domain, not `*`).
+- The proxy cloud is still orange on one or more records.
+- Local DNS cache is stale (`ipconfig /flushdns`).
+- GitHub Pages custom-domain check hasn't completed yet (the green
+  banner under repo Settings → Pages must say *DNS check successful*).
+
+### 6. Verify ownership in Google Search Console (Domain method)
+
+This is what unblocks the OAuth Branding verification. Cloud Console's
+Branding check accepts Search Console **Domain** properties (DNS TXT
+verification) without question, but rejects URL-prefix verifications on
+shared TLDs like `github.io`. A real registrable domain finally lets
+you use the Domain method.
+
+> **Skip if you set this up before getting a custom domain.** If you
+> previously verified `<user>.github.io/spendium-site/` via the
+> URL-prefix workaround in [Step 8 → ownership-trap subsection](#branding-verification-on-a-githubio-subdomain-ownership-trap),
+> that property still exists in Search Console and you can leave it
+> alone — it covers SEO / analytics for the old URL. This step adds a
+> *new, separate* Domain property for `spendium.net`, which is what
+> Cloud Console will check against.
+
+There are two ways to add the TXT record. **Path A (Domain Connect)**
+is faster if your DNS is hosted at Cloudflare, Google Domains,
+GoDaddy, or any other Domain Connect partner — Search Console drives
+the whole flow and you never touch the DNS console. **Path B (manual
+TXT)** works everywhere and is the explicit fallback if Domain Connect
+isn't offered or you prefer to stay in control of every DNS change.
+
+#### Path A — One-click via Domain Connect (recommended for Cloudflare DNS)
+
+1. Open [Search Console](https://search.google.com/search-console) under
+   the **same** Google account that owns your Cloud project. Wrong
+   account = invisible to Cloud Console = verification will still fail.
+   If you have multiple Google accounts signed in, use an incognito
+   window with only the Cloud-project owner signed in.
+2. *Add property* → **Domain** (left column, globe icon — NOT *URL
+   prefix* on the right). One Domain property covers `spendium.net`,
+   `www.spendium.net`, and any future subdomain automatically.
+3. Type `spendium.net` (bare domain, no `https://`, no `www`, no
+   trailing slash) → **Continue**.
+4. Google detects that your DNS is at a [Domain Connect](https://www.domainconnect.org/)
+   partner and shows *"Verify domain ownership via DNS record →
+   Instructions for: Cloudflare.com"* with a **Start verification**
+   button. Click it.
+5. You're redirected to `dash.cloudflare.com/domainconnect/...` showing
+   *"Authorize DNS records from Google"* with the exact TXT record
+   Google wants to add (`Type: TXT`, `Name: spendium.net`, `Content:
+   "google-site-verification=..."`, `Proxy status: DNS only`). Click
+   **Authorize**. This is a one-time, scoped grant — Cloudflare
+   explicitly states *"It does not grant Google permission to make
+   future changes"*. No API token or login credentials are shared.
+6. You're redirected back to Search Console. Within ~10-30 s the
+   property flips to green *"Ownership verified"*. Done.
+
+#### Path B — Manual TXT record (works on any DNS provider)
+
+Use this if Domain Connect isn't offered (your DNS provider isn't a
+partner), if you skipped past the *Start verification* button, or if
+you'd rather paste the record by hand.
+
+1. Same first three steps as Path A (open Search Console under the
+   right account, *Add property* → **Domain**, type `spendium.net` →
+   *Continue*).
+2. On the verification dialog, ignore the Domain Connect button and
+   scroll to the **TXT record** that Google shows directly. It looks
+   like
+   `google-site-verification=Xa9_qP3vF8jKbN2mL7yZ4tH6dQ1cR0sW5eV8nU3iA9p`.
+   Copy it. **Leave the dialog open** — you'll come back to click
+   *Verify*.
+3. In a new tab → [Cloudflare](https://dash.cloudflare.com) → your
+   domain → **DNS** → **Records** → **Add record**:
+   - Type: `TXT`
+   - Name: `@` (Cloudflare may auto-fill it as the literal domain —
+     same thing)
+   - Content: paste the entire `google-site-verification=...` string
+   - TTL: Auto
+   - (TXT records have no proxy toggle — N/A)
+4. Save. The record propagates to Google's resolver within ~10 s.
+5. Back in the Search Console tab → **Verify**. Turns green within
+   5-15 s. If it doesn't, the TXT record didn't propagate yet — wait
+   30 s and click *Verify* again.
+
+#### After verification (applies to both paths)
+
+Confirm the record landed and the verification stuck:
+
+```powershell
+# Should show the google-site-verification=... TXT line.
+nslookup -type=TXT spendium.net 8.8.8.8
+```
+
+**Leave the TXT record in Cloudflare forever.** Google re-checks
+periodically; if the record disappears the verification revokes and
+your Cloud Console branding falls back to "unverified" — which then
+re-triggers the OAuth warning on every login. The record is ~80 bytes
+and costs nothing. This applies whether the record was added via Path
+A or Path B — both produce the same `TXT @ "google-site-verification=..."`
+row in your zone, both belong to you, and deleting either one revokes
+the verification the same way.
+
+**What you can skip in Search Console.** You're using Search Console
+purely as an ownership-verification provider for Google's identity
+system; you don't need *Sitemap submission*, *Coverage reports*,
+*Performance metrics*, or any of the SEO-focused tooling for OAuth
+branding to work. Close the Search Console tab once you see the green
+*"Ownership verified"* and don't worry about the *"Data is processing,
+try again in one day"* banners on the overview page.
+
+### 7. Update Cloud Console → Branding
+
+Open [Google Auth Platform](https://console.cloud.google.com/auth/branding)
+→ your project → **Branding**:
+
+- *Application home page* → `https://spendium.net/`
+- *Application privacy policy link* → `https://spendium.net/privacy/`
+- *Authorized domains* → **remove** the old `<user>.github.io` entry,
+  **add** `spendium.net` (one entry covers all subdomains)
+
+Save → *Verification status* card → *View issues* →
+**"I have fixed the issues"** (not *"I believe the issues found are
+incorrect"* — that opens a slow manual review) → *Proceed*.
+
+This time the verification passes because Cloud Console can confirm
+DNS-level ownership of a real registrable domain in seconds. The yellow
+warning banner disappears within ~1 minute.
+
+### 8. Sweep references to the old URL
+
+- **Play Console** → *App content* → *Privacy policy* → paste
+  `https://spendium.net/privacy/`. Same field in *Main store listing*
+  → *Privacy policy URL*. No re-review needed — Google accepts URL
+  changes immediately.
+- **Microsoft Entra** (if you've set up OneDrive sync) → app
+  registration → *Branding & properties* → *Publisher domain* and
+  *Privacy statement URL* → same replacement.
+- **Project READMEs** in `expenses-tracker-playground` and `spendium-site`
+  → search for `<user>.github.io/spendium-site` and replace with
+  `spendium.net`.
+
+The old `https://<user>.github.io/spendium-site/` URL keeps working —
+GitHub auto-301s it to your custom domain once the `CNAME` file is in
+place. No existing bookmarks or links break.
+
+### Gotchas to avoid later
+
+- **Don't flip the Cloudflare proxy cloud to orange "for security"**
+  after Let's Encrypt is working. Pages will silently fail to renew the
+  cert when it expires (~60-90 days later) and HTTPS will start
+  returning certificate errors. If you want Cloudflare's WAF / caching,
+  you need to move the site off GitHub Pages onto Cloudflare Pages —
+  out of scope for this guide.
+- **Don't delete the Search Console TXT record.** Google re-checks it
+  periodically; if it disappears, your branding verification revokes
+  and the OAuth consent screen falls back to "unverified app".
+- **Don't delete the GitHub `CNAME` file from the repo.** Pages
+  rebuilds wipe the custom-domain config without it, and the site
+  starts serving from the old `<user>.github.io/spendium-site/` URL
+  with a 404 from `spendium.net`.
+- **Set up Cloudflare auto-renew** on the registrar billing page so the
+  domain doesn't lapse silently. A lapsed `.net` enters a 30-day grace
+  period, then a 30-day redemption period (with a ~$80 redemption
+  fee), then drops back into the public pool. Auto-renew on a card
+  prevents this.
+- **If you ever buy more TLDs of the same name** (e.g. you grab
+  `spendium.app` later), they don't auto-redirect to each other. Either
+  configure 301 redirects in Cloudflare's *Rules → Redirects* (free
+  tier supports up to 10), or pick the canonical TLD and don't worry
+  about it.
+
