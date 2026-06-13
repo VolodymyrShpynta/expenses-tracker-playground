@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1242 2436">
   <defs>
+    <!-- ===== Tile gradients ===== -->
     <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0"    stop-color="#7ec8ff"/>
       <stop offset="0.35" stop-color="#6870fa"/>
@@ -24,89 +25,178 @@
       <stop offset="0.55" stop-color="#0f1450" stop-opacity="0"/>
       <stop offset="1"    stop-color="#0f1450" stop-opacity="0.4"/>
     </radialGradient>
-    <linearGradient id="surface" x1="0" y1="0" x2="0.4" y2="1">
-      <stop offset="0"    stop-color="#ffffff"/>
-      <stop offset="0.55" stop-color="#eef1ff"/>
-      <stop offset="1"    stop-color="#d1d8ff"/>
+
+    <!-- ===== Tile clip ===== -->
+    <clipPath id="tileClip">
+      <rect width="1024" height="1024" rx="224" ry="224"/>
+    </clipPath>
+
+    <!-- ===== Soft drop shadow under the donut ===== -->
+    <filter id="donutShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14"/>
+      <feOffset dx="0" dy="14"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.35"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <!-- ===== Wedge gradients ===== -->
+    <linearGradient id="wedge1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0"    stop-color="#8ec0ff"/>
+      <stop offset="0.55" stop-color="#5e94e6"/>
+      <stop offset="1"    stop-color="#3568c2"/>
     </linearGradient>
-    <radialGradient id="surfaceGlow" cx="0.3" cy="0.25" r="0.85">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    <linearGradient id="wedge4" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0"    stop-color="#a9bcf5"/>
+      <stop offset="0.55" stop-color="#8090d6"/>
+      <stop offset="1"    stop-color="#5965b0"/>
+    </linearGradient>
+    <linearGradient id="wedgeWhite" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"    stop-color="#f3f5fb"/>
+      <stop offset="0.55" stop-color="#d8def0"/>
+      <stop offset="1"    stop-color="#bac3df"/>
+    </linearGradient>
+
+    <!-- ===== Per-slice highlight pools ===== -->
+    <radialGradient id="wedge1Hi" cx="600" cy="360" r="220" gradientUnits="userSpaceOnUse">
+      <stop offset="0"   stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="0.6" stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="1"   stop-color="#ffffff" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="wedgeA" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0"    stop-color="#c3eaff"/>
-      <stop offset="0.5"  stop-color="#8ec5ff"/>
-      <stop offset="1"    stop-color="#6870fa"/>
+    <radialGradient id="wedge4Hi" cx="410" cy="380" r="260" gradientUnits="userSpaceOnUse">
+      <stop offset="0"   stop-color="#ffffff" stop-opacity="0.50"/>
+      <stop offset="0.6" stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="1"   stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- ===== Donut outer halo ===== -->
+    <radialGradient id="donutHalo" cx="512" cy="512" r="560" gradientUnits="userSpaceOnUse">
+      <stop offset="0.4"  stop-color="#6be3ff" stop-opacity="0"/>
+      <stop offset="0.72" stop-color="#6be3ff" stop-opacity="0.12"/>
+      <stop offset="1"    stop-color="#6be3ff" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- ===== Soft sheen overlay across the donut top half ===== -->
+    <radialGradient id="donutSheen" cx="512" cy="200" r="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0"    stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0.05"/>
+      <stop offset="1"    stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- ===== Center badge ===== -->
+    <radialGradient id="badge" cx="0.4" cy="0.35" r="0.9">
+      <stop offset="0"    stop-color="#3a6cee"/>
+      <stop offset="0.55" stop-color="#0a1e80"/>
+      <stop offset="1"    stop-color="#000638"/>
+    </radialGradient>
+    <radialGradient id="badgeGlow" cx="512" cy="512" r="195" gradientUnits="userSpaceOnUse">
+      <stop offset="0.65" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0.85" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="1"    stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="badgeShade" cx="600" cy="600" r="220" gradientUnits="userSpaceOnUse">
+      <stop offset="0"   stop-color="#000638" stop-opacity="0.45"/>
+      <stop offset="0.7" stop-color="#000638" stop-opacity="0.05"/>
+      <stop offset="1"   stop-color="#000638" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- ===== S gradient ===== -->
+    <linearGradient id="sGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"   stop-color="#ffffff"/>
+      <stop offset="1"   stop-color="#dbe7ff"/>
     </linearGradient>
-    <linearGradient id="wedgeB" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0"    stop-color="#eef0ff"/>
-      <stop offset="0.55" stop-color="#bcc1ff"/>
-      <stop offset="1"    stop-color="#8a92ff"/>
-    </linearGradient>
-    <linearGradient id="divider" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0"   stop-color="#9ad6ff"/>
-      <stop offset="0.5" stop-color="#2a309e"/>
-      <stop offset="1"   stop-color="#9ad6ff"/>
-    </linearGradient>
-    <linearGradient id="sMono" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0"    stop-color="#5fa9ff"/>
-      <stop offset="0.4"  stop-color="#4f57d6"/>
-      <stop offset="1"    stop-color="#1a1f6e"/>
-    </linearGradient>
-    <linearGradient id="walletBody" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0"    stop-color="#ffffff"/>
-      <stop offset="0.55" stop-color="#e6edff"/>
-      <stop offset="1"    stop-color="#c1c8ff"/>
-    </linearGradient>
-    <linearGradient id="walletFold" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0"    stop-color="#bcc1ff"/>
-      <stop offset="0.5"  stop-color="#8ec5ff"/>
-      <stop offset="1"    stop-color="#7c84ff"/>
-    </linearGradient>
-    <linearGradient id="clasp" x1="0" y1="0" x2="1" y2="0.6">
-      <stop offset="0"    stop-color="#8ec5ff"/>
-      <stop offset="0.55" stop-color="#4f57d6"/>
-      <stop offset="1"    stop-color="#1a1f6e"/>
-    </linearGradient>
+
+    <!-- ===== Divider gradient ===== -->
+    <radialGradient id="dividerGrad" cx="512" cy="512" r="400" gradientUnits="userSpaceOnUse">
+      <stop offset="0"   stop-color="#2a4cb3"/>
+      <stop offset="0.6" stop-color="#5d86d8"/>
+      <stop offset="1"   stop-color="#8fb6e8"/>
+    </radialGradient>
   </defs>
 
+  <!-- White splash background -->
   <rect width="1242" height="2436" fill="#ffffff"/>
 
+  <!-- Centered icon: scale 0.65 → 666x666, centered at (621, 1218) → translate(288, 885) -->
   <g transform="translate(288 885) scale(0.65)">
+
+    <!-- App tile -->
     <rect width="1024" height="1024" rx="224" ry="224" fill="url(#tile)"/>
     <rect width="1024" height="1024" rx="224" ry="224" fill="url(#tileGlow)"/>
     <rect width="1024" height="1024" rx="224" ry="224" fill="url(#tileGlow2)"/>
     <rect width="1024" height="1024" rx="224" ry="224" fill="url(#sheen)"/>
     <rect width="1024" height="1024" rx="224" ry="224" fill="url(#tileShade)"/>
 
-    <g transform="translate(717 338)">
-      <circle r="205" fill="url(#surface)" stroke="#2a309e" stroke-width="7" stroke-opacity="0.35"/>
-      <circle r="205" fill="url(#surfaceGlow)"/>
-      <path d="M 0 0 L 0 -205 A 205 205 0 0 1 205 0 Z" fill="url(#wedgeA)"/>
-      <path d="M 0 0 L 205 0 A 205 205 0 0 1 109 174 Z" fill="url(#wedgeB)"/>
-      <g stroke="url(#divider)" stroke-width="11" stroke-linecap="round" opacity="0.9">
-        <line x1="0" y1="0" x2="0" y2="-205"/>
-        <line x1="0" y1="0" x2="205" y2="0"/>
-        <line x1="0" y1="0" x2="109" y2="174"/>
+    <g clip-path="url(#tileClip)">
+
+      <!-- Donut outer halo -->
+      <circle cx="512" cy="512" r="560" fill="url(#donutHalo)"/>
+
+      <!-- Donut -->
+      <g filter="url(#donutShadow)">
+        <path d="M 512 112
+                 A 400 400 0 0 1 858.41 312
+                 L 659.22 427
+                 A 170 170 0 0 0 512 342 Z"
+              fill="url(#wedge1)"/>
+        <path d="M 858.41 312
+                 A 400 400 0 0 1 794.84 794.84
+                 L 632.21 632.21
+                 A 170 170 0 0 0 659.22 427 Z"
+              fill="url(#wedgeWhite)"/>
+        <path d="M 794.84 794.84
+                 A 400 400 0 0 1 142.45 665.07
+                 L 354.94 577.06
+                 A 170 170 0 0 0 632.21 632.21 Z"
+              fill="url(#wedgeWhite)"/>
+        <path d="M 142.45 665.07
+                 A 400 400 0 0 1 512 112
+                 L 512 342
+                 A 170 170 0 0 0 354.94 577.06 Z"
+              fill="url(#wedge4)"/>
+
+        <path d="M 512 112
+                 A 400 400 0 0 1 858.41 312
+                 L 659.22 427
+                 A 170 170 0 0 0 512 342 Z"
+              fill="url(#wedge1Hi)"/>
+        <path d="M 142.45 665.07
+                 A 400 400 0 0 1 512 112
+                 L 512 342
+                 A 170 170 0 0 0 354.94 577.06 Z"
+              fill="url(#wedge4Hi)"/>
+
+        <g stroke="url(#dividerGrad)" stroke-width="18" stroke-linecap="butt">
+          <line x1="512"    y1="342"    x2="512"    y2="112"/>
+          <line x1="659.22" y1="427"    x2="858.41" y2="312"/>
+          <line x1="632.21" y1="632.21" x2="794.84" y2="794.84"/>
+          <line x1="354.94" y1="577.06" x2="142.45" y2="665.07"/>
+        </g>
+
+        <path d="M 512 112
+                 A 400 400 0 1 1 511 112 Z
+                 M 512 342
+                 A 170 170 0 1 0 513 342 Z"
+              fill="url(#donutSheen)" fill-rule="evenodd"/>
       </g>
+
+      <!-- Center badge -->
+      <circle cx="512" cy="512" r="195" fill="url(#badge)"/>
+      <circle cx="512" cy="512" r="195" fill="url(#badgeGlow)"/>
+      <circle cx="512" cy="512" r="195" fill="url(#badgeShade)"/>
+
+      <!-- White S -->
+      <g transform="translate(512 510) scale(0.85) translate(-512 -510)">
+        <path d="M 600 412
+                 C 600 348, 424 348, 424 438
+                 C 424 528, 600 488, 600 580
+                 C 600 672, 424 672, 424 608"
+              fill="none"
+              stroke="url(#sGrad)"
+              stroke-width="84"
+              stroke-linecap="round"
+              stroke-linejoin="round"/>
+      </g>
+
     </g>
-
-    <rect x="94" y="434" width="746" height="446" rx="72" ry="72"
-          fill="url(#walletBody)" stroke="#2a309e" stroke-width="7" stroke-opacity="0.32"/>
-    <rect x="94" y="735" width="746" height="145" rx="72" ry="72" fill="url(#walletFold)"/>
-    <line x1="130" y1="735" x2="804" y2="735" stroke="#4f57d6" stroke-width="3.3" stroke-opacity="0.4"/>
-    <rect x="646" y="583" width="194" height="102" rx="29" ry="29" fill="url(#clasp)"/>
-    <rect x="657" y="592" width="172" height="31" rx="16" ry="16" fill="#ffffff" opacity="0.22"/>
-
-    <line x1="441" y1="828" x2="498" y2="475"
-          stroke="url(#sMono)" stroke-width="30" stroke-linecap="round"/>
-
-    <text x="465" y="785"
-          font-family="Georgia, 'Times New Roman', 'DejaVu Serif', serif"
-          font-size="380"
-          font-weight="bold"
-          font-style="italic"
-          text-anchor="middle"
-          fill="url(#sMono)">S</text>
   </g>
 </svg>
