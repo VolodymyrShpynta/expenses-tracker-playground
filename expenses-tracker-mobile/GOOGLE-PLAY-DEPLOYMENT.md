@@ -34,6 +34,10 @@ pick whichever matches your machine and skip the other.
 - [Step 5 — Wire up `eas submit` for future releases](#step-5--wire-up-eas-submit-for-future-releases)
 - [Step 6 — Fill out the Play Console listing](#step-6--fill-out-the-play-console-listing)
 - [Step 7 — Complete the Data safety form](#step-7--complete-the-data-safety-form)
+  - [Confirm what's actually shipping before you fill the form](#confirm-whats-actually-shipping-before-you-fill-the-form)
+  - [Verbatim answers](#verbatim-answers)
+  - [Interpretation choice — "Yes" vs "No"](#interpretation-choice--yes-vs-no)
+  - [When to revisit this form](#when-to-revisit-this-form)
 - [Step 8 — Content rating, target audience, privacy policy](#step-8--content-rating-target-audience-privacy-policy)
   - [Hosting the privacy policy (and a landing page) on GitHub Pages](#hosting-the-privacy-policy-and-a-landing-page-on-github-pages)
 - [Step 9 — Promote Internal → Closed → Open → Production](#step-9--promote-internal--closed--open--production)
@@ -892,10 +896,48 @@ distinctive screens first.
 
 ## Step 7 — Complete the Data safety form
 
-Play Console → **App content → Data safety** → **Start**.
+**Where to find it.** The Data safety form is *not* under
+**Grow users → Store presence** (a common wrong guess — Store presence
+is for Store listings, translations, contact details, etc.). It lives in
+two equivalent places:
 
-Spendium's posture is unusual — most fields are **"No data collected"**.
-Here's the verbatim answer for each section:
+- **Dashboard** → **Finish setting up your app** → **Data safety ›**
+  (under *Let us know about the content of your app*).
+- Sidebar → **Policy and programs → App content** → scroll to the
+  **Data safety** card → **Manage** / **Start**.
+
+### Confirm what's actually shipping before you fill the form
+
+Run this audit any time you add a dependency. If it returns no matches,
+the "No data collected" branch is safe. If it returns a real hit
+(actual SDK install, not just a comment or a UI-component named
+`Segmented…`), revisit the answers below:
+
+```pwsh
+cd expenses-tracker-mobile
+# 1. JS-side analytics / crash SDKs declared in package.json
+Select-String -Pattern 'sentry|firebase|crashlytics|mixpanel|amplitude|bugsnag|posthog|@segment|onesignal|appsflyer|adjust|branch-sdk' .\package.json
+
+# 2. Anything that imports one in source
+Get-ChildItem -Recurse -Include *.ts,*.tsx -Exclude node_modules .\src, .\app `
+  | Select-String -Pattern 'from .@?(sentry|firebase|@react-native-firebase|posthog|mixpanel|amplitude|bugsnag|@segment)'
+```
+
+> **Heads-up about transitive Android deps.** The built APK's merged
+> manifest pulls in `com.google.firebase:firebase-components` and
+> `firebase-encoders-json`. **These are not Firebase Analytics or
+> Crashlytics** — they're internal DI/JSON helpers used by ML Kit and
+> Google Sign-In (which `expo-auth-session` needs for the Drive OAuth
+> flow). They don't collect or transmit anything on their own, so they
+> don't change the Data safety answers. Mention here so you don't get
+> spooked if you ever grep `manifest-merger-debug-report.txt`.
+
+### Verbatim answers
+
+Spendium's posture is **"No data collected"** for almost every field. The
+table below shows the conservative reading we ship today (declaring OAuth
+identifiers as *User IDs (optional)*) — you can simplify to a flat *No*
+if you prefer; see [Interpretation choice](#interpretation-choice-yes-vs-no) below.
 
 | Section                                         | Answer                                                                                                                              |
 |-------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
@@ -909,6 +951,41 @@ Here's the verbatim answer for each section:
 
 After saving, the form must be in state **Complete** before you can
 promote a release to production.
+
+### Interpretation choice — "Yes" vs "No"
+
+Both answers pass Play review for Spendium. The difference is what shows
+up on the public Data safety card in your store listing:
+
+- **Yes (current doc):** the conservative reading — declares OAuth
+  tokens as *User IDs (optional, app functionality)*. Card shows one
+  collected data type with the *Optional* badge. Defensible if Google
+  ever asks; some lawyers prefer this for any OAuth-using app.
+- **No (also valid):** Google's own [Data safety FAQ](https://support.google.com/googleplay/android-developer/answer/10787469)
+  defines "collected" as *data transmitted off the device to a server
+  the developer operates*. Spendium's OAuth tokens go to
+  Google/Microsoft (not to a server you control), and the synced JSON
+  file lives in the user's own cloud account — which the FAQ
+  explicitly classifies as "user-driven cloud storage" and **not
+  collection**. With this reading the entire form collapses to "No" on
+  Q1, the per-category checkboxes never appear, and the public card
+  reads *"No data collected"*.
+
+Pick one and stick with it; the Yes path is shipped today.
+
+### When to revisit this form
+
+Any of the following requires re-filing the form (Play Console blocks
+releases that have stale Data safety until you reconfirm):
+
+- Adding a crash-reporting or analytics SDK (Sentry, Crashlytics,
+  Firebase Analytics, PostHog, Mixpanel, Amplitude, …) — the audit
+  command above is the canonical check.
+- Adding a backend the mobile app talks to directly (today the mobile
+  app does *not* call the Spring API at all — it's strictly offline +
+  user-cloud).
+- Changing what's stored in the synced JSON (e.g. adding categories of
+  data not already covered by the table above).
 
 ---
 
