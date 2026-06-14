@@ -7,6 +7,7 @@ import { Dialog, RadioButton } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
 import { AppDialog } from './AppDialog';
+import { AppRadioItem } from './AppRadioItem';
 import type { FontScaleKey } from '../context/preferencesProvider';
 
 export interface FontSizePickerDialogProps {
@@ -35,7 +36,7 @@ export function FontSizePickerDialog({
       <Dialog.Content>
         <RadioButton.Group value={value} onValueChange={(v) => onPick(v as FontScaleKey)}>
           {SCALES.map((s) => (
-            <RadioButton.Item
+            <AppRadioItem
               key={s}
               value={s}
               label={translate(`settings.fontScale.${s}`)}

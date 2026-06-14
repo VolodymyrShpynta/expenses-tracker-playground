@@ -11,6 +11,7 @@ import { Dialog, RadioButton, Text, useTheme } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
 import { AppDialog } from './AppDialog';
+import { AppRadioItem } from './AppRadioItem';
 import type { SyncProviderKey } from '../context/syncProvider';
 
 export interface SyncProviderPickerDialogProps {
@@ -49,7 +50,7 @@ export function SyncProviderPickerDialog({
           }}
         >
           {PROVIDERS.map((p) => (
-            <RadioButton.Item
+            <AppRadioItem
               key={p}
               value={p}
               label={translate(`syncDialog.providers.${p}`)}

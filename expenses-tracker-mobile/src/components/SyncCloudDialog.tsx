@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next';
 import { Dialog, Divider, IconButton, List, Switch, Text, useTheme } from 'react-native-paper';
 
 import { AppDialog } from './AppDialog';
+import { AppListItem } from './AppListItem';
 import { ThemedButton as Button } from './ThemedButton';
 import { SyncProviderPickerDialog } from './SyncProviderPickerDialog';
 import { useSync, type SyncProviderKey } from '../context/syncProvider';
@@ -89,14 +90,14 @@ export function SyncCloudDialog({ visible, onDismiss, onShowStatus }: SyncCloudD
         title={translate('syncDialog.title')}
       >
         <Dialog.Content>
-          <List.Item
+          <AppListItem
             title={translate('syncDialog.provider')}
             description={translate(`syncDialog.providers.${provider}`)}
             left={(props) => <List.Icon {...props} icon="cloud-outline" />}
             onPress={() => setPickerOpen(true)}
           />
 
-          <List.Item
+          <AppListItem
             title={translate('syncDialog.autoSync')}
             description={translate('syncDialog.autoSyncDescription')}
             left={(props) => <List.Icon {...props} icon="autorenew" />}

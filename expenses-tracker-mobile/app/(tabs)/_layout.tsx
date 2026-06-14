@@ -12,10 +12,14 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Pressable } from 'react-native';
 
+import { FONT_SCALES, useFontScale } from '../../src/context/preferencesProvider';
+
 export default function TabsLayout() {
   const { t: translate } = useTranslation();
   const theme = useTheme();
   const router = useRouter();
+  const { fontScale } = useFontScale();
+  const scale = FONT_SCALES[fontScale];
 
   const MenuButton = () => (
     <Pressable
@@ -33,10 +37,12 @@ export default function TabsLayout() {
       screenOptions={{
         headerStyle: { backgroundColor: theme.colors.surface },
         headerTintColor: theme.colors.onSurface,
+        headerTitleStyle: { fontSize: Math.round(20 * scale) },
         headerLeft: () => <MenuButton />,
         tabBarStyle: { backgroundColor: theme.colors.surface },
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
+        tabBarLabelStyle: { fontSize: Math.round(12 * scale) },
       }}
     >
       <Tabs.Screen

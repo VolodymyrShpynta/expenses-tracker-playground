@@ -7,6 +7,7 @@ import { Dialog, RadioButton } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
 import { AppDialog } from './AppDialog';
+import { AppRadioItem } from './AppRadioItem';
 import type { ThemeMode } from '../context/preferencesProvider';
 
 export interface ThemeModePickerDialogProps {
@@ -35,7 +36,7 @@ export function ThemeModePickerDialog({
       <Dialog.Content>
         <RadioButton.Group value={value} onValueChange={(v) => onPick(v as ThemeMode)}>
           {MODES.map((m) => (
-            <RadioButton.Item
+            <AppRadioItem
               key={m}
               value={m}
               label={translate(`settings.themeMode.${m}`)}

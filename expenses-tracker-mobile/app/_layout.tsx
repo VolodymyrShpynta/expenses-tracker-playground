@@ -22,7 +22,12 @@ import i18n, { initI18n } from '../src/i18n';
 import { DatabaseProvider } from '../src/db/databaseProvider';
 import { queryClient } from '../src/queryClient';
 import { AppServicesProvider } from '../src/context/appServicesProvider';
-import { PreferencesProvider, useThemeMode } from '../src/context/preferencesProvider';
+import {
+  FONT_SCALES,
+  PreferencesProvider,
+  useFontScale,
+  useThemeMode,
+} from '../src/context/preferencesProvider';
 import { SyncProvider } from '../src/context/syncProvider';
 import { ThemedPaperProvider } from '../src/theme/ThemedPaperProvider';
 import { useExchangeRatesSync } from '../src/hooks/useExchangeRatesSync';
@@ -47,10 +52,7 @@ export default function RootLayout() {
                     <ThemedPaperProvider>
                       <ThemedStatusBar />
                       <ExchangeRatesSyncMounter />
-                      <Stack>
-                        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                        <Stack.Screen name="settings" />
-                      </Stack>
+                      <ScaledRootStack />
                     </ThemedPaperProvider>
                   </SyncProvider>
                 </PreferencesProvider>
@@ -60,6 +62,24 @@ export default function RootLayout() {
         </I18nextProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
+  );
+}
+
+/**
+ * Wraps the root `<Stack>` so we can apply the user's `fontScale` to
+ * `headerTitleStyle`. React Navigation's headers don't read Paper's
+ * theme, so the Settings header title (and any future stack-level
+ * headers) stays at React Navigation's default 17 px unless we scale it
+ * here.
+ */
+function ScaledRootStack() {
+  const { fontScale } = useFontScale();
+  const scale = FONT_SCALES[fontScale];
+  return (
+    <Stack screenOptions={{ headerTitleStyle: { fontSize: Math.round(20 * scale) } }}>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="settings" />
+    </Stack>
   );
 }
 

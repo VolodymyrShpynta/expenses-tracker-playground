@@ -25,6 +25,8 @@ import { Stack } from 'expo-router';
 
 import { ThemedButton as Button } from '../src/components/ThemedButton';
 import { AppDialog } from '../src/components/AppDialog';
+import { AppListItem } from '../src/components/AppListItem';
+import { AppRadioItem } from '../src/components/AppRadioItem';
 import { CategoryAvatar } from '../src/components/CategoryAvatar';
 import { ExportImportDialog } from '../src/components/ExportImportDialog';
 import { PortalSafeTextInput } from '../src/components/PortalSafeTextInput';
@@ -81,7 +83,7 @@ export default function SettingsScreen() {
       <Stack.Screen options={{ title: translate('nav.settings') }} />
       <ScrollView>
         <List.Section>
-          <List.Item
+          <AppListItem
             title={translate('settings.language')}
             description={
               SUPPORTED_LANGUAGES.find((l) => l.code === i18n.language)?.nativeLabel ??
@@ -91,40 +93,40 @@ export default function SettingsScreen() {
             onPress={() => setLanguageOpen(true)}
           />
           <Divider />
-          <List.Item
+          <AppListItem
             title={translate('settings.currency')}
             description={mainCurrency}
             left={(props) => <List.Icon {...props} icon="currency-usd" />}
             onPress={() => setCurrencyOpen(true)}
           />
           <Divider />
-          <List.Item
+          <AppListItem
             title={translate('settings.darkMode')}
             description={translate(`settings.themeMode.${themeMode}`)}
             left={(props) => <List.Icon {...props} icon="theme-light-dark" />}
             onPress={() => setThemeOpen(true)}
           />
           <Divider />
-          <List.Item
+          <AppListItem
             title={translate('settings.fontSize')}
             description={translate(`settings.fontScale.${fontScale}`)}
             left={(props) => <List.Icon {...props} icon="format-size" />}
             onPress={() => setFontOpen(true)}
           />
           <Divider />
-          <List.Item
+          <AppListItem
             title={translate('settings.manageCategories')}
             left={(props) => <List.Icon {...props} icon="shape-outline" />}
             onPress={() => setManageOpen(true)}
           />
           <Divider />
-          <List.Item
+          <AppListItem
             title={translate('settings.exportImport')}
             left={(props) => <List.Icon {...props} icon="swap-vertical" />}
             onPress={() => setExchangeOpen(true)}
           />
           <Divider />
-          <List.Item
+          <AppListItem
             title={translate('settings.sync')}
             description={translate('settings.syncDescription')}
             left={(props) => <List.Icon {...props} icon="cloud-sync-outline" />}
@@ -208,7 +210,7 @@ function LanguageDialog({ visible, onDismiss }: { visible: boolean; onDismiss: (
             }}
           >
             {SUPPORTED_LANGUAGES.map((l) => (
-              <RadioButton.Item key={l.code} value={l.code} label={l.nativeLabel} />
+              <AppRadioItem key={l.code} value={l.code} label={l.nativeLabel} />
             ))}
           </RadioButton.Group>
         </ScrollView>

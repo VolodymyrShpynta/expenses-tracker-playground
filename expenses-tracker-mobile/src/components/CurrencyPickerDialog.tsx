@@ -24,6 +24,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { AppDialog } from './AppDialog';
+import { AppRadioItem } from './AppRadioItem';
 import { PortalSafeTextInput } from './PortalSafeTextInput';
 
 /**
@@ -124,7 +125,7 @@ export function CurrencyPickerDialog({
           ) : (
             <RadioButton.Group value={selected} onValueChange={handlePick}>
               {list.map((c) => (
-                <RadioButton.Item key={c} value={c} label={c} />
+                <AppRadioItem key={c} value={c} label={c} />
               ))}
             </RadioButton.Group>
           )}
