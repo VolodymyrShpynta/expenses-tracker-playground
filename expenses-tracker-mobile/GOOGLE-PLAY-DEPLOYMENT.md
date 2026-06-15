@@ -48,6 +48,7 @@ pick whichever matches your machine and skip the other.
   - [Short description (80 chars max)](#short-description-80-chars-max)
   - [Full description (4 000 chars max)](#full-description-4-000-chars-max)
 - [Appendix B — Custom domain on GitHub Pages via Cloudflare](#appendix-b--custom-domain-on-github-pages-via-cloudflare)
+- [Appendix C — Getting the site indexed by Google](#appendix-c--getting-the-site-indexed-by-google)
 
 ---
 
@@ -783,7 +784,7 @@ Play Console → **Grow users → Store presence → Store settings**
 | Tags                           | Up to 5, optional | *Manage tags* button. Pick from Play's predefined Finance taxonomy — likely candidates: **Personal finance**, **Budget**, **Expense tracker**, **Money management**, and one of **Currency converter** / **Spending tracker** depending on what Play currently offers. **Don't** add feature claims like "Offline" or "Cloud sync" — they're not in the tag list (only structured taxonomy entries are allowed); put those keywords in the short / full description instead, which IS indexed. Up to 24 h to surface on the store page. |
 | Store listing contact email    | Yes               | An address you actually monitor — Play surfaces it as *Email developer* under the Install button. Use a dedicated alias (e.g. `support@spendium.net`) if you don't want your personal inbox public.    |
 | Store listing contact phone    | Optional          | Skip unless you run a real support line. Once published it's globally visible.                                                                                                                            |
-| Store listing contact website  | Optional but recommended | Full HTTPS URL (e.g. `https://spendium.net/` or, until the custom domain is live, `https://<user>.github.io/spendium-site/`). Must return 200 OK to an anonymous crawler — no bot challenge / auth wall. |
+| Store listing contact website  | Optional but recommended | Full HTTPS URL (e.g. `https://spendium.net/` or, until the custom domain is live, `https://<user>.github.io/spendium-site/`). Must return 200 OK to an anonymous crawler — no bot challenge / auth wall. **Doubles as one of your most valuable SEO inbound links** — the Play Store listing is crawled aggressively by Googlebot, so this single field is often what pulls a brand-new domain out of the indexing "sandbox". See [Appendix C — Getting the site indexed by Google](#appendix-c--getting-the-site-indexed-by-google). |
 | External marketing             | Checkbox          | Leave **on** to let Google promote the app across Play surfaces.                                                                                                                                          |
 
 #### Capturing screenshots
@@ -1378,21 +1379,39 @@ Google strongly recommends staging through testing tracks before going
 public. Each track uses the same `.aab`; you only choose **which track**
 the release lands on.
 
-| Track                | Audience                                     | When to use                                                                                                                       |
-|----------------------|----------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|
-| **Internal testing** | Up to 100 testers you list by email          | Smoke test the build on real devices via the Play Store install flow (catches things that local sideloading misses, e.g. App Signing). |
-| **Closed testing**   | Larger tester groups (e.g. 100s of users)    | Required for first-time publishers: Google now demands ~20 testers run a Closed track for ~14 days before allowing Production.    |
-| **Open testing**     | Anyone with the opt-in URL                   | Optional public beta.                                                                                                              |
-| **Production**       | Everyone in the targeted countries           | Final release.                                                                                                                     |
+| Track                | Audience                                                                | When to use                                                                                                                                                                                                          |
+|----------------------|-------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Internal testing** | Up to 100 testers you list by email                                     | Smoke test the build on real devices via the Play Store install flow (catches things that local sideloading misses, e.g. App Signing).                                                                               |
+| **Closed testing**   | Tester groups by email list or Google Group (each list capped at 2 000) | Required for first-time publishers (new personal accounts): Google demands **at least 12 opted-in testers** run a Closed track for **at least 14 continuous days** before you can apply for production access.       |
+| **Open testing**     | Anyone with the opt-in URL                                              | Public beta. **For new personal developer accounts, Open testing is gated behind production access** — it unlocks at the same moment Production does (see the flow below). Organization accounts can publish here directly. |
+| **Production**       | Everyone in the targeted countries                                      | Final release. Gated behind the 12-testers / 14-days / questionnaire flow below for new personal accounts; freely available for organization accounts.                                                                |
 
-Promotion is one click: **Internal testing → Promote release → Production**
-(or any intermediate track). The `.aab` is reused; only the track changes.
+#### Track order for new personal developer accounts (Nov 2023 policy)
 
-> **First-app reality check.** As of late 2024, new Google Play developer
-> accounts are required to run a **Closed testing track with at least 20
-> opted-in testers for 14 days** before being eligible to publish to
-> Production. Plan for this gating — share the opt-in URL with at least
-> 20 people the day you create the Closed track.
+Promotion is technically one click — **Track → Promote release → <target>** — and the `.aab` is reused. But the track order is **gated**, not freely composable:
+
+1. **Internal testing** (up to 100 testers by email, available instantly) — smoke-test the build via real Play installs.
+2. **Closed testing** — promote the same `.aab` from Internal, then add testers via email list or Google Group.
+3. **Reach 12 opted-in testers on the Closed track and keep them there for 14 continuous days.** The Dashboard shows the live counter (`Have at least 12 testers opted-in to your closed test`). If the count drops below 12, the timer effectively pauses until you're back above the line.
+4. **Apply for production access** — Play Console → Dashboard → **Apply for production** (the button only enables once step 3's two conditions are both green). Fill in the short questionnaire (target audience, how you recruited testers, what you learned). Google reviews it manually; turnaround is typically a few days to ~2 weeks. Be specific in the answers — vague responses get rejected.
+5. **Production access granted → Open testing AND Production both unlock simultaneously.** From that point you can freely promote between Closed / Open / Production.
+
+> **"I added testers but the dashboard says 0 opted-in."** Being on the email list ≠ opted in, and **the regular Play Store listing has no "Become a tester" button** — that button only exists on a separate opt-in page. Each tester has to:
+>
+> 1. Open the **opt-in URL** on their phone. For Spendium it's `https://play.google.com/apps/testing/com.vshpynta.spendium` (find it via Play Console → Closed testing → your track → **Testers** tab → expand *How testers join your test* → copy "Web URL"). Send each tester this exact URL — they will **not** find any "join testers" affordance by searching the Play Store.
+> 2. Be signed into the **Play Store app** (not just Gmail / the browser) with **the exact same Google account** you added to the email list. If the phone has multiple Google accounts, open Play Store → profile icon → switch to the matching account **before** opening the URL.
+> 3. Tap **Become a tester** on the opt-in page. It reloads to *"You're a tester"* with a *Download it on Google Play* link.
+> 4. Tap that link → the normal listing opens, but the **Install** button now installs the Closed-track build.
+>
+> Only after step 4 does the dashboard counter tick up (~1-5 min, not real-time). Common slips:
+>
+> - **In-app browsers** (Gmail, Telegram, WhatsApp, Slack link previews) don't share Play sign-in state, so *Become a tester* may silently associate the wrong account. Long-press the link → *Open in Chrome*.
+> - **Desktop browser opt-in** counts the *browser's* signed-in account, not the phone's — fine if they're the same, broken if not. Easiest to just open the URL on the phone.
+> - **Country restrictions** — Closed testing → *Countries / regions* tab. Default is worldwide, but if you narrowed it, testers outside the list see "App not available in your country" and never reach the opt-in.
+>
+> Send the URL with a short note: *"Open this on your Android phone while signed into the Play Store with <email>, tap Become a tester, then install Spendium from Play."*
+
+> **Organization accounts skip the gate.** A Google Play developer account registered as an **organization** (DUNS-verified) can publish directly to Open testing and Production with no 12/14 requirement and no questionnaire. The trade-off is the one-time business-verification overhead during account setup.
 
 ---
 
@@ -1471,7 +1490,8 @@ served to compatible native builds.
 | `Your app is using a non-compliant version of the Play Core library` | A transitive RN dep still imports the legacy Play Core API.                                    | Bump to Expo SDK 55+ (already on it). If the error persists, run `npx expo-doctor` and follow its upgrade hints.                                                                                                                                                       |
 | `App not installed: package conflicts with an existing package`      | A sideloaded `preview` APK on the test phone uses the same package id but a different signing key. | Uninstall the sideloaded copy first: `adb uninstall com.vshpynta.spendium`. Play-installed and dev-signed builds can't coexist on one device.                                                                                                                          |
 | Play Console: "Privacy policy URL is required"                       | The URL field is empty or returns non-200 to Google's crawler.                                 | Make sure the URL is HTTPS and publicly reachable (no Cloudflare bot-blocker, no auth wall, no robots-disallow).                                                                                                                                                       |
-| Play Console: "Your app cannot be promoted to production"            | First-publisher 20-tester / 14-day Closed-track requirement not met.                           | Open Closed testing → ensure ≥ 20 opted-in testers → wait the full 14 days. There is no opt-out.                                                                                                                                                                       |
+| Play Console: "Your app cannot be promoted to production" *or* Dashboard's **Apply for production** button is greyed out | First-publisher 12-tester / 14-day Closed-track requirement not met (new personal accounts only). | Dashboard counter must read **≥ 12 opted-in testers** continuously for **≥ 14 days**, then *Apply for production* enables. There is no opt-out for new personal accounts; organization accounts skip the gate entirely. See [Step 9 → Track order for new personal developer accounts](#track-order-for-new-personal-developer-accounts-nov-2023-policy). |
+| Closed testing tester list shows N users but Dashboard reports "0 testers currently opted-in" | "Added to the email list" ≠ "opted in" — the email is just the allowlist; each tester must accept the opt-in URL while signed into Play on the matching Google account. | Share the Closed testing opt-in URL (`https://play.google.com/apps/testing/<package>`) with each tester. They must open it on a device where Play is signed into the exact account on the email list, tap **Become a tester**, then install Spendium from Play. Counter updates within minutes. Common slip: tester opens the URL signed into a different Google account than the one you added. |
 | `eas submit` fails with `Permission denied`                          | The service account doesn't have Play Console access yet, or its permissions weren't saved.    | Play Console → Users and permissions → confirm the service-account email is listed and "App access" includes your app. Permission changes can take a few minutes to propagate.                                                                                         |
 | `eas build --local` exits with `Unsupported platform, macOS or Linux is required to build apps for Android` | You're on Windows PowerShell. EAS's local pipeline requires a POSIX shell. | Use **Option A** (cloud), **Option C** (pure Gradle — [see Step 3](#option-c--pure-gradle-no-eas-no-cloud)), or set up **WSL2 + Ubuntu** and run from inside WSL (see [Option B → Windows: one-time WSL2 setup](#windows-one-time-wsl2-setup)). |
 | EAS Cloud build fails with `npm ci ... can only install packages when your package.json and package-lock.json ... are in sync` (e.g. `Missing: @emnapi/core@... from lock file`) | Your lockfile drifted from `package.json`. Common trigger: you accepted the EAS prompt to auto-install a missing package (`expo-updates`, `expo-doctor`, etc.) — the install updates `package.json` but on some npm versions / OSes leaves optional/peer transitive deps out of `package-lock.json`. EAS Cloud uses `npm ci`, which refuses to run with any drift. | Locally: `npm install` (regenerates the lockfile), then `git add package.json package-lock.json && git commit`, then re-run `eas build`. Never edit `package-lock.json` by hand and never run `npm audit fix --force`. |
@@ -1947,4 +1967,209 @@ place. No existing bookmarks or links break.
   configure 301 redirects in Cloudflare's *Rules → Redirects* (free
   tier supports up to 10), or pick the canonical TLD and don't worry
   about it.
+
+> **Next:** the custom domain is live but Google doesn't know it exists
+> yet. See [Appendix C — Getting the site indexed by Google](#appendix-c--getting-the-site-indexed-by-google)
+> for the post-launch indexing checklist (sitemap, URL Inspection,
+> robots.txt, inbound links).
+
+---
+
+## Appendix C — Getting the site indexed by Google
+
+This appendix is the post-launch checklist for getting `spendium.net`
+(or whatever custom domain you wired up in [Appendix B](#appendix-b--custom-domain-on-github-pages-via-cloudflare))
+actually *findable* on Google. It assumes:
+
+- The site is live and serves HTTPS 200 OK at the apex.
+- `spendium-site/_config.yml` has both `url: "https://spendium.net"`
+  and `plugins: [jekyll-sitemap]` (the `jekyll-sitemap` GitHub Pages
+  plugin auto-generates `/sitemap.xml` on every build — no Gemfile,
+  no local Ruby).
+- You verified the domain in Search Console using the **Domain**
+  method (TXT record), as covered in
+  [Appendix B — Step 6](#6-verify-ownership-in-google-search-console-domain-method).
+  Without this you can't submit sitemaps or request indexing for the
+  property.
+
+**Time budget.** Steps 1-3 are mechanical (~10 min once the push is
+live). Steps 4-5 are about giving Google reasons to crawl and rank,
+and are spread over days/weeks — that part is unavoidable for any new
+domain.
+
+### 1. Verify the sitemap and canonical URL are correct
+
+After pushing the `_config.yml` change, give GitHub Pages ~60 s to
+rebuild, then sanity-check both the sitemap and the canonical tag:
+
+```powershell
+# Should print 2 <loc> lines (one for /, one for /privacy/).
+curl.exe -s https://spendium.net/sitemap.xml | Select-String -Pattern '<loc>'
+
+# Should print: <link rel="canonical" href="https://spendium.net/">
+curl.exe -s https://spendium.net/ | Select-String -Pattern 'rel="canonical"'
+```
+
+If the sitemap returns HTML or 404, the Pages build hasn't finished
+or the plugin entry has wrong YAML indentation (`plugins:` must be at
+the top level, with `  - jekyll-sitemap` indented under it). If the
+canonical tag still emits a relative path instead of a full
+`https://spendium.net/...` URL, the `url:` key in `_config.yml` didn't
+take — Jekyll's `absolute_url` filter silently falls back to relative
+when `site.url` is unset.
+
+### 2. Submit the sitemap in Search Console
+
+Property `spendium.net` → left rail → **Sitemaps** → enter
+`sitemap.xml` → **Submit**. Status flips to *Success* within minutes.
+From then on Google polls it on a schedule and discovers new pages
+automatically — you don't need to re-submit on future publishes.
+
+### 3. Force-crawl each page via URL Inspection
+
+Sitemap submission tells Google *what exists*. URL Inspection puts a
+URL in the **priority crawl queue**, which usually fetches within
+hours rather than days. With only 2 URLs on a fresh Spendium site,
+this is a 30-second job:
+
+For each of `https://spendium.net/` and `https://spendium.net/privacy/`:
+
+1. Search Console top search bar → paste URL → wait for the inspection
+   to complete.
+2. Click **Request indexing**.
+
+Quota is ~10 requests/day per property, so 2 URLs is trivial. Re-run
+after any meaningful content change — but **don't re-request on the
+same URL within 24 h**, Google deduplicates and it burns quota for
+nothing.
+
+### 4. Add `robots.txt` (optional, 4 lines)
+
+Belt-and-braces — gives Bing, DuckDuckGo, Yandex, and other crawlers
+zero-config sitemap discovery without you having to register at each
+search engine's webmaster console individually. Also confirms Google's
+existing discovery so no single source of truth is required.
+
+Create `spendium-site/robots.txt` with exactly:
+
+```
+User-agent: *
+Allow: /
+
+Sitemap: https://spendium.net/sitemap.xml
+```
+
+Commit, push, verify `https://spendium.net/robots.txt` returns 200.
+No further action needed — crawlers fetch it on their next visit.
+
+### 5. Earn at least one inbound link (the actual ranking unlock)
+
+A brand-new domain with **zero backlinks** is the #1 reason Google
+shows *"indexed but not ranking"* — the page is in the index, but it
+stays buried on page 5+ for any competitive query because there's no
+external signal that anyone trusts the site. This is informally
+called the *Google sandbox*.
+
+Spendium has three natural, legitimate places to drop a link — none
+of them are link-spam:
+
+- **GitHub repo** — add `https://spendium.net` to the *Website* field
+  in the repo's *About* sidebar (gear ⚙ → *Use your GitHub Pages
+  website* tick covers it automatically if Pages is configured), and
+  link it once from the top of `README.md` before the build
+  instructions. GitHub repo pages are crawled aggressively by
+  Googlebot, so this is the single highest-leverage backlink available
+  for free.
+- **Play Store listing** — *Store settings → Store listing contact
+  website* (covered in [Step 6](#step-6--fill-out-the-play-console-listing)).
+  Play Store pages are also heavily crawled.
+- **Your other public profiles** — LinkedIn, personal site, dev.to,
+  Hacker News profile, Twitter bio if any. One link from each is
+  plenty. **Don't** go on a link-spam spree to web directories or
+  forums — modern search engines penalize obvious link-building
+  attempts, and the signal-to-noise ratio of directory submissions has
+  been zero for ~15 years.
+
+Two or three honest, contextually-relevant inbound links are enough to
+lift a new domain out of the sandbox for brand-name queries
+(`spendium`, `spendium app`, etc.). Ranking for competitive generic
+queries (`expense tracker`, `private budget app`) is a separate,
+multi-month effort that requires actual content — out of scope for
+this guide.
+
+### 6. Wait and monitor
+
+Even with everything above done correctly, the first crawl of a
+brand-new domain typically takes **3-10 days** to land, and confident
+ranking for brand-name queries takes **2-4 weeks**. This is
+unavoidable — Google deliberately throttles new domains to filter out
+throwaway spam sites.
+
+Watch progress in Search Console → **Pages** report → the *Indexed*
+counter should tick from 0 → 2 over that window. Two more reports
+worth a weekly glance:
+
+- **Pages → Why pages aren't indexed.** Two rows are *expected* on a
+  Jekyll site and are not problems: *Page with redirect* (Pages 301s
+  HTTP→HTTPS and `/privacy` → `/privacy/`) and *Alternate page with
+  proper canonical tag* (when Google sees both `/privacy` and
+  `/privacy/` and correctly collapses them). Any other reason —
+  especially *Server error (5xx)*, *Soft 404*, or *Blocked by
+  robots.txt* — needs investigation.
+- **Performance** — first impressions usually appear ~7-14 days after
+  the first successful crawl. Zero impressions after 30 days means the
+  site is indexed but has no inbound signals; loop back to step 5.
+
+Don't keep re-requesting indexing or re-submitting the sitemap during
+this window. After the first successful round neither speeds anything
+up, and excessive *Request indexing* clicks can mark the property as
+spammy.
+
+### What NOT to bother with
+
+- **Bing Webmaster Tools, Yandex Webmaster, Baidu Search Resource.**
+  All useful eventually, but for a brand-new site with no traffic the
+  ROI is negligible compared to the steps above. The `robots.txt`
+  *Sitemap:* line covers them passively. Revisit once you have ≥100
+  daily visitors and actual reason to optimize per-engine.
+- **Schema.org / JSON-LD structured data.** Doesn't help
+  *discoverability*; only affects how rich snippets render *after* you
+  rank. For a 2-page privacy + landing site there's no useful schema
+  beyond what Jekyll's default templates emit.
+- **Third-party "indexing API" services.** Google's own Indexing API
+  is restricted to `JobPosting` and `BroadcastEvent` content types
+  (Spendium is neither); every other service claiming to push URLs
+  into Google's index either uses the public *Request indexing*
+  button (you can do that yourself, see step 3) or is outright spam.
+- **Paid "submit to 500 search engines" services.** Pure link-farm
+  spam, can actively harm rankings on Google by triggering manual
+  penalty review.
+- **`<meta name="keywords">` tag.** Google has ignored it since 2009.
+  Adding it costs nothing but signals an inexperienced SEO if anyone
+  ever looks at your HTML.
+
+### Gotchas to avoid later
+
+- **Don't delete the sitemap or change its URL.** If you ever move
+  off the `jekyll-sitemap` plugin (e.g. switching themes or static-site
+  generators), make sure the replacement still serves `sitemap.xml` at
+  the same path. Search Console keeps polling the submitted URL; if it
+  starts returning 404, the property's discovery degrades silently
+  over days.
+- **Don't change `_config.yml`'s `url:` value without re-verifying.**
+  Changing it from `https://spendium.net` to anything else regenerates
+  every canonical tag site-wide — Google may treat the old URLs as
+  redirected and re-evaluate ranking from scratch. Only change if you
+  genuinely moved domains.
+- **Don't add the same site to Search Console under both *URL prefix*
+  and *Domain* properties** and expect identical numbers. They're
+  independent properties with independent counters; pick one (Domain
+  for `spendium.net` is the right choice) and use it as the canonical
+  view. Multiple properties is only useful when you genuinely need
+  per-subdomain reporting.
+- **Don't `noindex` the privacy page "because it's not user-facing".**
+  Google Auth Platform's Branding verification crawler fetches the URL
+  and expects it to render normally. A `<meta name="robots"
+  content="noindex">` on `/privacy/` works for SEO but breaks the
+  OAuth verification flow on the next re-check (~6 months out).
 
