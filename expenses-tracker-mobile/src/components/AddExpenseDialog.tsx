@@ -10,7 +10,7 @@
  * (`expense` prop). When editing, the existing per-expense `currency` is
  * preserved; new expenses default to the user's `mainCurrency`.
  */
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -181,22 +181,29 @@ function AddExpenseDialogContent({
   });
 
   const resolved = categoryId ? lookup.resolve(categoryId) : null;
-  const now = new Date();
-  const isToday =
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate();
-  const shortDateLabel = isToday
-    ? translate('common.today')
-    : date.toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' });
-  const fullDateFormatted = date.toLocaleDateString(i18n.language, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-  const fullDateLabel = isToday
-    ? `${translate('common.today')}, ${fullDateFormatted}`
-    : fullDateFormatted;
+  // Memoized so the keypad-driven re-render on every digit press doesn't
+  // re-run three `Intl` (`toLocaleDateString`) formats per keystroke —
+  // those are comparatively expensive on a cold JS engine right after
+  // launch. Only recompute when the date or active language changes.
+  const { shortDateLabel, fullDateLabel } = useMemo(() => {
+    const now = new Date();
+    const today =
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth() &&
+      date.getDate() === now.getDate();
+    const shortLabel = today
+      ? translate('common.today')
+      : date.toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' });
+    const fullFormatted = date.toLocaleDateString(i18n.language, {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+    const fullLabel = today
+      ? `${translate('common.today')}, ${fullFormatted}`
+      : fullFormatted;
+    return { shortDateLabel: shortLabel, fullDateLabel: fullLabel };
+  }, [date, i18n.language, translate]);
 
   const handleSubmit = async (): Promise<void> => {
     setError(null);
@@ -242,13 +249,25 @@ function AddExpenseDialogContent({
 
   // The keypad's equals/OK button does double duty: evaluate when there's
   // an operator pending; submit otherwise. Matches the web behaviour.
-  const onEquals = (): void => {
-    if (hasOperator) {
-      dispatch({ type: 'evaluate' });
-    } else {
-      void handleSubmit();
-    }
-  };
+  //
+  // Kept identity-stable via a ref so the memoized `AmountKeypad` doesn't
+  // re-render on every keystroke (the inline closure used to capture the
+  // ever-changing `amount`/`handleSubmit`, defeating `memo`). The ref is
+  // refreshed after each render with the latest logic, so behaviour is
+  // unchanged while `onEquals` keeps a stable identity.
+  const onEqualsRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    onEqualsRef.current = (): void => {
+      if (hasOperator) {
+        dispatch({ type: 'evaluate' });
+      } else {
+        void handleSubmit();
+      }
+    };
+  });
+  const onEquals = useCallback(() => onEqualsRef.current(), []);
+  const onOpenDate = useCallback(() => setDatePickerOpen(true), []);
+  const onOpenCurrency = useCallback(() => setCurrencyPickerOpen(true), []);
 
   const handleDelete = async (): Promise<void> => {
     if (!expense) return;
@@ -377,8 +396,8 @@ function AddExpenseDialogContent({
                     disabled={submitting}
                     dispatch={dispatch}
                     onEquals={onEquals}
-                    onOpenDate={() => setDatePickerOpen(true)}
-                    onOpenCurrency={() => setCurrencyPickerOpen(true)}
+                    onOpenDate={onOpenDate}
+                    onOpenCurrency={onOpenCurrency}
                   />
                 </View>
 
@@ -434,34 +453,40 @@ function AddExpenseDialogContent({
         </Portal>
       ) : null}
 
-      <CategoryPickerDialog
-        visible={pickerOpen}
-        onDismiss={() => setPickerOpen(false)}
-        onPick={(id) => {
-          setCategoryId(id);
-          setPickerOpen(false);
-        }}
-      />
+      {pickerOpen ? (
+        <CategoryPickerDialog
+          visible
+          onDismiss={() => setPickerOpen(false)}
+          onPick={(id) => {
+            setCategoryId(id);
+            setPickerOpen(false);
+          }}
+        />
+      ) : null}
 
-      <CurrencyPickerDialog
-        visible={currencyPickerOpen}
-        selected={currency}
-        onDismiss={() => setCurrencyPickerOpen(false)}
-        onPick={(c) => {
-          setCurrency(c);
-          setCurrencyPickerOpen(false);
-        }}
-      />
+      {currencyPickerOpen ? (
+        <CurrencyPickerDialog
+          visible
+          selected={currency}
+          onDismiss={() => setCurrencyPickerOpen(false)}
+          onPick={(c) => {
+            setCurrency(c);
+            setCurrencyPickerOpen(false);
+          }}
+        />
+      ) : null}
 
-      <SingleDatePickerDialog
-        visible={datePickerOpen}
-        value={date}
-        onDismiss={() => setDatePickerOpen(false)}
-        onConfirm={(d) => {
-          setDate(d);
-          setDatePickerOpen(false);
-        }}
-      />
+      {datePickerOpen ? (
+        <SingleDatePickerDialog
+          visible
+          value={date}
+          onDismiss={() => setDatePickerOpen(false)}
+          onConfirm={(d) => {
+            setDate(d);
+            setDatePickerOpen(false);
+          }}
+        />
+      ) : null}
     </>
   );
 }

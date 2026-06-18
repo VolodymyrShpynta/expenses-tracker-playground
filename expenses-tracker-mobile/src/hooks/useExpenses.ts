@@ -15,11 +15,17 @@ import type {
 } from '../domain/commands';
 import type { ExpenseProjection } from '../domain/types';
 
-export function useExpenses() {
+export interface UseExpensesOptions {
+  readonly enabled?: boolean;
+}
+
+export function useExpenses(options: UseExpensesOptions = {}) {
   const { expenseQueries } = useAppServices();
+  const { enabled = true } = options;
   const { data: expenses = [], isLoading: loading, error } = useQuery<ReadonlyArray<ExpenseProjection>>({
     queryKey: EXPENSES_QUERY_KEY,
     queryFn: () => expenseQueries.findAllExpenses(),
+    enabled,
   });
   return {
     expenses,

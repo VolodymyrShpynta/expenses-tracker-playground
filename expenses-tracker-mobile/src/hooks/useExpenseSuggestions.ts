@@ -15,7 +15,7 @@
 import { useMemo } from 'react';
 
 import { useExpenses } from './useExpenses';
-import { filterSuggestions } from '../domain/expenseSuggestions';
+import { filterSuggestions, MIN_QUERY_LENGTH } from '../domain/expenseSuggestions';
 import type { ExpenseProjection } from '../domain/types';
 
 // Re-export so existing call sites can keep importing from this module.
@@ -40,9 +40,11 @@ export function useExpenseSuggestions(
   options: UseExpenseSuggestionsOptions = {},
 ): ReadonlyArray<ExpenseProjection> {
   const { enabled = true } = options;
-  const { expenses } = useExpenses();
+  const normalizedQuery = query.trim();
+  const canSuggest = enabled && normalizedQuery.length >= MIN_QUERY_LENGTH;
+  const { expenses } = useExpenses({ enabled: canSuggest });
   return useMemo(
-    () => (enabled ? filterSuggestions(expenses, query) : []),
-    [enabled, expenses, query],
+    () => (canSuggest ? filterSuggestions(expenses, normalizedQuery) : []),
+    [canSuggest, expenses, normalizedQuery],
   );
 }

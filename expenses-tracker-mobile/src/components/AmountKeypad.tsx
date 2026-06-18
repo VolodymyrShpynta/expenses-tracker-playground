@@ -20,7 +20,7 @@
 import { Pressable, View, type DimensionValue, type ViewStyle } from 'react-native';
 import { Text, useTheme, type MD3Theme } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 
 import type { CalculatorAction, Operator } from '../utils/useCalculator';
 
@@ -46,7 +46,14 @@ export interface AmountKeypadProps {
   readonly onOpenCurrency: () => void;
 }
 
-export function AmountKeypad({
+// Memoized: the keypad is re-created on every keystroke in the parent
+// dialog (the calculator expression changes), but its own inputs stay
+// constant while typing digits. Wrapping in `memo` — combined with the
+// parent passing stable (`useCallback`-wrapped) `dispatch` / `onEquals` /
+// `onOpenDate` / `onOpenCurrency` handlers — lets every digit press after
+// the first skip re-rendering all ~20 `Pressable` cells, which is the
+// dominant cost of the per-keypress lag (worst right after a cold start).
+export const AmountKeypad = memo(function AmountKeypad({
   currency,
   hasOperator,
   canEquals,
@@ -158,7 +165,7 @@ export function AmountKeypad({
       ))}
     </View>
   );
-}
+});
 
 interface Palette {
   readonly bg: string;
