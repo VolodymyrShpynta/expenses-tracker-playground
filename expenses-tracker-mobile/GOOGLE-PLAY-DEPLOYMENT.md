@@ -787,6 +787,68 @@ Play Console → **Grow users → Store presence → Store settings**
 | Store listing contact website  | Optional but recommended | Full HTTPS URL (e.g. `https://spendium.net/` or, until the custom domain is live, `https://<user>.github.io/spendium-site/`). Must return 200 OK to an anonymous crawler — no bot challenge / auth wall. **Doubles as one of your most valuable SEO inbound links** — the Play Store listing is crawled aggressively by Googlebot, so this single field is often what pulls a brand-new domain out of the indexing "sandbox". See [Appendix C — Getting the site indexed by Google](#appendix-c--getting-the-site-indexed-by-google). |
 | External marketing             | Checkbox          | Leave **on** to let Google promote the app across Play surfaces.                                                                                                                                          |
 
+#### Localizing the store listing into other languages
+
+The app ships **15 languages**, but the Play listing defaults to `en-US`
+only. Localizing the listing is optional and independent of the in-app
+translations — but since the app is already localized it's worth doing,
+and the repo already ships ready-made listing copy for every language.
+
+**Ready-made translations.** Per-locale short + full descriptions live in
+[fastlane/metadata/android/](fastlane/metadata/android) — one folder per
+Play locale, each with `short_description.txt` (≤ 80 chars) and
+`full_description.txt` (≤ 4 000 chars), mirroring the English in
+[Appendix A](#appendix-a--listing-copy-english). The folder uses the
+fastlane `supply` layout purely as an organized, git-tracked source of
+truth; **the repo does not run fastlane** (no `Fastfile`). See
+[its README](fastlane/metadata/android/README.md) for the rationale.
+
+Play locale codes are chosen to match the flavor of the app's own
+translations:
+
+| App locale | Play locale | Note                                  |
+|------------|-------------|---------------------------------------|
+| `pt`       | `pt-BR`     | app strings are Brazilian Portuguese  |
+| `zh`       | `zh-CN`     | Simplified (zh-TW / zh-HK also exist) |
+| `es`       | `es-ES`     | Castilian (es-419 / es-US also exist) |
+
+The other 11 are the obvious primary — `cs-CZ`, `de-DE`, `fr-FR`,
+`hi-IN`, `id-ID`, `it-IT`, `ja-JP`, `ko-KR`, `pl-PL`, `tr-TR`, `uk-UA`
+— plus the `en-US` source.
+
+**Manual upload (uses the files above — the path you want):**
+
+1. Play Console → **Grow users → Store presence → Main store listing**.
+2. At the top of the page, beside the language selector, click
+   **Manage translations → Select languages**.
+    - **Not** *Purchase translations* (paid third-party vendors).
+    - **Not** the *Translations → Store listings and products* page's
+      *Create order* / *Create translations* — those **generate**
+      machine / vendor text and would replace the curated copy.
+3. Tick the 14 languages → **Apply**. This adds **blank** localized
+   listings; it does not auto-translate.
+4. Switch the language dropdown to each new locale and paste:
+    - **Short description** ← `short_description.txt`
+    - **Full description** ← `full_description.txt`
+    - **App name** — required per locale; reuse the same name you set for
+      `en-US` (e.g. `Spendium`). Optionally localize only a descriptive
+      suffix if you use one — keep "Spendium" intact.
+    - **Graphics** — optional; leave empty and Play falls back to your
+      `en-US` screenshots / feature graphic.
+5. **Save** each locale.
+
+> **Machine translation is the free alternative**, but it's generic — it
+> won't match the app's in-app wording and tends to mistranslate feature
+> terms and the native-script language list. Prefer the committed files.
+> The paid *Purchase translations* / *Create order → professional vendor*
+> route is the "premium localization" upsell — skip it for this app.
+
+> **Keeping translations in sync.** When you edit the English listing,
+> update [Appendix A](#appendix-a--listing-copy-english) **and**
+> re-translate the per-locale files. Unlike the app's locale JSON (whose
+> parity is enforced by `scripts/check-locale-parity.mjs`), these listing
+> files are maintained by hand — there is no automated parity check.
+
 #### Capturing screenshots
 
 All three screenshot slots (phone, 7-inch tablet, 10-inch tablet) under
@@ -880,13 +942,12 @@ distinctive screens first.
 5. **Settings → Cloud sync** showing the Drive / OneDrive toggle
    (sells the differentiator that's hard to convey in screenshot 1).
 
-> **Languages.** You can add localized listings later via **Main store
-> listing → Manage translations**. The app itself ships with **15
-> languages** (English, Czech, Ukrainian, Spanish, German, French,
-> Italian, Portuguese, Polish, Turkish, Indonesian, Hindi, Japanese,
-> Korean, Chinese — see [src/i18n/locales/](src/i18n/locales/)).
-> Localizing the *store listing* is optional and independent — you can
-> ship with just `en-US` first.
+> **Languages.** The app ships **15 languages** (see
+> [src/i18n/locales/](src/i18n/locales/)), but the listing defaults to
+> `en-US` only. Localizing it is optional — you can ship `en-US` first —
+> but ready-made per-locale copy is already in the repo. See
+> [Localizing the store listing into other languages](#localizing-the-store-listing-into-other-languages)
+> above for the upload workflow.
 
 > **All fields here are editable any time** — during Internal testing,
 > Closed testing, or after Production rollout. Listing edits don't
@@ -1510,6 +1571,13 @@ served to compatible native builds.
 Paste-ready text for the Play Console store listing. Normalized to the
 current app name (**Spendium**) and reflects the languages actually shipped
 in [src/i18n/locales/](src/i18n/locales/).
+
+> **Translated versions.** This English copy is the source of truth. The
+> other 14 languages are pre-translated in
+> [fastlane/metadata/android/](fastlane/metadata/android) (one folder per
+> Play locale). See
+> [Step 6 → Localizing the store listing](#localizing-the-store-listing-into-other-languages)
+> for how to upload them, and keep the two in sync when you edit this copy.
 
 ### Short description (80 chars max)
 

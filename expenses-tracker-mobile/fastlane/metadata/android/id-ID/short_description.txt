@@ -1,0 +1,1 @@
+Pelacak pengeluaran privat & offline. Sinkron ke Google Drive atau OneDrive.

@@ -1,0 +1,1 @@
+Private offline expense tracker. Syncs to your Google Drive or OneDrive.

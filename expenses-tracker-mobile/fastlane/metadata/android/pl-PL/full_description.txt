@@ -1,0 +1,57 @@
+Prywatny menedżer wydatków z synchronizacją w chmurze
+
+Przejmij kontrolę nad swoimi finansami, nie rezygnując z kontroli nad danymi.
+
+Spendium pomaga śledzić wydatki, analizować wydawanie pieniędzy i synchronizować dane finansowe między urządzeniami za pomocą Twojego własnego konta Google Drive lub OneDrive.
+
+Bez dedykowanych serwerów backendowych.
+Bez uzależnienia od dostawcy.
+Bez zbędnego zbierania danych.
+
+Dlaczego Spendium?
+
+Twoje dane pozostają Twoje
+Twoje dane finansowe są przechowywane na Twoim własnym koncie w chmurze. Wybierz preferowanego dostawcę:
+- Google Drive
+- Microsoft OneDrive
+Zachowujesz pełną kontrolę nad swoimi informacjami.
+
+Działa offline
+Dodawaj wydatki w dowolnym miejscu i czasie. Spendium działa nawet bez połączenia z internetem i automatycznie synchronizuje zmiany, gdy znów jesteś online.
+
+Automatyczna synchronizacja wielu urządzeń
+Korzystaj ze Spendium na wielu urządzeniach. Zmiany wprowadzone na różnych urządzeniach są scalane automatycznie według reguły „ostatni zapis wygrywa” na podstawie znacznika czasu, dzięki czemu Twoje dane są wszędzie spójne.
+
+Prywatność przede wszystkim
+W przeciwieństwie do wielu aplikacji finansowych Spendium nie wymaga centralnego serwera do przechowywania Twoich transakcji. Twoje dane finansowe pozostają w Twojej własnej chmurze.
+
+Zaawansowana analiza wydatków
+Dowiedz się, na co idą Twoje pieniądze:
+- Wydatki według kategorii
+- Podsumowania miesięczne
+- Trendy wydatków
+- Szczegółowa historia transakcji
+
+Obsługa wielu walut
+Śledź wydatki w wielu walutach i przeglądaj je w preferowanej walucie podstawowej. Idealne dla podróżników, ekspatów i osób zarządzających finansami w wielu krajach.
+
+Obsługa wielu języków
+Spendium jest dostępne w 15 językach:
+English, Čeština, Українська, Español, Deutsch, Français, Italiano, Português, Polski, Türkçe, Bahasa Indonesia, हिन्दी, 日本語, 한국어, 中文.
+
+Najważniejsze funkcje
+- Śledzenie wydatków
+- Analiza wydatków
+- Zarządzanie kategoriami
+- Offline przede wszystkim
+- Synchronizacja z Google Drive
+- Synchronizacja z OneDrive
+- Obsługa wielu urządzeń
+- Automatyczna synchronizacja bez konfliktów
+- Obsługa wielu walut
+- Obsługa wielu języków
+- Własność danych lokalnych
+- Prywatność przede wszystkim
+
+Zacznij śledzić swoje wydatki z pewnością.
+Twoja chmura. Twoje dane. Twój budżet.

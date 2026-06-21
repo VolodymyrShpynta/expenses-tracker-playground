@@ -1,0 +1,57 @@
+Private Expense Tracker with Cloud Sync
+
+Take control of your finances without giving up control of your data.
+
+Spendium helps you track expenses, analyze spending, and keep your financial records synchronized across devices using your own Google Drive or OneDrive account.
+
+No dedicated backend servers.
+No vendor lock-in.
+No unnecessary data collection.
+
+Why Spendium?
+
+Your Data Stays Yours
+Your financial data is stored in your own cloud storage account. Choose your preferred provider:
+- Google Drive
+- Microsoft OneDrive
+You stay in full control of your information.
+
+Works Offline
+Add expenses anytime, anywhere. Spendium works even without an Internet connection and automatically synchronizes your changes when you're back online.
+
+Automatic Multi-Device Sync
+Use Spendium on multiple devices. Changes created on different devices are merged automatically using a last-write-wins timestamp rule, ensuring your data remains consistent everywhere.
+
+Privacy First
+Unlike many finance apps, Spendium does not require a central server to store your transactions. Your financial records remain in your own cloud storage.
+
+Powerful Spending Analysis
+Understand where your money goes with:
+- Spending by category
+- Monthly summaries
+- Expense trends
+- Detailed transaction history
+
+Multi-Currency Support
+Track expenses in multiple currencies and view spending in your preferred base currency. Perfect for travelers, expats, and users managing finances across countries.
+
+Multi-Language Support
+Spendium is available in 15 languages:
+English, Čeština, Українська, Español, Deutsch, Français, Italiano, Português, Polski, Türkçe, Bahasa Indonesia, हिन्दी, 日本語, 한국어, 中文.
+
+Key Features
+- Expense tracking
+- Spending analytics
+- Category management
+- Offline first
+- Google Drive sync
+- OneDrive sync
+- Multi-device support
+- Automatic conflict-free synchronization
+- Multi-currency support
+- Multi-language support
+- Local data ownership
+- Privacy first
+
+Start tracking your expenses with confidence.
+Your cloud. Your data. Your budget.

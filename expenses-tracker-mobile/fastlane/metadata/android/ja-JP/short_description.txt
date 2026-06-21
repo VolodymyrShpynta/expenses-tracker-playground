@@ -1,0 +1,1 @@
+プライベートなオフライン家計簿。Google DriveやOneDriveに同期。

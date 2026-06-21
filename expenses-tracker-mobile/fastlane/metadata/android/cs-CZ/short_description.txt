@@ -1,0 +1,1 @@
+Soukromý offline správce výdajů. Synchronizace přes Google Drive či OneDrive.

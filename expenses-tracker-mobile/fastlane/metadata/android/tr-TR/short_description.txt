@@ -1,0 +1,1 @@
+Gizli, çevrimdışı gider takibi. Kendi Google Drive/OneDrive'ınla senkron.

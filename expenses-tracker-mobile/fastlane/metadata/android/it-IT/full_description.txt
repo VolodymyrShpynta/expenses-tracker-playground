@@ -1,0 +1,57 @@
+Gestore di spese privato con sincronizzazione nel cloud
+
+Prendi il controllo delle tue finanze senza rinunciare al controllo dei tuoi dati.
+
+Spendium ti aiuta a tenere traccia delle spese, ad analizzare i consumi e a mantenere i tuoi dati finanziari sincronizzati tra i dispositivi usando il tuo account Google Drive o OneDrive.
+
+Nessun server backend dedicato.
+Nessun vincolo con il fornitore.
+Nessuna raccolta di dati superflua.
+
+Perché Spendium?
+
+I tuoi dati restano tuoi
+I tuoi dati finanziari sono archiviati nel tuo spazio di archiviazione cloud. Scegli il provider che preferisci:
+- Google Drive
+- Microsoft OneDrive
+Mantieni il pieno controllo delle tue informazioni.
+
+Funziona offline
+Aggiungi spese ovunque e in qualsiasi momento. Spendium funziona anche senza connessione a Internet e sincronizza automaticamente le tue modifiche quando torni online.
+
+Sincronizzazione automatica multi-dispositivo
+Usa Spendium su più dispositivi. Le modifiche create su dispositivi diversi vengono unite automaticamente con la regola "l'ultima scrittura vince" basata sull'orario, così i tuoi dati restano coerenti ovunque.
+
+Privacy prima di tutto
+A differenza di molte app di finanza, Spendium non richiede un server centrale per archiviare le tue transazioni. I tuoi dati finanziari restano nel tuo spazio cloud.
+
+Analisi delle spese avanzata
+Capisci dove vanno i tuoi soldi con:
+- Spese per categoria
+- Riepiloghi mensili
+- Andamento delle spese
+- Cronologia dettagliata delle transazioni
+
+Supporto multivaluta
+Registra le spese in più valute e visualizzale nella valuta di base che preferisci. Perfetto per viaggiatori, expat e chi gestisce le finanze tra più Paesi.
+
+Supporto multilingue
+Spendium è disponibile in 15 lingue:
+English, Čeština, Українська, Español, Deutsch, Français, Italiano, Português, Polski, Türkçe, Bahasa Indonesia, हिन्दी, 日本語, 한국어, 中文.
+
+Funzioni principali
+- Monitoraggio delle spese
+- Analisi delle spese
+- Gestione delle categorie
+- Offline prima di tutto
+- Sincronizzazione Google Drive
+- Sincronizzazione OneDrive
+- Supporto multi-dispositivo
+- Sincronizzazione automatica senza conflitti
+- Supporto multivaluta
+- Supporto multilingue
+- Proprietà dei dati locali
+- Privacy prima di tutto
+
+Inizia a tenere traccia delle tue spese con sicurezza.
+Il tuo cloud. I tuoi dati. Il tuo budget.

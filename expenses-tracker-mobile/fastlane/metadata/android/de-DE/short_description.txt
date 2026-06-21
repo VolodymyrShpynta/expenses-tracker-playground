@@ -1,0 +1,1 @@
+Privater Offline-Ausgaben-Tracker. Sync mit Google Drive oder OneDrive.

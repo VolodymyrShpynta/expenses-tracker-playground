@@ -1,0 +1,57 @@
+Bulut senkronizasyonlu gizli gider takip uygulaması
+
+Verileriniz üzerindeki kontrolden vazgeçmeden finansmanınızın kontrolünü elinize alın.
+
+Spendium; giderlerinizi takip etmenize, harcamalarınızı analiz etmenize ve finansal kayıtlarınızı kendi Google Drive veya OneDrive hesabınızı kullanarak cihazlar arasında senkron tutmanıza yardımcı olur.
+
+Özel bir arka uç sunucusu yok.
+Sağlayıcıya bağımlılık yok.
+Gereksiz veri toplama yok.
+
+Neden Spendium?
+
+Verileriniz sizin kalır
+Finansal verileriniz kendi bulut depolama hesabınızda saklanır. Tercih ettiğiniz sağlayıcıyı seçin:
+- Google Drive
+- Microsoft OneDrive
+Bilgileriniz üzerinde tam kontrol sizde kalır.
+
+Çevrimdışı çalışır
+İstediğiniz zaman, istediğiniz yerde gider ekleyin. Spendium internet bağlantısı olmadan da çalışır ve tekrar çevrimiçi olduğunuzda değişikliklerinizi otomatik olarak senkronize eder.
+
+Otomatik çok cihazlı senkronizasyon
+Spendium'u birden fazla cihazda kullanın. Farklı cihazlarda yapılan değişiklikler, zaman damgasına dayalı "son yazan kazanır" kuralıyla otomatik olarak birleştirilir ve verileriniz her yerde tutarlı kalır.
+
+Önce gizlilik
+Birçok finans uygulamasının aksine Spendium, işlemlerinizi depolamak için merkezi bir sunucuya ihtiyaç duymaz. Finansal kayıtlarınız kendi bulut depolamanızda kalır.
+
+Güçlü harcama analizi
+Paranızın nereye gittiğini anlayın:
+- Kategoriye göre harcama
+- Aylık özetler
+- Harcama eğilimleri
+- Ayrıntılı işlem geçmişi
+
+Çoklu para birimi desteği
+Giderlerinizi birden fazla para biriminde kaydedin ve tercih ettiğiniz temel para biriminde görüntüleyin. Gezginler, yurt dışında yaşayanlar ve finansmanını ülkeler arasında yönetenler için mükemmel.
+
+Çoklu dil desteği
+Spendium 15 dilde kullanılabilir:
+English, Čeština, Українська, Español, Deutsch, Français, Italiano, Português, Polski, Türkçe, Bahasa Indonesia, हिन्दी, 日本語, 한국어, 中文.
+
+Temel özellikler
+- Gider takibi
+- Harcama analizi
+- Kategori yönetimi
+- Önce çevrimdışı
+- Google Drive senkronizasyonu
+- OneDrive senkronizasyonu
+- Çoklu cihaz desteği
+- Otomatik çakışmasız senkronizasyon
+- Çoklu para birimi desteği
+- Çoklu dil desteği
+- Yerel veri sahipliği
+- Önce gizlilik
+
+Giderlerinizi güvenle takip etmeye başlayın.
+Sizin bulutunuz. Sizin verileriniz. Sizin bütçeniz.

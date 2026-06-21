@@ -1,0 +1,57 @@
+Suivi de dépenses privé avec synchronisation cloud
+
+Prenez le contrôle de vos finances sans renoncer au contrôle de vos données.
+
+Spendium vous aide à suivre vos dépenses, à analyser votre consommation et à garder vos données financières synchronisées entre vos appareils grâce à votre propre compte Google Drive ou OneDrive.
+
+Aucun serveur backend dédié.
+Aucune dépendance à un fournisseur.
+Aucune collecte de données inutile.
+
+Pourquoi Spendium ?
+
+Vos données restent les vôtres
+Vos données financières sont stockées dans votre propre espace de stockage cloud. Choisissez votre fournisseur préféré :
+- Google Drive
+- Microsoft OneDrive
+Vous gardez le contrôle total de vos informations.
+
+Fonctionne hors ligne
+Ajoutez des dépenses à tout moment, où que vous soyez. Spendium fonctionne même sans connexion Internet et synchronise automatiquement vos modifications dès votre retour en ligne.
+
+Synchronisation automatique multi-appareils
+Utilisez Spendium sur plusieurs appareils. Les modifications effectuées sur différents appareils sont fusionnées automatiquement selon la règle du « dernier écrit l'emporte » basée sur l'horodatage, pour des données cohérentes partout.
+
+La confidentialité avant tout
+Contrairement à de nombreuses applis de finances, Spendium n'a pas besoin de serveur central pour stocker vos transactions. Vos données financières restent dans votre propre stockage cloud.
+
+Analyse de dépenses puissante
+Comprenez où va votre argent grâce à :
+- Dépenses par catégorie
+- Résumés mensuels
+- Tendances de dépenses
+- Historique détaillé des transactions
+
+Prise en charge multidevise
+Suivez vos dépenses dans plusieurs devises et consultez-les dans votre devise de référence préférée. Parfait pour les voyageurs, les expatriés et tous ceux qui gèrent leurs finances dans plusieurs pays.
+
+Prise en charge multilingue
+Spendium est disponible en 15 langues :
+English, Čeština, Українська, Español, Deutsch, Français, Italiano, Português, Polski, Türkçe, Bahasa Indonesia, हिन्दी, 日本語, 한국어, 中文.
+
+Fonctionnalités clés
+- Suivi des dépenses
+- Analyse des dépenses
+- Gestion des catégories
+- Hors ligne avant tout
+- Synchronisation Google Drive
+- Synchronisation OneDrive
+- Prise en charge multi-appareils
+- Synchronisation automatique sans conflit
+- Prise en charge multidevise
+- Prise en charge multilingue
+- Propriété des données locales
+- La confidentialité avant tout
+
+Commencez à suivre vos dépenses en toute confiance.
+Votre cloud. Vos données. Votre budget.

@@ -1,0 +1,1 @@
+私密离线记账应用，同步到你自己的 Google Drive 或 OneDrive。

@@ -1,0 +1,57 @@
+Pelacak pengeluaran privat dengan sinkronisasi cloud
+
+Kendalikan keuangan Anda tanpa kehilangan kendali atas data Anda.
+
+Spendium membantu Anda melacak pengeluaran, menganalisis belanja, dan menjaga catatan keuangan tetap tersinkronkan di berbagai perangkat menggunakan akun Google Drive atau OneDrive milik Anda sendiri.
+
+Tanpa server backend khusus.
+Tanpa ketergantungan pada vendor.
+Tanpa pengumpulan data yang tidak perlu.
+
+Mengapa Spendium?
+
+Data Anda tetap milik Anda
+Data keuangan Anda disimpan di akun penyimpanan cloud milik Anda sendiri. Pilih penyedia favorit Anda:
+- Google Drive
+- Microsoft OneDrive
+Anda tetap memegang kendali penuh atas informasi Anda.
+
+Berfungsi offline
+Tambahkan pengeluaran kapan saja, di mana saja. Spendium tetap berfungsi tanpa koneksi internet dan otomatis menyinkronkan perubahan Anda saat kembali online.
+
+Sinkronisasi multi-perangkat otomatis
+Gunakan Spendium di beberapa perangkat. Perubahan yang dibuat di perangkat berbeda digabungkan secara otomatis menggunakan aturan "penulisan terakhir menang" berdasarkan stempel waktu, sehingga data Anda tetap konsisten di mana saja.
+
+Privasi yang utama
+Tidak seperti banyak aplikasi keuangan, Spendium tidak memerlukan server pusat untuk menyimpan transaksi Anda. Catatan keuangan Anda tetap berada di penyimpanan cloud milik Anda sendiri.
+
+Analisis pengeluaran yang andal
+Pahami ke mana uang Anda pergi dengan:
+- Pengeluaran per kategori
+- Ringkasan bulanan
+- Tren pengeluaran
+- Riwayat transaksi terperinci
+
+Dukungan multi-mata uang
+Lacak pengeluaran dalam berbagai mata uang dan lihat belanja Anda dalam mata uang dasar pilihan Anda. Sempurna untuk pelancong, ekspatriat, dan pengguna yang mengelola keuangan lintas negara.
+
+Dukungan multi-bahasa
+Spendium tersedia dalam 15 bahasa:
+English, Čeština, Українська, Español, Deutsch, Français, Italiano, Português, Polski, Türkçe, Bahasa Indonesia, हिन्दी, 日本語, 한국어, 中文.
+
+Fitur utama
+- Pelacakan pengeluaran
+- Analisis pengeluaran
+- Pengelolaan kategori
+- Mengutamakan offline
+- Sinkronisasi Google Drive
+- Sinkronisasi OneDrive
+- Dukungan multi-perangkat
+- Sinkronisasi otomatis tanpa konflik
+- Dukungan multi-mata uang
+- Dukungan multi-bahasa
+- Kepemilikan data lokal
+- Privasi yang utama
+
+Mulai lacak pengeluaran Anda dengan percaya diri.
+Cloud Anda. Data Anda. Anggaran Anda.

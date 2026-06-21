@@ -1,0 +1,57 @@
+Gestor de gastos privado con sincronización en la nube
+
+Toma el control de tus finanzas sin renunciar al control de tus datos.
+
+Spendium te ayuda a registrar gastos, analizar tu consumo y mantener tus registros financieros sincronizados entre dispositivos usando tu propia cuenta de Google Drive o OneDrive.
+
+Sin servidores backend dedicados.
+Sin dependencia de un proveedor.
+Sin recopilación innecesaria de datos.
+
+¿Por qué Spendium?
+
+Tus datos siguen siendo tuyos
+Tus datos financieros se guardan en tu propia cuenta de almacenamiento en la nube. Elige tu proveedor preferido:
+- Google Drive
+- Microsoft OneDrive
+Mantienes el control total de tu información.
+
+Funciona sin conexión
+Añade gastos en cualquier momento y lugar. Spendium funciona incluso sin conexión a Internet y sincroniza tus cambios automáticamente cuando vuelves a estar en línea.
+
+Sincronización automática entre dispositivos
+Usa Spendium en varios dispositivos. Los cambios creados en distintos dispositivos se combinan automáticamente con la regla de «la última escritura gana» según la marca de tiempo, garantizando que tus datos sean coherentes en todas partes.
+
+La privacidad es lo primero
+A diferencia de muchas apps de finanzas, Spendium no necesita un servidor central para almacenar tus transacciones. Tus registros financieros permanecen en tu propio almacenamiento en la nube.
+
+Análisis de gastos potente
+Entiende a dónde va tu dinero con:
+- Gastos por categoría
+- Resúmenes mensuales
+- Tendencias de gasto
+- Historial detallado de transacciones
+
+Compatibilidad con varias monedas
+Registra gastos en varias monedas y consulta tu gasto en tu moneda base preferida. Perfecto para viajeros, expatriados y quienes gestionan finanzas entre países.
+
+Compatibilidad con varios idiomas
+Spendium está disponible en 15 idiomas:
+English, Čeština, Українська, Español, Deutsch, Français, Italiano, Português, Polski, Türkçe, Bahasa Indonesia, हिन्दी, 日本語, 한국어, 中文.
+
+Funciones principales
+- Registro de gastos
+- Análisis de gastos
+- Gestión de categorías
+- Sin conexión primero
+- Sincronización con Google Drive
+- Sincronización con OneDrive
+- Compatibilidad con varios dispositivos
+- Sincronización automática sin conflictos
+- Compatibilidad con varias monedas
+- Compatibilidad con varios idiomas
+- Propiedad de los datos locales
+- La privacidad es lo primero
+
+Empieza a registrar tus gastos con confianza.
+Tu nube. Tus datos. Tu presupuesto.

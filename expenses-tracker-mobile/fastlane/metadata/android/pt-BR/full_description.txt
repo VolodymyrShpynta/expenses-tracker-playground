@@ -1,0 +1,57 @@
+Controle de gastos privado com sincronização na nuvem
+
+Assuma o controle das suas finanças sem abrir mão do controle dos seus dados.
+
+O Spendium ajuda você a registrar gastos, analisar despesas e manter seus registros financeiros sincronizados entre dispositivos usando sua própria conta do Google Drive ou OneDrive.
+
+Sem servidores de backend dedicados.
+Sem dependência de fornecedor.
+Sem coleta desnecessária de dados.
+
+Por que o Spendium?
+
+Seus dados continuam seus
+Seus dados financeiros ficam armazenados na sua própria conta de nuvem. Escolha o provedor de sua preferência:
+- Google Drive
+- Microsoft OneDrive
+Você mantém o controle total das suas informações.
+
+Funciona offline
+Adicione gastos a qualquer hora e em qualquer lugar. O Spendium funciona mesmo sem conexão com a internet e sincroniza suas alterações automaticamente quando você volta a ficar online.
+
+Sincronização automática entre dispositivos
+Use o Spendium em vários dispositivos. As alterações feitas em diferentes dispositivos são mescladas automaticamente pela regra "a última gravação vence" com base no horário, garantindo que seus dados fiquem consistentes em todos os lugares.
+
+Privacidade em primeiro lugar
+Ao contrário de muitos apps de finanças, o Spendium não precisa de um servidor central para armazenar suas transações. Seus registros financeiros permanecem na sua própria nuvem.
+
+Análise de gastos poderosa
+Entenda para onde vai o seu dinheiro com:
+- Gastos por categoria
+- Resumos mensais
+- Tendências de gastos
+- Histórico detalhado de transações
+
+Suporte a várias moedas
+Registre gastos em várias moedas e veja suas despesas na moeda base de sua preferência. Perfeito para viajantes, expatriados e quem administra finanças entre países.
+
+Suporte a vários idiomas
+O Spendium está disponível em 15 idiomas:
+English, Čeština, Українська, Español, Deutsch, Français, Italiano, Português, Polski, Türkçe, Bahasa Indonesia, हिन्दी, 日本語, 한국어, 中文.
+
+Principais recursos
+- Registro de gastos
+- Análise de gastos
+- Gerenciamento de categorias
+- Offline em primeiro lugar
+- Sincronização com Google Drive
+- Sincronização com OneDrive
+- Suporte a vários dispositivos
+- Sincronização automática sem conflitos
+- Suporte a várias moedas
+- Suporte a vários idiomas
+- Propriedade dos dados locais
+- Privacidade em primeiro lugar
+
+Comece a registrar seus gastos com confiança.
+Sua nuvem. Seus dados. Seu orçamento.

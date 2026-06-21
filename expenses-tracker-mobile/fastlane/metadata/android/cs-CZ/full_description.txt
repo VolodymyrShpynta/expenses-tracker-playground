@@ -1,0 +1,57 @@
+Soukromý správce výdajů se synchronizací do cloudu
+
+Převezměte kontrolu nad svými financemi, aniž byste se vzdali kontroly nad svými daty.
+
+Spendium vám pomáhá sledovat výdaje, analyzovat útraty a udržovat vaše finanční záznamy synchronizované mezi zařízeními pomocí vašeho vlastního účtu Google Drive nebo OneDrive.
+
+Žádné vyhrazené serverové backendy.
+Žádné uzamčení k jednomu dodavateli.
+Žádné zbytečné shromažďování dat.
+
+Proč Spendium?
+
+Vaše data zůstávají vaše
+Vaše finanční data jsou uložena ve vašem vlastním cloudovém úložišti. Vyberte si preferovaného poskytovatele:
+- Google Drive
+- Microsoft OneDrive
+Máte plnou kontrolu nad svými informacemi.
+
+Funguje offline
+Přidávejte výdaje kdykoli a kdekoli. Spendium funguje i bez připojení k internetu a vaše změny automaticky synchronizuje, jakmile jste opět online.
+
+Automatická synchronizace mezi zařízeními
+Používejte Spendium na více zařízeních. Změny vytvořené na různých zařízeních se automaticky sloučí pomocí pravidla „poslední zápis vítězí“ podle časové značky, takže vaše data zůstanou všude konzistentní.
+
+Soukromí na prvním místě
+Na rozdíl od mnoha finančních aplikací Spendium nepotřebuje k ukládání vašich transakcí centrální server. Vaše finanční záznamy zůstávají ve vašem vlastním cloudovém úložišti.
+
+Výkonná analýza útrat
+Zjistěte, kam vaše peníze plynou:
+- Útraty podle kategorií
+- Měsíční přehledy
+- Trendy výdajů
+- Podrobná historie transakcí
+
+Podpora více měn
+Sledujte výdaje v různých měnách a zobrazte si útraty ve své preferované základní měně. Ideální pro cestovatele, expaty a uživatele spravující finance napříč zeměmi.
+
+Podpora více jazyků
+Spendium je k dispozici v 15 jazycích:
+English, Čeština, Українська, Español, Deutsch, Français, Italiano, Português, Polski, Türkçe, Bahasa Indonesia, हिन्दी, 日本語, 한국어, 中文.
+
+Klíčové funkce
+- Sledování výdajů
+- Analýza útrat
+- Správa kategorií
+- Offline na prvním místě
+- Synchronizace s Google Drive
+- Synchronizace s OneDrive
+- Podpora více zařízení
+- Automatická bezkonfliktní synchronizace
+- Podpora více měn
+- Podpora více jazyků
+- Vlastnictví lokálních dat
+- Soukromí na prvním místě
+
+Začněte sledovat své výdaje s jistotou.
+Váš cloud. Vaše data. Váš rozpočet.

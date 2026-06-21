@@ -1,0 +1,1 @@
+Prywatny menedżer wydatków offline. Synchronizacja z Google Drive/OneDrive.

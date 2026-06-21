@@ -1,0 +1,1 @@
+프라이빗 오프라인 지출 관리. 내 Google Drive 또는 OneDrive에 동기화.

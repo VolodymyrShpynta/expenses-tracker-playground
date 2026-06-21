@@ -4,9 +4,10 @@
 dist/
 web-build/
 
-# Native
-android/
-ios/
+# Native (Expo prebuild output at the module root; anchored so it does not
+# also ignore unrelated paths like fastlane/metadata/android/)
+/android/
+/ios/
 *.jks
 *.p8
 *.p12

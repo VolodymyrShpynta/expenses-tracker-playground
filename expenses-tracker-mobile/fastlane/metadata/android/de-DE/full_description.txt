@@ -1,0 +1,57 @@
+Privater Ausgaben-Tracker mit Cloud-Synchronisierung
+
+Übernimm die Kontrolle über deine Finanzen, ohne die Kontrolle über deine Daten aufzugeben.
+
+Spendium hilft dir, Ausgaben zu erfassen, dein Ausgabeverhalten auszuwerten und deine Finanzdaten über mehrere Geräte hinweg synchron zu halten – mit deinem eigenen Google-Drive- oder OneDrive-Konto.
+
+Keine dedizierten Backend-Server.
+Keine Anbieterbindung.
+Keine unnötige Datensammlung.
+
+Warum Spendium?
+
+Deine Daten bleiben deine
+Deine Finanzdaten werden in deinem eigenen Cloud-Speicher abgelegt. Wähle deinen bevorzugten Anbieter:
+- Google Drive
+- Microsoft OneDrive
+Du behältst die volle Kontrolle über deine Informationen.
+
+Funktioniert offline
+Erfasse Ausgaben jederzeit und überall. Spendium funktioniert auch ohne Internetverbindung und synchronisiert deine Änderungen automatisch, sobald du wieder online bist.
+
+Automatische Synchronisierung mehrerer Geräte
+Nutze Spendium auf mehreren Geräten. Änderungen von verschiedenen Geräten werden automatisch nach dem Prinzip „Letzte Änderung gewinnt“ anhand des Zeitstempels zusammengeführt, damit deine Daten überall konsistent bleiben.
+
+Datenschutz an erster Stelle
+Anders als viele Finanz-Apps benötigt Spendium keinen zentralen Server, um deine Transaktionen zu speichern. Deine Finanzdaten bleiben in deinem eigenen Cloud-Speicher.
+
+Leistungsstarke Ausgabenanalyse
+Verstehe, wohin dein Geld fließt:
+- Ausgaben nach Kategorie
+- Monatliche Zusammenfassungen
+- Ausgabentrends
+- Detaillierte Transaktionshistorie
+
+Unterstützung mehrerer Währungen
+Erfasse Ausgaben in mehreren Währungen und sieh dir deine Ausgaben in deiner bevorzugten Basiswährung an. Perfekt für Reisende, Expats und alle, die Finanzen über Ländergrenzen hinweg verwalten.
+
+Mehrsprachigkeit
+Spendium ist in 15 Sprachen verfügbar:
+English, Čeština, Українська, Español, Deutsch, Français, Italiano, Português, Polski, Türkçe, Bahasa Indonesia, हिन्दी, 日本語, 한국어, 中文.
+
+Hauptfunktionen
+- Ausgabenerfassung
+- Ausgabenanalyse
+- Kategorienverwaltung
+- Offline-first
+- Google-Drive-Synchronisierung
+- OneDrive-Synchronisierung
+- Unterstützung mehrerer Geräte
+- Automatische konfliktfreie Synchronisierung
+- Unterstützung mehrerer Währungen
+- Mehrsprachigkeit
+- Lokale Datenhoheit
+- Datenschutz an erster Stelle
+
+Beginne mit Zuversicht, deine Ausgaben zu erfassen.
+Deine Cloud. Deine Daten. Dein Budget.

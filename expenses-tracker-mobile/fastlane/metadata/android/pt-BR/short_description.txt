@@ -1,0 +1,1 @@
+Controle de gastos privado e offline. Sincroniza no seu Google Drive/OneDrive.
