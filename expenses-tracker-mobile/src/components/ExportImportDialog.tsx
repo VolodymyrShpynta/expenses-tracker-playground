@@ -19,13 +19,14 @@
  * most informative bit of feedback for the user.
  */
 import { useState } from 'react';
-import { View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Dialog, Divider, Text, useTheme } from 'react-native-paper';
 
 import { AppDialog } from './AppDialog';
 import { ThemedButton as Button } from './ThemedButton';
 import { useExportData, useImportData } from '../hooks/useDataExchange';
+import { FONT_SCALES, useFontScale } from '../context/preferencesProvider';
 
 export interface ExportImportDialogProps {
   readonly visible: boolean;
@@ -40,6 +41,8 @@ interface StatusBanner {
 export function ExportImportDialog({ visible, onDismiss }: ExportImportDialogProps) {
   const { t: translate } = useTranslation();
   const theme = useTheme();
+  const { fontScale } = useFontScale();
+  const scale = FONT_SCALES[fontScale];
   const exportData = useExportData();
   const importData = useImportData();
   const [status, setStatus] = useState<StatusBanner | null>(null);
@@ -102,92 +105,99 @@ export function ExportImportDialog({ visible, onDismiss }: ExportImportDialogPro
 
   return (
     <AppDialog visible={visible} onDismiss={handleDismiss} title={translate('exportImportDialog.title')}>
-      <Dialog.Content>
-        <View style={{ gap: 8 }}>
-          <Text variant="titleSmall">{translate('exportImportDialog.exportTitle')}</Text>
-          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-            {translate('exportImportDialog.exportBody')}
-          </Text>
-          <Button
-            mode="contained"
-            icon="download"
-            onPress={() => void onExport()}
-            loading={exportData.isPending}
-            disabled={busy}
-          >
-            {exportData.isPending
-              ? translate('exportImportDialog.exporting')
-              : translate('exportImportDialog.exportButton')}
-          </Button>
-        </View>
-
-        <Divider style={{ marginVertical: 16 }} />
-
-        <View style={{ gap: 8 }}>
-          <Text variant="titleSmall">{translate('exportImportDialog.importTitle')}</Text>
-          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-            {translate('exportImportDialog.importBody')}
-          </Text>
-
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'flex-start',
-              gap: 12,
-              padding: 12,
-              borderRadius: 8,
-              backgroundColor: theme.colors.secondaryContainer,
-              marginVertical: 4,
-            }}
-          >
-            <Text style={{ color: theme.colors.onSecondaryContainer, fontSize: 18 }}>ℹ︎</Text>
-            <Text
-              variant="bodySmall"
-              style={{ flex: 1, color: theme.colors.onSecondaryContainer }}
-            >
-              {translate('exportImportDialog.importWarning')}
+      {/*
+       * Scrollable body (not a plain `Dialog.Content`) so the two sections
+       * don't get clipped by the dialog's max height at large font sizes.
+       * Borders stripped so it looks identical to the old inline layout.
+       */}
+      <Dialog.ScrollArea style={{ borderTopWidth: 0, borderBottomWidth: 0 }}>
+        <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 24 }}>
+          <View style={{ gap: 8 }}>
+            <Text variant="titleSmall">{translate('exportImportDialog.exportTitle')}</Text>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+              {translate('exportImportDialog.exportBody')}
             </Text>
+            <Button
+              mode="contained"
+              icon="download"
+              onPress={() => void onExport()}
+              loading={exportData.isPending}
+              disabled={busy}
+            >
+              {exportData.isPending
+                ? translate('exportImportDialog.exporting')
+                : translate('exportImportDialog.exportButton')}
+            </Button>
           </View>
 
-          <Button
-            mode="outlined"
-            icon="upload"
-            onPress={() => void onImport()}
-            loading={importData.isPending}
-            disabled={busy}
-          >
-            {importData.isPending
-              ? translate('exportImportDialog.importing')
-              : translate('exportImportDialog.importButton')}
-          </Button>
-        </View>
+          <Divider style={{ marginVertical: 16 }} />
 
-        {status !== null && (
-          <View
-            style={{
-              marginTop: 16,
-              padding: 12,
-              borderRadius: 8,
-              backgroundColor:
-                status.tone === 'success'
-                  ? theme.colors.tertiaryContainer
-                  : theme.colors.errorContainer,
-            }}
-          >
-            <Text
-              variant="bodyMedium"
+          <View style={{ gap: 8 }}>
+            <Text variant="titleSmall">{translate('exportImportDialog.importTitle')}</Text>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+              {translate('exportImportDialog.importBody')}
+            </Text>
+
+            <View
               style={{
-                color:
-                  status.tone === 'success'
-                    ? theme.colors.onTertiaryContainer
-                    : theme.colors.onErrorContainer,
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+                gap: 12,
+                padding: 12,
+                borderRadius: 8,
+                backgroundColor: theme.colors.secondaryContainer,
+                marginVertical: 4,
               }}
             >
-              {status.text}
-            </Text>
+              <Text style={{ color: theme.colors.onSecondaryContainer, fontSize: Math.round(18 * scale) }}>ℹ︎</Text>
+              <Text
+                variant="bodySmall"
+                style={{ flex: 1, color: theme.colors.onSecondaryContainer }}
+              >
+                {translate('exportImportDialog.importWarning')}
+              </Text>
+            </View>
+
+            <Button
+              mode="outlined"
+              icon="upload"
+              onPress={() => void onImport()}
+              loading={importData.isPending}
+              disabled={busy}
+            >
+              {importData.isPending
+                ? translate('exportImportDialog.importing')
+                : translate('exportImportDialog.importButton')}
+            </Button>
           </View>
-        )}
-      </Dialog.Content>
+
+          {status !== null && (
+            <View
+              style={{
+                marginTop: 16,
+                padding: 12,
+                borderRadius: 8,
+                backgroundColor:
+                  status.tone === 'success'
+                    ? theme.colors.tertiaryContainer
+                    : theme.colors.errorContainer,
+              }}
+            >
+              <Text
+                variant="bodyMedium"
+                style={{
+                  color:
+                    status.tone === 'success'
+                      ? theme.colors.onTertiaryContainer
+                      : theme.colors.onErrorContainer,
+                }}
+              >
+                {status.text}
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+      </Dialog.ScrollArea>
     </AppDialog>
   );
 }

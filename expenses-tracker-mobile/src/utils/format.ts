@@ -114,6 +114,84 @@ function formatScaledOneDecimal(value: number, locale: string): string {
 }
 
 /**
+ * Threshold (in whole currency units) at/above which an amount is shown in
+ * compact M / B notation instead of in full. Tunable; below it, amounts
+ * render normally.
+ */
+export const COMPACT_THRESHOLD_UNITS = 1_000_000;
+
+const COMPACT_SUFFIXES = ['M', 'B', 'T'] as const;
+
+/**
+ * Compact a large sum to millions / billions / trillions with up to three
+ * decimals — e.g. 10 123 345 → "10.123M", 123 655 000 → "123.655M", and
+ * 10 123 345 000 → "10.123B". Steps M → B → T so the integer part stays at
+ * most three digits while keeping ~4–6 significant figures. The decimal
+ * separator follows the locale (uk → "123,655M").
+ *
+ * We deliberately roll our own instead of the idiomatic
+ * `Intl.NumberFormat(locale, { notation: 'compact' })`: Hermes does NOT
+ * support `notation: 'compact'` on iOS at all, and it's precision-unreliable
+ * on older Android (SDK < 28 ignores the fraction-digit inputs). See Hermes'
+ * "Limited iOS property support":
+ * https://github.com/facebook/hermes/blob/main/doc/IntlAPIs.md
+ * This arithmetic version behaves identically on every platform. (The FormatJS
+ * `@formatjs/intl-numberformat` polyfill would restore the standard API via
+ * bundled CLDR data, but it isn't worth the per-locale data bundle + global
+ * `Intl` patch for a handful of call sites.) Chart axes keep
+ * `formatCentsShortScale`'s terser `k`/`M`/`B`, where brevity beats precision.
+ */
+function formatScaledCompact(cents: number, locale: string): string {
+  let scaled = cents / 100 / 1_000_000; // start at millions (M)
+  let tier = 0;
+  while (Math.abs(scaled) >= 1000 && tier < COMPACT_SUFFIXES.length - 1) {
+    scaled /= 1000;
+    tier += 1;
+  }
+  return `${scaled.toLocaleString(locale, { maximumFractionDigits: 3 })}${COMPACT_SUFFIXES[tier]}`;
+}
+
+/**
+ * Compact currency formatter for at-a-glance TOTALS (group subtotals, the
+ * spending-header hero, per-category rollups). Always drops the cents
+ * (rounded whole units) and collapses large totals to scaled M/B notation
+ * so a nine-figure sum can't overflow a narrow header. Scaling kicks in only
+ * at/above `COMPACT_THRESHOLD_UNITS`, so everyday totals still read as their
+ * full rounded number.
+ */
+export function formatTotalCompactWithCurrency(
+  cents: number,
+  currency: string,
+  locale: string,
+  approx = false,
+): string {
+  if (Math.abs(cents) / 100 >= COMPACT_THRESHOLD_UNITS) {
+    const prefix = approx ? APPROX_PREFIX : '';
+    return `${prefix}${currency} ${formatScaledCompact(cents, locale)}`;
+  }
+  return formatAmountCompactWithCurrency(cents, currency, locale, approx);
+}
+
+/**
+ * Like {@link formatTotalCompactWithCurrency} but for detailed LINE-ITEM
+ * amounts: keeps the exact value WITH cents until it crosses
+ * `COMPACT_THRESHOLD_UNITS`, then collapses to scaled M/B so a huge outlier
+ * row can't blow out the layout. Normal amounts stay precise.
+ */
+export function formatAmountCompactIfLarge(
+  cents: number,
+  currency: string,
+  locale: string,
+  approx = false,
+): string {
+  if (Math.abs(cents) / 100 >= COMPACT_THRESHOLD_UNITS) {
+    const prefix = approx ? APPROX_PREFIX : '';
+    return `${prefix}${currency} ${formatScaledCompact(cents, locale)}`;
+  }
+  return formatAmountWithCurrency(cents, currency, locale, approx);
+}
+
+/**
  * Parse a user-typed amount string ("12,50" / "12.50" / "12") into
  * integer cents. Returns `null` for invalid / empty input. Locale-tolerant
  * (accepts both `,` and `.` as decimal separator).

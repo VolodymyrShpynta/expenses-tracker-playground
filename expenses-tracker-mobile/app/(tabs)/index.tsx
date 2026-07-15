@@ -28,7 +28,7 @@ import { useCategoryLookup } from '../../src/hooks/useCategoryLookup';
 import { useCategorySummary } from '../../src/hooks/useCategorySummary';
 import { useConvertedExpenses } from '../../src/hooks/useExchangeRates';
 import { useDateRange, useMainCurrency } from '../../src/context/preferencesProvider';
-import { formatConvertedAmountCompact } from '../../src/utils/format';
+import { formatTotalCompactWithCurrency } from '../../src/utils/format';
 import { useAppColors } from '../../src/theme/appColors';
 
 export default function CategoriesScreen() {
@@ -82,10 +82,11 @@ export default function CategoriesScreen() {
             <View style={{ paddingVertical: 8 }}>
               <CategoryDonutChart
                 slices={slices}
-                centerValue={formatConvertedAmountCompact(
-                  grandTotal,
+                centerValue={formatTotalCompactWithCurrency(
+                  grandTotal.amount,
                   mainCurrency,
                   i18n.language,
+                  grandTotal.approx,
                 )}
                 centerLabel={translate('expenses.totalSpending')}
               />
@@ -136,7 +137,11 @@ export default function CategoriesScreen() {
                           alignItems: 'baseline',
                         }}
                       >
-                        <Text variant="bodyLarge" style={{ fontWeight: '500' }} numberOfLines={1}>
+                        <Text
+                          variant="bodyLarge"
+                          style={{ fontWeight: '500', flex: 1, marginRight: 8 }}
+                          numberOfLines={1}
+                        >
                           {resolved.name}
                         </Text>
                         <Text variant="labelMedium" style={{ color: resolved.color, fontWeight: '700' }}>
@@ -166,10 +171,11 @@ export default function CategoriesScreen() {
                       variant="bodyLarge"
                       style={{ color: resolved.color, fontWeight: '700', minWidth: 80, textAlign: 'right' }}
                     >
-                      {formatConvertedAmountCompact(
-                        cat.total,
+                      {formatTotalCompactWithCurrency(
+                        cat.total.amount,
                         mainCurrency,
                         i18n.language,
+                        cat.total.approx,
                       )}
                     </Text>
                   </View>

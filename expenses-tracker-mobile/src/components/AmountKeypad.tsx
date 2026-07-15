@@ -17,12 +17,18 @@
  * The equals cell label toggles between `=` and `OK` based on
  * `hasOperator`, matching the web behaviour.
  */
-import { Pressable, View, type DimensionValue, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Text, useTheme, type MD3Theme } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
 import { memo, type ReactNode } from 'react';
 
+import { FONT_SCALES, useFontScale } from '../context/preferencesProvider';
 import type { CalculatorAction, Operator } from '../utils/useCalculator';
+
+// Gap (dp) between keypad cells, horizontally and vertically. Named because
+// the flex-basis "gap compensation" in `styles` below leans on its exact value
+// to keep every cell the same size despite the 2-row-tall equals key.
+const KEYPAD_CELL_GAP = 4;
 
 type Variant = 'num' | 'op' | 'special' | 'equals';
 
@@ -31,7 +37,6 @@ interface Cell {
   readonly label: ReactNode;
   readonly variant: Variant;
   readonly onPress: () => void;
-  readonly rowSpan?: number;
   readonly disabled?: boolean;
 }
 
@@ -40,6 +45,11 @@ export interface AmountKeypadProps {
   readonly hasOperator: boolean;
   readonly canEquals: boolean;
   readonly disabled?: boolean;
+  /** Minimum per-cell (row) height (dp). The keypad flex-fills whatever height
+   *  its parent gives it; this only floors the rows on short screens where the
+   *  sheet scrolls, so a key is never smaller than a comfortable touch target.
+   *  Defaults to 48. */
+  readonly cellHeight?: number;
   readonly dispatch: (a: CalculatorAction) => void;
   readonly onEquals: () => void;
   readonly onOpenDate: () => void;
@@ -58,12 +68,28 @@ export const AmountKeypad = memo(function AmountKeypad({
   hasOperator,
   canEquals,
   disabled,
+  cellHeight: cellHeightProp,
   dispatch,
   onEquals,
   onOpenDate,
   onOpenCurrency,
 }: AmountKeypadProps) {
   const theme = useTheme();
+  // Honor Settings → Font size. Cells keep a generous `minHeight`, so the
+  // scaled digits grow within the button rather than resizing the grid.
+  const { fontScale } = useFontScale();
+  const scale = FONT_SCALES[fontScale];
+
+  const cellGap = KEYPAD_CELL_GAP;
+  // Minimum row height — only floors the rows on short screens where the sheet
+  // scrolls; on a normal sheet the rows flex to fill the available space.
+  const minRow = cellHeightProp ?? 48;
+  // Scale glyphs/icons with the screen (NOT a measured cell height, which would
+  // force a second render): bigger phones get bigger labels. Computed on the
+  // first render, so the keypad paints at its final size immediately.
+  const { height: windowHeight } = useWindowDimensions();
+  const glyphScale = Math.min(1.3, Math.max(1, windowHeight / 760));
+  const iconSize = Math.round(20 * glyphScale);
 
   const digit = (d: string): Cell => ({
     id: d,
@@ -87,84 +113,152 @@ export const AmountKeypad = memo(function AmountKeypad({
     id: 'equals',
     label: hasOperator ? '=' : 'OK',
     variant: 'equals',
-    rowSpan: 2,
     onPress: onEquals,
     disabled: !canEquals,
   });
 
-  const layout: ReadonlyArray<ReadonlyArray<Cell | null>> = [
-    [
-      digit('7'), digit('8'), digit('9'), op('\u00f7'),
-      special('backspace', <MaterialIcons name="backspace" size={20} color={theme.colors.onSurfaceVariant} />, () => dispatch({ type: 'backspace' })),
-    ],
-    [
-      digit('4'), digit('5'), digit('6'), op('\u00d7'),
-      special('date', <MaterialIcons name="calendar-today" size={20} color={theme.colors.onSurfaceVariant} />, onOpenDate),
-    ],
-    [digit('1'), digit('2'), digit('3'), op('-', '\u2212'), equals()],
-    [special('currency', currency, onOpenCurrency), digit('0'), digit('.'), op('+'), null],
-  ];
+  const renderCell = (cell: Cell) => {
+    const palette = cellPalette(theme, cell.variant);
+    return (
+      <Pressable
+        key={cell.id}
+        onPress={cell.onPress}
+        disabled={disabled || cell.disabled}
+        style={({ pressed }) => [
+          styles.cell,
+          {
+            backgroundColor: pressed ? palette.bgPressed : palette.bg,
+            opacity: disabled || cell.disabled ? 0.5 : 1,
+          },
+        ]}
+      >
+        {typeof cell.label === 'string' ? (
+          <Text
+            style={{
+              color: palette.color,
+              fontSize: Math.round(
+                (cell.variant === 'equals' ? (hasOperator ? 24 : 16) : 18) * scale * glyphScale,
+              ),
+              fontWeight: cell.variant === 'equals' || cell.variant === 'op' ? '700' : '500',
+            }}
+          >
+            {cell.label}
+          </Text>
+        ) : (
+          cell.label
+        )}
+      </Pressable>
+    );
+  };
 
-  // Render via flexbox: each row is a horizontal flex; equals cell uses
-  // absolute positioning to span 2 rows. Keeps RN layout simple.
-  const cellGap = 6;
-  // Per-cell vertical size. The dialog now extends past the bottom tab
-  // bar (rendered via Portal) so we can afford a chunkier hit target;
-  // bump this if buttons should grow further.
-  const cellHeight = 68;
-  const rowFlex = (rowIdx: number): ViewStyle => ({
-    width: '100%' as DimensionValue,
-    flexDirection: 'row',
-    gap: cellGap,
-    marginBottom: rowIdx === layout.length - 1 ? 0 : cellGap,
-  });
-
+  // The keypad flex-fills its parent's height. Every visual row is an equal
+  // flex band; the equals/OK key spans the bottom two rows by living in a
+  // dedicated right column beside a 2-row left block — no fixed pixel heights
+  // or negative margins, so it paints correctly on the first frame (no
+  // measure-then-resize flash). The `flexBasis` values in `styles` are gap
+  // compensation so every cell ends up exactly the same size despite the
+  // nesting.
+  const rowMin = { minHeight: minRow };
   return (
-    <View style={{ width: '100%' }}>
-      {layout.map((row, r) => (
-        <View key={`row-${r}`} style={rowFlex(r)}>
-          {row.map((cell, c) => {
-            if (!cell) return <View key={`empty-${r}-${c}`} style={{ flex: 1 }} />;
-            const palette = cellPalette(theme, cell.variant);
-            const isEquals = cell.variant === 'equals';
-            const heightFactor = cell.rowSpan ?? 1;
-            return (
-              <Pressable
-                key={cell.id}
-                onPress={cell.onPress}
-                disabled={disabled || cell.disabled}
-                style={({ pressed }) => ({
-                  flex: 1,
-                  minHeight: cellHeight * heightFactor + (heightFactor > 1 ? cellGap : 0),
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 12,
-                  backgroundColor: pressed ? palette.bgPressed : palette.bg,
-                  opacity: disabled || cell.disabled ? 0.5 : 1,
-                  // Equals spans into the row below; pull a bit so it visually fills both.
-                  ...(isEquals ? { marginBottom: -(cellHeight + cellGap) } : {}),
-                })}
-              >
-                {typeof cell.label === 'string' ? (
-                  <Text
-                    style={{
-                      color: palette.color,
-                      fontSize: cell.variant === 'equals' ? (hasOperator ? 24 : 16) : 18,
-                      fontWeight: cell.variant === 'equals' || cell.variant === 'op' ? '700' : '500',
-                    }}
-                  >
-                    {cell.label}
-                  </Text>
-                ) : (
-                  cell.label
-                )}
-              </Pressable>
-            );
-          })}
+    <View style={styles.keypad}>
+      <View style={[styles.row, rowMin]}>
+        <View style={styles.leftBlock}>
+          {renderCell(digit('7'))}
+          {renderCell(digit('8'))}
+          {renderCell(digit('9'))}
+          {renderCell(op('\u00f7'))}
         </View>
-      ))}
+        {renderCell(
+          special(
+            'backspace',
+            <MaterialIcons name="backspace" size={iconSize} color={theme.colors.onSurfaceVariant} />,
+            () => dispatch({ type: 'backspace' }),
+          ),
+        )}
+      </View>
+
+      <View style={[styles.row, rowMin]}>
+        <View style={styles.leftBlock}>
+          {renderCell(digit('4'))}
+          {renderCell(digit('5'))}
+          {renderCell(digit('6'))}
+          {renderCell(op('\u00d7'))}
+        </View>
+        {renderCell(
+          special(
+            'date',
+            <MaterialIcons name="calendar-today" size={iconSize} color={theme.colors.onSurfaceVariant} />,
+            onOpenDate,
+          ),
+        )}
+      </View>
+
+      <View style={[styles.bottomSection, { minHeight: minRow * 2 + cellGap }]}>
+        <View style={styles.leftBlockColumn}>
+          <View style={[styles.row, rowMin]}>
+            {renderCell(digit('1'))}
+            {renderCell(digit('2'))}
+            {renderCell(digit('3'))}
+            {renderCell(op('-', '\u2212'))}
+          </View>
+          <View style={[styles.row, rowMin]}>
+            {renderCell(special('currency', currency, onOpenCurrency))}
+            {renderCell(digit('0'))}
+            {renderCell(digit('.'))}
+            {renderCell(op('+'))}
+          </View>
+        </View>
+        {renderCell(equals())}
+      </View>
     </View>
   );
+});
+
+const styles = StyleSheet.create({
+  keypad: {
+    width: '100%',
+    flexGrow: 1,
+    gap: KEYPAD_CELL_GAP,
+  },
+  // Every visual row is an equal flex band (`flexBasis: 0` + `flexGrow: 1`).
+  // Reused for the two top rows AND the two bottom sub-rows so all four are the
+  // same height.
+  row: {
+    flexGrow: 1,
+    flexBasis: 0,
+    flexDirection: 'row',
+    gap: KEYPAD_CELL_GAP,
+  },
+  // Holds the bottom two rows next to the tall equals key. `flexGrow: 2` makes
+  // it twice a single row; the extra `flexBasis` of one gap makes its two
+  // sub-rows line up exactly with the single top rows.
+  bottomSection: {
+    flexGrow: 2,
+    flexBasis: KEYPAD_CELL_GAP,
+    flexDirection: 'row',
+    gap: KEYPAD_CELL_GAP,
+  },
+  // The 4-wide left block beside the 1-wide right column. `flexGrow: 4` +
+  // `flexBasis: 3 gaps` makes all five columns exactly equal width despite the
+  // gap between the block and the right column.
+  leftBlock: {
+    flexGrow: 4,
+    flexBasis: KEYPAD_CELL_GAP * 3,
+    flexDirection: 'row',
+    gap: KEYPAD_CELL_GAP,
+  },
+  leftBlockColumn: {
+    flexGrow: 4,
+    flexBasis: KEYPAD_CELL_GAP * 3,
+    gap: KEYPAD_CELL_GAP,
+  },
+  cell: {
+    flexGrow: 1,
+    flexBasis: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+  },
 });
 
 interface Palette {

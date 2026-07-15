@@ -29,7 +29,8 @@ import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { scheduleOnRN } from 'react-native-worklets';
-import { IconButton, Text, TouchableRipple, useTheme } from 'react-native-paper';
+import { Icon, IconButton, Text, TouchableRipple, useTheme } from 'react-native-paper';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
 import { useDateRange } from '../context/preferencesProvider';
@@ -40,7 +41,7 @@ import {
   startOfDay,
   type PresetKey,
 } from '../utils/dateRange';
-import { formatConvertedAmount } from '../utils/format';
+import { formatTotalCompactWithCurrency } from '../utils/format';
 import type { ConvertedAmount } from '../domain/exchangeRates';
 import { PeriodPickerDialog } from './PeriodPickerDialog';
 import { RangeDatePickerDialog, SingleDatePickerDialog } from './DatePickerDialogs';
@@ -124,8 +125,13 @@ export function SpendingHeader({ total, currency }: SpendingHeaderProps) {
         <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
           {translate('expenses.totalSpending')}
         </Text>
-        <Text variant="headlineMedium" style={{ fontWeight: '700', marginTop: 4 }}>
-          {formatConvertedAmount(total, currency, i18n.language)}
+        <Text
+          variant="headlineMedium"
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          style={{ fontWeight: '700', marginTop: 4 }}
+        >
+          {formatTotalCompactWithCurrency(total.amount, currency, i18n.language, total.approx)}
         </Text>
 
         <GestureDetector gesture={swipeGesture}>
@@ -134,60 +140,78 @@ export function SpendingHeader({ total, currency }: SpendingHeaderProps) {
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
+              gap: 4,
               marginTop: 8,
               alignSelf: 'stretch',
             }}
           >
             {canShift ? (
               <IconButton
-                icon="chevron-left"
+                icon={({ size, color }) => (
+                  <MaterialIcons name="arrow-back-ios" size={size} color={color} />
+                )}
+                iconColor={theme.colors.primary}
+                size={28}
                 accessibilityLabel={translate('dateRange.prevPeriodAria')}
                 onPress={() => setDateRange(shiftRange(dateRange, preset, 'prev'))}
-                // Negative horizontal margin pulls the chevron closer to the
-                // label without shrinking the icon or its 48dp touch target.
-                style={{ margin: 0, marginHorizontal: -8 }}
+                style={{ margin: 0 }}
               />
             ) : null}
+            {/*
+             * The active period reads as a filled, "expandable" pill button:
+             * a leading calendar glyph, the range label, and a trailing
+             * dropdown chevron that signals tapping opens the period picker.
+             * Uses the theme's primary-container tokens so it stays on-brand
+             * in light/dark. `flexShrink` + `adjustsFontSizeToFit` keep long
+             * localized labels inside the pill instead of overflowing.
+             */}
             <TouchableRipple
               onPress={() => setPeriodOpen(true)}
-              borderless
-              // `flex: 1` lets the label absorb leftover width and the tight
-              // horizontal padding keeps the chevrons close to the text so
-              // long localized labels (e.g. uk "1 ТРАВ. 2026 Р. – 31 ТРАВ.
-              // 2026 Р.") still fit on narrow phones without shrinking the
-              // font. `numberOfLines={1}` is a safety net that ellipsizes
-              // rather than pushing the chevrons off-screen.
+              accessibilityRole="button"
+              accessibilityLabel={rangeLabel}
               style={{
-                flex: 1,
-                paddingVertical: 6,
-                paddingHorizontal: 0,
+                flexShrink: 1,
+                borderRadius: 999,
+                overflow: 'hidden',
+                backgroundColor: theme.colors.primaryContainer,
               }}
             >
-              {/*
-               * Matches the web `DateHeader` look (`SpendingDateHeader`): the
-               * label itself is the affordance — no dropdown chevron, no pill
-               * background. `formatRange` already uppercases the dates; we
-               * only add weight + letter-spacing here.
-               */}
-              <Text
-                variant="titleMedium"
-                numberOfLines={1}
+              <View
                 style={{
-                  fontWeight: '700',
-                  letterSpacing: 0.5,
-                  textAlign: 'center',
-                  color: theme.colors.onSurface,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                  paddingVertical: 8,
+                  paddingHorizontal: 14,
                 }}
               >
-                {rangeLabel}
-              </Text>
+                <Icon source="calendar-range" size={20} color={theme.colors.onPrimaryContainer} />
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  style={{
+                    flexShrink: 1,
+                    fontSize: 16,
+                    fontWeight: '700',
+                    letterSpacing: 0.5,
+                    color: theme.colors.onPrimaryContainer,
+                  }}
+                >
+                  {rangeLabel}
+                </Text>
+                <Icon source="chevron-down" size={20} color={theme.colors.onPrimaryContainer} />
+              </View>
             </TouchableRipple>
             {canShift ? (
               <IconButton
-                icon="chevron-right"
+                icon={({ size, color }) => (
+                  <MaterialIcons name="arrow-forward-ios" size={size} color={color} />
+                )}
+                iconColor={theme.colors.primary}
+                size={28}
                 accessibilityLabel={translate('dateRange.nextPeriodAria')}
                 onPress={() => setDateRange(shiftRange(dateRange, preset, 'next'))}
-                style={{ margin: 0, marginHorizontal: -8 }}
+                style={{ margin: 0 }}
               />
             ) : null}
           </View>

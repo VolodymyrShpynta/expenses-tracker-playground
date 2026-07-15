@@ -5,11 +5,11 @@
  * historic expenses keep their display fields after archival.
  */
 import { useMemo } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
 import { CATEGORIES_QUERY_KEY, EXPENSES_QUERY_KEY } from '../queryClient';
 import { useAppServices } from '../context/appServicesProvider';
-import { notifyLocalWrite } from '../sync/autoSyncSignal';
+import { useWriteSideEffects } from './useWriteSideEffects';
 import type {
   CreateCategoryCommand,
   UpdateCategoryCommand,
@@ -47,75 +47,56 @@ export function useCategoryCatalog() {
 
 export function useCreateCategory() {
   const { categories } = useAppServices();
-  const queryClient = useQueryClient();
+  const onSuccess = useWriteSideEffects([CATEGORIES_QUERY_KEY]);
   return useMutation({
     mutationFn: (cmd: CreateCategoryCommand) => categories.createCategory(cmd),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
-      notifyLocalWrite();
-    },
+    onSuccess,
   });
 }
 
 export function useUpdateCategory() {
   const { categories } = useAppServices();
-  const queryClient = useQueryClient();
+  const onSuccess = useWriteSideEffects([CATEGORIES_QUERY_KEY]);
   return useMutation({
     mutationFn: ({ id, cmd }: { id: string; cmd: UpdateCategoryCommand }) =>
       categories.updateCategory(id, cmd),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
-      notifyLocalWrite();
-    },
+    onSuccess,
   });
 }
 
 export function useDeleteCategory() {
   const { categories } = useAppServices();
-  const queryClient = useQueryClient();
+  const onSuccess = useWriteSideEffects([CATEGORIES_QUERY_KEY]);
   return useMutation({
     mutationFn: (id: string) => categories.deleteCategory(id),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
-      notifyLocalWrite();
-    },
+    onSuccess,
   });
 }
 
 export function useRestoreCategory() {
   const { categories } = useAppServices();
-  const queryClient = useQueryClient();
+  const onSuccess = useWriteSideEffects([CATEGORIES_QUERY_KEY]);
   return useMutation({
     mutationFn: (id: string) => categories.restoreCategory(id),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
-      notifyLocalWrite();
-    },
+    onSuccess,
   });
 }
 
 export function useMergeCategories() {
   const { categories, expenseQueries, expenseCommands } = useAppServices();
-  const queryClient = useQueryClient();
+  const onSuccess = useWriteSideEffects([CATEGORIES_QUERY_KEY, EXPENSES_QUERY_KEY]);
   return useMutation({
     mutationFn: ({ sourceId, targetId }: { sourceId: string; targetId: string }) =>
       categories.mergeCategories(sourceId, targetId, expenseQueries, expenseCommands),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
-      void queryClient.invalidateQueries({ queryKey: EXPENSES_QUERY_KEY });
-      notifyLocalWrite();
-    },
+    onSuccess,
   });
 }
 
 export function useResetCategoriesToDefaults() {
   const { categories } = useAppServices();
-  const queryClient = useQueryClient();
+  const onSuccess = useWriteSideEffects([CATEGORIES_QUERY_KEY]);
   return useMutation({
     mutationFn: () => categories.resetToDefaults(),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
-      notifyLocalWrite();
-    },
+    onSuccess,
   });
 }

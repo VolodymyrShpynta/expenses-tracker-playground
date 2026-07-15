@@ -18,7 +18,7 @@
  * re-renders the parent screen's untouched widgets.
  */
 import { memo, useMemo, useRef, useState } from 'react';
-import { PanResponder, View } from 'react-native';
+import { PanResponder, View, useWindowDimensions } from 'react-native';
 import type { GestureResponderEvent, LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, G, Line, Path, Rect } from 'react-native-svg';
 import { Surface, Text, useTheme } from 'react-native-paper';
@@ -27,6 +27,7 @@ import type { ChartSeries, Granularity } from '../domain/timeSeries';
 import { pickTickIndices } from '../utils/chartTicks';
 import { formatBucketLabel, formatBucketLabelLong } from '../utils/dateRange';
 import { formatCentsShortScale } from '../utils/format';
+import { FONT_SCALES, useFontScale } from '../context/preferencesProvider';
 
 export interface ExpenseTimeSeriesChartProps {
   /** Bucket boundaries as epoch milliseconds — the domain layer keeps
@@ -124,6 +125,8 @@ export const ExpenseTimeSeriesChart = memo(function ExpenseTimeSeriesChart({
   accessibilityLabel,
 }: ExpenseTimeSeriesChartProps) {
   const theme = useTheme();
+  const { fontScale: systemFontScale } = useWindowDimensions();
+  const { fontScale: appFontSize } = useFontScale();
   const [width, setWidth] = useState(0);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const widthRef = useRef(0);
@@ -171,8 +174,23 @@ export const ExpenseTimeSeriesChart = memo(function ExpenseTimeSeriesChart({
     return niceMax(rawMax);
   }, [visibleSeries, buckets, mode]);
 
+  // Reflow the axis to the user's font size instead of freezing it. Two
+  // independent axes enlarge the tick labels and must both be honored: the
+  // OS accessibility scale (`useWindowDimensions`) and the app's own
+  // font-size preference, which scales the Paper `labelSmall` variant via
+  // `scaleTheme`. We widen each label slot (⇒ fewer, well-spaced ticks) and
+  // enlarge the bottom band so taller labels aren't clipped — the plot
+  // yields the space, total height is unchanged. Clamp so an extreme
+  // combined scale still leaves the chart usable.
+  const labelScale = Math.min(
+    Math.max(FONT_SCALES[appFontSize] * systemFontScale, 1),
+    3,
+  );
+  const labelSlot = Math.round(X_LABEL_WIDTH * labelScale);
+  const bottomPad = Math.round(PAD_BOTTOM * labelScale);
+
   const plotWidth = Math.max(0, width - PAD_LEFT - PAD_RIGHT);
-  const plotHeight = Math.max(0, height - PAD_TOP - PAD_BOTTOM);
+  const plotHeight = Math.max(0, height - PAD_TOP - bottomPad);
 
   // Bucket x positions. Single bucket sits in the centre so a one-day
   // range still shows a visible marker rather than a degenerate line.
@@ -229,17 +247,18 @@ export const ExpenseTimeSeriesChart = memo(function ExpenseTimeSeriesChart({
   const xTickIndices = useMemo(() => {
     // How many labels can physically fit without overlapping. The label
     // for tick `i` is centred at xAt(i); adjacent centres are spaced
-    // plotW / (t - 1) apart. For no overlap we need that gap to clear
-    // X_LABEL_WIDTH (+ a tiny safety pad), i.e.
-    //   t - 1 <= plotW / (X_LABEL_WIDTH + 4)
-    // Falls back to 6 before first layout (width === 0).
+    // plotW / (t - 1) apart. For no overlap that gap must clear a whole
+    // label slot plus a gutter, i.e. t - 1 <= plotW / (X_LABEL_WIDTH + 8).
+    // (The previous "+ 1" packed labels edge-to-edge with zero gutter, so a
+    // wide localized label such as uk "12 ЛИП." spilled into its neighbour.)
+    // Labels only render once measured, so the width === 0 seed is inert.
     const plotW = Math.max(0, width - PAD_LEFT - PAD_RIGHT);
     const maxTicks =
       plotW > 0
-        ? Math.max(2, Math.floor(plotW / (X_LABEL_WIDTH + 4)) + 1)
-        : 6;
+        ? Math.max(2, Math.floor(plotW / (labelSlot + 8)))
+        : 5;
     return pickTickIndices(buckets.length, Math.min(maxTicks, 6));
-  }, [buckets.length, width]);
+  }, [buckets.length, width, labelSlot]);
 
   // Y gridline values: 4 lines at 0/25/50/75/100% of yMax.
   const yGridValues = useMemo(() => {
@@ -535,10 +554,10 @@ export const ExpenseTimeSeriesChart = memo(function ExpenseTimeSeriesChart({
                   left = PAD_LEFT;
                   textAlign = 'left';
                 } else if (isLast) {
-                  left = width - PAD_RIGHT - X_LABEL_WIDTH;
+                  left = width - PAD_RIGHT - labelSlot;
                   textAlign = 'right';
                 } else {
-                  left = center - X_LABEL_WIDTH / 2;
+                  left = center - labelSlot / 2;
                   textAlign = 'center';
                 }
                 return (
@@ -549,7 +568,7 @@ export const ExpenseTimeSeriesChart = memo(function ExpenseTimeSeriesChart({
                       position: 'absolute',
                       top: PAD_TOP + plotHeight + 4,
                       left,
-                      width: X_LABEL_WIDTH,
+                      width: labelSlot,
                       textAlign,
                       color: axisColor,
                     }}

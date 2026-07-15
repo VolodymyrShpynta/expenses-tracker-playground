@@ -4,8 +4,8 @@
  * Mirrors the web frontend's `DateRangeSelector` mobile bottom-sheet
  * layout (`expenses-tracker-frontend/src/components/date-range/PresetGrid.tsx`):
  *
- *   ┌──────────── Period ────────────┐
- *   │  ┌──────── Select range ────┐  │  ← full-width
+ *   ┌──────────── Period ───────────┐
+ *   │  ┌──────── Select range ───┐  │  ← full-width
  *   │  │ • • •                   │  │
  *   │  └─────────────────────────┘  │
  *   │  ┌─────────┐  ┌───────────┐   │
@@ -15,7 +15,7 @@
  *   │  │  Week   │  │  Today    │   │
  *   │  ┌─────────┐  ┌───────────┐   │
  *   │  │  Year   │  │  Month    │   │
- *   └────────────────────────────────┘
+ *   └───────────────────────────────┘
  *
  * Each tile shows its icon, label, and a localised subtitle (e.g.
  * "May 10 – May 16" for `week`, "Year 2026" for `year`). Tapping a
@@ -25,19 +25,20 @@
  * the parent screen handles the calendar transition.
  */
 import { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import {
-  Dialog,
   Icon,
+  Portal,
   Text,
   TouchableRipple,
   useTheme,
 } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
-import { AppDialog } from './AppDialog';
 import {
   buildWeekRange,
+  formatDate,
   formatShort,
   type DateRange,
   type PresetKey,
@@ -51,21 +52,16 @@ export interface PeriodPickerDialogProps {
   readonly onSelect: (key: PresetKey) => void;
 }
 
-interface PresetCard {
-  readonly key: PresetKey;
-  readonly icon: string; // Material Community Icons name
-  readonly fullWidth?: boolean;
-}
-
-const CARDS: ReadonlyArray<PresetCard> = [
-  { key: 'range', icon: 'dots-horizontal', fullWidth: true },
-  { key: 'all', icon: 'infinity' },
-  { key: 'day', icon: 'calendar-blank' },
-  { key: 'week', icon: 'calendar-week' },
-  { key: 'today', icon: 'calendar-today' },
-  { key: 'year', icon: 'calendar-multiple' },
-  { key: 'month', icon: 'calendar-month' },
-];
+// Material Community Icons name per preset (Paper's `Icon` uses the MCI set).
+const ICONS: Record<PresetKey, string> = {
+  range: 'dots-horizontal',
+  all: 'infinity',
+  day: 'calendar-blank',
+  week: 'calendar-week',
+  today: 'calendar-today',
+  year: 'calendar-multiple',
+  month: 'calendar-month',
+};
 
 export function PeriodPickerDialog({
   visible,
@@ -76,6 +72,8 @@ export function PeriodPickerDialog({
 }: PeriodPickerDialogProps) {
   const { t: translate, i18n } = useTranslation();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
 
   const subtitles = useMemo<Record<PresetKey, string>>(() => {
     const now = new Date();
@@ -87,85 +85,134 @@ export function PeriodPickerDialog({
       week: `${formatShort(week.from, i18n.language)} – ${formatShort(week.to, i18n.language)}`,
       today: now.toLocaleDateString(i18n.language, { month: 'long', day: 'numeric' }),
       year: translate('dateRange.year', { year: now.getFullYear() }),
-      month: now.toLocaleDateString(i18n.language, { month: 'long', year: 'numeric' }),
+      month: formatDate(now, i18n.language, { month: 'long', year: 'numeric' }),
     };
   }, [currentRange, i18n.language, translate]);
 
-  const renderTile = (card: PresetCard) => {
-    const active = activePreset === card.key;
+  const renderTile = (key: PresetKey) => {
+    const active = activePreset === key;
     const bg = active ? theme.colors.secondaryContainer : theme.colors.surfaceVariant;
     const fg = active ? theme.colors.onSecondaryContainer : theme.colors.onSurfaceVariant;
-    const subtitle = subtitles[card.key];
+    const subtitle = subtitles[key];
     return (
-      <View
-        key={card.key}
-        style={[
-          styles.tileWrap,
-          card.fullWidth ? styles.tileWrapFull : styles.tileWrapHalf,
-        ]}
+      <TouchableRipple
+        key={key}
+        onPress={() => onSelect(key)}
+        borderless
+        style={[styles.tile, { backgroundColor: bg }]}
       >
-        <TouchableRipple
-          onPress={() => onSelect(card.key)}
-          borderless
-          style={[styles.tile, { backgroundColor: bg }]}
-        >
-          <View style={styles.tileInner}>
-            <Icon source={card.icon} size={24} color={fg} />
-            <Text variant="bodyMedium" style={[styles.tileLabel, { color: fg }]}>
-              {translate(`dateRange.presets.${card.key}`)}
+        <View style={styles.tileInner}>
+          <Icon source={ICONS[key]} size={24} color={fg} />
+          <Text variant="titleMedium" style={[styles.tileLabel, { color: fg }]}>
+            {translate(`dateRange.presets.${key}`)}
+          </Text>
+          {subtitle ? (
+            <Text
+              variant="bodySmall"
+              style={[styles.tileSubtitle, { color: theme.colors.onSurfaceVariant }]}
+              numberOfLines={1}
+            >
+              {subtitle}
             </Text>
-            {subtitle ? (
-              <Text
-                variant="bodySmall"
-                style={[styles.tileSubtitle, { color: theme.colors.onSurfaceVariant }]}
-                numberOfLines={1}
-              >
-                {subtitle}
-              </Text>
-            ) : null}
-          </View>
-        </TouchableRipple>
-      </View>
+          ) : null}
+        </View>
+      </TouchableRipple>
     );
   };
 
+  if (!visible) return null;
+
   return (
-    <AppDialog
-      visible={visible}
-      onDismiss={onDismiss}
-      title={translate('dateRange.period')}
-      showCloseButton={false}
-    >
-      <Dialog.Content>
-        <View style={styles.grid}>{CARDS.map(renderTile)}</View>
-      </Dialog.Content>
-    </AppDialog>
+    // Bottom-sheet overlay teleported above the tab bar via <Portal>, mirroring
+    // the Add/Edit Expense sheet: anchored to the screen bottom, stretched to a
+    // 80% floor / 90% cap of the window height, with the preset tiles flex-
+    // sized to fill it. Tapping the backdrop dismisses; the sheet swallows its
+    // own taps.
+    <Portal>
+      <Pressable
+        style={[styles.overlay, { backgroundColor: theme.colors.backdrop }]}
+        onPress={onDismiss}
+        accessibilityRole="button"
+        accessibilityLabel={translate('common.close')}
+      >
+        <Pressable
+          onPress={() => {}}
+          accessible={false}
+          style={[
+            styles.sheet,
+            {
+              backgroundColor: theme.colors.background,
+              maxHeight: windowHeight * 0.9,
+              minHeight: windowHeight * 0.8,
+              paddingBottom: insets.bottom + 16,
+            },
+          ]}
+        >
+          <Text variant="headlineSmall" style={styles.title}>
+            {translate('dateRange.period')}
+          </Text>
+
+          <View style={styles.grid}>
+            {renderTile('range')}
+            <View style={styles.row}>
+              {renderTile('all')}
+              {renderTile('day')}
+            </View>
+            <View style={styles.row}>
+              {renderTile('week')}
+              {renderTile('today')}
+            </View>
+            <View style={styles.row}>
+              {renderTile('year')}
+              {renderTile('month')}
+            </View>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Portal>
   );
 }
 
 const styles = StyleSheet.create({
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -4,
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'flex-end',
+    zIndex: 10,
   },
-  tileWrap: {
-    padding: 4,
-  },
-  tileWrapFull: {
+  sheet: {
     width: '100%',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
-  tileWrapHalf: {
-    width: '50%',
+  title: {
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  grid: {
+    flex: 1,
+    gap: 8,
+  },
+  row: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 8,
   },
   tile: {
+    flex: 1,
     borderRadius: 12,
     overflow: 'hidden',
   },
   tileInner: {
+    flex: 1,
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 8,
+    justifyContent: 'center',
+    padding: 12,
     gap: 4,
   },
   tileLabel: {

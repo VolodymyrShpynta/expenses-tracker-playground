@@ -107,11 +107,128 @@ export function buildRangeForPreset(key: PresetKey): DateRange {
   }
 }
 
+// Calendar-field significance for range elision — smaller = more
+// significant. A range shares (and shows once) every field strictly more
+// significant than the most-significant field where its two endpoints
+// differ.
+const FIELD_RANK = { year: 0, month: 1, day: 2 } as const;
+
+/**
+ * Format a date range as a single compact, locale-aware header label.
+ *
+ * Fields shared by both endpoints are elided the way
+ * `Intl.DateTimeFormat`'s `formatRange` would, so the label fits on
+ * narrow phones instead of being truncated with an ellipsis:
+ *
+ *   - same day      → `1 ЛИП. 2026 Р.`              (one date, no range)
+ *   - same month    → `1 – 31 ЛИП. 2026 Р.`         (month + year once)
+ *   - same year     → `1 СІЧ. – 31 ГРУД. 2026 Р.`   (year once)
+ *   - cross year     → `1 СІЧ. 2000 Р. – 15 ЛИП. 2026 Р.`  (full both sides)
+ *
+ * We deliberately do NOT call the native `Intl.DateTimeFormat.formatRange`:
+ * Hermes doesn't ship it on every React Native platform (it was pulled
+ * from iOS around RN 0.76), so relying on it would silently fall back to
+ * the long form on device while passing in Node tests. Instead we elide
+ * manually from `formatToParts`, which keeps the day/month/year *ordering*
+ * correct for every locale (DMY / MDY / YMD) and stays unit-testable on
+ * Node. If `formatToParts` is unavailable we fall back to the plain
+ * two-sided format.
+ */
+/**
+ * Central date formatter — a thin wrapper over `Intl.toLocaleDateString` so
+ * the app formats dates in one place (easy to tweak later). Uses the
+ * platform's standard localized format as-is; no custom post-processing.
+ */
+export function formatDate(
+  date: Date,
+  locale: string,
+  options: Intl.DateTimeFormatOptions,
+): string {
+  return date.toLocaleDateString(locale, options);
+}
+
 export function formatRange(range: DateRange, locale: string): string {
   const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
-  const from = range.from.toLocaleDateString(locale, opts).toUpperCase();
-  const to = range.to.toLocaleDateString(locale, opts).toUpperCase();
-  return `${from} – ${to}`;
+  const { from, to } = range;
+
+  const sameYear = from.getFullYear() === to.getFullYear();
+  const sameMonth = sameYear && from.getMonth() === to.getMonth();
+  const sameDay = sameMonth && from.getDate() === to.getDate();
+
+  // A single-day window (today / picked day) reads as one date, not a range.
+  if (sameDay) return formatDate(from, locale, opts).toUpperCase();
+
+  // Elision only makes sense within a year — cross-year ranges share no
+  // outer field, so they keep the full form on both sides.
+  if (sameYear) {
+    const elided = elideSameYearRange(from, to, sameMonth, locale, opts);
+    if (elided) return elided.toUpperCase();
+  }
+
+  const fromLabel = formatDate(from, locale, opts);
+  const toLabel = formatDate(to, locale, opts);
+  return `${fromLabel} – ${toLabel}`.toUpperCase();
+}
+
+/**
+ * Build the elided label for a range whose endpoints fall in the same
+ * calendar year. Shared, more-significant fields (year — plus month when
+ * both endpoints share it) are rendered once; the differing span is
+ * rendered for both endpoints. Returns `null` when the platform's `Intl`
+ * can't produce parts so the caller falls back to the plain format.
+ */
+function elideSameYearRange(
+  from: Date,
+  to: Date,
+  sameMonth: boolean,
+  locale: string,
+  opts: Intl.DateTimeFormatOptions,
+): string | null {
+  try {
+    const formatter = new Intl.DateTimeFormat(locale, opts);
+    const fromParts = formatter.formatToParts(from);
+    const toParts = formatter.formatToParts(to);
+
+    // Most-significant field that differs. Years are equal here, so it's
+    // the month when the months differ, otherwise the day. Everything
+    // strictly more significant is shared and shown once.
+    const diffRank = sameMonth ? FIELD_RANK.day : FIELD_RANK.month;
+    const rankOf = (type: Intl.DateTimeFormatPartTypes): number =>
+      type === 'year'
+        ? FIELD_RANK.year
+        : type === 'month'
+          ? FIELD_RANK.month
+          : type === 'day'
+            ? FIELD_RANK.day
+            : -1;
+
+    // Bound the differing span by the first/last significant part at or
+    // below the differing field. Literals inside the span travel with
+    // their side; literals outside it are shared.
+    let firstDiff = -1;
+    let lastDiff = -1;
+    fromParts.forEach((part, index) => {
+      if (rankOf(part.type) >= diffRank) {
+        if (firstDiff === -1) firstDiff = index;
+        lastDiff = index;
+      }
+    });
+    if (firstDiff === -1) return null;
+
+    const join = (parts: Intl.DateTimeFormatPart[], start: number, end: number): string =>
+      parts
+        .slice(start, end)
+        .map((part) => part.value)
+        .join('');
+
+    const prefix = join(fromParts, 0, firstDiff);
+    const suffix = join(fromParts, lastDiff + 1, fromParts.length);
+    const fromSpan = join(fromParts, firstDiff, lastDiff + 1);
+    const toSpan = join(toParts, firstDiff, lastDiff + 1);
+    return `${prefix}${fromSpan} – ${toSpan}${suffix}`;
+  } catch {
+    return null;
+  }
 }
 
 /** Short "day month" label (e.g. "May 1") for preset subtitles. */
@@ -162,9 +279,9 @@ export function formatBucketLabelLong(
   try {
     if (granularity === 'year') return String(date.getFullYear());
     if (granularity === 'month') {
-      return date.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
+      return formatDate(date, locale, { month: 'long', year: 'numeric' });
     }
-    return date.toLocaleDateString(locale, {
+    return formatDate(date, locale, {
       day: 'numeric',
       month: 'short',
       year: 'numeric',

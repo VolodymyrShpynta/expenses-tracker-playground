@@ -17,6 +17,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import {
@@ -37,6 +38,7 @@ import { HeaderTile } from './HeaderTile';
 import { ExpenseSuggestionList } from './ExpenseSuggestionList';
 import { PortalSafeTextInput } from './PortalSafeTextInput';
 import { useCalculator } from '../utils/useCalculator';
+import { formatDate } from '../utils/dateRange';
 import { useCategoryLookup } from '../hooks/useCategoryLookup';
 import {
   useCreateExpense,
@@ -44,7 +46,7 @@ import {
   useUpdateExpense,
 } from '../hooks/useExpenses';
 import { useExpenseSuggestions } from '../hooks/useExpenseSuggestions';
-import { useMainCurrency } from '../context/preferencesProvider';
+import { FONT_SCALES, useFontScale, useMainCurrency } from '../context/preferencesProvider';
 import type { ExpenseProjection } from '../domain/types';
 
 export interface AddExpenseDialogProps {
@@ -134,6 +136,19 @@ function AddExpenseDialogContent({
   const { t: translate, i18n } = useTranslation();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  // No CSS media queries in RN: derive a single screen-size multiplier from
+  // the window height and scale the whole sheet (tile size, amount text,
+  // spacing, keypad) from it. 1.0 on a typical ~760dp-tall phone, growing to
+  // 1.3 on large / tall devices so the form fills big screens instead of
+  // stranding a void above the keypad. Never below 1.0, so small phones stay
+  // compact.
+  const uiScale = Math.min(1.3, Math.max(1, windowHeight / 760));
+  // The keypad's touch targets grow with height too (a touch more
+  // aggressively), clamped to a comfortable 48–72dp range.
+  const keypadCellHeight = Math.round(Math.min(72, Math.max(48, windowHeight * 0.068)));
+  const { fontScale } = useFontScale();
+  const scale = FONT_SCALES[fontScale];
   const lookup = useCategoryLookup();
   const { mainCurrency } = useMainCurrency();
   const createExpense = useCreateExpense();
@@ -194,7 +209,7 @@ function AddExpenseDialogContent({
     const shortLabel = today
       ? translate('common.today')
       : date.toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' });
-    const fullFormatted = date.toLocaleDateString(i18n.language, {
+    const fullFormatted = formatDate(date, i18n.language, {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -321,6 +336,18 @@ function AddExpenseDialogContent({
                 styles.sheet,
                 {
                   backgroundColor: theme.colors.background,
+                  // Cap at 90% of the ACTUAL window height (numeric, not a
+                  // `%` string — a percentage here resolves against the
+                  // auto-height KeyboardAvoidingView parent, not the screen,
+                  // so it collapsed the sheet well below 90%). Leaves a
+                  // backdrop strip above for tap-to-dismiss.
+                  maxHeight: windowHeight * 0.9,
+                  // Stretch to a floor of 80% of the screen so the sheet
+                  // doesn't look lost on big/tall devices; the flexible
+                  // spacer + taller keypad cells fill the extra height. On
+                  // small screens the content is taller than this floor, so
+                  // it has no effect there.
+                  minHeight: windowHeight * 0.8,
                   // Pad the bottom by the system gesture/home-indicator
                   // inset so the OK button isn't crushed under the
                   // navigation handle now that the sheet extends past
@@ -329,35 +356,78 @@ function AddExpenseDialogContent({
                 },
               ]}
             >
+              {/*
+               * No in-sheet close button: the sheet is capped at 90% (see
+               * `sheet.maxHeight`), so a backdrop strip is always exposed
+               * above it to tap for dismissal — freeing this vertical space
+               * for the form on small screens.
+               */}
               <ScrollView
-                contentContainerStyle={styles.scrollContent}
+                contentContainerStyle={[
+                  styles.scrollContent,
+                  {
+                    paddingHorizontal: Math.round(16 * uiScale),
+                    paddingTop: Math.round(8 * uiScale),
+                  },
+                ]}
                 keyboardShouldPersistTaps="handled"
               >
                 {/* ---- Header tiles -------------------------------------- */}
-                <View style={styles.tilesRow}>
+                <View
+                  style={[
+                    styles.tilesRow,
+                    {
+                      gap: Math.round(8 * uiScale),
+                      marginTop: Math.round(12 * uiScale),
+                      marginBottom: Math.round(8 * uiScale),
+                    },
+                  ]}
+                >
                   <HeaderTile
                     label={translate('expenseDialog.date')}
                     value={shortDateLabel}
                     color={dateColor}
+                    sizeScale={uiScale}
                     onPress={() => setDatePickerOpen(true)}
                   />
                   <HeaderTile
                     label={translate('expenseDialog.category')}
                     value={resolved?.name ?? translate('expenseDialog.pickCategory')}
                     color={categoryColor}
+                    sizeScale={uiScale}
                     onPress={() => setPickerOpen(true)}
                   />
                 </View>
 
                 {/* ---- Amount display ------------------------------------ */}
-                <View style={styles.amountBlock}>
+                <View
+                  style={[
+                    styles.amountBlock,
+                    { marginTop: Math.round(20 * uiScale), marginBottom: Math.round(10 * uiScale) },
+                  ]}
+                >
                   <Text variant="bodySmall" style={{ color: opColor, letterSpacing: 0.5 }}>
                     {translate('expenseDialog.expense')}
                   </Text>
-                  <View style={styles.amountRow}>
-                    <Text style={[styles.amountCurrency, { color: opColor }]}>{currency}</Text>
+                  <View
+                    style={[
+                      styles.amountRow,
+                      { gap: Math.round(8 * uiScale), minHeight: Math.round(36 * uiScale) },
+                    ]}
+                  >
                     <Text
-                      style={[styles.amountValue, { color: opColor }]}
+                      style={[
+                        styles.amountCurrency,
+                        { color: opColor, fontSize: Math.round(16 * scale * uiScale) },
+                      ]}
+                    >
+                      {currency}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.amountValue,
+                        { color: opColor, fontSize: Math.round(28 * scale * uiScale) },
+                      ]}
                       numberOfLines={1}
                     >
                       {expression || '0'}
@@ -388,12 +458,25 @@ function AddExpenseDialogContent({
                 {error ? <HelperText type="error">{error}</HelperText> : null}
 
                 {/* ---- Keypad -------------------------------------------- */}
-                <View style={styles.keypadWrapper}>
+                {/* The wrapper flex-grows to claim the vertical space left
+                    under the amount / description; the keypad itself flex-fills
+                    it (its rows and cells are flex-sized), so the buttons reach
+                    full size on the first paint — no measure-then-grow. Using
+                    `flexGrow` with the default auto basis (not `flex: 1`) keeps
+                    it content-sized on short screens so the sheet just scrolls. */}
+                <View
+                  style={[
+                    styles.keypadWrapper,
+                    styles.keypadFill,
+                    { marginTop: Math.round(8 * uiScale) },
+                  ]}
+                >
                   <AmountKeypad
                     currency={currency}
                     hasOperator={hasOperator}
                     canEquals={amount !== null && amount > 0}
                     disabled={submitting}
+                    cellHeight={keypadCellHeight}
                     dispatch={dispatch}
                     onEquals={onEquals}
                     onOpenDate={onOpenDate}
@@ -407,13 +490,18 @@ function AddExpenseDialogContent({
                     // Two-step delete affordance, mirrors the web frontend's
                     // ExpenseDialogFooter: a low-emphasis text button promotes
                     // to a high-emphasis contained button on first tap so a
-                    // second tap is required to actually destroy data.
+                    // second tap is required to actually destroy data. On the
+                    // confirm step the red button owns the whole row (and the
+                    // date steps aside) so the long localized "Confirm
+                    // deletion" label stays on one line instead of squeezing
+                    // the date into an ellipsis.
                     confirmDelete ? (
                       <ThemedButton
                         mode="contained"
                         buttonColor={theme.colors.error}
                         textColor={theme.colors.onError}
                         compact
+                        style={styles.confirmDeleteButton}
                         onPress={() => void handleDelete()}
                         disabled={submitting}
                         loading={submitting}
@@ -434,17 +522,19 @@ function AddExpenseDialogContent({
                       </ThemedButton>
                     )
                   ) : null}
-                  <Text
-                    variant="bodySmall"
-                    numberOfLines={1}
-                    style={[
-                      styles.footerDate,
-                      isEdit ? null : styles.footerDateCentered,
-                      { color: theme.colors.onSurfaceVariant },
-                    ]}
-                  >
-                    {fullDateLabel}
-                  </Text>
+                  {isEdit && confirmDelete ? null : (
+                    <Text
+                      variant="bodySmall"
+                      numberOfLines={1}
+                      style={[
+                        styles.footerDate,
+                        isEdit ? null : styles.footerDateCentered,
+                        { color: theme.colors.onSurfaceVariant },
+                      ]}
+                    >
+                      {fullDateLabel}
+                    </Text>
+                  )}
                 </View>
               </ScrollView>
             </Pressable>
@@ -499,12 +589,15 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     justifyContent: 'flex-end',
-    // Rendered through <Portal> so it fills the entire window — covering
-    // the bottom tab bar — and gives the keypad maximum vertical room.
-    // Background color is set inline from `theme.colors.backdrop` so it
-    // reacts to light/dark mode.
+    // Rendered through <Portal> so the backdrop fills the entire window —
+    // covering the bottom tab bar — while the sheet itself is capped (see
+    // `sheet.maxHeight`) and anchored to the bottom. Background color is set
+    // inline from `theme.colors.backdrop` so it reacts to light/dark mode.
     zIndex: 10,
-    elevation: 10,
+    // No Android `elevation` here: on a full-screen <Portal> backdrop it
+    // renders a stray shadow line at the screen edge. <Portal> already
+    // teleports this above everything (incl. the tab bar), so `zIndex`
+    // alone is enough for stacking.
   },
   kavWrapper: {
     width: '100%',
@@ -513,36 +606,42 @@ const styles = StyleSheet.create({
     width: '100%',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    maxHeight: '100%',
+    // maxHeight is set inline from the window height (see the render) so it
+    // caps at a true 90% of the screen; the body scrolls only if it can't
+    // fit (and to keep an input visible above the keyboard).
   },
   scrollContent: {
-    padding: 16,
-    paddingBottom: 12,
+    // Fill the sheet so the flexible spacer below can push the keypad to the
+    // bottom on tall screens; on short screens the content overflows and
+    // scrolls as before.
+    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 8,
   },
   tilesRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 12,
+    marginTop: 12,
+    marginBottom: 8,
   },
   amountBlock: {
     alignItems: 'center',
-    marginTop: 4,
-    marginBottom: 4,
+    marginTop: 0,
+    marginBottom: 0,
   },
   amountRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: 8,
-    marginTop: 2,
-    minHeight: 40,
+    marginTop: 0,
+    minHeight: 36,
   },
   amountCurrency: {
-    fontSize: 16,
     fontWeight: '500',
     opacity: 0.9,
   },
   amountValue: {
-    fontSize: 28,
     fontWeight: '400',
   },
   descriptionInput: {
@@ -550,20 +649,34 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   keypadWrapper: {
-    marginTop: 8,
+    marginTop: 4,
+  },
+  keypadFill: {
+    // Grow to fill the space left under the amount / description; the keypad
+    // itself flex-fills this wrapper (its rows/cells are flex-sized), so the
+    // buttons reach full size on the first paint. `flexGrow` with the default
+    // `auto` basis means that on short screens where the content overflows it
+    // just stays content-sized and the ScrollView scrolls (unlike `flex: 1`,
+    // whose 0 basis would collapse it).
+    flexGrow: 1,
   },
   footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 12,
+    marginTop: 4,
     paddingHorizontal: 4,
-    minHeight: 36,
+    minHeight: 28,
   },
   footerDate: {
-    // Right-aligned next to the (left-anchored) delete button in edit
-    // mode; centered standalone in create mode (see footerDateCentered).
-    flexShrink: 1,
+    // Fills the row's remaining space and right-aligns the date next to the
+    // (left-anchored) delete button in edit mode; centered standalone in
+    // create mode (see footerDateCentered). Use `flex: 1` (a definite
+    // remaining width), NOT `flexShrink: 1`: a flexShrink box sizes to its
+    // content first and Yoga then truncated it inconsistently — a SHORTER
+    // date ("15 лип. 2026 р.") could ellipsize while a LONGER one
+    // ("Сьогодні, 16 лип. 2026 р.") fit. A flex-basis of 0 skips that step.
+    flex: 1,
     textAlign: 'right',
     marginLeft: 8,
   },
@@ -571,5 +684,10 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     marginLeft: 0,
+  },
+  confirmDeleteButton: {
+    // On the confirm step the delete button owns the whole footer row so the
+    // long localized "Confirm deletion" label stays on one line.
+    flex: 1,
   },
 });

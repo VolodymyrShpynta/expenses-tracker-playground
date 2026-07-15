@@ -14,15 +14,10 @@ import { Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FONT_SCALES, useFontScale } from '../../src/context/preferencesProvider';
+import { tabBarBodyHeight, tabBarLabelFontSize } from '../../src/theme/tabBar';
 
-// React Navigation's default bottom-tab height (UIKit variant) is
-// sized for the library's default 10 px label. Our label is 12 × scale,
-// so even at scale = 1.0 it overflows the 49 px content area and
-// collides with the system nav bar. We add 2 px of bar height for every
-// extra px of label size (≈ label line-height), then add `insets.bottom`
-// so the content sits clear of the gesture / 3-button nav strip.
-const DEFAULT_TAB_BAR_HEIGHT = 49;
-const DEFAULT_LABEL_FONT_SIZE = 10;
+// Tab-bar height + label size (which scale with the font preference and must
+// stay in sync with what `AppDialog` reserves) live in `src/theme/tabBar.ts`.
 
 export default function TabsLayout() {
   const { t: translate } = useTranslation();
@@ -31,9 +26,8 @@ export default function TabsLayout() {
   const { fontScale } = useFontScale();
   const scale = FONT_SCALES[fontScale];
   const insets = useSafeAreaInsets();
-  const labelFontSize = Math.round(12 * scale);
-  const labelOverhead = Math.max(0, labelFontSize - DEFAULT_LABEL_FONT_SIZE);
-  const tabBarHeight = DEFAULT_TAB_BAR_HEIGHT + labelOverhead * 2 + insets.bottom;
+  const labelFontSize = tabBarLabelFontSize(fontScale);
+  const tabBarHeight = tabBarBodyHeight(fontScale) + insets.bottom;
 
   const MenuButton = () => (
     <Pressable

@@ -30,9 +30,9 @@ import {
   useCategoryLookup,
   type CategoryLookup,
 } from '../../src/hooks/useCategoryLookup';
-import { useDateRange, useMainCurrency } from '../../src/context/preferencesProvider';
-import { formatAmountWithCurrency, formatConvertedAmount } from '../../src/utils/format';
-import { presetToGroupBy, type GroupBy } from '../../src/utils/dateRange';
+import { useDateRange, useMainCurrency, FONT_SCALES, useFontScale } from '../../src/context/preferencesProvider';
+import { formatAmountCompactIfLarge, formatTotalCompactWithCurrency } from '../../src/utils/format';
+import { formatDate, presetToGroupBy, type GroupBy } from '../../src/utils/dateRange';
 import { groupExpenses } from '../../src/utils/groupExpenses';
 import { useExchangeRates } from '../../src/hooks/useExchangeRates';
 import type { ConvertedAmount } from '../../src/domain/exchangeRates';
@@ -118,18 +118,30 @@ const ExpenseRow = memo(function ExpenseRow({
             {dateLabel ? `${resolved.name} · ${dateLabel}` : resolved.name}
           </Text>
         </View>
-        <View style={{ minWidth: 90, alignItems: 'flex-end' }}>
-          <Text variant="bodyMedium">
+        {/* Amount column: fixed to its natural single-line width and never
+            shrinks (the description column yields instead). Both lines
+            stretch to the column width and right-align their text, so the
+            shorter secondary amount ("USD 100,00") uses the full column
+            width and can't ellipsize just because it's narrower than the
+            main line above it. numberOfLines={1} also stops a
+            space-separated amount from breaking after the currency code. */}
+        <View style={{ minWidth: 90, flexShrink: 0 }}>
+          <Text
+            variant="bodyMedium"
+            numberOfLines={1}
+            style={{ textAlign: 'right' }}
+          >
             {converted
-              ? formatConvertedAmount(converted, mainCurrency, language)
-              : formatAmountWithCurrency(expense.amount, expense.currency, language)}
+              ? formatAmountCompactIfLarge(converted.amount, mainCurrency, language, converted.approx)
+              : formatAmountCompactIfLarge(expense.amount, expense.currency, language)}
           </Text>
           {converted ? (
             <Text
               variant="bodySmall"
-              style={{ color: secondaryColor, marginTop: 2 }}
+              numberOfLines={1}
+              style={{ color: secondaryColor, marginTop: 2, textAlign: 'right' }}
             >
-              {formatAmountWithCurrency(expense.amount, expense.currency, language)}
+              {formatAmountCompactIfLarge(expense.amount, expense.currency, language)}
             </Text>
           ) : null}
         </View>
@@ -182,6 +194,10 @@ const SectionHeaderView = memo(function SectionHeaderView({
   onToggle,
 }: SectionHeaderViewProps) {
   const date = new Date(dateMs);
+  // Honor Settings → Font size so the big day number stays proportional to
+  // the (theme-variant, already-scaling) weekday / month labels beside it.
+  const { fontScale } = useFontScale();
+  const scale = FONT_SCALES[fontScale];
   return (
     <TouchableRipple
       onPress={() => onToggle(sectionKey)}
@@ -208,20 +224,21 @@ const SectionHeaderView = memo(function SectionHeaderView({
          * right. Coarser groupings keep the single-line label.
          */}
         {groupBy === 'day' ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flexShrink: 1, minWidth: 0 }}>
             <Text
               style={{
-                fontSize: 30,
+                fontSize: Math.round(30 * scale),
                 fontWeight: '500',
-                lineHeight: 32,
+                lineHeight: Math.round(32 * scale),
                 color: onSurface,
               }}
             >
               {date.getDate().toString().padStart(2, '0')}
             </Text>
-            <View>
+            <View style={{ flexShrink: 1, minWidth: 0 }}>
               <Text
                 variant="labelMedium"
+                numberOfLines={1}
                 style={{ color: onSurface, fontWeight: '700', lineHeight: 16 }}
               >
                 {date
@@ -230,32 +247,35 @@ const SectionHeaderView = memo(function SectionHeaderView({
               </Text>
               <Text
                 variant="labelSmall"
+                numberOfLines={1}
                 style={{
                   color: onSurfaceVariant,
                   fontWeight: '600',
                   lineHeight: 16,
                 }}
               >
-                {date
-                  .toLocaleDateString(language, { month: 'long', year: 'numeric' })
-                  .toUpperCase()}
+                {formatDate(date, language, {
+                  month: 'long',
+                  year: 'numeric',
+                }).toUpperCase()}
               </Text>
             </View>
           </View>
         ) : (
           <Text
             variant="titleMedium"
-            style={{ color: onSurface, fontWeight: '700' }}
+            numberOfLines={1}
+            style={{ color: onSurface, fontWeight: '700', flexShrink: 1, minWidth: 0 }}
           >
             {label}
           </Text>
         )}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 8 }}>
           <Text
             variant="titleMedium"
             style={{ color: onSurface, fontWeight: '700' }}
           >
-            {formatAmountWithCurrency(total, mainCurrency, language, approx)}
+            {formatTotalCompactWithCurrency(total, mainCurrency, language, approx)}
           </Text>
           <MaterialIcons
             name={collapsed ? 'chevron-right' : 'expand-more'}

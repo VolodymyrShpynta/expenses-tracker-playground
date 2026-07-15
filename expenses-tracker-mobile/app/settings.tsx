@@ -9,6 +9,7 @@
  */
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Dialog,
   Divider,
@@ -63,6 +64,7 @@ export default function SettingsScreen() {
   const { mainCurrency, setMainCurrency } = useMainCurrency();
   const { themeMode, setThemeMode } = useThemeMode();
   const { fontScale, setFontScale } = useFontScale();
+  const insets = useSafeAreaInsets();
 
   const [languageOpen, setLanguageOpen] = useState(false);
   const [currencyOpen, setCurrencyOpen] = useState(false);
@@ -81,7 +83,7 @@ export default function SettingsScreen() {
   return (
     <>
       <Stack.Screen options={{ title: translate('nav.settings') }} />
-      <ScrollView>
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}>
         <List.Section>
           <AppListItem
             title={translate('settings.language')}
@@ -431,7 +433,7 @@ function ManageCategoriesDialog({
               ) : null}
             </ScrollView>
           </Dialog.ScrollArea>
-          <Dialog.Actions style={{ justifyContent: 'space-between' }}>
+          <Dialog.Actions style={{ justifyContent: 'space-between', flexWrap: 'wrap', rowGap: 4 }}>
             <Button
               onPress={() => setResetConfirmOpen(true)}
               textColor={theme.colors.error}
@@ -475,7 +477,7 @@ function ManageCategoriesDialog({
         <Dialog.Content>
           <Text>{translate('categoryDialog.resetConfirm')}</Text>
         </Dialog.Content>
-        <Dialog.Actions>
+        <Dialog.Actions style={{ flexWrap: 'wrap', rowGap: 4 }}>
           <Button onPress={() => setResetConfirmOpen(false)}>{translate('common.cancel')}</Button>
           <Button
             mode="contained"
@@ -514,7 +516,7 @@ function ManageCategoriesDialog({
           </Text>
           <Text variant="bodySmall">{translate('categoryDialog.deleteNote')}</Text>
         </Dialog.Content>
-        <Dialog.Actions>
+        <Dialog.Actions style={{ flexWrap: 'wrap', rowGap: 4 }}>
           <Button onPress={() => setPendingDelete(null)}>{translate('common.cancel')}</Button>
           <Button
             mode="contained"
@@ -549,7 +551,7 @@ function ManageCategoriesDialog({
               : ''}
           </Text>
         </Dialog.Content>
-        <Dialog.Actions>
+        <Dialog.Actions style={{ flexWrap: 'wrap', rowGap: 4 }}>
           <Button onPress={() => setRestoreConflict(null)}>{translate('common.cancel')}</Button>
           <Button
             mode="contained"
@@ -649,7 +651,7 @@ function MergeCategoryDialog({
               }).replace(/<\/?\d+>/g, '')}
             </Text>
           </Dialog.Content>
-          <Dialog.Actions>
+          <Dialog.Actions style={{ flexWrap: 'wrap', rowGap: 4 }}>
             <Button onPress={() => setPendingTarget(null)}>{translate('common.cancel')}</Button>
             <Button mode="contained" onPress={() => onConfirm(pendingTarget.id)}>
               {translate('categoryDialog.mergeButton')}

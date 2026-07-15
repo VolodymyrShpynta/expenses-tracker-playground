@@ -28,7 +28,7 @@ import type { MaterialIconName } from '../utils/categoryConfig';
 import type { ChartSeries } from '../domain/timeSeries';
 import { OTHER_SERIES_ID } from '../domain/timeSeries';
 import type { ConvertedAmount } from '../domain/exchangeRates';
-import { formatConvertedAmountCompact } from '../utils/format';
+import { formatTotalCompactWithCurrency } from '../utils/format';
 import { useAppColors } from '../theme/appColors';
 
 export interface BreakdownSeriesResolution {
@@ -70,10 +70,11 @@ export const CategoryBreakdownList = memo(function CategoryBreakdownList({
         const resolved = resolveSeries(s.categoryId);
         const amount: ConvertedAmount = { amount: s.total, approx: s.approx };
         const pct = totalSum > 0 ? Math.round((s.total / totalSum) * 100) : 0;
-        const accessibilityLabel = `${resolved.name} ${pct}% ${formatConvertedAmountCompact(
-          amount,
+        const accessibilityLabel = `${resolved.name} ${pct}% ${formatTotalCompactWithCurrency(
+          amount.amount,
           mainCurrency,
           language,
+          amount.approx,
         )}`;
         // The `__other` rollup represents many categories — there's no
         // single category to drill into, so keep it non-interactive even
@@ -101,7 +102,7 @@ export const CategoryBreakdownList = memo(function CategoryBreakdownList({
               >
                 <Text
                   variant="bodyLarge"
-                  style={{ fontWeight: '500', color: theme.colors.onSurface }}
+                  style={{ fontWeight: '500', color: theme.colors.onSurface, flex: 1, marginRight: 8 }}
                   numberOfLines={1}
                 >
                   {resolved.name}
@@ -141,7 +142,7 @@ export const CategoryBreakdownList = memo(function CategoryBreakdownList({
                 textAlign: 'right',
               }}
             >
-              {formatConvertedAmountCompact(amount, mainCurrency, language)}
+              {formatTotalCompactWithCurrency(amount.amount, mainCurrency, language, amount.approx)}
             </Text>
           </View>
         );

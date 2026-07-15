@@ -14,10 +14,12 @@ import {
   APPROX_PREFIX,
   formatAmount,
   formatAmountCompact,
+  formatAmountCompactIfLarge,
   formatAmountCompactWithCurrency,
   formatAmountWithCurrency,
   formatConvertedAmount,
   formatConvertedAmountCompact,
+  formatTotalCompactWithCurrency,
   parseAmount,
 } from './format';
 
@@ -111,6 +113,44 @@ describe('formatConvertedAmountCompact', () => {
     expect(
       formatConvertedAmountCompact({ amount: 1234, approx: true }, 'USD', LOCALE),
     ).toBe(`${APPROX_PREFIX}USD 12`);
+  });
+});
+
+describe('formatTotalCompactWithCurrency', () => {
+  it('rounds cents (no suffix) for totals below the threshold', () => {
+    // 12,345.67 units → rounded whole number, no cents, no suffix
+    expect(formatTotalCompactWithCurrency(1_234_567, 'USD', LOCALE)).toBe('USD 12,346');
+  });
+
+  it('scales large totals to millions with up to 3 decimals', () => {
+    // 10,123,345 units → 10.123M
+    expect(formatTotalCompactWithCurrency(1_012_334_500, 'UAH', LOCALE)).toBe('UAH 10.123M');
+    // 123,345,000 units → 123.345M
+    expect(formatTotalCompactWithCurrency(12_334_500_000, 'UAH', LOCALE)).toBe('UAH 123.345M');
+  });
+
+  it('steps up to B for billions', () => {
+    // 10,123,345,000 units → 10.123B
+    expect(formatTotalCompactWithCurrency(1_012_334_500_000, 'UAH', LOCALE)).toBe('UAH 10.123B');
+  });
+
+  it('keeps the approx prefix on a compacted total', () => {
+    // 5,000,000 units → 5M
+    expect(formatTotalCompactWithCurrency(500_000_000, 'USD', LOCALE, true)).toBe(
+      `${APPROX_PREFIX}USD 5M`,
+    );
+  });
+});
+
+describe('formatAmountCompactIfLarge', () => {
+  it('keeps cents for amounts below the threshold', () => {
+    // 11,990.66 units → exact, with cents
+    expect(formatAmountCompactIfLarge(1_199_066, 'USD', LOCALE)).toBe('USD 11,990.66');
+  });
+
+  it('scales large amounts (M/B) like the total formatter', () => {
+    // 10,000,000 units → 10M
+    expect(formatAmountCompactIfLarge(1_000_000_000, 'UAH', LOCALE)).toBe('UAH 10M');
   });
 });
 

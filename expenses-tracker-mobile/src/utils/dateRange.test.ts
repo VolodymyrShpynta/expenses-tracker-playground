@@ -22,6 +22,8 @@ import {
   buildWeekRange,
   buildYearRange,
   endOfDay,
+  formatDate,
+  formatRange,
   presetToGroupBy,
   shiftRange,
   startOfDay,
@@ -295,5 +297,108 @@ describe('shiftRange', () => {
     expect(prev.to).toEqual(new Date(2023, 11, 31, 23, 59, 59, 999));
     expect(next.from).toEqual(new Date(2025, 0, 1));
     expect(next.to).toEqual(new Date(2025, 11, 31, 23, 59, 59, 999));
+  });
+});
+
+describe('formatRange', () => {
+  // Count non-overlapping occurrences of `needle` in `haystack`.
+  function occurrences(haystack: string, needle: string): number {
+    return haystack.split(needle).length - 1;
+  }
+
+  it('should collapse a single-day range to one date (no range dash)', () => {
+    // Given: today's window (start → end of the same day)
+    const range: DateRange = {
+      from: new Date(2026, 6, 15, 0, 0, 0, 0),
+      to: new Date(2026, 6, 15, 23, 59, 59, 999),
+    };
+
+    // When
+    const label = formatRange(range, 'en-US');
+
+    // Then: exactly the single date, uppercased, with no range separator
+    expect(label).toBe('JUL 15, 2026');
+    expect(label).not.toContain('–');
+  });
+
+  it('should show the month and year once for a same-month range (en-US)', () => {
+    // Given: the whole of July 2026
+    const range: DateRange = {
+      from: new Date(2026, 6, 1),
+      to: new Date(2026, 6, 31),
+    };
+
+    // When
+    const label = formatRange(range, 'en-US');
+
+    // Then: "JUL 1 – 31, 2026" — month + year elided to a single side
+    expect(label).toBe('JUL 1 – 31, 2026');
+  });
+
+  it('should keep the locale field order when eliding (uk = day month year)', () => {
+    // Given: the whole of July 2026
+    const range: DateRange = {
+      from: new Date(2026, 6, 1),
+      to: new Date(2026, 6, 31),
+    };
+
+    // When
+    const label = formatRange(range, 'uk');
+
+    // Then: both day numbers survive, the month appears once, and the
+    // trailing year is shared (a single range dash).
+    const month = new Date(2026, 6, 1).toLocaleDateString('uk', { month: 'short' }).toUpperCase();
+    expect(label).toContain('1');
+    expect(label).toContain('31');
+    expect(occurrences(label, '–')).toBe(1);
+    expect(occurrences(label, month.replace(/\.$/, ''))).toBe(1);
+  });
+
+  it('should show the year once for a same-year, cross-month range (en-US)', () => {
+    // Given: the whole of 2026
+    const range: DateRange = {
+      from: new Date(2026, 0, 1),
+      to: new Date(2026, 11, 31),
+    };
+
+    // When
+    const label = formatRange(range, 'en-US');
+
+    // Then: both months shown, year elided to a single side
+    expect(label).toBe('JAN 1 – DEC 31, 2026');
+  });
+
+  it('should keep the full form on both sides for a cross-year range', () => {
+    // Given: an all-time-ish span across different years
+    const range: DateRange = {
+      from: new Date(2000, 0, 1),
+      to: new Date(2026, 6, 15),
+    };
+
+    // When
+    const label = formatRange(range, 'en-US');
+
+    // Then: no elision — each endpoint carries its own year
+    expect(label).toBe('JAN 1, 2000 – JUL 15, 2026');
+  });
+});
+
+describe('formatDate', () => {
+  it('formats via the standard locale format (no custom trimming)', () => {
+    expect(
+      formatDate(new Date(2026, 6, 15), 'en-US', { month: 'long', year: 'numeric' }),
+    ).toBe('July 2026');
+  });
+
+  it("keeps the locale's own year decoration (e.g. uk \"р.\")", () => {
+    // We deliberately no longer strip the year suffix — the standard
+    // localized string is used as-is.
+    const out = formatDate(new Date(2026, 6, 15), 'uk', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+    expect(out).toContain('2026');
+    expect(out).toContain('р.');
   });
 });

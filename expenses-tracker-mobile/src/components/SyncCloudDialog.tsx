@@ -14,7 +14,7 @@
  * snapshots of `useSync()`.
  */
 import { useState } from 'react';
-import { View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Dialog, Divider, IconButton, List, Switch, Text, useTheme } from 'react-native-paper';
 
@@ -89,7 +89,10 @@ export function SyncCloudDialog({ visible, onDismiss, onShowStatus }: SyncCloudD
         onDismiss={onDismiss}
         title={translate('syncDialog.title')}
       >
-        <Dialog.Content>
+        {/* Scrollable body so the rows, buttons, and status footer never
+            clip against the dialog's max height at large font sizes. */}
+        <Dialog.ScrollArea style={{ borderTopWidth: 0, borderBottomWidth: 0 }}>
+          <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 12 }}>
           <AppListItem
             title={translate('syncDialog.provider')}
             description={translate(`syncDialog.providers.${provider}`)}
@@ -99,7 +102,6 @@ export function SyncCloudDialog({ visible, onDismiss, onShowStatus }: SyncCloudD
 
           <AppListItem
             title={translate('syncDialog.autoSync')}
-            description={translate('syncDialog.autoSyncDescription')}
             left={(props) => <List.Icon {...props} icon="autorenew" />}
             right={() => (
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -119,7 +121,7 @@ export function SyncCloudDialog({ visible, onDismiss, onShowStatus }: SyncCloudD
             onPress={() => void setAutoSyncEnabled(!autoSyncEnabled)}
           />
 
-          <Divider style={{ marginVertical: 12 }} />
+          <Divider style={{ marginVertical: 8 }} />
 
           {provider === 'none' ? (
             <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
@@ -168,7 +170,7 @@ export function SyncCloudDialog({ visible, onDismiss, onShowStatus }: SyncCloudD
             </View>
           )}
 
-          <Divider style={{ marginVertical: 12 }} />
+          <Divider style={{ marginVertical: 8 }} />
 
           <SyncStatusFooter
             lastSyncedAt={lastSyncedAt}
@@ -184,7 +186,8 @@ export function SyncCloudDialog({ visible, onDismiss, onShowStatus }: SyncCloudD
                 : null
             }
           />
-        </Dialog.Content>
+          </ScrollView>
+        </Dialog.ScrollArea>
       </AppDialog>
 
       <SyncProviderPickerDialog
@@ -203,11 +206,13 @@ export function SyncCloudDialog({ visible, onDismiss, onShowStatus }: SyncCloudD
         onDismiss={() => setAutoSyncInfoOpen(false)}
         title={translate('syncDialog.autoSync')}
       >
-        <Dialog.Content>
-          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-            {translate('syncDialog.autoSyncDescriptionFull')}
-          </Text>
-        </Dialog.Content>
+        <Dialog.ScrollArea style={{ borderTopWidth: 0, borderBottomWidth: 0 }}>
+          <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 12 }}>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+              {translate('syncDialog.autoSyncDescriptionFull')}
+            </Text>
+          </ScrollView>
+        </Dialog.ScrollArea>
       </AppDialog>
     </>
   );

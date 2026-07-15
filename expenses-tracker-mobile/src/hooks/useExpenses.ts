@@ -4,11 +4,11 @@
  * Components must consume these hooks rather than calling the domain
  * services directly — same separation the web frontend enforces.
  */
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
 import { EXPENSES_QUERY_KEY } from '../queryClient';
 import { useAppServices } from '../context/appServicesProvider';
-import { notifyLocalWrite } from '../sync/autoSyncSignal';
+import { useWriteSideEffects } from './useWriteSideEffects';
 import type {
   CreateExpenseCommand,
   UpdateExpenseCommand,
@@ -36,38 +36,28 @@ export function useExpenses(options: UseExpensesOptions = {}) {
 
 export function useCreateExpense() {
   const { expenseCommands } = useAppServices();
-  const queryClient = useQueryClient();
+  const onSuccess = useWriteSideEffects([EXPENSES_QUERY_KEY]);
   return useMutation({
     mutationFn: (cmd: CreateExpenseCommand) => expenseCommands.createExpense(cmd),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: EXPENSES_QUERY_KEY });
-      // Schedule a debounced cloud sync — see AutoSyncCoordinator.
-      notifyLocalWrite();
-    },
+    onSuccess,
   });
 }
 
 export function useUpdateExpense() {
   const { expenseCommands } = useAppServices();
-  const queryClient = useQueryClient();
+  const onSuccess = useWriteSideEffects([EXPENSES_QUERY_KEY]);
   return useMutation({
     mutationFn: ({ id, cmd }: { id: string; cmd: UpdateExpenseCommand }) =>
       expenseCommands.updateExpense(id, cmd),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: EXPENSES_QUERY_KEY });
-      notifyLocalWrite();
-    },
+    onSuccess,
   });
 }
 
 export function useDeleteExpense() {
   const { expenseCommands } = useAppServices();
-  const queryClient = useQueryClient();
+  const onSuccess = useWriteSideEffects([EXPENSES_QUERY_KEY]);
   return useMutation({
     mutationFn: (id: string) => expenseCommands.deleteExpense(id),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: EXPENSES_QUERY_KEY });
-      notifyLocalWrite();
-    },
+    onSuccess,
   });
 }

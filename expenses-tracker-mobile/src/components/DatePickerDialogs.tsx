@@ -16,7 +16,7 @@
  * to the rest of the app's dialogs.
  */
 import { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { LogBox, ScrollView, StyleSheet, View } from 'react-native';
 import {
   Dialog,
   Text,
@@ -25,17 +25,77 @@ import {
   useTheme,
 } from 'react-native-paper';
 import type { MD3Theme } from 'react-native-paper';
-import { Calendar, registerTranslation, en } from 'react-native-paper-dates';
+import {
+  Calendar,
+  registerTranslation,
+  cs,
+  de,
+  en,
+  es,
+  fr,
+  hi,
+  id,
+  it,
+  ja,
+  ko,
+  pl,
+  pt,
+  tr,
+  ukUA,
+  zh,
+} from 'react-native-paper-dates';
 import { useTranslation } from 'react-i18next';
 
 import { AppDialog } from './AppDialog';
 import { ThemedButton } from './ThemedButton';
+import { FONT_SCALES, useFontScale } from '../context/preferencesProvider';
+import { formatDate } from '../utils/dateRange';
 
-// `react-native-paper-dates` refuses to render until at least one locale
-// is registered. We only ship English here; `uk` / `cs` fall back to `en`
-// via `mapLocale` (Calendar layout is locale-agnostic — only month and
-// weekday labels are affected). Done at module scope so it's paid once.
-registerTranslation('en', en);
+// `react-native-paper-dates`' `Calendar` ALWAYS mounts its year picker — a
+// `FlatList` — even while it's an invisible (opacity 0, pointer-events none)
+// overlay you only see after tapping the month/year header. We deliberately
+// host the `Calendar` inside a `ScrollView` (see the `Dialog.ScrollArea`
+// below) so the date-picker's Cancel / Apply footer stays pinned and clear
+// of the bottom tab bar on short screens. RN flags that FlatList-in-ScrollView
+// as nested VirtualizedLists, but the year list is a tiny (~30-item) overlay,
+// so the windowing/perf problems the warning guards against don't apply here.
+// We can't restructure a third-party component, so silence just this one
+// dev-only log. (No-op in production, where LogBox is inactive.) Remove this
+// if the calendar ever stops living inside a ScrollView.
+LogBox.ignoreLogs([
+  'VirtualizedLists should never be nested inside plain ScrollViews',
+]);
+
+// The calendar's visible month name and weekday letters come from `Intl`
+// (`Intl.DateTimeFormat(locale, ...)` inside the library's `Month` /
+// `DayNames`), driven by the `locale` prop we pass to every `Calendar` below
+// — so passing the active app language localizes them. Separately, the
+// library looks up a *registered* translation for its non-visible UI strings
+// (the prev/next arrows' accessibility labels); an unregistered locale there
+// only logs a dev warning and falls back to English. We register the
+// library's bundled translation for every language the app ships so those
+// a11y labels are localized and the warning never fires. Done once at module
+// scope. (`uk` uses the library's `ukUA` bundle; every other code maps 1:1.)
+const CALENDAR_TRANSLATIONS = {
+  en,
+  uk: ukUA,
+  cs,
+  es,
+  de,
+  fr,
+  pt,
+  it,
+  pl,
+  hi,
+  id,
+  tr,
+  ja,
+  ko,
+  zh,
+};
+for (const [code, translation] of Object.entries(CALENDAR_TRANSLATIONS)) {
+  registerTranslation(code, translation);
+}
 
 /**
  * Year range exposed by the calendar's tappable year header. The library
@@ -76,7 +136,6 @@ export function SingleDatePickerDialog({
   onConfirm,
 }: SingleDatePickerDialogProps) {
   const { t: translate, i18n } = useTranslation();
-  const locale = useMemo(() => mapLocale(i18n.language), [i18n.language]);
   const calendarTheme = useCalendarTheme();
 
   const [pending, setPending] = useState<Date>(value);
@@ -101,22 +160,25 @@ export function SingleDatePickerDialog({
       onDismiss={onDismiss}
       title={translate('dateRange.pickDay')}
       showCloseButton={false}
+      reserveBottomNav
     >
-      <Dialog.Content>
-        <View style={styles.calendarWrap}>
-          <ThemeProvider theme={calendarTheme}>
-            <Calendar
-              locale={locale}
-              mode="single"
-              date={pending}
-              onChange={handleCalendarChange}
-              startYear={START_YEAR}
-              endYear={END_YEAR}
-            />
-          </ThemeProvider>
-        </View>
-      </Dialog.Content>
-      <Dialog.Actions>
+      <Dialog.ScrollArea style={styles.scrollArea}>
+        <ScrollView>
+          <View style={styles.calendarWrap}>
+            <ThemeProvider theme={calendarTheme}>
+              <Calendar
+                locale={i18n.language}
+                mode="single"
+                date={pending}
+                onChange={handleCalendarChange}
+                startYear={START_YEAR}
+                endYear={END_YEAR}
+              />
+            </ThemeProvider>
+          </View>
+        </ScrollView>
+      </Dialog.ScrollArea>
+      <Dialog.Actions style={styles.actions}>
         <ThemedButton mode="text" onPress={onDismiss}>
           {translate('common.cancel')}
         </ThemedButton>
@@ -171,7 +233,6 @@ export function RangeDatePickerDialog({
   onConfirm,
 }: RangeDatePickerDialogProps) {
   const { t: translate, i18n } = useTranslation();
-  const locale = useMemo(() => mapLocale(i18n.language), [i18n.language]);
   const calendarTheme = useCalendarTheme();
 
   const [step, setStep] = useState<'from' | 'to'>('from');
@@ -238,8 +299,9 @@ export function RangeDatePickerDialog({
           : translate('dateRange.selectEnd')
       }
       showCloseButton={false}
+      reserveBottomNav
     >
-      <Dialog.Content>
+      <Dialog.Content style={styles.chipContent}>
         <View style={styles.chipRow}>
           <RangeChip
             label={formatChipDate(pendingFrom, i18n.language)}
@@ -255,30 +317,34 @@ export function RangeDatePickerDialog({
             onPress={() => setStep('to')}
           />
         </View>
-        <View style={styles.calendarWrap}>
-          <ThemeProvider theme={calendarTheme}>
-            <Calendar
-              // `react-native-paper-dates` derives the swiper's initial
-              // month from the `date` prop *only on mount* (see
-              // `getInitialIndex` in the library's `Calendar.tsx`). Keying
-              // by `step` remounts the calendar when the user advances
-              // from "from" → "to" (or flips back via the chips) so it
-              // scrolls to the newly bound date instead of getting stuck
-              // on the previous step's month. Within a step, manual
-              // month-swipes still stick.
-              key={step}
-              locale={locale}
-              mode="single"
-              date={step === 'from' ? pendingFrom : pendingTo}
-              onChange={handleCalendarChange}
-              startYear={START_YEAR}
-              endYear={END_YEAR}
-              {...validRangeProp}
-            />
-          </ThemeProvider>
-        </View>
       </Dialog.Content>
-      <Dialog.Actions>
+      <Dialog.ScrollArea style={styles.scrollArea}>
+        <ScrollView>
+          <View style={styles.calendarWrap}>
+            <ThemeProvider theme={calendarTheme}>
+              <Calendar
+                // `react-native-paper-dates` derives the swiper's initial
+                // month from the `date` prop *only on mount* (see
+                // `getInitialIndex` in the library's `Calendar.tsx`). Keying
+                // by `step` remounts the calendar when the user advances
+                // from "from" → "to" (or flips back via the chips) so it
+                // scrolls to the newly bound date instead of getting stuck
+                // on the previous step's month. Within a step, manual
+                // month-swipes still stick.
+                key={step}
+                locale={i18n.language}
+                mode="single"
+                date={step === 'from' ? pendingFrom : pendingTo}
+                onChange={handleCalendarChange}
+                startYear={START_YEAR}
+                endYear={END_YEAR}
+                {...validRangeProp}
+              />
+            </ThemeProvider>
+          </View>
+        </ScrollView>
+      </Dialog.ScrollArea>
+      <Dialog.Actions style={styles.actions}>
         <ThemedButton mode="text" onPress={onDismiss}>
           {translate('common.cancel')}
         </ThemedButton>
@@ -299,6 +365,14 @@ interface RangeChipProps {
 /** Tappable date chip used by the range picker header. */
 function RangeChip({ label, active, onPress }: RangeChipProps) {
   const theme = useTheme();
+  const { fontScale } = useFontScale();
+  const scale = FONT_SCALES[fontScale];
+  // Emphasize the active endpoint with a larger, bold label so it's clear
+  // which date the calendar is editing; the inactive one stays at body size.
+  // Override the body variant's size explicitly, scaled by the in-app font
+  // picker like the app's other fixed-size chrome.
+  const fontSize = Math.round((active ? 18 : 14) * scale);
+  const lineHeight = Math.round((active ? 24 : 20) * scale);
   return (
     <TouchableRipple
       onPress={onPress}
@@ -312,9 +386,16 @@ function RangeChip({ label, active, onPress }: RangeChipProps) {
     >
       <Text
         variant="bodyMedium"
+        // Long localized dates (e.g. UK "21 трав. 2025 р.") can make the two
+        // chips + dash wider than the dialog; keep each on one line and let it
+        // shrink to fit rather than clipping the active chip at the edge.
+        numberOfLines={1}
+        adjustsFontSizeToFit
         style={{
           color: active ? theme.colors.onSecondaryContainer : theme.colors.onSurface,
           fontWeight: active ? '700' : '400',
+          fontSize,
+          lineHeight,
         }}
       >
         {label}
@@ -324,7 +405,7 @@ function RangeChip({ label, active, onPress }: RangeChipProps) {
 }
 
 function formatChipDate(d: Date, locale: string): string {
-  return d.toLocaleDateString(locale, {
+  return formatDate(d, locale, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -378,38 +459,64 @@ function useCalendarTheme(): MD3Theme {
   }, [theme]);
 }
 
-/** Map our app languages to locales `react-native-paper-dates` knows about. */
-function mapLocale(lang: string): string {
-  // The library ships only `en` by default; uk/cs fall back to en until
-  // the matching translations are registered. Calendar layout is still
-  // correct (just the month/weekday labels are English).
-  if (lang.startsWith('uk') || lang.startsWith('cs')) return 'en';
-  return 'en';
-}
-
 const styles = StyleSheet.create({
   chipRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 4,
     paddingBottom: 8,
   },
   chip: {
+    // Allow the chip to shrink so two long dates + the dash fit the row
+    // without overflowing (paired with the label's `adjustsFontSizeToFit`).
+    flexShrink: 1,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
   },
   chipDash: {
+    // Never shrink the dash — only the chips give up width.
+    flexShrink: 0,
+    paddingHorizontal: 2,
+  },
+  // Drop `Dialog.Content`'s default bottom padding under the chip row so
+  // the calendar (now in its own scroll area below) sits close to it. Also
+  // trim the default 24px side padding so the two date chips have more room
+  // before they need to shrink.
+  chipContent: {
+    paddingBottom: 0,
+    paddingHorizontal: 12,
+  },
+  // The calendar lives in a `Dialog.ScrollArea` so that on short screens
+  // it can scroll while the title and Cancel / Apply footer stay pinned
+  // (and clear of the tab bar). Strip the scroll area's default divider
+  // borders, and trim its default 24px side padding right down: the
+  // library draws each day as a fixed 46px circle across 7 `flex: 1`
+  // columns, so on a ~360dp screen the generous padding shrank the
+  // columns below 46px and adjacent circles overlapped. A small inset
+  // keeps the columns >= 46px so the circles never touch.
+  scrollArea: {
+    borderTopWidth: 0,
+    borderBottomWidth: 0,
     paddingHorizontal: 4,
   },
-  // The library's `Calendar` lays itself out lazily based on parent
-  // size and silently clips trailing day rows when the parent is too
-  // short — that's why a month with 6 week rows (e.g. March 2026) was
-  // showing only days 1–28. Give it a minHeight that fits the worst
-  // case: month/year header (~56) + weekday row (~40) + 6 day rows
-  // (~50 each) = ~396, rounded up for a small safety margin.
+  // The library's `Calendar` measures its parent (via its internal
+  // `AutoSizer`) and silently clips trailing day rows when that parent is
+  // too short — a 6-week month (e.g. March 2026) showed only days 1–28.
+  // Inside a `ScrollView` a bare `minHeight` collapses (the `AutoSizer`'s
+  // `flex: 1` root has nothing to fill), so pin a DEFINITE height that
+  // fits the worst case: month/year header (~68) + weekday row (~44) +
+  // 6 day rows (~52 each = 312) ≈ 424. When the viewport is shorter, the
+  // scroll area scrolls; when taller, the calendar shows in full.
   calendarWrap: {
-    minHeight: 420,
+    height: 424,
+  },
+  // Let the Cancel / Apply pair wrap onto stacked rows instead of
+  // clipping off-screen when a large system font (or a long localized
+  // label) makes the two uppercase buttons wider than the dialog.
+  actions: {
+    flexWrap: 'wrap',
+    rowGap: 4,
   },
 });

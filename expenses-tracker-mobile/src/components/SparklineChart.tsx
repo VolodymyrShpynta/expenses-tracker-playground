@@ -19,7 +19,7 @@
  * empty-state convention as `CategoryDonutChart`.
  */
 import { memo, useMemo, useRef, useState } from 'react';
-import { PanResponder, View } from 'react-native';
+import { PanResponder, View, useWindowDimensions } from 'react-native';
 import type { GestureResponderEvent, LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, G, Line, Path, Rect } from 'react-native-svg';
 import { Surface, Text, useTheme } from 'react-native-paper';
@@ -31,6 +31,7 @@ import {
   type GroupBy,
 } from '../utils/dateRange';
 import { formatCentsShortScale } from '../utils/format';
+import { FONT_SCALES, useFontScale } from '../context/preferencesProvider';
 
 export interface SparklineChartProps {
   /** Per-bucket amounts in cents — the sparkline only cares about shape,
@@ -79,6 +80,8 @@ export const SparklineChart = memo(function SparklineChart({
   accessibilityLabel,
 }: SparklineChartProps) {
   const theme = useTheme();
+  const { fontScale: systemFontScale } = useWindowDimensions();
+  const { fontScale: appFontSize } = useFontScale();
   const [width, setWidth] = useState(0);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const widthRef = useRef(0);
@@ -136,14 +139,30 @@ export const SparklineChart = memo(function SparklineChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [points, width, traceHeight, maxValue]);
 
+  // Reflow the axis to the user's font size instead of freezing it. Two
+  // independent axes enlarge the day labels and must both be honored: the
+  // OS accessibility scale (`useWindowDimensions`) and the app's own
+  // font-size preference, which scales the Paper `labelSmall` variant via
+  // `scaleTheme`. We widen each label slot (⇒ fewer, well-spaced ticks) and
+  // grow the footer band so taller labels aren't clipped. Clamp so an
+  // extreme combined scale still keeps ≥2 labels.
+  const labelScale = Math.min(
+    Math.max(FONT_SCALES[appFontSize] * systemFontScale, 1),
+    3,
+  );
+  const labelSlot = Math.round(X_LABEL_WIDTH * labelScale);
+  const footerHeight = Math.round(FOOTER_HEIGHT * labelScale);
+
   const xTickIndices = useMemo(() => {
-    // Same width-aware label cap as the main chart. Falls back to 6
-    // before first layout (width === 0).
+    // Same width-aware label cap as the main chart: keep at least a full
+    // label slot of gutter between adjacent centres so wide localized day
+    // labels (e.g. uk "12 ЛИП.") can't collide on narrow phones. Labels
+    // only render once measured, so the width === 0 seed is inert.
     const plotW = Math.max(0, width - PAD * 2);
     const maxTicks =
-      plotW > 0 ? Math.max(2, Math.floor(plotW / (X_LABEL_WIDTH + 4)) + 1) : 6;
+      plotW > 0 ? Math.max(2, Math.floor(plotW / (labelSlot + 8))) : 5;
     return pickTickIndices(buckets.length, Math.min(maxTicks, 6));
-  }, [buckets.length, width]);
+  }, [buckets.length, width, labelSlot]);
 
   // ──────────────────────────────────────────────────────────────
   // Scrub gesture — claim the responder eagerly so a tap (no
@@ -296,7 +315,7 @@ export const SparklineChart = memo(function SparklineChart({
           can't overflow the container width; middle ticks stay centred
           on their bucket. Same logic as `ExpenseTimeSeriesChart`. */}
       {width > 0 && xTickIndices.length > 0 ? (
-        <View style={{ height: FOOTER_HEIGHT }}>
+        <View style={{ height: footerHeight }}>
           {xTickIndices.map((idx) => {
             const bucket = buckets[idx];
             if (bucket === undefined) return null;
@@ -309,10 +328,10 @@ export const SparklineChart = memo(function SparklineChart({
               left = 0;
               textAlign = 'left';
             } else if (isLast) {
-              left = width - X_LABEL_WIDTH;
+              left = width - labelSlot;
               textAlign = 'right';
             } else {
-              left = center - X_LABEL_WIDTH / 2;
+              left = center - labelSlot / 2;
               textAlign = 'center';
             }
             return (
@@ -323,7 +342,7 @@ export const SparklineChart = memo(function SparklineChart({
                   position: 'absolute',
                   top: 0,
                   left,
-                  width: X_LABEL_WIDTH,
+                  width: labelSlot,
                   textAlign,
                   color: onSurfaceVariant,
                 }}

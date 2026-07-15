@@ -5,6 +5,7 @@
  */
 import type { ExpenseProjection } from '../domain/types';
 import type { GroupBy } from '../utils/dateRange';
+import { formatDate } from '../utils/dateRange';
 
 export function groupKey(date: Date, groupBy: GroupBy): string {
   switch (groupBy) {
@@ -19,11 +20,11 @@ export function groupLabel(date: Date, groupBy: GroupBy, locale: string): string
     case 'day': {
       const day = date.getDate().toString().padStart(2, '0');
       const weekday = date.toLocaleDateString(locale, { weekday: 'long' }).toUpperCase();
-      const month = date.toLocaleDateString(locale, { month: 'long', year: 'numeric' }).toUpperCase();
+      const month = formatDate(date, locale, { month: 'long', year: 'numeric' }).toUpperCase();
       return `${day}  ${weekday}  ${month}`;
     }
     case 'month':
-      return date.toLocaleDateString(locale, { month: 'long', year: 'numeric' }).toUpperCase();
+      return formatDate(date, locale, { month: 'long', year: 'numeric' }).toUpperCase();
     case 'year':
       return `${date.getFullYear()}`;
   }
