@@ -214,10 +214,10 @@ export default function CategoriesScreen() {
   return (
     <View style={[{ flex: 1 }, layoutStyles.contentColumn, { paddingHorizontal: gutter }]}>
       {twoPane ? (
-        <View style={styles.panes}>
-          <View style={styles.summaryPane}>{summary}</View>
-          <View style={[styles.paneDivider, { backgroundColor: theme.colors.outlineVariant }]} />
-          <ScrollView style={styles.listPane} contentContainerStyle={styles.listContent}>
+        <View style={layoutStyles.panes}>
+          <View style={layoutStyles.pane}>{summary}</View>
+          <View style={[layoutStyles.paneDivider, { backgroundColor: theme.colors.outlineVariant }]} />
+          <ScrollView style={layoutStyles.pane} contentContainerStyle={styles.listContent}>
             {list}
           </ScrollView>
         </View>
@@ -239,13 +239,6 @@ export default function CategoriesScreen() {
 }
 
 const styles = StyleSheet.create({
-  panes: {
-    flex: 1,
-    flexDirection: 'row',
-  },
-  summaryPane: {
-    flex: 1,
-  },
   // Centred in the space left under the header so the donut sits in the
   // optical middle of its pane rather than hugging the total.
   donutPane: {
@@ -254,12 +247,6 @@ const styles = StyleSheet.create({
   },
   donutBlock: {
     paddingVertical: 8,
-  },
-  paneDivider: {
-    width: StyleSheet.hairlineWidth,
-  },
-  listPane: {
-    flex: 1,
   },
   // Clears the FAB so the last row can always be scrolled out from under it.
   listContent: {

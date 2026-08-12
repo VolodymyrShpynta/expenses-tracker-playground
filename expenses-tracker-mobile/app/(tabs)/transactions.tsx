@@ -562,60 +562,65 @@ export default function TransactionsScreen() {
     );
   }
 
+  /*
+   * `SectionList` virtualizes the list: only rows currently on screen (plus
+   * a small buffer set by `windowSize`) are mounted. As the user scrolls,
+   * off-screen rows are unmounted and new ones below mount in their place —
+   * the "smooth pagination" effect applied to an in-memory dataset. This
+   * keeps the screen responsive even with thousands of expenses in a single
+   * range.
+   *
+   * `SpendingHeader` + `TransactionFilters` go into `ListHeaderComponent` so
+   * they scroll with the rest of the content and stay above the first section
+   * header. This screen stays single-column at every window size: its header
+   * is only a total, a period picker and a search field, which leaves a pane
+   * of its own mostly empty.
+   */
+  const list = (
+    <SectionList<ExpenseProjection, (typeof sections)[number]>
+      sections={sections}
+      keyExtractor={(item) => item.id}
+      stickySectionHeadersEnabled={false}
+      contentContainerStyle={{ paddingBottom: 96 }}
+      /*
+       * Tight windowing: with ~150 rows per month-section on a yearly range,
+       * the perceived expand/collapse latency is dominated by how many native
+       * views must be mounted or unmounted synchronously when a section's
+       * `data` flips between `[]` and the full array. Halving `windowSize`
+       * roughly halves that work; `maxToRenderPerBatch` keeps the batches
+       * small enough that subsequent paints don't stutter.
+       * `initialNumToRender` is intentionally generous so the first screen
+       * paints fully on a cold open.
+       *
+       * `removeClippedSubviews` is already `true` by default on Android and
+       * has known interaction issues with nested touchables, so we leave it
+       * unset rather than forcing it.
+       */
+      initialNumToRender={20}
+      maxToRenderPerBatch={4}
+      windowSize={4}
+      ListHeaderComponent={listHeader}
+      ListEmptyComponent={
+        <Text
+          style={{
+            color: secondaryColor,
+            textAlign: 'center',
+            marginTop: 40,
+            paddingHorizontal: 24,
+          }}
+        >
+          {translate('expenses.noTransactions')}
+        </Text>
+      }
+      renderSectionHeader={renderSectionHeader}
+      renderItem={renderItem}
+    />
+  );
+
   return (
     <>
       <View style={[{ flex: 1 }, layoutStyles.contentColumn, { paddingHorizontal: gutter }]}>
-        {/*
-         * `SectionList` virtualizes the list: only rows currently on
-         * screen (plus a small buffer set by `windowSize`) are mounted.
-         * As the user scrolls, off-screen rows are unmounted and new ones
-         * below mount in their place — the "smooth pagination" effect
-         * applied to an in-memory dataset. This keeps the screen
-         * responsive even with thousands of expenses in a single range.
-         *
-         * `SpendingHeader` + `TransactionFilters` go into
-         * `ListHeaderComponent` so they scroll with the rest of the
-         * content and stay above the first section header.
-         */}
-        <SectionList<ExpenseProjection, (typeof sections)[number]>
-          sections={sections}
-          keyExtractor={(item) => item.id}
-          stickySectionHeadersEnabled={false}
-          contentContainerStyle={{ paddingBottom: 96 }}
-          /*
-           * Tight windowing: with ~150 rows per month-section on a
-           * yearly range, the perceived expand/collapse latency is
-           * dominated by how many native views must be mounted or
-           * unmounted synchronously when a section's `data` flips
-           * between `[]` and the full array. Halving `windowSize`
-           * roughly halves that work; `maxToRenderPerBatch` keeps the
-           * batches small enough that subsequent paints don't stutter.
-           * `initialNumToRender` is intentionally generous so the
-           * first screen paints fully on a cold open.
-           *
-           * `removeClippedSubviews` is already `true` by default on
-           * Android and has known interaction issues with nested
-           * touchables, so we leave it unset rather than forcing it.
-           */
-          initialNumToRender={20}
-          maxToRenderPerBatch={4}
-          windowSize={4}
-          ListHeaderComponent={listHeader}
-          ListEmptyComponent={
-            <Text
-              style={{
-                color: secondaryColor,
-                textAlign: 'center',
-                marginTop: 40,
-                paddingHorizontal: 24,
-              }}
-            >
-              {translate('expenses.noTransactions')}
-            </Text>
-          }
-          renderSectionHeader={renderSectionHeader}
-          renderItem={renderItem}
-        />
+        {list}
 
         <FAB
           icon="plus"

@@ -66,4 +66,17 @@ export const layoutStyles = StyleSheet.create({
     maxWidth: MAX_CONTENT_WIDTH,
     alignSelf: 'center',
   },
+  /** Row container for a screen split into side-by-side panes. */
+  panes: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  /** One equal share of `panes`. */
+  pane: {
+    flex: 1,
+  },
+  /** Separator between panes — the caller supplies the background colour. */
+  paneDivider: {
+    width: StyleSheet.hairlineWidth,
+  },
 });

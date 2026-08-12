@@ -40,7 +40,7 @@ import { OverviewCategoryFilter } from '../../src/components/OverviewCategoryFil
 import { SparklineChart } from '../../src/components/SparklineChart';
 import { SpendingHeader } from '../../src/components/SpendingHeader';
 import { useOverviewModel } from '../../src/hooks/useOverviewModel';
-import { layoutStyles, useContentGutter } from '../../src/theme/layout';
+import { layoutStyles, useContentGutter, useIsWideLayout } from '../../src/theme/layout';
 
 type ChartMode = 'lines' | 'stacked-area';
 
@@ -49,6 +49,7 @@ export default function OverviewScreen() {
   const theme = useTheme();
   const router = useRouter();
   const gutter = useContentGutter();
+  const isWideLayout = useIsWideLayout();
   const {
     loading,
     mainCurrency,
@@ -86,88 +87,116 @@ export default function OverviewScreen() {
     );
   }
 
+  const charts = (
+    <>
+      <SpendingHeader
+        total={{ amount: totalSeries.total, approx: totalSeries.approx }}
+        currency={mainCurrency}
+      />
+
+      <View style={styles.sparklineWrapper}>
+        <SparklineChart
+          points={totalSeries.points}
+          buckets={totalSeries.buckets}
+          granularity={granularity}
+          language={i18n.language}
+          color={theme.colors.primary}
+          title={translate('expenses.totalSpending')}
+          totalLabel={translate('expenses.overviewTooltipTotal')}
+          accessibilityLabel={translate('expenses.overviewTotalSparklineLabel')}
+        />
+      </View>
+
+      <View style={styles.modeWrapper}>
+        <SegmentedButtons
+          value={mode}
+          onValueChange={(v) => setMode(v as ChartMode)}
+          buttons={[
+            {
+              value: 'lines',
+              label: translate('expenses.overviewModeLines'),
+              icon: 'chart-line',
+            },
+            {
+              value: 'stacked-area',
+              label: translate('expenses.overviewModeStackedArea'),
+              icon: 'chart-areaspline',
+            },
+          ]}
+          density="small"
+        />
+      </View>
+
+      <View style={styles.chartWrapper}>
+        <ExpenseTimeSeriesChart
+          buckets={categorySeries.buckets}
+          series={categorySeries.series}
+          mode={mode}
+          granularity={granularity}
+          resolveSeriesName={resolveSeriesName}
+          resolveSeriesColor={resolveSeriesColor}
+          totalLabel={translate('expenses.overviewTooltipTotal')}
+          overflowLabel={translate('expenses.overviewTooltipOverflow')}
+          language={i18n.language}
+          noDataLabel={translate('expenses.overviewNoData')}
+          accessibilityLabel={translate('expenses.overviewChartLabel')}
+        />
+      </View>
+    </>
+  );
+
+  const breakdown = (
+    <>
+      <View style={styles.filterWrapper}>
+        <OverviewCategoryFilter
+          selectedCategoryIds={selectedCategoryIds}
+          availableCategoryIds={availableCategoryIds}
+          onAddInclude={handleAddInclude}
+          onRemoveInclude={handleRemoveInclude}
+        />
+      </View>
+
+      <CategoryBreakdownList
+        series={categorySeries.series}
+        resolveSeries={resolveSeries}
+        mainCurrency={mainCurrency}
+        language={i18n.language}
+        onCategoryPress={handleCategoryPress}
+      />
+    </>
+  );
+
+  // Qualifies the totals, so it trails the charts rather than the breakdown.
+  const caveat = totalSeries.approx ? (
+    <View style={styles.caveatWrapper}>
+      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+        {translate('expenses.overviewApproxRatesCaveat')}
+      </Text>
+    </View>
+  ) : null;
+
   return (
     <View style={[styles.root, layoutStyles.contentColumn, { paddingHorizontal: gutter }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <SpendingHeader
-          total={{ amount: totalSeries.total, approx: totalSeries.approx }}
-          currency={mainCurrency}
-        />
-
-        <View style={styles.sparklineWrapper}>
-          <SparklineChart
-            points={totalSeries.points}
-            buckets={totalSeries.buckets}
-            granularity={granularity}
-            language={i18n.language}
-            color={theme.colors.primary}
-            title={translate('expenses.totalSpending')}
-            totalLabel={translate('expenses.overviewTooltipTotal')}
-            accessibilityLabel={translate('expenses.overviewTotalSparklineLabel')}
+      {isWideLayout ? (
+        <View style={layoutStyles.panes}>
+          <ScrollView style={layoutStyles.pane} contentContainerStyle={styles.scrollContent}>
+            {charts}
+            {caveat}
+          </ScrollView>
+          <View
+            style={[layoutStyles.paneDivider, { backgroundColor: theme.colors.outlineVariant }]}
           />
+          <ScrollView style={layoutStyles.pane} contentContainerStyle={styles.scrollContent}>
+            {breakdown}
+          </ScrollView>
         </View>
-
-        <View style={styles.modeWrapper}>
-          <SegmentedButtons
-            value={mode}
-            onValueChange={(v) => setMode(v as ChartMode)}
-            buttons={[
-              {
-                value: 'lines',
-                label: translate('expenses.overviewModeLines'),
-                icon: 'chart-line',
-              },
-              {
-                value: 'stacked-area',
-                label: translate('expenses.overviewModeStackedArea'),
-                icon: 'chart-areaspline',
-              },
-            ]}
-            density="small"
-          />
-        </View>
-
-        <View style={styles.chartWrapper}>
-          <ExpenseTimeSeriesChart
-            buckets={categorySeries.buckets}
-            series={categorySeries.series}
-            mode={mode}
-            granularity={granularity}
-            resolveSeriesName={resolveSeriesName}
-            resolveSeriesColor={resolveSeriesColor}
-            totalLabel={translate('expenses.overviewTooltipTotal')}
-            overflowLabel={translate('expenses.overviewTooltipOverflow')}
-            language={i18n.language}
-            noDataLabel={translate('expenses.overviewNoData')}
-            accessibilityLabel={translate('expenses.overviewChartLabel')}
-          />
-        </View>
-
-        <View style={styles.filterWrapper}>
-          <OverviewCategoryFilter
-            selectedCategoryIds={selectedCategoryIds}
-            availableCategoryIds={availableCategoryIds}
-            onAddInclude={handleAddInclude}
-            onRemoveInclude={handleRemoveInclude}
-          />
-        </View>
-
-        <CategoryBreakdownList
-          series={categorySeries.series}
-          resolveSeries={resolveSeries}
-          mainCurrency={mainCurrency}
-          language={i18n.language}
-          onCategoryPress={handleCategoryPress}
-        />
-
-        {totalSeries.approx ? (
-          <View style={styles.caveatWrapper}>
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-              {translate('expenses.overviewApproxRatesCaveat')}
-            </Text>
-          </View>
-        ) : null}
-      </ScrollView>
+      ) : (
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          {charts}
+          {breakdown}
+          {caveat}
+        </ScrollView>
+      )}
     </View>
   );
 }
