@@ -81,7 +81,10 @@ export const darkTheme: MD3Theme = {
     primaryContainer: brandSurface.dark[50],
     onPrimaryContainer: brand[300],
 
-    secondary: accent.base,
+    // `accent.base` is the site's dark-background green, but the site uses it
+    // for hairlines and glyphs. As a *fill* it carries ~2.2x the luminance of
+    // the indigo beside it, so a tile or button in it glares on near-black.
+    secondary: accent.strong,
     onSecondary: '#04150a',
     secondaryContainer: accent.deep,
     onSecondaryContainer: accent.soft,
@@ -105,7 +108,10 @@ export const darkTheme: MD3Theme = {
 
     outline: surfaces.dark.borderStrong,
     outlineVariant: surfaces.dark.border,
-    backdrop: 'rgba(10, 10, 15, 0.6)',
+    // Black, not `bg`. Scrimming the near-black page with its own colour is a
+    // no-op wherever the page is empty, so an overlay painted in `bg` had no
+    // edge at all. Black at this alpha pushes the page below the sheet.
+    backdrop: 'rgba(0, 0, 0, 0.72)',
 
     elevation: {
       level0: 'transparent',

@@ -23,6 +23,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { memo, type ReactNode } from 'react';
 
 import { FONT_SCALES, useFontScale } from '../context/preferencesProvider';
+import { useAppColors, type AppColors } from '../theme/appColors';
+import { radius } from '../theme/tokens';
 import type { CalculatorAction, Operator } from '../utils/useCalculator';
 
 // Gap (dp) between keypad cells, horizontally and vertically. Named because
@@ -75,6 +77,7 @@ export const AmountKeypad = memo(function AmountKeypad({
   onOpenCurrency,
 }: AmountKeypadProps) {
   const theme = useTheme();
+  const appColors = useAppColors();
   // Honor Settings → Font size. Cells keep a generous `minHeight`, so the
   // scaled digits grow within the button rather than resizing the grid.
   const { fontScale } = useFontScale();
@@ -118,7 +121,7 @@ export const AmountKeypad = memo(function AmountKeypad({
   });
 
   const renderCell = (cell: Cell) => {
-    const palette = cellPalette(theme, cell.variant);
+    const palette = cellPalette(theme, appColors, cell.variant);
     return (
       <Pressable
         key={cell.id}
@@ -257,7 +260,7 @@ const styles = StyleSheet.create({
     flexBasis: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
+    borderRadius: radius.md,
   },
 });
 
@@ -274,8 +277,12 @@ interface Palette {
  * `secondary` and flips to `primary` on press for a high-contrast
  * "submit" cue. No raw color literals — all colors flow from the
  * Paper theme so light/dark/branding stay consistent.
+ *
+ * Every key is delimited by its fill alone, so the neutrals take the sunken
+ * surface rather than `surfaceVariant`, which sits too close to the sheet to
+ * read as a key without an outline.
  */
-function cellPalette(theme: MD3Theme, variant: Variant): Palette {
+function cellPalette(theme: MD3Theme, appColors: AppColors, variant: Variant): Palette {
   switch (variant) {
     case 'equals':
       return {
@@ -292,8 +299,8 @@ function cellPalette(theme: MD3Theme, variant: Variant): Palette {
     case 'num':
     case 'special':
       return {
-        bg: theme.colors.surfaceVariant,
-        bgPressed: theme.colors.outlineVariant,
+        bg: appColors.surfaceSunken,
+        bgPressed: appColors.surfaceSunkenPressed,
         color: theme.colors.onSurfaceVariant,
       };
   }

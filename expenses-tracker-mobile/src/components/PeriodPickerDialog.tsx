@@ -44,6 +44,7 @@ import {
   type PresetKey,
 } from '../utils/dateRange';
 import { layoutStyles } from '../theme/layout';
+import { useAppColors } from '../theme/appColors';
 import { radius } from '../theme/tokens';
 import { interFont } from '../theme/typography';
 
@@ -75,6 +76,7 @@ export function PeriodPickerDialog({
 }: PeriodPickerDialogProps) {
   const { t: translate, i18n } = useTranslation();
   const theme = useTheme();
+  const appColors = useAppColors();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
 
@@ -94,7 +96,7 @@ export function PeriodPickerDialog({
 
   const renderTile = (key: PresetKey) => {
     const active = activePreset === key;
-    const bg = active ? theme.colors.secondaryContainer : theme.colors.surfaceVariant;
+    const bg = active ? theme.colors.secondaryContainer : appColors.surfaceSunken;
     const fg = active ? theme.colors.onSecondaryContainer : theme.colors.onSurfaceVariant;
     const subtitle = subtitles[key];
     return (
@@ -146,6 +148,7 @@ export function PeriodPickerDialog({
             layoutStyles.contentColumn,
             {
               backgroundColor: theme.colors.background,
+              borderColor: appColors.border,
               maxHeight: windowHeight * 0.9,
               minHeight: windowHeight * 0.8,
               paddingBottom: insets.bottom + 16,
@@ -191,6 +194,9 @@ const styles = StyleSheet.create({
     width: '100%',
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
     paddingHorizontal: 16,
     paddingTop: 16,
   },

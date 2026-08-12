@@ -17,6 +17,7 @@ import { I18nextProvider } from 'react-i18next';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useTheme } from 'react-native-paper';
 import {
   useFonts,
   Inter_400Regular,
@@ -96,20 +97,26 @@ export default function RootLayout() {
  */
 function ScaledRootStack() {
   const { fontScale } = useFontScale();
+  const theme = useTheme();
   const scale = FONT_SCALES[fontScale];
   return (
     <Stack
       screenOptions={{
         headerTitleStyle: { fontSize: Math.round(20 * scale), fontFamily: interFont.bold },
-        // Transparent chrome throughout: the ambient glow is painted once at
-        // the root, so any opaque header or screen container would cut a
-        // visible band out of it.
-        headerStyle: { backgroundColor: 'transparent' },
         headerShadowVisible: false,
-        contentStyle: { backgroundColor: 'transparent' },
+        // Opaque by default. A pushed screen that lets the ambient glow through
+        // also lets the screen *below* it through, so the outgoing screen stays
+        // fully visible underneath for the whole transition — overlapping titles
+        // and body text, plus the cost of compositing both every frame.
+        headerStyle: { backgroundColor: theme.colors.background },
+        contentStyle: { backgroundColor: theme.colors.background },
       }}
     >
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      {/* Full-bleed and never transitioned over, so this one carries the glow. */}
+      <Stack.Screen
+        name="(tabs)"
+        options={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}
+      />
       <Stack.Screen name="settings" />
     </Stack>
   );

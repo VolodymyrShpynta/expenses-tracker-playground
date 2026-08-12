@@ -22,10 +22,11 @@
  * (see https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes).
  */
 import { useState } from 'react';
-import { TextInput } from 'react-native-paper';
 import type { ComponentProps } from 'react';
 
-type TextInputProps = ComponentProps<typeof TextInput>;
+import { AppTextInput } from './AppTextInput';
+
+type TextInputProps = ComponentProps<typeof AppTextInput>;
 
 export interface PortalSafeTextInputProps extends Omit<TextInputProps, 'value' | 'onChangeText'> {
   readonly value: string;
@@ -48,7 +49,7 @@ export function PortalSafeTextInput({
   }
 
   return (
-    <TextInput
+    <AppTextInput
       {...rest}
       value={localValue}
       onChangeText={(text) => {

@@ -23,13 +23,12 @@ import { CategoryRow } from '../../src/components/CategoryRow';
 import { CategoryDonutChart, type DonutSlice } from '../../src/components/CategoryDonutChart';
 import { AddExpenseDialog } from '../../src/components/AddExpenseDialog';
 import { EmptyState } from '../../src/components/EmptyState';
-import { GlowFab } from '../../src/components/GlowButton';
+import { GlowFab } from '../../src/components/GlowFab';
 import { useExpenses } from '../../src/hooks/useExpenses';
 import { useCategoryLookup } from '../../src/hooks/useCategoryLookup';
 import { useCategorySummary } from '../../src/hooks/useCategorySummary';
 import { useConvertedExpenses } from '../../src/hooks/useExchangeRates';
 import { useDateRange, useMainCurrency } from '../../src/context/preferencesProvider';
-import { formatTotalCompactWithCurrency } from '../../src/utils/format';
 import { layoutStyles, useContentGutter, useIsWideLayout } from '../../src/theme/layout';
 
 // The donut gets a pane to itself in the two-pane layout, so it can afford
@@ -105,17 +104,7 @@ export default function CategoriesScreen() {
 
       {active.length > 0 ? (
         <View style={twoPane ? styles.donutPane : styles.donutBlock}>
-          <CategoryDonutChart
-            slices={slices}
-            size={donutSize}
-            centerValue={formatTotalCompactWithCurrency(
-              grandTotal.amount,
-              mainCurrency,
-              i18n.language,
-              grandTotal.approx,
-            )}
-            centerLabel={translate('expenses.totalSpending')}
-          />
+          <CategoryDonutChart slices={slices} size={donutSize} />
         </View>
       ) : null}
     </>
@@ -124,32 +113,31 @@ export default function CategoriesScreen() {
   const list =
     active.length === 0 ? (
       <EmptyState
-        icon="savings"
         title={translate('expenses.noExpensesYet')}
         description={translate('expenses.tapPlusHint')}
-        actionLabel={translate('expenses.addAriaLabel')}
-        onAction={() => setAddOpen(true)}
       />
     ) : (
-      active.map((cat, index) => {
-        const resolved = lookup.resolve(cat.categoryId);
-        return (
-          <CategoryRow
-            key={cat.categoryId}
-            categoryId={cat.categoryId}
-            name={resolved.name}
-            color={resolved.color}
-            iconName={resolved.iconName}
-            percentage={cat.percentage}
-            amount={cat.total.amount}
-            approx={cat.total.approx}
-            currency={mainCurrency}
-            language={i18n.language}
-            index={index}
-            onPress={showCategoryTransactions}
-          />
-        );
-      })
+      <View style={styles.listInset}>
+        {active.map((cat, index) => {
+          const resolved = lookup.resolve(cat.categoryId);
+          return (
+            <CategoryRow
+              key={cat.categoryId}
+              categoryId={cat.categoryId}
+              name={resolved.name}
+              color={resolved.color}
+              iconName={resolved.iconName}
+              percentage={cat.percentage}
+              amount={cat.total.amount}
+              approx={cat.total.approx}
+              currency={mainCurrency}
+              language={i18n.language}
+              index={index}
+              onPress={showCategoryTransactions}
+            />
+          );
+        })}
+      </View>
     );
 
   return (
@@ -189,6 +177,11 @@ const styles = StyleSheet.create({
   },
   donutBlock: {
     paddingVertical: 8,
+  },
+  // The row owns no horizontal inset — it's shared with the Overview
+  // breakdown, whose container insets differently.
+  listInset: {
+    paddingHorizontal: 14,
   },
   // Clears the FAB so the last row can always be scrolled out from under it.
   listContent: {

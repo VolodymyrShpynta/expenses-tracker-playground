@@ -8,28 +8,25 @@
  * own two-stop gradient (its colour, lightened at the head) so the ring
  * has the same depth as the gradients elsewhere in the app.
  *
- * The centre label is native `<Text>` overlaid on the SVG (not
- * `<SvgText>`) so `adjustsFontSizeToFit` can shrink long currency totals
- * (e.g. `CZK 1 166 326`) to fit the inner disc. The overlay is clamped to
- * the disc's chord so there's a hard boundary to scale against.
+ * The centre stays empty on purpose. The ring's job is proportion; the
+ * period total is already the hero above it and the leading category is
+ * already the first row of the list below, so anything written here is a
+ * third printing of something on the same screen.
  *
  * Motion is a fade-scale-unwind on the container — a plain view transform,
  * so it can't interact with SVG rendering. Empty input renders the muted
  * track ring on its own.
  */
 import { useEffect, useMemo } from 'react';
-import { View } from 'react-native';
 import Svg, { Circle, Defs, G, LinearGradient, Stop } from 'react-native-svg';
-import { Text, useTheme } from 'react-native-paper';
+import { useTheme } from 'react-native-paper';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
 
-import { useAppColors } from '../theme/appColors';
 import { motionDuration, motionEasing, useMotionEnabled } from '../theme/motion';
-import { interFont } from '../theme/typography';
 import { lighten } from '../utils/colorContrast';
 
 export interface DonutSlice {
@@ -43,8 +40,6 @@ export interface CategoryDonutChartProps {
   readonly slices: ReadonlyArray<DonutSlice>;
   readonly size?: number;
   readonly thickness?: number;
-  readonly centerLabel?: string;
-  readonly centerValue?: string;
 }
 
 /** Visible gap between neighbouring segments, in px of arc length. */
@@ -54,11 +49,8 @@ export function CategoryDonutChart({
   slices,
   size = 220,
   thickness = 26,
-  centerLabel,
-  centerValue,
 }: CategoryDonutChartProps) {
   const theme = useTheme();
-  const appColors = useAppColors();
   const motionEnabled = useMotionEnabled();
 
   const center = size / 2;
@@ -118,119 +110,57 @@ export function CategoryDonutChart({
     ],
   }));
 
-  // Inner disc geometry for the centre overlay. A single line sitting on the
-  // horizontal diameter would touch the ring at its widest point, so the
-  // usable width loses an 8% safety margin.
-  const innerRadius = center - thickness;
-  const innerWidth = Math.max(0, Math.floor(innerRadius * 2 * 0.92));
-  const valueFontSize = Math.round(size * 0.135);
-  const labelFontSize = Math.round(size * 0.058);
-
   return (
-    <View style={{ width: size, height: size, alignSelf: 'center' }}>
-      <Animated.View style={[{ width: size, height: size }, revealStyle]}>
-        <Svg width={size} height={size}>
-          <Defs>
-            {segments.map((segment) => (
-              <LinearGradient
-                key={`grad-${segment.id}`}
-                id={`slice-${segment.id}`}
-                x1="0"
-                y1="0"
-                x2="1"
-                y2="1"
-              >
-                <Stop offset="0" stopColor={lighten(segment.color, 0.28)} />
-                <Stop offset="1" stopColor={segment.color} />
-              </LinearGradient>
-            ))}
-          </Defs>
-          {/*
-           * Rotate so arcs start at 12 o'clock instead of 3. SVG's transform
-           * string carries the pivot with it; the array form rotates about the
-           * element's own centre, and the `origin*` props that used to supply
-           * a pivot are deprecated.
-           */}
-          <G transform={`rotate(-90, ${center}, ${center})`}>
+    <Animated.View
+      style={[{ width: size, height: size, alignSelf: 'center' }, revealStyle]}
+    >
+      <Svg width={size} height={size}>
+        <Defs>
+          {segments.map((segment) => (
+            <LinearGradient
+              key={`grad-${segment.id}`}
+              id={`slice-${segment.id}`}
+              x1="0"
+              y1="0"
+              x2="1"
+              y2="1"
+            >
+              <Stop offset="0" stopColor={lighten(segment.color, 0.28)} />
+              <Stop offset="1" stopColor={segment.color} />
+            </LinearGradient>
+          ))}
+        </Defs>
+        {/*
+         * Rotate so arcs start at 12 o'clock instead of 3. SVG's transform
+         * string carries the pivot with it; the array form rotates about the
+         * element's own centre, and the `origin*` props that used to supply
+         * a pivot are deprecated.
+         */}
+        <G transform={`rotate(-90, ${center}, ${center})`}>
+          <Circle
+            cx={center}
+            cy={center}
+            r={trackRadius}
+            stroke={theme.colors.surfaceVariant}
+            strokeWidth={thickness}
+            fill="none"
+          />
+          {segments.map((segment) => (
             <Circle
+              key={segment.id}
               cx={center}
               cy={center}
               r={trackRadius}
-              stroke={theme.colors.surfaceVariant}
+              stroke={`url(#slice-${segment.id})`}
               strokeWidth={thickness}
+              strokeLinecap="round"
+              strokeDasharray={[segment.dash, circumference - segment.dash]}
+              strokeDashoffset={segment.dashOffset}
               fill="none"
             />
-            {segments.map((segment) => (
-              <Circle
-                key={segment.id}
-                cx={center}
-                cy={center}
-                r={trackRadius}
-                stroke={`url(#slice-${segment.id})`}
-                strokeWidth={thickness}
-                strokeLinecap="round"
-                strokeDasharray={[segment.dash, circumference - segment.dash]}
-                strokeDashoffset={segment.dashOffset}
-                fill="none"
-              />
-            ))}
-          </G>
-        </Svg>
-      </Animated.View>
-
-      {centerValue || centerLabel ? (
-        <View
-          // Keeps the overlay from swallowing taps on the ring (a no-op
-          // today, but future drill-down gestures would rely on it).
-          pointerEvents="none"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <View style={{ width: innerWidth, alignItems: 'center' }}>
-            {centerValue ? (
-              <Text
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                // Half-size headroom covers the longest realistic totals
-                // (`CZK 1 166 326`, `UAH 9 999 999`) before the ellipsis.
-                minimumFontScale={0.5}
-                style={{
-                  fontFamily: interFont.extraBold,
-                  fontSize: valueFontSize,
-                  letterSpacing: -0.03 * valueFontSize,
-                  textAlign: 'center',
-                  color: theme.colors.onSurface,
-                }}
-              >
-                {centerValue}
-              </Text>
-            ) : null}
-            {centerLabel ? (
-              <Text
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.6}
-                style={{
-                  marginTop: 4,
-                  fontFamily: interFont.medium,
-                  fontSize: labelFontSize,
-                  textAlign: 'center',
-                  color: appColors.textDim,
-                }}
-              >
-                {centerLabel}
-              </Text>
-            ) : null}
-          </View>
-        </View>
-      ) : null}
-    </View>
+          ))}
+        </G>
+      </Svg>
+    </Animated.View>
   );
 }

@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 
 import { CategoryAvatar } from './CategoryAvatar';
 import { useCategoryLookup } from '../hooks/useCategoryLookup';
+import { radius } from '../theme/tokens';
 import { formatAmountWithCurrency } from '../utils/format';
 import type { ExpenseProjection } from '../domain/types';
 
@@ -109,8 +110,8 @@ function formatShortDate(iso: string, locale: string): string {
 
 const styles = StyleSheet.create({
   container: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 8,
+    borderWidth: 1,
+    borderRadius: radius.md,
     marginTop: 6,
     overflow: 'hidden',
   },

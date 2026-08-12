@@ -18,6 +18,22 @@ import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { useAppColors } from '../theme/appColors';
 
+/**
+ * Alpha multipliers sampling `(1 - t)²` across the gradient's radius.
+ *
+ * A two-stop gradient ramps alpha *linearly* and then clamps at zero, and the
+ * eye picks up that break in slope as a visible disc edge — the thing that
+ * makes a wash read as a shape rather than as light. Easing into zero, with
+ * the curve almost flat as it lands, removes the edge entirely.
+ */
+const FALLOFF = [
+  { offset: 0, alpha: 1 },
+  { offset: 0.25, alpha: 0.5625 },
+  { offset: 0.5, alpha: 0.25 },
+  { offset: 0.75, alpha: 0.0625 },
+  { offset: 1, alpha: 0 },
+] as const;
+
 export function AmbientGlow() {
   const theme = useTheme();
   const appColors = useAppColors();
@@ -43,8 +59,14 @@ export function AmbientGlow() {
               rx={glow.rx}
               ry={glow.ry}
             >
-              <Stop offset={0} stopColor={glow.color} stopOpacity={glow.opacity} />
-              <Stop offset={glow.fade} stopColor={glow.color} stopOpacity={0} />
+              {FALLOFF.map(({ offset, alpha }) => (
+                <Stop
+                  key={offset}
+                  offset={offset}
+                  stopColor={glow.color}
+                  stopOpacity={glow.opacity * alpha}
+                />
+              ))}
             </RadialGradient>
           ))}
         </Defs>

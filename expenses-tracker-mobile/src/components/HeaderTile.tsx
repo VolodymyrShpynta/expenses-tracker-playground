@@ -11,6 +11,7 @@ import { Text, TouchableRipple } from 'react-native-paper';
 
 import { contrastTextColor } from '../utils/colorContrast';
 import { FONT_SCALES, useFontScale } from '../context/preferencesProvider';
+import { radius } from '../theme/tokens';
 import { interFont } from '../theme/typography';
 
 const BASE_LABEL_SIZE = 12;
@@ -44,7 +45,7 @@ export function HeaderTile({ label, value, color, onPress, sizeScale = 1 }: Head
       accessibilityLabel={`${label}: ${value}`}
       style={{
         flex: 1,
-        borderRadius: 12,
+        borderRadius: radius.md,
         backgroundColor: color,
         minHeight: Math.round(BASE_MIN_HEIGHT * sizeScale),
       }}

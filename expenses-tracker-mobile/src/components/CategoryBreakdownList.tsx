@@ -1,6 +1,8 @@
 /**
- * Per-line breakdown list for the Overview chart — matches the visual
- * style of the Home tab's category breakdown rows:
+ * Per-line breakdown list for the Overview chart. Rows are `CategoryStatRow`,
+ * shared with the Categories screen, so the same category reads the same way
+ * on both tabs — flat here rather than carded, since full cards under the
+ * charts would double this panel's weight:
  *
  *   [avatar]  Name           28%   CZK 105,383
  *             ████████░░░░░░░
@@ -19,21 +21,14 @@
  * (say) 47 % is more confusing than a closed 100 %.
  */
 import { memo, useMemo } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import type { StyleProp, ViewStyle } from 'react-native';
-import { Text, TouchableRipple, useTheme } from 'react-native-paper';
-import { LinearGradient } from 'expo-linear-gradient';
 
-import { CategoryAvatar } from './CategoryAvatar';
+import { CategoryRow } from './CategoryRow';
 import type { MaterialIconName } from '../utils/categoryConfig';
 import type { ChartSeries } from '../domain/timeSeries';
 import { OTHER_SERIES_ID } from '../domain/timeSeries';
-import type { ConvertedAmount } from '../domain/exchangeRates';
-import { lighten } from '../utils/colorContrast';
 import { formatTotalCompactWithCurrency } from '../utils/format';
-import { useAppColors } from '../theme/appColors';
-import { radius } from '../theme/tokens';
-import { interFont } from '../theme/typography';
 
 export interface BreakdownSeriesResolution {
   readonly name: string;
@@ -58,9 +53,6 @@ export const CategoryBreakdownList = memo(function CategoryBreakdownList({
   onCategoryPress,
   style,
 }: CategoryBreakdownListProps) {
-  const theme = useTheme();
-  const appColors = useAppColors();
-
   const totalSum = useMemo(
     () => series.reduce((sum, s) => sum + s.total, 0),
     [series],
@@ -69,119 +61,40 @@ export const CategoryBreakdownList = memo(function CategoryBreakdownList({
   if (series.length === 0) return null;
 
   return (
-    <View style={style}>
+    <View style={[styles.list, style]}>
       {series.map((s) => {
         const resolved = resolveSeries(s.categoryId);
-        const amount: ConvertedAmount = { amount: s.total, approx: s.approx };
-        const pct = totalSum > 0 ? Math.round((s.total / totalSum) * 100) : 0;
-        const accessibilityLabel = `${resolved.name} ${pct}% ${formatTotalCompactWithCurrency(
-          amount.amount,
-          mainCurrency,
-          language,
-          amount.approx,
-        )}`;
+        const pct = totalSum > 0 ? (s.total / totalSum) * 100 : 0;
         // The `__other` rollup represents many categories — there's no
         // single category to drill into, so keep it non-interactive even
         // when `onCategoryPress` is provided.
         const isInteractive =
           onCategoryPress !== undefined && s.categoryId !== OTHER_SERIES_ID;
-        const row = (
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 12,
-              paddingVertical: 12,
-              paddingHorizontal: 16,
-            }}
-          >
-            <CategoryAvatar iconName={resolved.iconName} color={resolved.color} />
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <Text
-                  variant="bodyLarge"
-                  style={{
-                    fontFamily: interFont.semiBold,
-                    color: theme.colors.onSurface,
-                    flex: 1,
-                    marginRight: 8,
-                  }}
-                  numberOfLines={1}
-                >
-                  {resolved.name}
-                </Text>
-                <Text
-                  variant="labelMedium"
-                  style={{ color: appColors.textDim, fontFamily: interFont.medium }}
-                >
-                  {pct}%
-                </Text>
-              </View>
-              <View
-                style={{
-                  marginTop: 8,
-                  height: 6,
-                  borderRadius: radius.xs,
-                  backgroundColor: appColors.progressTrackBg,
-                  overflow: 'hidden',
-                }}
-              >
-                <LinearGradient
-                  colors={[resolved.color, lighten(resolved.color, 0.35)]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={{
-                    width: `${Math.max(pct, 2)}%`,
-                    height: '100%',
-                    borderRadius: radius.xs,
-                  }}
-                />
-              </View>
-            </View>
-            <Text
-              variant="bodyLarge"
-              numberOfLines={1}
-              style={{
-                color: theme.colors.onSurface,
-                fontFamily: interFont.bold,
-                minWidth: 80,
-                textAlign: 'right',
-              }}
-            >
-              {formatTotalCompactWithCurrency(amount.amount, mainCurrency, language, amount.approx)}
-            </Text>
-          </View>
-        );
-        if (isInteractive) {
-          return (
-            <TouchableRipple
-              key={s.categoryId}
-              onPress={() => onCategoryPress(s.categoryId)}
-              accessibilityRole="button"
-              accessibilityLabel={accessibilityLabel}
-            >
-              {row}
-            </TouchableRipple>
-          );
-        }
         return (
-          <View
+          <CategoryRow
             key={s.categoryId}
-            accessibilityRole="text"
-            accessibilityLabel={accessibilityLabel}
-          >
-            {row}
-          </View>
+            categoryId={s.categoryId}
+            name={resolved.name}
+            color={resolved.color}
+            iconName={resolved.iconName}
+            percentage={pct}
+            amount={s.total}
+            approx={s.approx}
+            currency={mainCurrency}
+            language={language}
+            accessibilityLabel={`${resolved.name} ${Math.round(
+              pct,
+            )}% ${formatTotalCompactWithCurrency(s.total, mainCurrency, language, s.approx)}`}
+            {...(isInteractive ? { onPress: onCategoryPress } : {})}
+          />
         );
       })}
     </View>
   );
+});
+
+const styles = StyleSheet.create({
+  list: { paddingHorizontal: 14 },
 });
 
 export { OTHER_SERIES_ID };

@@ -1,14 +1,15 @@
 /**
- * One category's share of the period, as a card row.
+ * One category's share of a period, as a card row: avatar, name,
+ * percentage, progress bar and total.
  *
- * A card per row rather than a flat list: the categories screen is a
- * ranking, and giving each entry its own elevated surface — the site's
- * `.feature` treatment — makes the ordering legible at a glance instead
- * of reading as one undifferentiated block.
+ * A card per row rather than a flat list: these lists are rankings, and
+ * giving each entry its own elevated surface — the site's `.feature`
+ * treatment — makes the ordering legible at a glance instead of reading as
+ * one undifferentiated block. Used by both the Categories screen and the
+ * Overview breakdown so the same category reads the same way on both tabs.
  *
- * Its own component (not inlined in the screen) so `memo` can keep a row
- * from re-rendering while a sibling changes, and so the entrance stagger
- * has somewhere to live.
+ * Horizontal inset belongs to the list, not the row, because the two screens
+ * wrap it in different containers.
  */
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -30,6 +31,7 @@ import { CategoryAvatar } from './CategoryAvatar';
 /** Rows past this point enter together — a longer cascade reads as lag. */
 const MAX_STAGGERED_ROWS = 8;
 const STAGGER_STEP_MS = 45;
+const CHEVRON_SIZE = 20;
 
 export interface CategoryRowProps {
   readonly categoryId: string;
@@ -41,10 +43,13 @@ export interface CategoryRowProps {
   readonly approx: boolean;
   readonly currency: string;
   readonly language: string;
-  /** Rank in the list — drives the entrance stagger only. */
-  readonly index: number;
-  /** Takes the id so the screen can pass one stable callback for every row. */
-  readonly onPress: (categoryId: string) => void;
+  /** Rank in the list — drives the entrance stagger. Omit for no entrance. */
+  readonly index?: number;
+  /** Defaults to the category name. */
+  readonly accessibilityLabel?: string;
+  /** Omit for a row with nothing to drill into (the Overview `__other`
+   *  rollup); it then loses its chevron and press feedback. */
+  readonly onPress?: (categoryId: string) => void;
 }
 
 export const CategoryRow = memo(function CategoryRow({
@@ -58,6 +63,7 @@ export const CategoryRow = memo(function CategoryRow({
   currency,
   language,
   index,
+  accessibilityLabel,
   onPress,
 }: CategoryRowProps) {
   const theme = useTheme();
@@ -65,17 +71,21 @@ export const CategoryRow = memo(function CategoryRow({
   const motionEnabled = useMotionEnabled();
   const percent = Math.round(percentage);
 
-  const entering = motionEnabled
-    ? {
-        entering: FadeInDown.duration(motionDuration.enter).delay(
-          Math.min(index, MAX_STAGGERED_ROWS) * STAGGER_STEP_MS,
-        ),
-      }
-    : {};
+  const entering =
+    motionEnabled && index !== undefined
+      ? {
+          entering: FadeInDown.duration(motionDuration.enter).delay(
+            Math.min(index, MAX_STAGGERED_ROWS) * STAGGER_STEP_MS,
+          ),
+        }
+      : {};
 
   return (
     <Animated.View {...entering} style={styles.wrapper}>
-      <AppCard onPress={() => onPress(categoryId)} accessibilityLabel={name}>
+      <AppCard
+        accessibilityLabel={accessibilityLabel ?? name}
+        {...(onPress ? { onPress: () => onPress(categoryId) } : {})}
+      >
         <View style={styles.body}>
           <CategoryAvatar iconName={iconName} color={color} />
 
@@ -107,7 +117,17 @@ export const CategoryRow = memo(function CategoryRow({
             </Text>
           </View>
 
-          <MaterialIcons name="chevron-right" size={20} color={appColors.textDim} />
+          {/* Slot is reserved either way, so a row with no chevron still lines
+              its amount up with its neighbours. */}
+          <View style={styles.chevronSlot}>
+            {onPress ? (
+              <MaterialIcons
+                name="chevron-right"
+                size={CHEVRON_SIZE}
+                color={appColors.textDim}
+              />
+            ) : null}
+          </View>
         </View>
       </AppCard>
     </Animated.View>
@@ -115,7 +135,7 @@ export const CategoryRow = memo(function CategoryRow({
 });
 
 const styles = StyleSheet.create({
-  wrapper: { marginHorizontal: 14, marginTop: 10 },
+  wrapper: { marginTop: 10 },
   body: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -143,4 +163,5 @@ const styles = StyleSheet.create({
   // breaking after the currency code.
   amountColumn: { minWidth: 78, flexShrink: 0 },
   amount: { fontFamily: interFont.bold, fontSize: 15, textAlign: 'right' },
+  chevronSlot: { width: CHEVRON_SIZE },
 });

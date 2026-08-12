@@ -56,6 +56,11 @@ export const surfaces = {
     bg: '#fafafa',
     bgElev: '#ffffff',
     bgSoft: '#f4f4f7',
+    // Recessed *below* the page rather than raised above it. The site has no
+    // equivalent — these follow its slate lineage, far enough from `bg` to
+    // delimit a control without an outline.
+    bgSunken: '#e6eaf1',
+    bgSunkenStrong: '#d6dce7',
     border: 'rgba(15, 23, 42, 0.08)',
     borderStrong: 'rgba(15, 23, 42, 0.14)',
     text: '#0f172a',
@@ -66,6 +71,8 @@ export const surfaces = {
     bg: '#0a0a0f',
     bgElev: '#15151c',
     bgSoft: '#1c1c25',
+    bgSunken: '#23232f',
+    bgSunkenStrong: '#2e2e3d',
     border: 'rgba(255, 255, 255, 0.08)',
     borderStrong: 'rgba(255, 255, 255, 0.16)',
     text: '#f1f5f9',

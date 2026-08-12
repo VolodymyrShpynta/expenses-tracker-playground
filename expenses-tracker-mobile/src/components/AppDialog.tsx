@@ -60,6 +60,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { useFontScale } from '../context/preferencesProvider';
+import { useAppColors } from '../theme/appColors';
 import { interFont } from '../theme/typography';
 import { tabBarBodyHeight } from '../theme/tabBar';
 import { MAX_DIALOG_WIDTH } from '../theme/layout';
@@ -107,6 +108,7 @@ export function AppDialog({
   reserveBottomNav = false,
 }: AppDialogProps) {
   const theme = useTheme();
+  const appColors = useAppColors();
   const { t: translate } = useTranslation();
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -144,7 +146,15 @@ export function AppDialog({
     <Dialog
       visible={visible}
       onDismiss={onDismiss}
-      style={[styles.dialog, { backgroundColor: theme.colors.background, maxHeight, width }]}
+      style={[
+        styles.dialog,
+        {
+          backgroundColor: theme.colors.background,
+          borderColor: appColors.border,
+          maxHeight,
+          width,
+        },
+      ]}
     >
       {showCloseButton ? (
         <View style={styles.titleRow}>
@@ -195,6 +205,9 @@ const styles = StyleSheet.create({
     // stretches edge to edge on a large screen.
     marginHorizontal: 0,
     alignSelf: 'center',
+    // See `AddExpenseDialog.styles.sheet` — on near-black there's no shadow to
+    // lift a dialog with, so the rim is what marks its edge.
+    borderWidth: 1,
   },
   titleRow: {
     flexDirection: 'row',

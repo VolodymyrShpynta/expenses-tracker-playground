@@ -78,9 +78,16 @@ export function buildYearRange(): DateRange {
   };
 }
 
+/**
+ * Floor for the "all time" preset. The date picker's own year range starts
+ * before this (see `START_YEAR` in `DatePickerDialogs`), so the calendar is
+ * never opened on the first month it allows.
+ */
+export const ALL_TIME_START_YEAR = 2000;
+
 export function buildAllTimeRange(): DateRange {
   return {
-    from: new Date(2000, 0, 1),
+    from: new Date(ALL_TIME_START_YEAR, 0, 1),
     to: endOfDay(new Date()),
   };
 }

@@ -54,9 +54,9 @@ export function ThemedPaperProvider({ children }: ThemedPaperProviderProps) {
   const baseTheme = isDark ? darkTheme : lightTheme;
   const theme = scaleTheme(baseTheme, FONT_SCALES[fontScale]);
 
-  // The ambient glow is painted once at the root, behind the navigator.
-  // Both the screen container and the header therefore have to be
-  // transparent, or they'd punch flat rectangles out of it.
+  // The ambient glow is painted once at the root, behind the navigator, so the
+  // navigator's own container has to be transparent. Individual screens opt
+  // back into it; see the stack's `screenOptions` for why the default is opaque.
   const navTheme: NavigationTheme = useMemo(() => {
     const adapted = isDark ? AdaptedDarkTheme : AdaptedLightTheme;
     return {

@@ -57,7 +57,7 @@ export interface SparklineChartProps {
   readonly granularity: GroupBy;
   /** Active language code for localised number + date formatting. */
   readonly language: string;
-  /** Stroke + (tinted) fill color. Caller decides; usually theme.colors.primary. */
+  /** Stroke + (tinted) fill color. Caller decides; usually a theme accent. */
   readonly color: string;
   /** Title shown above the trace (e.g. "Total spending"). */
   readonly title: string;

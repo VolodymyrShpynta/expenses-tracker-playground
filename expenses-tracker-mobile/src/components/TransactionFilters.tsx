@@ -17,9 +17,10 @@
  */
 import { useState } from 'react';
 import { View } from 'react-native';
-import { IconButton, TextInput, useTheme } from 'react-native-paper';
+import { IconButton, TextInput } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
+import { AppTextInput } from './AppTextInput';
 import { CategoryIncludeFilter } from './CategoryIncludeFilter';
 import { CategoryPickerDialog } from './CategoryPickerDialog';
 
@@ -41,7 +42,6 @@ export function TransactionFilters({
   onRemoveInclude,
 }: TransactionFiltersProps) {
   const { t: translate } = useTranslation();
-  const theme = useTheme();
   // Local picker for the "open filter" icon button next to the search
   // field — needed because the chips row only renders its own picker
   // when at least one chip is selected (the Add pill is rendered as
@@ -49,16 +49,16 @@ export function TransactionFilters({
   const [pickerOpen, setPickerOpen] = useState(false);
 
   return (
-    <View style={{ paddingHorizontal: 12, paddingBottom: 4 }}>
+    <View style={{ paddingHorizontal: 14, paddingBottom: 4 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-        <TextInput
-          mode="outlined"
+        <AppTextInput
+          shape="search"
           dense
           placeholder={translate('transactions.searchPlaceholder')}
           value={query}
           onChangeText={onQueryChange}
           left={<TextInput.Icon icon="magnify" />}
-          style={{ flex: 1, backgroundColor: theme.colors.surface }}
+          style={{ flex: 1 }}
         />
         <IconButton
           icon="filter-variant"

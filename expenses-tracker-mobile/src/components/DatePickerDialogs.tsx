@@ -49,7 +49,7 @@ import { useTranslation } from 'react-i18next';
 import { AppDialog } from './AppDialog';
 import { ThemedButton } from './ThemedButton';
 import { FONT_SCALES, useFontScale } from '../context/preferencesProvider';
-import { formatDate } from '../utils/dateRange';
+import { ALL_TIME_START_YEAR, formatDate } from '../utils/dateRange';
 
 // `react-native-paper-dates`' `Calendar` ALWAYS mounts its year picker — a
 // `FlatList` — even while it's an invisible (opacity 0, pointer-events none)
@@ -105,7 +105,22 @@ for (const [code, translation] of Object.entries(CALENDAR_TRANSLATIONS)) {
  * window and re-derive `END_YEAR` at module load (acceptable: month-long
  * staleness is fine for a date picker).
  */
-const START_YEAR = 2000;
+/**
+ * Year range exposed by the calendar's tappable year header. The library
+ * defaults to 1800–2200, which makes the year picker an unusably long list.
+ * For an expense tracker, dates outside a couple of decades around "now"
+ * are practically meaningless, so we constrain the picker to a sensible
+ * window and re-derive `END_YEAR` at module load (acceptable: month-long
+ * staleness is fine for a date picker).
+ *
+ * `START_YEAR` must stay **strictly earlier** than the earliest date the app
+ * can hand the calendar, which is the "all time" floor. When the two matched,
+ * that preset opened the calendar on the first month its own range allowed
+ * (index 0 === the library's `getMinIndex`), and the library rendered the
+ * month *below* the minimum on top of it — two overlapping grids. It also left
+ * the ‹ arrow with nowhere to go.
+ */
+const START_YEAR = ALL_TIME_START_YEAR - 1;
 const END_YEAR = new Date().getFullYear() + 5;
 
 export interface SingleDatePickerDialogProps {
@@ -459,6 +474,33 @@ function useCalendarTheme(): MD3Theme {
   }, [theme]);
 }
 
+/**
+ * Height to give the calendar's parent.
+ *
+ * The library's `Calendar` measures its parent (via its internal `AutoSizer`)
+ * and silently clips trailing day rows when that parent is too short. Inside a
+ * `ScrollView` a bare `minHeight` collapses — the `AutoSizer`'s `flex: 1` root
+ * has nothing to fill — so the height has to be definite.
+ *
+ * It also has to fit a **6-row** month (one whose 1st falls late enough in the
+ * week to push into a sixth row, e.g. August 2026), which is the case a
+ * hand-estimated number kept getting wrong. So mirror `getMonthHeight` from the
+ * library's `Date/Month.tsx` instead; none of its parts are exported, hence the
+ * transcription. Both dialogs use `mode="single"`, which the library maps to
+ * its `horizontal` scroll mode.
+ */
+const DAY_SIZE = 46;
+const WEEK_MARGIN = 6;
+const DAY_NAMES_HEIGHT = 44;
+const HEADER_BUTTONS_HEIGHT = 56 + 4 + 8;
+const MONTH_LABEL_HEIGHT = 4 + (8 + 44 + 12);
+const MAX_WEEK_ROWS = 6;
+const CALENDAR_HEIGHT =
+  HEADER_BUTTONS_HEIGHT +
+  DAY_NAMES_HEIGHT +
+  MAX_WEEK_ROWS * (DAY_SIZE + WEEK_MARGIN) +
+  MONTH_LABEL_HEIGHT;
+
 const styles = StyleSheet.create({
   chipRow: {
     flexDirection: 'row',
@@ -501,16 +543,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
     paddingHorizontal: 4,
   },
-  // The library's `Calendar` measures its parent (via its internal
-  // `AutoSizer`) and silently clips trailing day rows when that parent is
-  // too short — a 6-week month (e.g. March 2026) showed only days 1–28.
-  // Inside a `ScrollView` a bare `minHeight` collapses (the `AutoSizer`'s
-  // `flex: 1` root has nothing to fill), so pin a DEFINITE height that
-  // fits the worst case: month/year header (~68) + weekday row (~44) +
-  // 6 day rows (~52 each = 312) ≈ 424. When the viewport is shorter, the
-  // scroll area scrolls; when taller, the calendar shows in full.
+  // The library's `Calendar` measures its parent and clips trailing day rows
+  // when it's too short — see `CALENDAR_HEIGHT` above. Shorter months leave
+  // some space below; the scroll area scrolls when the viewport can't fit it.
   calendarWrap: {
-    height: 424,
+    height: CALENDAR_HEIGHT,
   },
   // Let the Cancel / Apply pair wrap onto stacked rows instead of
   // clipping off-screen when a large system font (or a long localized

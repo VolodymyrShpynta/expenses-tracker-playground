@@ -385,10 +385,16 @@ an indigo glow shadow.
 | Gradients, glows, glow shadows | `src/theme/appColors.ts`       | `useAppColors()`. No inline `rgba(…)` in components.                          |
 | Type                 | `src/theme/typography.ts`                | Inter. **Weight is a font family, never `fontWeight`** — see below.           |
 | Motion               | `src/theme/motion.ts`                    | Gate every animation on `useMotionEnabled()`.                                 |
-| Primary action       | `GlowButton` / `GlowFab`                 | Gradient pill + indigo glow. `ThemedButton` is the neutral counterpart.       |
+| Primary action       | `GlowFab`                                | Gradient circle + indigo glow. `ThemedButton` is the neutral counterpart.     |
 | Card surface         | `AppCard`                                | `--bg-elev` fill, 1px `--border`, `radius.lg`, `--shadow-sm`.                 |
-| Section label        | `Eyebrow`                                | Uppercase pill, the site's `.eyebrow`.                                        |
-| Hero headline        | `GradientText`                           | The site's `background-clip: text`, via a mask.                               |
+| Section label        | `Eyebrow`                                | Uppercase pill, the site's `.eyebrow`.                                       |
+| Recessed control     | `surfaceSunken` (`useAppColors()`)       | Keypad keys and the like. MD3's `elevation.*` steps *lighter* in light mode, so it can't serve here. |
+
+**Buttons are delimited by fill, not by outline.** `surfaceVariant` sits
+~2 units off the page in light mode, which is why keys once needed a
+border to be seen; the fix was the sunken step above, not a hairline.
+Hairlines belong to containers (`AppCard`, the grouped transaction list) —
+mixing the two reads as inconsistent.
 
 **Weights are separate font families.** Android cannot select a weight
 from separately-registered font files, so `fontWeight: '700'` on top of
@@ -398,15 +404,30 @@ typescale already carries the right family per variant, so this only
 matters for inline styles.
 
 **The ambient glow is mounted once**, in `app/_layout.tsx` above the
-navigator. Everything above it is therefore transparent — the navigation
-theme's `background` and `card`, `headerStyle`, and `sceneStyle`. An
-opaque header or screen container punches a flat rectangle out of the
-wash, so don't reintroduce one.
+navigator, so the navigation theme's `background` and the `(tabs)` screen
+are transparent. **Pushed screens are not, and must not be.** A transparent
+screen doesn't only let the glow through — it lets the screen *below* it
+through, so the outgoing screen stays fully visible for the whole
+transition (overlapping titles and body text) and both layers plus the SVG
+glow are composited every frame. The stack therefore defaults
+`headerStyle` / `contentStyle` to `colors.background` and `(tabs)` opts
+back in. `contentStyle` only covers the area *below* the header, so a glow
+mounted inside a screen with a header sits ~56dp low and jumps as you
+navigate; that's why pushed screens are flat instead.
 
 **Coloured shadows need `boxShadow`, not `elevation`.** Android's
 `elevation` always draws neutral grey, which kills the indigo glow. RN
 0.76+ on the New Architecture supports the CSS `boxShadow` string, which
 is what the `shadow` tokens hold.
+
+**Overlays separate by scrim + rim, not by fill.** Dialogs and bottom
+sheets keep the page fill (`colors.background`); raising them to a
+lighter surface cascades into everything tuned against the old fill
+(input backgrounds, recessed keys). Instead: the dark `backdrop` is
+**black** (`rgba(0,0,0,0.72)`) — a scrim in the page's own near-black is a
+no-op wherever the page is empty — plus a 1px `appColors.border` rim on
+the overlay edges, because a drop shadow is invisible on near-black.
+Bottom sheets take top/left/right only; the bottom edge is flush.
 
 **Adding a native module needs a rebuild.** `expo-linear-gradient` and
 `@react-native-masked-view/masked-view` are native; `npx expo run:android`

@@ -47,6 +47,8 @@ import {
 } from '../hooks/useExpenses';
 import { useExpenseSuggestions } from '../hooks/useExpenseSuggestions';
 import { FONT_SCALES, useFontScale, useMainCurrency } from '../context/preferencesProvider';
+import { useAppColors } from '../theme/appColors';
+import { radius } from '../theme/tokens';
 import { interFont } from '../theme/typography';
 import { layoutStyles } from '../theme/layout';
 import type { ExpenseProjection } from '../domain/types';
@@ -137,6 +139,7 @@ function AddExpenseDialogContent({
 }: AddExpenseDialogContentProps) {
   const { t: translate, i18n } = useTranslation();
   const theme = useTheme();
+  const appColors = useAppColors();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   // No CSS media queries in RN: derive a single screen-size multiplier from
@@ -305,8 +308,8 @@ function AddExpenseDialogContent({
   const overlayVisible = !subOpen;
 
   const dateColor = theme.colors.primary;
-  const categoryColor = resolved?.color ?? theme.colors.tertiary;
-  const opColor = theme.colors.tertiary;
+  const categoryColor = resolved?.color ?? theme.colors.secondary;
+  const opColor = theme.colors.secondary;
   const isEdit = !!expense;
 
   return (
@@ -339,6 +342,7 @@ function AddExpenseDialogContent({
                 layoutStyles.contentColumn,
                 {
                   backgroundColor: theme.colors.background,
+                  borderColor: appColors.border,
                   // Cap at 90% of the ACTUAL window height (numeric, not a
                   // `%` string — a percentage here resolves against the
                   // auto-height KeyboardAvoidingView parent, not the screen,
@@ -442,7 +446,6 @@ function AddExpenseDialogContent({
                   PortalSafeTextInput, not Paper's TextInput directly — see
                   PortalSafeTextInput.tsx for the Portal cursor-jump bug. */}
                 <PortalSafeTextInput
-                  mode="outlined"
                   placeholder={translate('expenseDialog.description')}
                   value={description}
                   onChangeText={(text) => {
@@ -607,8 +610,14 @@ const styles = StyleSheet.create({
   },
   sheet: {
     width: '100%',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    // Dark mode has no shadow to lift a sheet with — a drop shadow is invisible
+    // on near-black — so the rim is what marks where the overlay begins. Bottom
+    // edge omitted: it sits flush with the screen.
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
     // maxHeight is set inline from the window height (see the render) so it
     // caps at a true 90% of the screen; the body scrolls only if it can't
     // fit (and to keep an input visible above the keyboard). Width is capped

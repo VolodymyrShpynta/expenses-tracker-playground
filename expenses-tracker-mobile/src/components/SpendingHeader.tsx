@@ -46,8 +46,7 @@ import type { ConvertedAmount } from '../domain/exchangeRates';
 import { useAppColors } from '../theme/appColors';
 import { radius } from '../theme/tokens';
 import { interFont } from '../theme/typography';
-import { Eyebrow } from './GlowButton';
-import { GradientText } from './GradientText';
+import { Eyebrow } from './Eyebrow';
 import { PeriodPickerDialog } from './PeriodPickerDialog';
 import { RangeDatePickerDialog, SingleDatePickerDialog } from './DatePickerDialogs';
 
@@ -141,23 +140,24 @@ export function SpendingHeader({ total, currency }: SpendingHeaderProps) {
       <View style={styles.hero}>
         <Eyebrow>{translate('expenses.totalSpending')}</Eyebrow>
 
-        <GradientText
-          colors={appColors.headingGradient}
-          containerStyle={styles.totalBox}
+        <Text
+          style={[
+            styles.totalBox,
+            {
+              color: theme.colors.onSurface,
+              fontFamily: interFont.extraBold,
+              fontSize: Math.round(TOTAL_FONT_SIZE * scale),
+              lineHeight: Math.round(TOTAL_FONT_SIZE * 1.15 * scale),
+              // The site's hero tracking, -0.035em.
+              letterSpacing: -0.035 * TOTAL_FONT_SIZE * scale,
+            },
+          ]}
           numberOfLines={1}
           adjustsFontSizeToFit
           minimumFontScale={0.4}
-          style={{
-            fontFamily: interFont.extraBold,
-            fontSize: Math.round(TOTAL_FONT_SIZE * scale),
-            lineHeight: Math.round(TOTAL_FONT_SIZE * 1.15 * scale),
-            // The site's hero tracking, -0.035em.
-            letterSpacing: -0.035 * TOTAL_FONT_SIZE * scale,
-            textAlign: 'center',
-          }}
         >
           {formatTotalCompactWithCurrency(total.amount, currency, i18n.language, total.approx)}
-        </GradientText>
+        </Text>
 
         <GestureDetector gesture={swipeGesture}>
           <View style={styles.periodRow}>
@@ -274,9 +274,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 10,
   },
-  // Bounded width so `adjustsFontSizeToFit` has something to shrink against —
-  // a mask otherwise collapses to its content and the total overflows.
-  totalBox: { alignSelf: 'stretch' },
+  // Full width so `adjustsFontSizeToFit` has a bound to shrink against.
+  totalBox: { alignSelf: 'stretch', textAlign: 'center' },
   periodRow: {
     flexDirection: 'row',
     alignItems: 'center',

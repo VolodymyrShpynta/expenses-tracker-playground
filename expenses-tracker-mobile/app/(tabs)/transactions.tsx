@@ -19,7 +19,7 @@ import { SpendingHeader } from '../../src/components/SpendingHeader';
 import { CategoryAvatar } from '../../src/components/CategoryAvatar';
 import { AddExpenseDialog } from '../../src/components/AddExpenseDialog';
 import { EmptyState } from '../../src/components/EmptyState';
-import { GlowFab } from '../../src/components/GlowButton';
+import { GlowFab } from '../../src/components/GlowFab';
 import { TransactionFilters } from '../../src/components/TransactionFilters';
 import { useExpenses } from '../../src/hooks/useExpenses';
 import {
@@ -41,6 +41,22 @@ import { interFont } from '../../src/theme/typography';
 
 /** Side margin of the grouped card that holds each section's rows. */
 const GROUP_INSET = 14;
+/**
+ * Card outline, matching `AppCard` and the header pills. A white card on the
+ * near-white page is a 2% luminance step — invisible on its own — so the
+ * border is what actually draws the group.
+ */
+const GROUP_BORDER = 1;
+/** Leading tile in an expense row. */
+const ROW_TILE_SIZE = 40;
+const ROW_PADDING = 14;
+const ROW_GAP = 12;
+/**
+ * Row separators start where the text does, not at the card edge. A
+ * full-bleed rule reads as a table; an inset one reads as a list inside a
+ * card, which is the difference the outline alone can't make.
+ */
+const DIVIDER_INSET = ROW_PADDING + ROW_TILE_SIZE + ROW_GAP;
 
 /**
  * Memoized expense row hoisted to module scope. With stable props
@@ -65,13 +81,12 @@ interface ExpenseRowProps {
   readonly onPress: (expense: ExpenseProjection) => void;
   readonly secondaryColor: string;
   readonly surfaceColor: string;
-  readonly dividerColor: string;
+  readonly borderColor: string;
   /**
-   * Position within its section. Rows share one grouped card per section,
-   * so only the outer two round their corners and only inner rows draw a
-   * divider.
+   * Rows share one grouped card with their section header, which owns the
+   * top corners — so a row only ever rounds its bottom, and only the last
+   * one does. Inner rows draw a divider instead.
    */
-  readonly isFirst: boolean;
   readonly isLast: boolean;
   /**
    * Current section granularity. When the list is grouped by day the
@@ -92,8 +107,7 @@ const ExpenseRow = memo(function ExpenseRow({
   onPress,
   secondaryColor,
   surfaceColor,
-  dividerColor,
-  isFirst,
+  borderColor,
   isLast,
   groupBy,
 }: ExpenseRowProps) {
@@ -114,17 +128,16 @@ const ExpenseRow = memo(function ExpenseRow({
       onPress={() => onPress(expense)}
       style={({ pressed }) => [
         rowStyles.row,
-        {
-          backgroundColor: surfaceColor,
-          borderColor: dividerColor,
-          opacity: pressed ? 0.7 : 1,
-        },
-        isFirst ? rowStyles.first : null,
-        isLast ? rowStyles.last : rowStyles.divided,
+        { backgroundColor: surfaceColor, borderColor, opacity: pressed ? 0.7 : 1 },
+        isLast ? rowStyles.last : null,
       ]}
     >
       <View style={rowStyles.body}>
-        <CategoryAvatar iconName={resolved.iconName} color={resolved.color} size={40} />
+        <CategoryAvatar
+          iconName={resolved.iconName}
+          color={resolved.color}
+          size={ROW_TILE_SIZE}
+        />
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text numberOfLines={1} style={rowStyles.title}>
             {expense.description || resolved.name}
@@ -156,21 +169,31 @@ const ExpenseRow = memo(function ExpenseRow({
           ) : null}
         </View>
       </View>
+      {isLast ? null : (
+        <View style={[rowStyles.divider, { backgroundColor: borderColor }]} />
+      )}
     </Pressable>
   );
 });
 
 const rowStyles = StyleSheet.create({
-  row: { marginHorizontal: GROUP_INSET },
-  first: { borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
-  last: { borderBottomLeftRadius: radius.lg, borderBottomRightRadius: radius.lg },
-  divided: { borderBottomWidth: StyleSheet.hairlineWidth * 2 },
+  row: {
+    marginHorizontal: GROUP_INSET,
+    borderLeftWidth: GROUP_BORDER,
+    borderRightWidth: GROUP_BORDER,
+  },
+  last: {
+    borderBottomWidth: GROUP_BORDER,
+    borderBottomLeftRadius: radius.lg,
+    borderBottomRightRadius: radius.lg,
+  },
+  divider: { height: GROUP_BORDER, marginLeft: DIVIDER_INSET },
   body: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: ROW_GAP,
     paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: ROW_PADDING,
   },
   title: { fontFamily: interFont.medium, fontSize: 15 },
   subtitle: { fontFamily: interFont.regular, fontSize: 12.5, marginTop: 2 },
@@ -205,6 +228,8 @@ interface SectionHeaderViewProps {
   readonly mainCurrency: string;
   readonly onSurface: string;
   readonly onSurfaceVariant: string;
+  readonly surfaceColor: string;
+  readonly borderColor: string;
   readonly onToggle: (key: string) => void;
 }
 
@@ -220,6 +245,8 @@ const SectionHeaderView = memo(function SectionHeaderView({
   mainCurrency,
   onSurface,
   onSurfaceVariant,
+  surfaceColor,
+  borderColor,
   onToggle,
 }: SectionHeaderViewProps) {
   const date = new Date(dateMs);
@@ -232,14 +259,19 @@ const SectionHeaderView = memo(function SectionHeaderView({
       onPress={() => onToggle(sectionKey)}
       accessibilityRole="button"
       accessibilityState={{ expanded: !collapsed }}
-      style={({ pressed }) => [headerStyles.header, { opacity: pressed ? 0.6 : 1 }]}
+      style={({ pressed }) => [
+        headerStyles.header,
+        { backgroundColor: surfaceColor, borderColor },
+        // Collapsed, the header *is* the whole card, so it closes both ends;
+        // expanded, its bottom edge divides it from the rows.
+        collapsed ? headerStyles.closed : null,
+        pressed ? { opacity: 0.7 } : null,
+      ]}
     >
       {/*
        * Day variant mirrors the web ExpenseGroupHeader: large day-of-month
        * on the left, weekday + month/year stacked beside it. Coarser
-       * groupings keep the single-line label. The header sits on the page
-       * rather than on a strip, so the grouped card below it reads as the
-       * section's body.
+       * groupings keep the single-line label.
        */}
       {groupBy === 'day' ? (
         <View style={headerStyles.dayGroup}>
@@ -287,12 +319,23 @@ const SectionHeaderView = memo(function SectionHeaderView({
 
 const headerStyles = StyleSheet.create({
   header: {
-    marginTop: 20,
-    marginBottom: 8,
-    paddingHorizontal: GROUP_INSET + 4,
+    marginTop: 18,
+    marginHorizontal: GROUP_INSET,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    borderTopWidth: GROUP_BORDER,
+    borderLeftWidth: GROUP_BORDER,
+    borderRightWidth: GROUP_BORDER,
+    borderBottomWidth: GROUP_BORDER,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  closed: {
+    borderBottomLeftRadius: radius.lg,
+    borderBottomRightRadius: radius.lg,
   },
   dayGroup: {
     flexDirection: 'row',
@@ -494,7 +537,9 @@ export default function TransactionsScreen() {
   const onSurfaceColor = theme.colors.onSurface;
   const appColors = useAppColors();
   const surfaceColor = theme.colors.surface;
-  const dividerColor = appColors.border;
+  // Same weight as the period pills in `SpendingHeader`; anything heavier
+  // reads as a table rule rather than a card edge.
+  const borderColor = appColors.border;
 
   const renderItem = useCallback(
     ({
@@ -515,8 +560,7 @@ export default function TransactionsScreen() {
         onPress={handleEditPress}
         secondaryColor={secondaryColor}
         surfaceColor={surfaceColor}
-        dividerColor={dividerColor}
-        isFirst={index === 0}
+        borderColor={borderColor}
         isLast={index === section.data.length - 1}
         groupBy={groupBy}
       />
@@ -529,7 +573,7 @@ export default function TransactionsScreen() {
       handleEditPress,
       secondaryColor,
       surfaceColor,
-      dividerColor,
+      borderColor,
       groupBy,
     ],
   );
@@ -548,6 +592,8 @@ export default function TransactionsScreen() {
         mainCurrency={mainCurrency}
         onSurface={onSurfaceColor}
         onSurfaceVariant={secondaryColor}
+        surfaceColor={surfaceColor}
+        borderColor={borderColor}
         onToggle={toggleCollapsed}
       />
     ),
@@ -558,6 +604,8 @@ export default function TransactionsScreen() {
       mainCurrency,
       onSurfaceColor,
       secondaryColor,
+      surfaceColor,
+      borderColor,
       toggleCollapsed,
     ],
   );
@@ -638,11 +686,8 @@ export default function TransactionsScreen() {
       ListHeaderComponent={listHeader}
       ListEmptyComponent={
         <EmptyState
-          icon="receipt-long"
           title={translate('expenses.noTransactions')}
           description={translate('expenses.tapPlusHint')}
-          actionLabel={translate('expenses.addAriaLabel')}
-          onAction={() => setAddOpen(true)}
         />
       }
       renderSectionHeader={renderSectionHeader}

@@ -76,7 +76,7 @@ export function CategoryPickerDialog({
         {/* PortalSafeTextInput, not Paper's TextInput directly — see
             PortalSafeTextInput.tsx for the Portal cursor-jump bug. */}
         <PortalSafeTextInput
-          mode="outlined"
+          shape="search"
           dense
           placeholder={translate('categoryDialog.searchPlaceholder')}
           value={query}

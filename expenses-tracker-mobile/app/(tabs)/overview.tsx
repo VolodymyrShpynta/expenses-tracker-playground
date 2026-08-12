@@ -102,7 +102,7 @@ export default function OverviewScreen() {
             buckets={totalSeries.buckets}
             granularity={granularity}
             language={i18n.language}
-            color={theme.colors.primary}
+            color={theme.colors.secondary}
             title={translate('expenses.totalSpending')}
             totalLabel={translate('expenses.overviewTooltipTotal')}
             accessibilityLabel={translate('expenses.overviewTotalSparklineLabel')}

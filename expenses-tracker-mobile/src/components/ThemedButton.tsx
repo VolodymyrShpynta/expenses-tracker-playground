@@ -10,7 +10,7 @@
  * Wrapping `Button` in one place is the only way to keep "define once,
  * use everywhere".
  *
- * For the primary call to action prefer `GlowButton`, which carries the
+ * For the screen-level primary action prefer `GlowFab`, which carries the
  * site's gradient fill and indigo glow. This wrapper is the neutral
  * (text / outlined / tonal) counterpart.
  *
