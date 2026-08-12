@@ -4,17 +4,23 @@
  *
  * The tab bar uses MaterialIcons rather than `react-native-vector-icons`
  * so we don't pull in another icon font.
+ *
+ * Chrome follows the landing site's `.nav`: an elevated surface separated
+ * from the page by a single hairline, no shadow. Headers stay transparent
+ * so the root ambient glow runs behind them.
  */
 import { Tabs } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Pressable } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FONT_SCALES, useFontScale } from '../../src/context/preferencesProvider';
+import { useAppColors } from '../../src/theme/appColors';
 import { tabBarBodyHeight, tabBarLabelFontSize } from '../../src/theme/tabBar';
+import { interFont } from '../../src/theme/typography';
 
 // Tab-bar height + label size (which scale with the font preference and must
 // stay in sync with what `AppDialog` reserves) live in `src/theme/tabBar.ts`.
@@ -22,6 +28,7 @@ import { tabBarBodyHeight, tabBarLabelFontSize } from '../../src/theme/tabBar';
 export default function TabsLayout() {
   const { t: translate } = useTranslation();
   const theme = useTheme();
+  const appColors = useAppColors();
   const router = useRouter();
   const { fontScale } = useFontScale();
   const scale = FONT_SCALES[fontScale];
@@ -43,18 +50,27 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerStyle: { backgroundColor: theme.colors.surface },
+        headerStyle: { backgroundColor: 'transparent' },
+        headerShadowVisible: false,
         headerTintColor: theme.colors.onSurface,
-        headerTitleStyle: { fontSize: Math.round(20 * scale) },
+        headerTitleStyle: {
+          fontSize: Math.round(20 * scale),
+          fontFamily: interFont.bold,
+          letterSpacing: -0.4 * scale,
+        },
         headerLeft: () => <MenuButton />,
+        sceneStyle: { backgroundColor: 'transparent' },
         tabBarStyle: {
           backgroundColor: theme.colors.surface,
           height: tabBarHeight,
           paddingBottom: insets.bottom,
+          borderTopWidth: StyleSheet.hairlineWidth * 2,
+          borderTopColor: appColors.border,
+          elevation: 0,
         },
         tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
-        tabBarLabelStyle: { fontSize: labelFontSize },
+        tabBarInactiveTintColor: appColors.textDim,
+        tabBarLabelStyle: { fontSize: labelFontSize, fontFamily: interFont.semiBold },
       }}
     >
       <Tabs.Screen

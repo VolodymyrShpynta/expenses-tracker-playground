@@ -9,14 +9,8 @@
  * `useExchangeRates`, falling back to raw amounts when rates haven't loaded).
  */
 import { memo, useCallback, useMemo, useState, useTransition } from 'react';
-import { SectionList, View } from 'react-native';
-import {
-  ActivityIndicator,
-  FAB,
-  Text,
-  TouchableRipple,
-  useTheme,
-} from 'react-native-paper';
+import { Pressable, SectionList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Text, useTheme } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -24,6 +18,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { SpendingHeader } from '../../src/components/SpendingHeader';
 import { CategoryAvatar } from '../../src/components/CategoryAvatar';
 import { AddExpenseDialog } from '../../src/components/AddExpenseDialog';
+import { EmptyState } from '../../src/components/EmptyState';
+import { GlowFab } from '../../src/components/GlowButton';
 import { TransactionFilters } from '../../src/components/TransactionFilters';
 import { useExpenses } from '../../src/hooks/useExpenses';
 import {
@@ -40,6 +36,11 @@ import { sumAmounts } from '../../src/domain/exchangeRates';
 import type { ExpenseProjection } from '../../src/domain/types';
 import { useAppColors } from '../../src/theme/appColors';
 import { layoutStyles, useContentGutter } from '../../src/theme/layout';
+import { radius } from '../../src/theme/tokens';
+import { interFont } from '../../src/theme/typography';
+
+/** Side margin of the grouped card that holds each section's rows. */
+const GROUP_INSET = 14;
 
 /**
  * Memoized expense row hoisted to module scope. With stable props
@@ -63,6 +64,15 @@ interface ExpenseRowProps {
   ) => ConvertedAmount;
   readonly onPress: (expense: ExpenseProjection) => void;
   readonly secondaryColor: string;
+  readonly surfaceColor: string;
+  readonly dividerColor: string;
+  /**
+   * Position within its section. Rows share one grouped card per section,
+   * so only the outer two round their corners and only inner rows draw a
+   * divider.
+   */
+  readonly isFirst: boolean;
+  readonly isLast: boolean;
   /**
    * Current section granularity. When the list is grouped by day the
    * section header already announces the date, so the row keeps its
@@ -81,6 +91,10 @@ const ExpenseRow = memo(function ExpenseRow({
   convert,
   onPress,
   secondaryColor,
+  surfaceColor,
+  dividerColor,
+  isFirst,
+  isLast,
   groupBy,
 }: ExpenseRowProps) {
   const resolved = lookup.resolve(expense.categoryId);
@@ -96,26 +110,26 @@ const ExpenseRow = memo(function ExpenseRow({
         })
       : null;
   return (
-    <TouchableRipple onPress={() => onPress(expense)}>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 12,
-          paddingVertical: 12,
-          paddingHorizontal: 16,
-        }}
-      >
-        <CategoryAvatar iconName={resolved.iconName} color={resolved.color} />
+    <Pressable
+      onPress={() => onPress(expense)}
+      style={({ pressed }) => [
+        rowStyles.row,
+        {
+          backgroundColor: surfaceColor,
+          borderColor: dividerColor,
+          opacity: pressed ? 0.7 : 1,
+        },
+        isFirst ? rowStyles.first : null,
+        isLast ? rowStyles.last : rowStyles.divided,
+      ]}
+    >
+      <View style={rowStyles.body}>
+        <CategoryAvatar iconName={resolved.iconName} color={resolved.color} size={40} />
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text variant="bodyMedium" numberOfLines={1}>
+          <Text numberOfLines={1} style={rowStyles.title}>
             {expense.description || resolved.name}
           </Text>
-          <Text
-            variant="bodySmall"
-            style={{ color: secondaryColor }}
-            numberOfLines={1}
-          >
+          <Text numberOfLines={1} style={[rowStyles.subtitle, { color: secondaryColor }]}>
             {dateLabel ? `${resolved.name} · ${dateLabel}` : resolved.name}
           </Text>
         </View>
@@ -127,28 +141,46 @@ const ExpenseRow = memo(function ExpenseRow({
             main line above it. numberOfLines={1} also stops a
             space-separated amount from breaking after the currency code. */}
         <View style={{ minWidth: 90, flexShrink: 0 }}>
-          <Text
-            variant="bodyMedium"
-            numberOfLines={1}
-            style={{ textAlign: 'right' }}
-          >
+          <Text numberOfLines={1} style={rowStyles.amount}>
             {converted
               ? formatAmountCompactIfLarge(converted.amount, mainCurrency, language, converted.approx)
               : formatAmountCompactIfLarge(expense.amount, expense.currency, language)}
           </Text>
           {converted ? (
             <Text
-              variant="bodySmall"
               numberOfLines={1}
-              style={{ color: secondaryColor, marginTop: 2, textAlign: 'right' }}
+              style={[rowStyles.amountSecondary, { color: secondaryColor }]}
             >
               {formatAmountCompactIfLarge(expense.amount, expense.currency, language)}
             </Text>
           ) : null}
         </View>
       </View>
-    </TouchableRipple>
+    </Pressable>
   );
+});
+
+const rowStyles = StyleSheet.create({
+  row: { marginHorizontal: GROUP_INSET },
+  first: { borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
+  last: { borderBottomLeftRadius: radius.lg, borderBottomRightRadius: radius.lg },
+  divided: { borderBottomWidth: StyleSheet.hairlineWidth * 2 },
+  body: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  title: { fontFamily: interFont.medium, fontSize: 15 },
+  subtitle: { fontFamily: interFont.regular, fontSize: 12.5, marginTop: 2 },
+  amount: { fontFamily: interFont.semiBold, fontSize: 15, textAlign: 'right' },
+  amountSecondary: {
+    fontFamily: interFont.regular,
+    fontSize: 12.5,
+    marginTop: 2,
+    textAlign: 'right',
+  },
 });
 
 /**
@@ -173,8 +205,6 @@ interface SectionHeaderViewProps {
   readonly mainCurrency: string;
   readonly onSurface: string;
   readonly onSurfaceVariant: string;
-  readonly outlineVariant: string;
-  readonly backgroundColor: string;
   readonly onToggle: (key: string) => void;
 }
 
@@ -190,8 +220,6 @@ const SectionHeaderView = memo(function SectionHeaderView({
   mainCurrency,
   onSurface,
   onSurfaceVariant,
-  outlineVariant,
-  backgroundColor,
   onToggle,
 }: SectionHeaderViewProps) {
   const date = new Date(dateMs);
@@ -200,93 +228,90 @@ const SectionHeaderView = memo(function SectionHeaderView({
   const { fontScale } = useFontScale();
   const scale = FONT_SCALES[fontScale];
   return (
-    <TouchableRipple
+    <Pressable
       onPress={() => onToggle(sectionKey)}
       accessibilityRole="button"
       accessibilityState={{ expanded: !collapsed }}
+      style={({ pressed }) => [headerStyles.header, { opacity: pressed ? 0.6 : 1 }]}
     >
-      <View
-        style={{
-          marginTop: 8,
-          paddingHorizontal: 16,
-          paddingTop: 10,
-          paddingBottom: 8,
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          backgroundColor,
-          borderBottomWidth: 1,
-          borderBottomColor: outlineVariant,
-        }}
-      >
-        {/*
-         * Day variant mirrors the web ExpenseGroupHeader: large
-         * day-of-month on the left, weekday + month/year stacked on the
-         * right. Coarser groupings keep the single-line label.
-         */}
-        {groupBy === 'day' ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flexShrink: 1, minWidth: 0 }}>
-            <Text
-              style={{
-                fontSize: Math.round(30 * scale),
-                fontWeight: '500',
-                lineHeight: Math.round(32 * scale),
-                color: onSurface,
-              }}
-            >
-              {date.getDate().toString().padStart(2, '0')}
+      {/*
+       * Day variant mirrors the web ExpenseGroupHeader: large day-of-month
+       * on the left, weekday + month/year stacked beside it. Coarser
+       * groupings keep the single-line label. The header sits on the page
+       * rather than on a strip, so the grouped card below it reads as the
+       * section's body.
+       */}
+      {groupBy === 'day' ? (
+        <View style={headerStyles.dayGroup}>
+          <Text
+            style={{
+              fontFamily: interFont.extraBold,
+              fontSize: Math.round(30 * scale),
+              lineHeight: Math.round(32 * scale),
+              letterSpacing: -0.035 * 30 * scale,
+              color: onSurface,
+            }}
+          >
+            {date.getDate().toString().padStart(2, '0')}
+          </Text>
+          <View style={{ flexShrink: 1, minWidth: 0 }}>
+            <Text numberOfLines={1} style={[headerStyles.weekday, { color: onSurface }]}>
+              {date.toLocaleDateString(language, { weekday: 'long' }).toUpperCase()}
             </Text>
-            <View style={{ flexShrink: 1, minWidth: 0 }}>
-              <Text
-                variant="labelMedium"
-                numberOfLines={1}
-                style={{ color: onSurface, fontWeight: '700', lineHeight: 16 }}
-              >
-                {date
-                  .toLocaleDateString(language, { weekday: 'long' })
-                  .toUpperCase()}
-              </Text>
-              <Text
-                variant="labelSmall"
-                numberOfLines={1}
-                style={{
-                  color: onSurfaceVariant,
-                  fontWeight: '600',
-                  lineHeight: 16,
-                }}
-              >
-                {formatDate(date, language, {
-                  month: 'long',
-                  year: 'numeric',
-                }).toUpperCase()}
-              </Text>
-            </View>
+            <Text numberOfLines={1} style={[headerStyles.month, { color: onSurfaceVariant }]}>
+              {formatDate(date, language, {
+                month: 'long',
+                year: 'numeric',
+              }).toUpperCase()}
+            </Text>
           </View>
-        ) : (
-          <Text
-            variant="titleMedium"
-            numberOfLines={1}
-            style={{ color: onSurface, fontWeight: '700', flexShrink: 1, minWidth: 0 }}
-          >
-            {label}
-          </Text>
-        )}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 8 }}>
-          <Text
-            variant="titleMedium"
-            style={{ color: onSurface, fontWeight: '700' }}
-          >
-            {formatTotalCompactWithCurrency(total, mainCurrency, language, approx)}
-          </Text>
-          <MaterialIcons
-            name={collapsed ? 'chevron-right' : 'expand-more'}
-            size={22}
-            color={onSurfaceVariant}
-          />
         </View>
+      ) : (
+        <Text numberOfLines={1} style={[headerStyles.label, { color: onSurface }]}>
+          {label}
+        </Text>
+      )}
+      <View style={headerStyles.totalGroup}>
+        <Text style={[headerStyles.total, { color: onSurface }]}>
+          {formatTotalCompactWithCurrency(total, mainCurrency, language, approx)}
+        </Text>
+        <MaterialIcons
+          name={collapsed ? 'chevron-right' : 'expand-more'}
+          size={22}
+          color={onSurfaceVariant}
+        />
       </View>
-    </TouchableRipple>
+    </Pressable>
   );
+});
+
+const headerStyles = StyleSheet.create({
+  header: {
+    marginTop: 20,
+    marginBottom: 8,
+    paddingHorizontal: GROUP_INSET + 4,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dayGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  weekday: { fontFamily: interFont.bold, fontSize: 12, letterSpacing: 0.8, lineHeight: 16 },
+  month: { fontFamily: interFont.medium, fontSize: 11, letterSpacing: 0.6, lineHeight: 16 },
+  label: { fontFamily: interFont.bold, fontSize: 16, flexShrink: 1, minWidth: 0 },
+  totalGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 0,
+    marginLeft: 8,
+  },
+  total: { fontFamily: interFont.extraBold, fontSize: 16, letterSpacing: -0.3 },
 });
 
 export default function TransactionsScreen() {
@@ -467,11 +492,20 @@ export default function TransactionsScreen() {
 
   const secondaryColor = theme.colors.onSurfaceVariant;
   const onSurfaceColor = theme.colors.onSurface;
-  const outlineVariantColor = theme.colors.outlineVariant;
-  const sectionHeaderBg = useAppColors().sectionHeaderBg;
+  const appColors = useAppColors();
+  const surfaceColor = theme.colors.surface;
+  const dividerColor = appColors.border;
 
   const renderItem = useCallback(
-    ({ item }: { item: ExpenseProjection }) => (
+    ({
+      item,
+      index,
+      section,
+    }: {
+      item: ExpenseProjection;
+      index: number;
+      section: (typeof sections)[number];
+    }) => (
       <ExpenseRow
         expense={item}
         mainCurrency={mainCurrency}
@@ -480,6 +514,10 @@ export default function TransactionsScreen() {
         convert={convert}
         onPress={handleEditPress}
         secondaryColor={secondaryColor}
+        surfaceColor={surfaceColor}
+        dividerColor={dividerColor}
+        isFirst={index === 0}
+        isLast={index === section.data.length - 1}
         groupBy={groupBy}
       />
     ),
@@ -490,6 +528,8 @@ export default function TransactionsScreen() {
       convert,
       handleEditPress,
       secondaryColor,
+      surfaceColor,
+      dividerColor,
       groupBy,
     ],
   );
@@ -508,8 +548,6 @@ export default function TransactionsScreen() {
         mainCurrency={mainCurrency}
         onSurface={onSurfaceColor}
         onSurfaceVariant={secondaryColor}
-        outlineVariant={outlineVariantColor}
-        backgroundColor={sectionHeaderBg}
         onToggle={toggleCollapsed}
       />
     ),
@@ -520,8 +558,6 @@ export default function TransactionsScreen() {
       mainCurrency,
       onSurfaceColor,
       secondaryColor,
-      outlineVariantColor,
-      sectionHeaderBg,
       toggleCollapsed,
     ],
   );
@@ -601,16 +637,13 @@ export default function TransactionsScreen() {
       windowSize={4}
       ListHeaderComponent={listHeader}
       ListEmptyComponent={
-        <Text
-          style={{
-            color: secondaryColor,
-            textAlign: 'center',
-            marginTop: 40,
-            paddingHorizontal: 24,
-          }}
-        >
-          {translate('expenses.noTransactions')}
-        </Text>
+        <EmptyState
+          icon="receipt-long"
+          title={translate('expenses.noTransactions')}
+          description={translate('expenses.tapPlusHint')}
+          actionLabel={translate('expenses.addAriaLabel')}
+          onAction={() => setAddOpen(true)}
+        />
       }
       renderSectionHeader={renderSectionHeader}
       renderItem={renderItem}
@@ -622,10 +655,11 @@ export default function TransactionsScreen() {
       <View style={[{ flex: 1 }, layoutStyles.contentColumn, { paddingHorizontal: gutter }]}>
         {list}
 
-        <FAB
-          icon="plus"
+        <GlowFab
+          icon={<MaterialIcons name="add" size={28} color="#ffffff" />}
           onPress={() => setAddOpen(true)}
-          style={{ position: 'absolute', right: 16, bottom: 16 }}
+          accessibilityLabel={translate('expenses.addAriaLabel')}
+          style={{ position: 'absolute', right: 18, bottom: 18 }}
         />
         <AddExpenseDialog visible={addOpen} onDismiss={() => setAddOpen(false)} />
         {editing ? (

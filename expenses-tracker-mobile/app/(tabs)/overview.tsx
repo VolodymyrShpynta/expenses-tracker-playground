@@ -35,6 +35,7 @@ import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 
 import { CategoryBreakdownList } from '../../src/components/CategoryBreakdownList';
+import { AppCard } from '../../src/components/AppCard';
 import { ExpenseTimeSeriesChart } from '../../src/components/ExpenseTimeSeriesChart';
 import { OverviewCategoryFilter } from '../../src/components/OverviewCategoryFilter';
 import { SparklineChart } from '../../src/components/SparklineChart';
@@ -95,16 +96,18 @@ export default function OverviewScreen() {
       />
 
       <View style={styles.sparklineWrapper}>
-        <SparklineChart
-          points={totalSeries.points}
-          buckets={totalSeries.buckets}
-          granularity={granularity}
-          language={i18n.language}
-          color={theme.colors.primary}
-          title={translate('expenses.totalSpending')}
-          totalLabel={translate('expenses.overviewTooltipTotal')}
-          accessibilityLabel={translate('expenses.overviewTotalSparklineLabel')}
-        />
+        <AppCard style={styles.panel}>
+          <SparklineChart
+            points={totalSeries.points}
+            buckets={totalSeries.buckets}
+            granularity={granularity}
+            language={i18n.language}
+            color={theme.colors.primary}
+            title={translate('expenses.totalSpending')}
+            totalLabel={translate('expenses.overviewTooltipTotal')}
+            accessibilityLabel={translate('expenses.overviewTotalSparklineLabel')}
+          />
+        </AppCard>
       </View>
 
       <View style={styles.modeWrapper}>
@@ -128,19 +131,21 @@ export default function OverviewScreen() {
       </View>
 
       <View style={styles.chartWrapper}>
-        <ExpenseTimeSeriesChart
-          buckets={categorySeries.buckets}
-          series={categorySeries.series}
-          mode={mode}
-          granularity={granularity}
-          resolveSeriesName={resolveSeriesName}
-          resolveSeriesColor={resolveSeriesColor}
-          totalLabel={translate('expenses.overviewTooltipTotal')}
-          overflowLabel={translate('expenses.overviewTooltipOverflow')}
-          language={i18n.language}
-          noDataLabel={translate('expenses.overviewNoData')}
-          accessibilityLabel={translate('expenses.overviewChartLabel')}
-        />
+        <AppCard style={styles.panel}>
+          <ExpenseTimeSeriesChart
+            buckets={categorySeries.buckets}
+            series={categorySeries.series}
+            mode={mode}
+            granularity={granularity}
+            resolveSeriesName={resolveSeriesName}
+            resolveSeriesColor={resolveSeriesColor}
+            totalLabel={translate('expenses.overviewTooltipTotal')}
+            overflowLabel={translate('expenses.overviewTooltipOverflow')}
+            language={i18n.language}
+            noDataLabel={translate('expenses.overviewNoData')}
+            accessibilityLabel={translate('expenses.overviewChartLabel')}
+          />
+        </AppCard>
       </View>
     </>
   );
@@ -205,9 +210,11 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scrollContent: { paddingBottom: 32 },
-  sparklineWrapper: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 12 },
-  modeWrapper: { paddingHorizontal: 16, paddingBottom: 8 },
-  chartWrapper: { paddingHorizontal: 8 },
-  filterWrapper: { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4 },
+  // Charts draw to their own edges, so the card pads them instead.
+  panel: { paddingVertical: 14, paddingHorizontal: 12 },
+  sparklineWrapper: { paddingHorizontal: 14, paddingTop: 4, paddingBottom: 10 },
+  modeWrapper: { paddingHorizontal: 14, paddingBottom: 10 },
+  chartWrapper: { paddingHorizontal: 14 },
+  filterWrapper: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 4 },
   caveatWrapper: { paddingHorizontal: 16, paddingTop: 12 },
 });

@@ -54,17 +54,17 @@ export function ThemedPaperProvider({ children }: ThemedPaperProviderProps) {
   const baseTheme = isDark ? darkTheme : lightTheme;
   const theme = scaleTheme(baseTheme, FONT_SCALES[fontScale]);
 
-  // Overlay the project's brand background/surface tokens onto the
-  // adapted nav theme so screen containers paint navy[500] in dark
-  // mode (matching the web frontend) instead of Paper's MD3 grey.
+  // The ambient glow is painted once at the root, behind the navigator.
+  // Both the screen container and the header therefore have to be
+  // transparent, or they'd punch flat rectangles out of it.
   const navTheme: NavigationTheme = useMemo(() => {
     const adapted = isDark ? AdaptedDarkTheme : AdaptedLightTheme;
     return {
       ...adapted,
       colors: {
         ...adapted.colors,
-        background: theme.colors.background,
-        card: theme.colors.surface,
+        background: 'transparent',
+        card: 'transparent',
         text: theme.colors.onSurface,
         border: theme.colors.outlineVariant,
         primary: theme.colors.primary,

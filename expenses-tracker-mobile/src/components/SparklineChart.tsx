@@ -18,10 +18,19 @@
  * Empty / all-zero input renders a muted placeholder rect — same
  * empty-state convention as `CategoryDonutChart`.
  */
-import { memo, useMemo, useRef, useState } from 'react';
+import { memo, useId, useMemo, useRef, useState } from 'react';
 import { PanResponder, View, useWindowDimensions } from 'react-native';
 import type { GestureResponderEvent, LayoutChangeEvent } from 'react-native';
-import Svg, { Circle, G, Line, Path, Rect } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Defs,
+  G,
+  Line,
+  LinearGradient,
+  Path,
+  Rect,
+  Stop,
+} from 'react-native-svg';
 import { Surface, Text, useTheme } from 'react-native-paper';
 
 import { pickTickIndices } from '../utils/chartTicks';
@@ -31,6 +40,9 @@ import {
   type GroupBy,
 } from '../utils/dateRange';
 import { formatCentsShortScale } from '../utils/format';
+import { useAppColors } from '../theme/appColors';
+import { radius } from '../theme/tokens';
+import { interFont } from '../theme/typography';
 import { FONT_SCALES, useFontScale } from '../context/preferencesProvider';
 
 export interface SparklineChartProps {
@@ -80,6 +92,9 @@ export const SparklineChart = memo(function SparklineChart({
   accessibilityLabel,
 }: SparklineChartProps) {
   const theme = useTheme();
+  const appColors = useAppColors();
+  // React's `useId` emits colons, which are not valid in an SVG fragment id.
+  const areaGradientId = `spark-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const { fontScale: systemFontScale } = useWindowDimensions();
   const { fontScale: appFontSize } = useFontScale();
   const [width, setWidth] = useState(0);
@@ -254,7 +269,7 @@ export const SparklineChart = memo(function SparklineChart({
         </Text>
         <Text
           variant="labelSmall"
-          style={{ color: onSurfaceVariant, fontVariant: ['tabular-nums'] }}
+          style={{ color: appColors.textDim, fontVariant: ['tabular-nums'] }}
           numberOfLines={1}
         >
           {maxLabel}
@@ -268,10 +283,23 @@ export const SparklineChart = memo(function SparklineChart({
       >
         {width > 0 ? (
           <Svg width={width} height={traceHeight}>
+            <Defs>
+              <LinearGradient id={areaGradientId} x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor={color} stopOpacity={0.42} />
+                <Stop offset="1" stopColor={color} stopOpacity={0} />
+              </LinearGradient>
+            </Defs>
             {paths ? (
               <>
-                <Path d={paths.area} fill={color} fillOpacity={0.18} />
-                <Path d={paths.stroke} stroke={color} strokeWidth={1.5} fill="none" />
+                <Path d={paths.area} fill={`url(#${areaGradientId})`} />
+                <Path
+                  d={paths.stroke}
+                  stroke={color}
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
               </>
             ) : (
               // Empty / all-zero fallback — a muted bar so the slot keeps
@@ -365,9 +393,11 @@ export const SparklineChart = memo(function SparklineChart({
             top: HEADER_HEIGHT,
             left: tooltip.left,
             width: tooltip.width,
-            borderRadius: 8,
-            paddingVertical: 6,
-            paddingHorizontal: 10,
+            borderRadius: radius.md,
+            borderWidth: 1,
+            borderColor: appColors.border,
+            paddingVertical: 8,
+            paddingHorizontal: 12,
           }}
           pointerEvents="none"
         >
@@ -384,7 +414,7 @@ export const SparklineChart = memo(function SparklineChart({
           >
             <Text
               variant="labelSmall"
-              style={{ flex: 1, color: onSurface, fontWeight: '600' }}
+              style={{ flex: 1, color: onSurface, fontFamily: interFont.semiBold }}
               numberOfLines={1}
               ellipsizeMode="tail"
             >
@@ -394,7 +424,7 @@ export const SparklineChart = memo(function SparklineChart({
               variant="labelSmall"
               style={{
                 color: onSurface,
-                fontWeight: '600',
+                fontFamily: interFont.semiBold,
                 fontVariant: ['tabular-nums'],
               }}
             >

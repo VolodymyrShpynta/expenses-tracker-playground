@@ -22,14 +22,18 @@ import { memo, useMemo } from 'react';
 import { View } from 'react-native';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { Text, TouchableRipple, useTheme } from 'react-native-paper';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { CategoryAvatar } from './CategoryAvatar';
 import type { MaterialIconName } from '../utils/categoryConfig';
 import type { ChartSeries } from '../domain/timeSeries';
 import { OTHER_SERIES_ID } from '../domain/timeSeries';
 import type { ConvertedAmount } from '../domain/exchangeRates';
+import { lighten } from '../utils/colorContrast';
 import { formatTotalCompactWithCurrency } from '../utils/format';
 import { useAppColors } from '../theme/appColors';
+import { radius } from '../theme/tokens';
+import { interFont } from '../theme/typography';
 
 export interface BreakdownSeriesResolution {
   readonly name: string;
@@ -97,47 +101,55 @@ export const CategoryBreakdownList = memo(function CategoryBreakdownList({
                 style={{
                   flexDirection: 'row',
                   justifyContent: 'space-between',
-                  alignItems: 'baseline',
+                  alignItems: 'center',
                 }}
               >
                 <Text
                   variant="bodyLarge"
-                  style={{ fontWeight: '500', color: theme.colors.onSurface, flex: 1, marginRight: 8 }}
+                  style={{
+                    fontFamily: interFont.semiBold,
+                    color: theme.colors.onSurface,
+                    flex: 1,
+                    marginRight: 8,
+                  }}
                   numberOfLines={1}
                 >
                   {resolved.name}
                 </Text>
                 <Text
                   variant="labelMedium"
-                  style={{ color: resolved.color, fontWeight: '700' }}
+                  style={{ color: appColors.textDim, fontFamily: interFont.medium }}
                 >
                   {pct}%
                 </Text>
               </View>
               <View
                 style={{
-                  marginTop: 4,
+                  marginTop: 8,
                   height: 6,
-                  borderRadius: 3,
+                  borderRadius: radius.xs,
                   backgroundColor: appColors.progressTrackBg,
                   overflow: 'hidden',
                 }}
               >
-                <View
+                <LinearGradient
+                  colors={[resolved.color, lighten(resolved.color, 0.35)]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
                   style={{
-                    width: `${pct}%`,
+                    width: `${Math.max(pct, 2)}%`,
                     height: '100%',
-                    backgroundColor: resolved.color,
-                    borderRadius: 3,
+                    borderRadius: radius.xs,
                   }}
                 />
               </View>
             </View>
             <Text
               variant="bodyLarge"
+              numberOfLines={1}
               style={{
-                color: resolved.color,
-                fontWeight: '700',
+                color: theme.colors.onSurface,
+                fontFamily: interFont.bold,
                 minWidth: 80,
                 textAlign: 'right',
               }}

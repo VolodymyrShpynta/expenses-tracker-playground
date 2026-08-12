@@ -44,6 +44,8 @@ import {
   type PresetKey,
 } from '../utils/dateRange';
 import { layoutStyles } from '../theme/layout';
+import { radius } from '../theme/tokens';
+import { interFont } from '../theme/typography';
 
 export interface PeriodPickerDialogProps {
   readonly visible: boolean;
@@ -187,13 +189,13 @@ const styles = StyleSheet.create({
   },
   sheet: {
     width: '100%',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
     paddingHorizontal: 16,
     paddingTop: 16,
   },
   title: {
-    fontWeight: '600',
+    fontFamily: interFont.bold,
     marginBottom: 12,
   },
   grid: {
@@ -207,7 +209,7 @@ const styles = StyleSheet.create({
   },
   tile: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: radius.md,
     overflow: 'hidden',
   },
   tileInner: {
@@ -218,7 +220,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   tileLabel: {
-    fontWeight: '600',
+    fontFamily: interFont.semiBold,
     textAlign: 'center',
   },
   tileSubtitle: {

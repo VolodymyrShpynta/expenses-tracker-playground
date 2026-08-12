@@ -1,7 +1,9 @@
 /**
  * Apply a font-scale multiplier to a Paper MD3 theme. Multiplies the
- * `fontSize` and `lineHeight` of every variant in `theme.fonts` so the
- * full type ramp scales uniformly.
+ * `fontSize`, `lineHeight` and `letterSpacing` of every variant in
+ * `theme.fonts` so the full type ramp scales uniformly — tracking is
+ * expressed in absolute units, so leaving it unscaled would make large
+ * text progressively tighter.
  */
 import type { MD3Theme } from 'react-native-paper';
 
@@ -13,10 +15,14 @@ export function scaleTheme(theme: MD3Theme, scale: number): MD3Theme {
   for (const [key, variant] of Object.entries(theme.fonts) as Array<[string, FontVariant]>) {
     if ('fontSize' in variant && typeof variant.fontSize === 'number') {
       const lineHeight = (variant as { lineHeight?: number }).lineHeight ?? variant.fontSize * 1.4;
+      const letterSpacing = (variant as { letterSpacing?: number }).letterSpacing;
       scaled[key] = {
         ...variant,
         fontSize: Math.round(variant.fontSize * scale),
         lineHeight: Math.round(lineHeight * scale),
+        ...(typeof letterSpacing === 'number'
+          ? { letterSpacing: Math.round(letterSpacing * scale * 100) / 100 }
+          : {}),
       } as FontVariant;
     } else {
       scaled[key] = variant;

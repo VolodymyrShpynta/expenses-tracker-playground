@@ -26,14 +26,14 @@
  *     branch in `setPreset` doesn't clobber the picked range.
  */
 import { useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { scheduleOnRN } from 'react-native-worklets';
-import { Icon, IconButton, Text, TouchableRipple, useTheme } from 'react-native-paper';
+import { Icon, Text, useTheme } from 'react-native-paper';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
-import { useDateRange } from '../context/preferencesProvider';
+import { FONT_SCALES, useDateRange, useFontScale } from '../context/preferencesProvider';
 import {
   endOfDay,
   formatRange,
@@ -43,8 +43,16 @@ import {
 } from '../utils/dateRange';
 import { formatTotalCompactWithCurrency } from '../utils/format';
 import type { ConvertedAmount } from '../domain/exchangeRates';
+import { useAppColors } from '../theme/appColors';
+import { radius } from '../theme/tokens';
+import { interFont } from '../theme/typography';
+import { Eyebrow } from './GlowButton';
+import { GradientText } from './GradientText';
 import { PeriodPickerDialog } from './PeriodPickerDialog';
 import { RangeDatePickerDialog, SingleDatePickerDialog } from './DatePickerDialogs';
+
+/** Hero headline size before the user's font-scale preference is applied. */
+const TOTAL_FONT_SIZE = 40;
 
 export interface SpendingHeaderProps {
   /**
@@ -62,6 +70,9 @@ const NON_SHIFTABLE: ReadonlyArray<PresetKey> = ['all', 'range', 'day'];
 export function SpendingHeader({ total, currency }: SpendingHeaderProps) {
   const { t: translate, i18n } = useTranslation();
   const theme = useTheme();
+  const appColors = useAppColors();
+  const { fontScale } = useFontScale();
+  const scale = FONT_SCALES[fontScale];
   const { dateRange, preset, setPreset, setDateRange } = useDateRange();
   const [periodOpen, setPeriodOpen] = useState(false);
   const [rangePickerOpen, setRangePickerOpen] = useState(false);
@@ -119,100 +130,98 @@ export function SpendingHeader({ total, currency }: SpendingHeaderProps) {
     setPreset(key);
   };
 
+  const ghostSurface = {
+    backgroundColor: theme.colors.surface,
+    borderColor: appColors.border,
+    boxShadow: appColors.shadowSm,
+  };
+
   return (
     <>
-      <View style={{ paddingVertical: 16, paddingHorizontal: 16, alignItems: 'center' }}>
-        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-          {translate('expenses.totalSpending')}
-        </Text>
-        <Text
-          variant="headlineMedium"
+      <View style={styles.hero}>
+        <Eyebrow>{translate('expenses.totalSpending')}</Eyebrow>
+
+        <GradientText
+          colors={appColors.headingGradient}
+          containerStyle={styles.totalBox}
           numberOfLines={1}
           adjustsFontSizeToFit
-          style={{ fontWeight: '700', marginTop: 4 }}
+          minimumFontScale={0.4}
+          style={{
+            fontFamily: interFont.extraBold,
+            fontSize: Math.round(TOTAL_FONT_SIZE * scale),
+            lineHeight: Math.round(TOTAL_FONT_SIZE * 1.15 * scale),
+            // The site's hero tracking, -0.035em.
+            letterSpacing: -0.035 * TOTAL_FONT_SIZE * scale,
+            textAlign: 'center',
+          }}
         >
           {formatTotalCompactWithCurrency(total.amount, currency, i18n.language, total.approx)}
-        </Text>
+        </GradientText>
 
         <GestureDetector gesture={swipeGesture}>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 4,
-              marginTop: 8,
-              alignSelf: 'stretch',
-            }}
-          >
+          <View style={styles.periodRow}>
             {canShift ? (
-              <IconButton
-                icon={({ size, color }) => (
-                  <MaterialIcons name="arrow-back-ios" size={size} color={color} />
-                )}
-                iconColor={theme.colors.primary}
-                size={28}
-                accessibilityLabel={translate('dateRange.prevPeriodAria')}
+              <Pressable
                 onPress={() => setDateRange(shiftRange(dateRange, preset, 'prev'))}
-                style={{ margin: 0 }}
-              />
+                accessibilityRole="button"
+                accessibilityLabel={translate('dateRange.prevPeriodAria')}
+                style={({ pressed }) => [
+                  styles.stepper,
+                  ghostSurface,
+                  pressed ? { borderColor: appColors.borderStrong } : null,
+                ]}
+              >
+                <MaterialIcons name="chevron-left" size={24} color={theme.colors.onSurface} />
+              </Pressable>
             ) : null}
+
             {/*
-             * The active period reads as a filled, "expandable" pill button:
-             * a leading calendar glyph, the range label, and a trailing
-             * dropdown chevron that signals tapping opens the period picker.
-             * Uses the theme's primary-container tokens so it stays on-brand
-             * in light/dark. `flexShrink` + `adjustsFontSizeToFit` keep long
-             * localized labels inside the pill instead of overflowing.
+             * The active period is the site's `.btn-ghost`: elevated fill,
+             * hairline border, pill radius. A leading calendar glyph and a
+             * trailing chevron mark it as opening the period picker.
+             * `flexShrink` + `adjustsFontSizeToFit` keep long localized
+             * labels inside the pill instead of overflowing.
              */}
-            <TouchableRipple
+            <Pressable
               onPress={() => setPeriodOpen(true)}
               accessibilityRole="button"
               accessibilityLabel={rangeLabel}
-              style={{
-                flexShrink: 1,
-                borderRadius: 999,
-                overflow: 'hidden',
-                backgroundColor: theme.colors.primaryContainer,
-              }}
+              style={({ pressed }) => [
+                styles.periodPill,
+                ghostSurface,
+                pressed ? { borderColor: appColors.borderStrong } : null,
+              ]}
             >
-              <View
+              <Icon source="calendar-range" size={18} color={theme.colors.primary} />
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 8,
-                  paddingVertical: 8,
-                  paddingHorizontal: 14,
+                  flexShrink: 1,
+                  fontFamily: interFont.semiBold,
+                  fontSize: Math.round(15 * scale),
+                  color: theme.colors.onSurface,
                 }}
               >
-                <Icon source="calendar-range" size={20} color={theme.colors.onPrimaryContainer} />
-                <Text
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  style={{
-                    flexShrink: 1,
-                    fontSize: 16,
-                    fontWeight: '700',
-                    letterSpacing: 0.5,
-                    color: theme.colors.onPrimaryContainer,
-                  }}
-                >
-                  {rangeLabel}
-                </Text>
-                <Icon source="chevron-down" size={20} color={theme.colors.onPrimaryContainer} />
-              </View>
-            </TouchableRipple>
+                {rangeLabel}
+              </Text>
+              <Icon source="chevron-down" size={18} color={appColors.textDim} />
+            </Pressable>
+
             {canShift ? (
-              <IconButton
-                icon={({ size, color }) => (
-                  <MaterialIcons name="arrow-forward-ios" size={size} color={color} />
-                )}
-                iconColor={theme.colors.primary}
-                size={28}
-                accessibilityLabel={translate('dateRange.nextPeriodAria')}
+              <Pressable
                 onPress={() => setDateRange(shiftRange(dateRange, preset, 'next'))}
-                style={{ margin: 0 }}
-              />
+                accessibilityRole="button"
+                accessibilityLabel={translate('dateRange.nextPeriodAria')}
+                style={({ pressed }) => [
+                  styles.stepper,
+                  ghostSurface,
+                  pressed ? { borderColor: appColors.borderStrong } : null,
+                ]}
+              >
+                <MaterialIcons name="chevron-right" size={24} color={theme.colors.onSurface} />
+              </Pressable>
             ) : null}
           </View>
         </GestureDetector>
@@ -256,3 +265,41 @@ export function SpendingHeader({ total, currency }: SpendingHeaderProps) {
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  hero: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 20,
+    paddingHorizontal: 16,
+    gap: 10,
+  },
+  // Bounded width so `adjustsFontSizeToFit` has something to shrink against —
+  // a mask otherwise collapses to its content and the total overflows.
+  totalBox: { alignSelf: 'stretch' },
+  periodRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    alignSelf: 'stretch',
+  },
+  periodPill: {
+    flexShrink: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+  },
+  stepper: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    borderWidth: 1,
+  },
+});

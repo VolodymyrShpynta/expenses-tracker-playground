@@ -8,7 +8,39 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { contrastTextColor } from './colorContrast';
+import { contrastTextColor, lighten } from './colorContrast';
+
+describe('lighten', () => {
+  it('returns the input unchanged at amount 0', () => {
+    expect(lighten('#3da58a', 0)).toBe('#3da58a');
+  });
+
+  it('returns white at amount 1', () => {
+    expect(lighten('#3da58a', 1)).toBe('#ffffff');
+  });
+
+  it('mixes each channel towards white', () => {
+    // Given #000000, When mixed halfway, Then every channel lands on 128.
+    expect(lighten('#000000', 0.5)).toBe('#808080');
+  });
+
+  it('expands three-digit hex before mixing', () => {
+    expect(lighten('#f00', 0)).toBe('#ff0000');
+  });
+
+  it('pads single-digit channels so the result is always six digits', () => {
+    expect(lighten('#010101', 0)).toBe('#010101');
+  });
+
+  it('clamps out-of-range amounts', () => {
+    expect(lighten('#3da58a', -1)).toBe('#3da58a');
+    expect(lighten('#3da58a', 5)).toBe('#ffffff');
+  });
+
+  it('returns malformed input unchanged rather than throwing', () => {
+    expect(lighten('not-a-color', 0.5)).toBe('not-a-color');
+  });
+});
 
 describe('contrastTextColor', () => {
   it(`should return white for pure black`, () => {

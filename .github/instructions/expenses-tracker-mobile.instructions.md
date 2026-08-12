@@ -29,6 +29,11 @@ no corresponding file-sync subsystem.
 - **Charts**: hand-rolled SVG via `react-native-svg` (no chart library — keeps the bundle small
   and lets each chart be styled with the active MD3 theme; see `SparklineChart` /
   `ExpenseTimeSeriesChart` in `src/components/`).
+- **Typeface**: **Inter** via `@expo-google-fonts/inter`, loaded in `app/_layout.tsx`.
+- **Gradients**: `expo-linear-gradient`; radial washes are SVG (`AmbientGlow`).
+- **Gradient text**: `@react-native-masked-view/masked-view` (`GradientText`).
+- **Motion**: `react-native-reanimated` (+ `react-native-worklets`); tokens in
+  `src/theme/motion.ts`.
 - **Compression**: `pako` (gzip JSON sync file).
 - **Testing**: Vitest for pure-TS code (`src/domain/`, `src/sync/`, `src/api/`,
   `src/utils/`). RN component / hook tests are out of scope for the current
@@ -362,6 +367,51 @@ Use only Paper v5 (Material 3) APIs. Do **not** generate Paper v4 patterns.
 Read color scheme from `useColorScheme()` (RN) and select between
 `MD3LightTheme` and `MD3DarkTheme`. Always wrap the app in
 `<PaperProvider theme={…}>` at the root layout (`app/_layout.tsx`).
+
+---
+
+## Visual design — the Spendium system
+
+The app's look is a **port of the marketing site** (`spendium-site`,
+`_sass/spendium.scss`), not of the web frontend. Near-black `#0a0a0f` with
+charcoal `#15151c` cards in dark, off-white `#fafafa` with white cards in
+light; indigo brand, green accent, ambient radial glow, pill buttons with
+an indigo glow shadow.
+
+| Concern              | Source of truth                          | Rule                                                                        |
+|----------------------|------------------------------------------|------------------------------------------------------------------------------|
+| Raw colour / radius / shadow | `src/theme/tokens.ts`            | Transcribed from the site's stylesheet. Change it there first, never locally. |
+| MD3 roles            | `src/theme/theme.ts`                     | Components read `useTheme().colors.*`; never import `tokens.ts` for colour.   |
+| Gradients, glows, glow shadows | `src/theme/appColors.ts`       | `useAppColors()`. No inline `rgba(…)` in components.                          |
+| Type                 | `src/theme/typography.ts`                | Inter. **Weight is a font family, never `fontWeight`** — see below.           |
+| Motion               | `src/theme/motion.ts`                    | Gate every animation on `useMotionEnabled()`.                                 |
+| Primary action       | `GlowButton` / `GlowFab`                 | Gradient pill + indigo glow. `ThemedButton` is the neutral counterpart.       |
+| Card surface         | `AppCard`                                | `--bg-elev` fill, 1px `--border`, `radius.lg`, `--shadow-sm`.                 |
+| Section label        | `Eyebrow`                                | Uppercase pill, the site's `.eyebrow`.                                        |
+| Hero headline        | `GradientText`                           | The site's `background-clip: text`, via a mask.                               |
+
+**Weights are separate font families.** Android cannot select a weight
+from separately-registered font files, so `fontWeight: '700'` on top of
+`Inter_400Regular` yields the regular face or a synthesised fake-bold. Use
+`fontFamily: interFont.bold` and leave `fontWeight` alone. The MD3
+typescale already carries the right family per variant, so this only
+matters for inline styles.
+
+**The ambient glow is mounted once**, in `app/_layout.tsx` above the
+navigator. Everything above it is therefore transparent — the navigation
+theme's `background` and `card`, `headerStyle`, and `sceneStyle`. An
+opaque header or screen container punches a flat rectangle out of the
+wash, so don't reintroduce one.
+
+**Coloured shadows need `boxShadow`, not `elevation`.** Android's
+`elevation` always draws neutral grey, which kills the indigo glow. RN
+0.76+ on the New Architecture supports the CSS `boxShadow` string, which
+is what the `shadow` tokens hold.
+
+**Adding a native module needs a rebuild.** `expo-linear-gradient` and
+`@react-native-masked-view/masked-view` are native; `npx expo run:android`
+(or a new EAS build) is required after installing one — a JS reload will
+not autolink it.
 
 ---
 

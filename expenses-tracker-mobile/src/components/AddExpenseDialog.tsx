@@ -47,6 +47,7 @@ import {
 } from '../hooks/useExpenses';
 import { useExpenseSuggestions } from '../hooks/useExpenseSuggestions';
 import { FONT_SCALES, useFontScale, useMainCurrency } from '../context/preferencesProvider';
+import { interFont } from '../theme/typography';
 import { layoutStyles } from '../theme/layout';
 import type { ExpenseProjection } from '../domain/types';
 
@@ -642,11 +643,11 @@ const styles = StyleSheet.create({
     minHeight: 36,
   },
   amountCurrency: {
-    fontWeight: '500',
+    fontFamily: interFont.medium,
     opacity: 0.9,
   },
   amountValue: {
-    fontWeight: '400',
+    fontFamily: interFont.regular,
   },
   descriptionInput: {
     textAlign: 'center',

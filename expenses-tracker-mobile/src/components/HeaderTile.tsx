@@ -11,6 +11,7 @@ import { Text, TouchableRipple } from 'react-native-paper';
 
 import { contrastTextColor } from '../utils/colorContrast';
 import { FONT_SCALES, useFontScale } from '../context/preferencesProvider';
+import { interFont } from '../theme/typography';
 
 const BASE_LABEL_SIZE = 12;
 const BASE_VALUE_SIZE = 18;
@@ -69,7 +70,7 @@ export function HeaderTile({ label, value, color, onPress, sizeScale = 1 }: Head
           numberOfLines={1}
           style={{
             color: fg,
-            fontWeight: '600',
+            fontFamily: interFont.semiBold,
             fontSize: Math.round(BASE_VALUE_SIZE * scale),
           }}
         >

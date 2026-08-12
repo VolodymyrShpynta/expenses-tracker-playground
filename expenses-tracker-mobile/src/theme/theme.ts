@@ -1,106 +1,119 @@
 /**
- * Paper v5 (Material 3) theme — light + dark.
+ * Paper v5 (Material 3) theme — light + dark, built from the Spendium
+ * design tokens in `tokens.ts`.
  *
- * Brand colors mirror `expenses-tracker-frontend/src/theme.ts` so the
- * two clients feel like the same product. The web theme uses MUI design
- * tokens; here we map the same scales onto the Material 3 role system
- * (`primary`, `*Container`, `surface`, `outline`, …).
+ * The palette is a port of the marketing site (`spendium-site`): near-black
+ * `#0a0a0f` with charcoal `#15151c` cards in dark, off-white `#fafafa` with
+ * pure-white cards in light, an indigo brand and a green accent in both.
  *
  * Application code should consume **semantic** tokens
  * (`theme.colors.primaryContainer`, `theme.colors.outline`, …) — never
- * import from `palette.ts` directly. Paper v3 already provides every
- * MD3 role we need; we override only those that should reflect the
- * brand palette instead of Paper's default greys.
+ * import from `tokens.ts` directly outside `src/theme/`.
+ *
+ * `colors.elevation.*` is filled in explicitly because Paper's `Surface`
+ * reads it instead of `colors.surface`. MD3's default tints elevated
+ * surfaces with `primary`, which leaves every card faintly purple; the
+ * site steps between flat neutrals instead, so the levels below walk
+ * `bgElev → bgSoft → …` with no tint.
  */
 import { MD3LightTheme, MD3DarkTheme } from 'react-native-paper';
 import type { MD3Theme } from 'react-native-paper';
 
-import {
-  baseWhite,
-  blueAccent,
-  greenAccent,
-  grey,
-  navy,
-  redAccent,
-} from './palette';
+import { accent, brand, brandSurface, danger, surfaces, violet } from './tokens';
+import { applyInterFonts } from './typography';
 
 export const lightTheme: MD3Theme = {
   ...MD3LightTheme,
+  fonts: applyInterFonts(MD3LightTheme.fonts),
   colors: {
     ...MD3LightTheme.colors,
 
-    // Brand roles
-    primary: blueAccent[700],
-    onPrimary: baseWhite,
-    primaryContainer: blueAccent[100],
-    onPrimaryContainer: blueAccent[800],
+    primary: brand[600],
+    onPrimary: '#ffffff',
+    primaryContainer: brandSurface.light[50],
+    onPrimaryContainer: brand[700],
 
-    secondary: greenAccent[600],
-    onSecondary: baseWhite,
-    secondaryContainer: greenAccent[100],
-    onSecondaryContainer: greenAccent[800],
+    secondary: accent.strong,
+    onSecondary: '#ffffff',
+    secondaryContainer: accent.soft,
+    onSecondaryContainer: accent.deep,
 
-    tertiary: greenAccent[500],
-    onTertiary: baseWhite,
-    tertiaryContainer: greenAccent[200],
-    onTertiaryContainer: greenAccent[800],
+    tertiary: violet.deep,
+    onTertiary: '#ffffff',
+    tertiaryContainer: brandSurface.light[100],
+    onTertiaryContainer: violet.deep,
 
-    error: redAccent[500],
-    onError: baseWhite,
-    errorContainer: redAccent[100],
-    onErrorContainer: redAccent[800],
+    error: danger.base,
+    onError: '#ffffff',
+    errorContainer: danger.container.light,
+    onErrorContainer: danger.on.light,
 
-    // Surfaces
-    background: blueAccent[50],
-    onBackground: grey[900],
-    surface: baseWhite,
-    onSurface: grey[900],
-    surfaceVariant: grey[100],
-    onSurfaceVariant: grey[700],
+    background: surfaces.light.bg,
+    onBackground: surfaces.light.text,
+    surface: surfaces.light.bgElev,
+    onSurface: surfaces.light.text,
+    surfaceVariant: surfaces.light.bgSoft,
+    onSurfaceVariant: surfaces.light.textMuted,
 
-    // Outlines
-    outline: grey[300],
-    outlineVariant: grey[100],
+    outline: surfaces.light.borderStrong,
+    outlineVariant: surfaces.light.border,
+    backdrop: 'rgba(15, 23, 42, 0.4)',
+
+    elevation: {
+      level0: 'transparent',
+      level1: surfaces.light.bgElev,
+      level2: surfaces.light.bgElev,
+      level3: '#fbfbfd',
+      level4: '#f8f8fb',
+      level5: surfaces.light.bgSoft,
+    },
   },
 };
 
 export const darkTheme: MD3Theme = {
   ...MD3DarkTheme,
+  fonts: applyInterFonts(MD3DarkTheme.fonts),
   colors: {
     ...MD3DarkTheme.colors,
 
-    // Brand roles
-    primary: blueAccent[500],
-    onPrimary: baseWhite,
-    primaryContainer: blueAccent[800],
-    onPrimaryContainer: blueAccent[100],
+    primary: brand[500],
+    onPrimary: '#ffffff',
+    primaryContainer: brandSurface.dark[50],
+    onPrimaryContainer: brand[300],
 
-    secondary: greenAccent[400],
-    onSecondary: navy[500],
-    secondaryContainer: greenAccent[800],
-    onSecondaryContainer: greenAccent[100],
+    secondary: accent.base,
+    onSecondary: '#04150a',
+    secondaryContainer: accent.deep,
+    onSecondaryContainer: accent.soft,
 
-    tertiary: greenAccent[500],
-    onTertiary: navy[500],
-    tertiaryContainer: greenAccent[700],
-    onTertiaryContainer: greenAccent[200],
+    tertiary: violet.glow,
+    onTertiary: '#ffffff',
+    tertiaryContainer: brandSurface.dark[100],
+    onTertiaryContainer: brand[300],
 
-    error: redAccent[500],
-    onError: baseWhite,
-    errorContainer: redAccent[800],
-    onErrorContainer: redAccent[100],
+    error: danger.base,
+    onError: '#ffffff',
+    errorContainer: danger.container.dark,
+    onErrorContainer: danger.on.dark,
 
-    // Surfaces
-    background: navy[500],
-    onBackground: grey[100],
-    surface: navy[400],
-    onSurface: grey[100],
-    surfaceVariant: navy[400],
-    onSurfaceVariant: grey[300],
+    background: surfaces.dark.bg,
+    onBackground: surfaces.dark.text,
+    surface: surfaces.dark.bgElev,
+    onSurface: surfaces.dark.text,
+    surfaceVariant: surfaces.dark.bgSoft,
+    onSurfaceVariant: surfaces.dark.textMuted,
 
-    // Outlines
-    outline: grey[500],
-    outlineVariant: navy[400],
+    outline: surfaces.dark.borderStrong,
+    outlineVariant: surfaces.dark.border,
+    backdrop: 'rgba(10, 10, 15, 0.6)',
+
+    elevation: {
+      level0: 'transparent',
+      level1: surfaces.dark.bgElev,
+      level2: surfaces.dark.bgSoft,
+      level3: '#22222c',
+      level4: '#262631',
+      level5: '#2b2b37',
+    },
   },
 };
-

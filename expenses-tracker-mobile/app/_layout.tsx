@@ -17,6 +17,14 @@ import { I18nextProvider } from 'react-i18next';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import {
+  useFonts,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_800ExtraBold,
+} from '@expo-google-fonts/inter';
 
 import i18n, { initI18n } from '../src/i18n';
 import { DatabaseProvider } from '../src/db/databaseProvider';
@@ -29,7 +37,9 @@ import {
   useThemeMode,
 } from '../src/context/preferencesProvider';
 import { SyncProvider } from '../src/context/syncProvider';
+import { AmbientGlow } from '../src/components/AmbientGlow';
 import { ThemedPaperProvider } from '../src/theme/ThemedPaperProvider';
+import { interFont } from '../src/theme/typography';
 import { useExchangeRatesSync } from '../src/hooks/useExchangeRatesSync';
 
 export default function RootLayout() {
@@ -38,7 +48,18 @@ export default function RootLayout() {
     void initI18n().then(() => setI18nReady(true));
   }, []);
 
-  if (!i18nReady) return null;
+  // Inter carries the brand's typography (weights are separate families —
+  // see `src/theme/typography.ts`), so hold the first paint until it's
+  // resident rather than flashing the system font.
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
+  });
+
+  if (!i18nReady || !fontsLoaded) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -52,6 +73,7 @@ export default function RootLayout() {
                     <ThemedPaperProvider>
                       <ThemedStatusBar />
                       <ExchangeRatesSyncMounter />
+                      <AmbientGlow />
                       <ScaledRootStack />
                     </ThemedPaperProvider>
                   </SyncProvider>
@@ -76,7 +98,17 @@ function ScaledRootStack() {
   const { fontScale } = useFontScale();
   const scale = FONT_SCALES[fontScale];
   return (
-    <Stack screenOptions={{ headerTitleStyle: { fontSize: Math.round(20 * scale) } }}>
+    <Stack
+      screenOptions={{
+        headerTitleStyle: { fontSize: Math.round(20 * scale), fontFamily: interFont.bold },
+        // Transparent chrome throughout: the ambient glow is painted once at
+        // the root, so any opaque header or screen container would cut a
+        // visible band out of it.
+        headerStyle: { backgroundColor: 'transparent' },
+        headerShadowVisible: false,
+        contentStyle: { backgroundColor: 'transparent' },
+      }}
+    >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="settings" />
     </Stack>

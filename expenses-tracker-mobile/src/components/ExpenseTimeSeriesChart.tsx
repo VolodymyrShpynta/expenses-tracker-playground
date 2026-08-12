@@ -17,16 +17,28 @@
  * mode)`. Tapping legend chips therefore only rebuilds the SVG, never
  * re-renders the parent screen's untouched widgets.
  */
-import { memo, useMemo, useRef, useState } from 'react';
+import { memo, useId, useMemo, useRef, useState } from 'react';
 import { PanResponder, View, useWindowDimensions } from 'react-native';
 import type { GestureResponderEvent, LayoutChangeEvent } from 'react-native';
-import Svg, { Circle, G, Line, Path, Rect } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Defs,
+  G,
+  Line,
+  LinearGradient,
+  Path,
+  Rect,
+  Stop,
+} from 'react-native-svg';
 import { Surface, Text, useTheme } from 'react-native-paper';
 
 import type { ChartSeries, Granularity } from '../domain/timeSeries';
 import { pickTickIndices } from '../utils/chartTicks';
 import { formatBucketLabel, formatBucketLabelLong } from '../utils/dateRange';
 import { formatCentsShortScale } from '../utils/format';
+import { useAppColors } from '../theme/appColors';
+import { radius } from '../theme/tokens';
+import { interFont } from '../theme/typography';
 import { FONT_SCALES, useFontScale } from '../context/preferencesProvider';
 
 export interface ExpenseTimeSeriesChartProps {
@@ -125,6 +137,10 @@ export const ExpenseTimeSeriesChart = memo(function ExpenseTimeSeriesChart({
   accessibilityLabel,
 }: ExpenseTimeSeriesChartProps) {
   const theme = useTheme();
+  const appColors = useAppColors();
+  // Gradient ids share one namespace across mounted SVGs, and React's
+  // `useId` emits colons, which are not valid in a URL fragment.
+  const gradientPrefix = `series-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const { fontScale: systemFontScale } = useWindowDimensions();
   const { fontScale: appFontSize } = useFontScale();
   const [width, setWidth] = useState(0);
@@ -303,7 +319,7 @@ export const ExpenseTimeSeriesChart = memo(function ExpenseTimeSeriesChart({
 
   const hasData = visibleSeries.length > 0 && yMax > 0;
   const muted = theme.colors.outlineVariant;
-  const axisColor = theme.colors.onSurfaceVariant;
+  const axisColor = appColors.textDim;
 
   // ──────────────────────────────────────────────────────────────
   // Tooltip geometry — place the popup on whichever side of the cursor
@@ -420,7 +436,7 @@ export const ExpenseTimeSeriesChart = memo(function ExpenseTimeSeriesChart({
               y={PAD_TOP}
               width={plotWidth}
               height={plotHeight}
-              fill={theme.colors.surface}
+              fill="transparent"
             />
             {/* Horizontal gridlines + Y labels. */}
             <G>
@@ -445,14 +461,39 @@ export const ExpenseTimeSeriesChart = memo(function ExpenseTimeSeriesChart({
               })}
             </G>
             {/* Series — either stacked areas or stroked lines. */}
+            <Defs>
+              {seriesPaths.map((p) => {
+                const color = resolveSeriesColor(p.id);
+                return (
+                  <LinearGradient
+                    key={`grad-${p.id}`}
+                    id={`${gradientPrefix}-${p.id}`}
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <Stop offset="0" stopColor={color} stopOpacity={0.75} />
+                    <Stop offset="1" stopColor={color} stopOpacity={0.18} />
+                  </LinearGradient>
+                );
+              })}
+            </Defs>
             {hasData
               ? seriesPaths.map((p) => {
                   const color = resolveSeriesColor(p.id);
                   if (mode === 'stacked-area') {
                     return (
                       <G key={p.id}>
-                        <Path d={p.area} fill={color} fillOpacity={0.55} />
-                        <Path d={p.line} stroke={color} strokeWidth={1} fill="none" />
+                        <Path d={p.area} fill={`url(#${gradientPrefix}-${p.id})`} />
+                        <Path
+                          d={p.line}
+                          stroke={color}
+                          strokeWidth={1.5}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          fill="none"
+                        />
                       </G>
                     );
                   }
@@ -462,6 +503,8 @@ export const ExpenseTimeSeriesChart = memo(function ExpenseTimeSeriesChart({
                       d={p.line}
                       stroke={color}
                       strokeWidth={STROKE_WIDTH}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                       fill="none"
                     />
                   );
@@ -614,7 +657,9 @@ export const ExpenseTimeSeriesChart = memo(function ExpenseTimeSeriesChart({
                 // into an aggregated "overflow" row by the useMemo above.
                 maxHeight: tooltip.maxHeight,
                 overflow: 'hidden',
-                borderRadius: 8,
+                borderRadius: radius.md,
+                borderWidth: 1,
+                borderColor: appColors.border,
                 paddingVertical: 6,
                 paddingHorizontal: 10,
               }}
@@ -641,7 +686,7 @@ export const ExpenseTimeSeriesChart = memo(function ExpenseTimeSeriesChart({
                   style={{
                     flex: 1,
                     color: theme.colors.onSurface,
-                    fontWeight: '600',
+                    fontFamily: interFont.semiBold,
                   }}
                   numberOfLines={1}
                   ellipsizeMode="tail"

@@ -1,25 +1,36 @@
 /**
  * Category donut chart — pure SVG, no external charting library.
  *
- * Mobile counterpart of the web `CategoryDonutChart`. Each input slice
- * becomes a circular-arc `<Path>` between two angles. We draw the
- * stroke-only ring (so the centre stays empty for a label) by building
- * the actual filled annulus geometry rather than using `strokeWidth`,
- * which lets us colour each slice independently.
+ * Slices are stroked arcs on a shared circle rather than filled annular
+ * wedges: a stroke gives round end caps and a gap between neighbours for
+ * free, which is what makes the ring read as a set of separate segments
+ * instead of a pie with lines drawn on it. Each slice is painted with its
+ * own two-stop gradient (its colour, lightened at the head) so the ring
+ * has the same depth as the gradients elsewhere in the app.
  *
- * The centre label is rendered as native `<Text>` overlaid on top of
- * the SVG (not as `<SvgText>`) so we can use `adjustsFontSizeToFit` to
- * guarantee long currency totals (e.g. `CZK 1 166 326`) auto-shrink to
- * fit inside the inner disc instead of overlapping the ring. The
- * overlay's width is clamped to the inner disc's chord so `numberOfLines`
- * + `adjustsFontSizeToFit` has a hard boundary to scale against.
+ * The centre label is native `<Text>` overlaid on the SVG (not
+ * `<SvgText>`) so `adjustsFontSizeToFit` can shrink long currency totals
+ * (e.g. `CZK 1 166 326`) to fit the inner disc. The overlay is clamped to
+ * the disc's chord so there's a hard boundary to scale against.
  *
- * Empty input → renders a muted background ring + the formatted total.
+ * Motion is a fade-scale-unwind on the container — a plain view transform,
+ * so it can't interact with SVG rendering. Empty input renders the muted
+ * track ring on its own.
  */
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { View } from 'react-native';
-import Svg, { Circle, G, Path } from 'react-native-svg';
+import Svg, { Circle, Defs, G, LinearGradient, Stop } from 'react-native-svg';
 import { Text, useTheme } from 'react-native-paper';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
+
+import { useAppColors } from '../theme/appColors';
+import { motionDuration, motionEasing, useMotionEnabled } from '../theme/motion';
+import { interFont } from '../theme/typography';
+import { lighten } from '../utils/colorContrast';
 
 export interface DonutSlice {
   readonly id: string;
@@ -36,73 +47,141 @@ export interface CategoryDonutChartProps {
   readonly centerValue?: string;
 }
 
+/** Visible gap between neighbouring segments, in px of arc length. */
+const SEGMENT_GAP = 5;
+
 export function CategoryDonutChart({
   slices,
   size = 220,
-  thickness = 28,
+  thickness = 26,
   centerLabel,
   centerValue,
 }: CategoryDonutChartProps) {
   const theme = useTheme();
-  const radius = size / 2;
-  const innerRadius = radius - thickness;
+  const appColors = useAppColors();
+  const motionEnabled = useMotionEnabled();
+
+  const center = size / 2;
+  // Stroke straddles the path, so the ring's centreline sits half a
+  // stroke inside the box.
+  const trackRadius = center - thickness / 2;
+  const circumference = 2 * Math.PI * trackRadius;
 
   const total = useMemo(
     () => slices.reduce((sum, s) => sum + (Number.isFinite(s.value) ? s.value : 0), 0),
     [slices],
   );
 
-  const arcs = useMemo(() => {
+  const segments = useMemo(() => {
     if (total <= 0) return [];
-    let acc = 0;
+    let consumed = 0;
     return slices
       .filter((s) => s.value > 0)
       .map((s) => {
-        const startAngle = (acc / total) * 2 * Math.PI;
-        acc += s.value;
-        const endAngle = (acc / total) * 2 * Math.PI;
+        const arcLength = (s.value / total) * circumference;
+        const offset = consumed;
+        consumed += arcLength;
+        // Round caps add half a stroke of arc at each end, so the dash is
+        // shortened by a full stroke to land back on the intended length.
+        // Tiny slices clamp to a hairline and render as a single dot.
+        const dash = Math.max(0.5, arcLength - thickness - SEGMENT_GAP);
         return {
           id: s.id,
           color: s.color,
-          d: annulusPath(radius, radius, innerRadius, radius, startAngle, endAngle),
+          dash,
+          // Negative offset advances clockwise from the 12 o'clock rotation.
+          dashOffset: -(offset + (arcLength - dash) / 2),
         };
       });
-  }, [slices, total, innerRadius, radius]);
+  }, [slices, total, circumference, thickness]);
 
-  const muted = theme.colors.surfaceVariant;
+  const reveal = useSharedValue(motionEnabled ? 0 : 1);
+  const compositionKey = segments.map((s) => s.id).join('|');
 
-  // Centre text overlay geometry. The inner disc has diameter `2*innerRadius`,
-  // but a single line of text sitting on the horizontal diameter would touch
-  // the ring at its widest point — so we shrink the usable width by an 8%
-  // safety margin and let `adjustsFontSizeToFit` shrink the font further if
-  // the formatted total is unusually long.
+  useEffect(() => {
+    if (!motionEnabled) {
+      reveal.value = 1;
+      return;
+    }
+    reveal.value = 0;
+    reveal.value = withTiming(1, {
+      duration: motionDuration.chart,
+      easing: motionEasing.out,
+    });
+  }, [compositionKey, motionEnabled, reveal]);
+
+  const revealStyle = useAnimatedStyle(() => ({
+    opacity: reveal.value,
+    transform: [
+      { scale: 0.86 + reveal.value * 0.14 },
+      { rotate: `${(1 - reveal.value) * -25}deg` },
+    ],
+  }));
+
+  // Inner disc geometry for the centre overlay. A single line sitting on the
+  // horizontal diameter would touch the ring at its widest point, so the
+  // usable width loses an 8% safety margin.
+  const innerRadius = center - thickness;
   const innerWidth = Math.max(0, Math.floor(innerRadius * 2 * 0.92));
-  const valueFontSize = Math.round(size * 0.13);
-  const labelFontSize = Math.round(size * 0.06);
+  const valueFontSize = Math.round(size * 0.135);
+  const labelFontSize = Math.round(size * 0.058);
 
   return (
     <View style={{ width: size, height: size, alignSelf: 'center' }}>
-      <Svg width={size} height={size}>
-        <G>
-          {/* Background ring (or sole ring when empty) */}
-          <Circle
-            cx={radius}
-            cy={radius}
-            r={(radius + innerRadius) / 2}
-            stroke={muted}
-            strokeWidth={thickness}
-            fill="none"
-          />
-          {arcs.map((a) => (
-            <Path key={a.id} d={a.d} fill={a.color} />
-          ))}
-        </G>
-      </Svg>
+      <Animated.View style={[{ width: size, height: size }, revealStyle]}>
+        <Svg width={size} height={size}>
+          <Defs>
+            {segments.map((segment) => (
+              <LinearGradient
+                key={`grad-${segment.id}`}
+                id={`slice-${segment.id}`}
+                x1="0"
+                y1="0"
+                x2="1"
+                y2="1"
+              >
+                <Stop offset="0" stopColor={lighten(segment.color, 0.28)} />
+                <Stop offset="1" stopColor={segment.color} />
+              </LinearGradient>
+            ))}
+          </Defs>
+          {/*
+           * Rotate so arcs start at 12 o'clock instead of 3. SVG's transform
+           * string carries the pivot with it; the array form rotates about the
+           * element's own centre, and the `origin*` props that used to supply
+           * a pivot are deprecated.
+           */}
+          <G transform={`rotate(-90, ${center}, ${center})`}>
+            <Circle
+              cx={center}
+              cy={center}
+              r={trackRadius}
+              stroke={theme.colors.surfaceVariant}
+              strokeWidth={thickness}
+              fill="none"
+            />
+            {segments.map((segment) => (
+              <Circle
+                key={segment.id}
+                cx={center}
+                cy={center}
+                r={trackRadius}
+                stroke={`url(#slice-${segment.id})`}
+                strokeWidth={thickness}
+                strokeLinecap="round"
+                strokeDasharray={[segment.dash, circumference - segment.dash]}
+                strokeDashoffset={segment.dashOffset}
+                fill="none"
+              />
+            ))}
+          </G>
+        </Svg>
+      </Animated.View>
+
       {centerValue || centerLabel ? (
         <View
-          // `pointerEvents="none"` keeps the overlay from swallowing taps
-          // on the donut (currently a no-op but future legend / drill-down
-          // gestures would rely on this).
+          // Keeps the overlay from swallowing taps on the ring (a no-op
+          // today, but future drill-down gestures would rely on it).
           pointerEvents="none"
           style={{
             position: 'absolute',
@@ -119,14 +198,13 @@ export function CategoryDonutChart({
               <Text
                 numberOfLines={1}
                 adjustsFontSizeToFit
-                // Allow shrinking to half-size before truncating with "…" —
-                // enough headroom for the longest realistic currency totals
-                // (e.g. `CZK 1 166 326`, `UAH 9 999 999`) without going so
-                // small the number becomes unreadable.
+                // Half-size headroom covers the longest realistic totals
+                // (`CZK 1 166 326`, `UAH 9 999 999`) before the ellipsis.
                 minimumFontScale={0.5}
                 style={{
+                  fontFamily: interFont.extraBold,
                   fontSize: valueFontSize,
-                  fontWeight: '700',
+                  letterSpacing: -0.03 * valueFontSize,
                   textAlign: 'center',
                   color: theme.colors.onSurface,
                 }}
@@ -141,9 +219,10 @@ export function CategoryDonutChart({
                 minimumFontScale={0.6}
                 style={{
                   marginTop: 4,
+                  fontFamily: interFont.medium,
                   fontSize: labelFontSize,
                   textAlign: 'center',
-                  color: theme.colors.onSurfaceVariant,
+                  color: appColors.textDim,
                 }}
               >
                 {centerLabel}
@@ -154,52 +233,4 @@ export function CategoryDonutChart({
       ) : null}
     </View>
   );
-}
-
-/**
- * Build an SVG path string for a filled annular sector — the donut
- * "wedge" shape between two radii and two angles. Angles are in
- * radians, measured clockwise from 12 o'clock.
- */
-function annulusPath(
-  cx: number,
-  cy: number,
-  rInner: number,
-  rOuter: number,
-  startAngle: number,
-  endAngle: number,
-): string {
-  const sweep = endAngle - startAngle;
-  // SVG cannot draw a single arc covering ≥ 360°; treat near-full as two arcs.
-  if (sweep >= 2 * Math.PI - 1e-6) {
-    return [
-      ringPath(cx, cy, rOuter),
-      ringPath(cx, cy, rInner, true),
-    ].join(' ');
-  }
-  const largeArc = sweep > Math.PI ? 1 : 0;
-  const p1 = polar(cx, cy, rOuter, startAngle);
-  const p2 = polar(cx, cy, rOuter, endAngle);
-  const p3 = polar(cx, cy, rInner, endAngle);
-  const p4 = polar(cx, cy, rInner, startAngle);
-  return [
-    `M ${p1.x} ${p1.y}`,
-    `A ${rOuter} ${rOuter} 0 ${largeArc} 1 ${p2.x} ${p2.y}`,
-    `L ${p3.x} ${p3.y}`,
-    `A ${rInner} ${rInner} 0 ${largeArc} 0 ${p4.x} ${p4.y}`,
-    'Z',
-  ].join(' ');
-}
-
-function ringPath(cx: number, cy: number, r: number, reverse = false): string {
-  // Two-arc trick — SVG can't sweep a full 360° arc in one segment.
-  const a = polar(cx, cy, r, 0);
-  const b = polar(cx, cy, r, Math.PI);
-  const sweep = reverse ? 0 : 1;
-  return `M ${a.x} ${a.y} A ${r} ${r} 0 1 ${sweep} ${b.x} ${b.y} A ${r} ${r} 0 1 ${sweep} ${a.x} ${a.y} Z`;
-}
-
-function polar(cx: number, cy: number, r: number, angle: number): { x: number; y: number } {
-  // Convert angle (clockwise from 12 o'clock) to SVG cartesian (origin top-left, y-down).
-  return { x: cx + r * Math.sin(angle), y: cy - r * Math.cos(angle) };
 }

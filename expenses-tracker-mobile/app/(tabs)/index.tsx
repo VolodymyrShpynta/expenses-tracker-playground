@@ -11,29 +11,25 @@
  * row's avatar against the far-left edge and its amount against the
  * far-right one.
  */
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import {
-  ActivityIndicator,
-  FAB,
-  Text,
-  TouchableRipple,
-  useTheme,
-} from 'react-native-paper';
+import { ActivityIndicator, useTheme } from 'react-native-paper';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 
 import { SpendingHeader } from '../../src/components/SpendingHeader';
-import { CategoryAvatar } from '../../src/components/CategoryAvatar';
+import { CategoryRow } from '../../src/components/CategoryRow';
 import { CategoryDonutChart, type DonutSlice } from '../../src/components/CategoryDonutChart';
 import { AddExpenseDialog } from '../../src/components/AddExpenseDialog';
+import { EmptyState } from '../../src/components/EmptyState';
+import { GlowFab } from '../../src/components/GlowButton';
 import { useExpenses } from '../../src/hooks/useExpenses';
 import { useCategoryLookup } from '../../src/hooks/useCategoryLookup';
 import { useCategorySummary } from '../../src/hooks/useCategorySummary';
 import { useConvertedExpenses } from '../../src/hooks/useExchangeRates';
 import { useDateRange, useMainCurrency } from '../../src/context/preferencesProvider';
 import { formatTotalCompactWithCurrency } from '../../src/utils/format';
-import { useAppColors } from '../../src/theme/appColors';
 import { layoutStyles, useContentGutter, useIsWideLayout } from '../../src/theme/layout';
 
 // The donut gets a pane to itself in the two-pane layout, so it can afford
@@ -56,10 +52,16 @@ export default function CategoriesScreen() {
   const convertedExpenses = useConvertedExpenses(expenses);
   const { categories, grandTotal } = useCategorySummary(convertedExpenses, dateRange);
   const [addOpen, setAddOpen] = useState(false);
-  const appColors = useAppColors();
   const isWideLayout = useIsWideLayout();
   const gutter = useContentGutter();
   const { height: windowHeight } = useWindowDimensions();
+
+  const showCategoryTransactions = useCallback(
+    (categoryId: string) => {
+      router.push({ pathname: '/(tabs)/transactions', params: { categoryId } });
+    },
+    [router],
+  );
 
   /**
    * `categories` is already filtered to entries with activity in the
@@ -121,92 +123,31 @@ export default function CategoriesScreen() {
 
   const list =
     active.length === 0 ? (
-      <View style={{ alignItems: 'center', marginTop: 40, paddingHorizontal: 24 }}>
-        <Text variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-          {translate('expenses.noExpensesYet')}
-        </Text>
-        <Text
-          variant="bodyMedium"
-          style={{ color: theme.colors.onSurfaceVariant, marginTop: 8, textAlign: 'center' }}
-        >
-          {translate('expenses.tapPlusHint')}
-        </Text>
-      </View>
+      <EmptyState
+        icon="savings"
+        title={translate('expenses.noExpensesYet')}
+        description={translate('expenses.tapPlusHint')}
+        actionLabel={translate('expenses.addAriaLabel')}
+        onAction={() => setAddOpen(true)}
+      />
     ) : (
-      active.map((cat) => {
+      active.map((cat, index) => {
         const resolved = lookup.resolve(cat.categoryId);
-        const pct = Math.round(cat.percentage);
         return (
-          <TouchableRipple
+          <CategoryRow
             key={cat.categoryId}
-            onPress={() =>
-              router.push({
-                pathname: '/(tabs)/transactions',
-                params: { categoryId: cat.categoryId },
-              })
-            }
-          >
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 12,
-                paddingVertical: 12,
-                paddingHorizontal: 16,
-              }}
-            >
-              <CategoryAvatar iconName={resolved.iconName} color={resolved.color} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'baseline',
-                  }}
-                >
-                  <Text
-                    variant="bodyLarge"
-                    style={{ fontWeight: '500', flex: 1, marginRight: 8 }}
-                    numberOfLines={1}
-                  >
-                    {resolved.name}
-                  </Text>
-                  <Text variant="labelMedium" style={{ color: resolved.color, fontWeight: '700' }}>
-                    {pct}%
-                  </Text>
-                </View>
-                <View
-                  style={{
-                    marginTop: 4,
-                    height: 6,
-                    borderRadius: 3,
-                    backgroundColor: appColors.progressTrackBg,
-                    overflow: 'hidden',
-                  }}
-                >
-                  <View
-                    style={{
-                      width: `${pct}%`,
-                      height: '100%',
-                      backgroundColor: resolved.color,
-                      borderRadius: 3,
-                    }}
-                  />
-                </View>
-              </View>
-              <Text
-                variant="bodyLarge"
-                style={{ color: resolved.color, fontWeight: '700', minWidth: 80, textAlign: 'right' }}
-              >
-                {formatTotalCompactWithCurrency(
-                  cat.total.amount,
-                  mainCurrency,
-                  i18n.language,
-                  cat.total.approx,
-                )}
-              </Text>
-            </View>
-          </TouchableRipple>
+            categoryId={cat.categoryId}
+            name={resolved.name}
+            color={resolved.color}
+            iconName={resolved.iconName}
+            percentage={cat.percentage}
+            amount={cat.total.amount}
+            approx={cat.total.approx}
+            currency={mainCurrency}
+            language={i18n.language}
+            index={index}
+            onPress={showCategoryTransactions}
+          />
         );
       })
     );
@@ -228,10 +169,11 @@ export default function CategoriesScreen() {
         </ScrollView>
       )}
 
-      <FAB
-        icon="plus"
+      <GlowFab
+        icon={<MaterialIcons name="add" size={28} color="#ffffff" />}
         onPress={() => setAddOpen(true)}
-        style={{ position: 'absolute', right: 16, bottom: 16 }}
+        accessibilityLabel={translate('expenses.addAriaLabel')}
+        style={{ position: 'absolute', right: 18, bottom: 18 }}
       />
       <AddExpenseDialog visible={addOpen} onDismiss={() => setAddOpen(false)} />
     </View>

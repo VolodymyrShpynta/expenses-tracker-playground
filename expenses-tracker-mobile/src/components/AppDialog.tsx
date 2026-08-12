@@ -60,6 +60,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { useFontScale } from '../context/preferencesProvider';
+import { interFont } from '../theme/typography';
 import { tabBarBodyHeight } from '../theme/tabBar';
 import { MAX_DIALOG_WIDTH } from '../theme/layout';
 
@@ -205,7 +206,7 @@ const styles = StyleSheet.create({
   },
   titleText: {
     flex: 1,
-    fontWeight: '600',
+    fontFamily: interFont.bold,
   },
   closeButton: {
     // Drop `IconButton`'s default margin so the X sits flush against
