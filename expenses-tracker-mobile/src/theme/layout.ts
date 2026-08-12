@@ -9,13 +9,52 @@
  * Capping the column keeps the phone layout byte-for-byte identical (the cap
  * is wider than any phone) while giving large screens a readable measure.
  */
-import { StyleSheet } from 'react-native';
+import { StyleSheet, useWindowDimensions } from 'react-native';
 
 /** Widest a screen's scrollable content column may get. */
 export const MAX_CONTENT_WIDTH = 1100;
 
 /** Widest an `AppDialog` may get (Material's large-screen dialog cap). */
 export const MAX_DIALOG_WIDTH = 560;
+
+/**
+ * Material's "expanded" window class. Below this a side-by-side layout would
+ * squeeze both panes past the point where either is readable.
+ */
+export const WIDE_LAYOUT_MIN_WIDTH = 840;
+
+/**
+ * Two panes need vertical room as well as horizontal. A phone in landscape
+ * clears the width threshold but is only ~390dp tall — far too short for a
+ * summary pane to stack a total, a period picker and a chart. Matches
+ * Material's compact-height boundary.
+ */
+export const WIDE_LAYOUT_MIN_HEIGHT = 480;
+
+/** Material's "medium" window class — a tablet in portrait starts here. */
+export const MEDIUM_LAYOUT_MIN_WIDTH = 600;
+
+/** Side margin Material asks for once the window leaves the compact class. */
+const MEDIUM_WINDOW_GUTTER = 24;
+
+/** True when the window can host two panes side by side. */
+export function useIsWideLayout(): boolean {
+  const { width, height } = useWindowDimensions();
+  return width >= WIDE_LAYOUT_MIN_WIDTH && height >= WIDE_LAYOUT_MIN_HEIGHT;
+}
+
+/**
+ * Horizontal breathing room for a screen's content column.
+ *
+ * Only the band between a phone and `MAX_CONTENT_WIDTH` needs it: narrower
+ * than that and the screen is a phone (where full-bleed rows are correct),
+ * wider and centring the capped column already leaves margins on both sides.
+ */
+export function useContentGutter(): number {
+  const { width } = useWindowDimensions();
+  const inMediumBand = width >= MEDIUM_LAYOUT_MIN_WIDTH && width < MAX_CONTENT_WIDTH;
+  return inMediumBand ? MEDIUM_WINDOW_GUTTER : 0;
+}
 
 export const layoutStyles = StyleSheet.create({
   /**

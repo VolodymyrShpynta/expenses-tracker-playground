@@ -40,7 +40,7 @@ import { OverviewCategoryFilter } from '../../src/components/OverviewCategoryFil
 import { SparklineChart } from '../../src/components/SparklineChart';
 import { SpendingHeader } from '../../src/components/SpendingHeader';
 import { useOverviewModel } from '../../src/hooks/useOverviewModel';
-import { layoutStyles } from '../../src/theme/layout';
+import { layoutStyles, useContentGutter } from '../../src/theme/layout';
 
 type ChartMode = 'lines' | 'stacked-area';
 
@@ -48,6 +48,7 @@ export default function OverviewScreen() {
   const { t: translate, i18n } = useTranslation();
   const theme = useTheme();
   const router = useRouter();
+  const gutter = useContentGutter();
   const {
     loading,
     mainCurrency,
@@ -86,7 +87,7 @@ export default function OverviewScreen() {
   }
 
   return (
-    <View style={[styles.root, layoutStyles.contentColumn]}>
+    <View style={[styles.root, layoutStyles.contentColumn, { paddingHorizontal: gutter }]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <SpendingHeader
           total={{ amount: totalSeries.total, approx: totalSeries.approx }}

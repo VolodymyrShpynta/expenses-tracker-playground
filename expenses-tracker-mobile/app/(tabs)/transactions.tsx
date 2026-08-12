@@ -39,7 +39,7 @@ import type { ConvertedAmount } from '../../src/domain/exchangeRates';
 import { sumAmounts } from '../../src/domain/exchangeRates';
 import type { ExpenseProjection } from '../../src/domain/types';
 import { useAppColors } from '../../src/theme/appColors';
-import { layoutStyles } from '../../src/theme/layout';
+import { layoutStyles, useContentGutter } from '../../src/theme/layout';
 
 /**
  * Memoized expense row hoisted to module scope. With stable props
@@ -293,6 +293,7 @@ export default function TransactionsScreen() {
   const { t: translate, i18n } = useTranslation();
   const theme = useTheme();
   const router = useRouter();
+  const gutter = useContentGutter();
   const params = useLocalSearchParams<{ categoryId?: string }>();
   const incomingCategoryId =
     typeof params.categoryId === 'string' && params.categoryId.length > 0
@@ -563,7 +564,7 @@ export default function TransactionsScreen() {
 
   return (
     <>
-      <View style={[{ flex: 1 }, layoutStyles.contentColumn]}>
+      <View style={[{ flex: 1 }, layoutStyles.contentColumn, { paddingHorizontal: gutter }]}>
         {/*
          * `SectionList` virtualizes the list: only rows currently on
          * screen (plus a small buffer set by `windowSize`) are mounted.

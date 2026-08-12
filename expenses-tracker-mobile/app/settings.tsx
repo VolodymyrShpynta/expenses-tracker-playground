@@ -47,7 +47,7 @@ import {
 } from '../src/hooks/useCategories';
 import { useCategoryLookup } from '../src/hooks/useCategoryLookup';
 import { useExpenses } from '../src/hooks/useExpenses';
-import { layoutStyles } from '../src/theme/layout';
+import { layoutStyles, useContentGutter } from '../src/theme/layout';
 import {
   useFontScale,
   useMainCurrency,
@@ -66,6 +66,7 @@ export default function SettingsScreen() {
   const { themeMode, setThemeMode } = useThemeMode();
   const { fontScale, setFontScale } = useFontScale();
   const insets = useSafeAreaInsets();
+  const gutter = useContentGutter();
 
   const [languageOpen, setLanguageOpen] = useState(false);
   const [currencyOpen, setCurrencyOpen] = useState(false);
@@ -85,7 +86,7 @@ export default function SettingsScreen() {
     <>
       <Stack.Screen options={{ title: translate('nav.settings') }} />
       <ScrollView
-        style={layoutStyles.contentColumn}
+        style={[layoutStyles.contentColumn, { paddingHorizontal: gutter }]}
         contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
       >
         <List.Section>
