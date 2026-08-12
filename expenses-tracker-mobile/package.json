@@ -14,7 +14,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "check-locales": "node scripts/check-locale-parity.mjs",
-    "postinstall": "patch-package"
+    "sanitize-lock": "node scripts/sanitize-lockfile.mjs",
+    "check-lock": "node scripts/sanitize-lockfile.mjs --check",
+    "postinstall": "patch-package && node scripts/sanitize-lockfile.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",

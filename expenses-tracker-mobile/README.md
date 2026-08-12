@@ -37,6 +37,7 @@ own Google Drive `appDataFolder` or OneDrive `approot`.
   - [Mobile Module Layout](#mobile-module-layout)
 - [🚀 Running the Mobile App](#-running-the-mobile-app)
   - [Quick start](#quick-start)
+  - [Lockfile hygiene behind a private registry](#lockfile-hygiene-behind-a-private-registry)
   - [Setting up a simulator / emulator](#setting-up-a-simulator--emulator)
     - [Option 1 — Physical device with Expo Go (easiest, any OS)](#option-1--physical-device-with-expo-go-easiest-any-os)
     - [Option 2 — Android emulator (Windows / macOS / Linux)](#option-2--android-emulator-windows--macos--linux)
@@ -666,6 +667,32 @@ When `npm start` is running, press:
 - `i` — open on iOS Simulator (macOS only)
 - `w` — open in a web browser (limited; not the supported target)
 - scan the QR code with the **Expo Go** app on a physical device
+
+### Lockfile hygiene behind a private registry
+
+`npm install` runs `scripts/sanitize-lockfile.mjs` as part of `postinstall`. On a
+plain `registry.npmjs.org` setup it does nothing and prints one `OK` line.
+
+It matters if your npm registry is a **private mirror** — a corporate proxy,
+Artifactory, Nexus, and so on. npm then records the mirror's own hostnames in
+`resolved`, and mirrors commonly downgrade `integrity` to legacy sha1. Committing
+that to a public repository leaks internal infrastructure names and, more
+practically, produces a lockfile nobody outside that network can `npm ci` from.
+
+The script rewrites those entries back to `https://registry.npmjs.org` and
+restores sha512 integrity. It needs no network access: the URL path after the
+mirror's prefix is identical to the public one, and the sha512 is recomputed from
+the tarball already in the local npm cache — the bytes are the same whichever
+mirror served them. That matters because a network which forces a mirror usually
+blocks the public registry outright.
+
+```bash
+npm run sanitize-lock   # rewrite in place (postinstall does this for you)
+npm run check-lock      # exit 1 if any entry still points at a mirror
+```
+
+Wire `npm run check-lock` into CI or a pre-commit hook if you want the guarantee
+enforced rather than merely automated.
 
 ### Setting up a simulator / emulator
 
