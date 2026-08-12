@@ -30,6 +30,7 @@ import { useConvertedExpenses } from '../../src/hooks/useExchangeRates';
 import { useDateRange, useMainCurrency } from '../../src/context/preferencesProvider';
 import { formatTotalCompactWithCurrency } from '../../src/utils/format';
 import { useAppColors } from '../../src/theme/appColors';
+import { layoutStyles } from '../../src/theme/layout';
 
 export default function CategoriesScreen() {
   const { t: translate, i18n } = useTranslation();
@@ -74,7 +75,7 @@ export default function CategoriesScreen() {
 
   return (
     <>
-      <View style={{ flex: 1 }}>
+      <View style={[{ flex: 1 }, layoutStyles.contentColumn]}>
         <ScrollView contentContainerStyle={{ paddingBottom: 96 }}>
           <SpendingHeader total={grandTotal} currency={mainCurrency} />
 

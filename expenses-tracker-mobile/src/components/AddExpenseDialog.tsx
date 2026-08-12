@@ -47,6 +47,7 @@ import {
 } from '../hooks/useExpenses';
 import { useExpenseSuggestions } from '../hooks/useExpenseSuggestions';
 import { FONT_SCALES, useFontScale, useMainCurrency } from '../context/preferencesProvider';
+import { layoutStyles } from '../theme/layout';
 import type { ExpenseProjection } from '../domain/types';
 
 export interface AddExpenseDialogProps {
@@ -334,6 +335,7 @@ function AddExpenseDialogContent({
               accessible={false}
               style={[
                 styles.sheet,
+                layoutStyles.contentColumn,
                 {
                   backgroundColor: theme.colors.background,
                   // Cap at 90% of the ACTUAL window height (numeric, not a
@@ -608,7 +610,9 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 16,
     // maxHeight is set inline from the window height (see the render) so it
     // caps at a true 90% of the screen; the body scrolls only if it can't
-    // fit (and to keep an input visible above the keyboard).
+    // fit (and to keep an input visible above the keyboard). Width is capped
+    // and centred by `layoutStyles.contentColumn` so the keypad keys stay
+    // thumb-sized instead of stretching across a tablet.
   },
   scrollContent: {
     // Fill the sheet so the flexible spacer below can push the keypad to the

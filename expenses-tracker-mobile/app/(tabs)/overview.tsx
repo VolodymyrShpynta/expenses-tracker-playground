@@ -40,6 +40,7 @@ import { OverviewCategoryFilter } from '../../src/components/OverviewCategoryFil
 import { SparklineChart } from '../../src/components/SparklineChart';
 import { SpendingHeader } from '../../src/components/SpendingHeader';
 import { useOverviewModel } from '../../src/hooks/useOverviewModel';
+import { layoutStyles } from '../../src/theme/layout';
 
 type ChartMode = 'lines' | 'stacked-area';
 
@@ -85,7 +86,7 @@ export default function OverviewScreen() {
   }
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, layoutStyles.contentColumn]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <SpendingHeader
           total={{ amount: totalSeries.total, approx: totalSeries.approx }}

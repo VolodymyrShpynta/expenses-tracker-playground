@@ -47,6 +47,7 @@ import {
 } from '../src/hooks/useCategories';
 import { useCategoryLookup } from '../src/hooks/useCategoryLookup';
 import { useExpenses } from '../src/hooks/useExpenses';
+import { layoutStyles } from '../src/theme/layout';
 import {
   useFontScale,
   useMainCurrency,
@@ -83,7 +84,10 @@ export default function SettingsScreen() {
   return (
     <>
       <Stack.Screen options={{ title: translate('nav.settings') }} />
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}>
+      <ScrollView
+        style={layoutStyles.contentColumn}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+      >
         <List.Section>
           <AppListItem
             title={translate('settings.language')}

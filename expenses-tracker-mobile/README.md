@@ -45,7 +45,7 @@ own Google Drive `appDataFolder` or OneDrive `approot`.
         - [If the AOSP emulator still misbehaves](#if-the-aosp-emulator-still-misbehaves)
     - [Option 3 — iOS Simulator (macOS only)](#option-3--ios-simulator-macos-only)
   - [Verifying the setup](#verifying-the-setup)
-- [🔧 Building a Local Dev Client (`npx expo run:android`)](#-building-a-local-dev-client-npx-expo-runandroid)
+- [🔧 Building a Local Dev Client (`npm run android`)](#-building-a-local-dev-client-npm-run-android)
   - [Refreshing launcher icons / splash after editing `assets/`](#refreshing-launcher-icons--splash-after-editing-assets)
 - [📦 Building \& Sideloading a Production APK](#-building--sideloading-a-production-apk)
   - [Which EAS profile to use](#which-eas-profile-to-use)
@@ -636,7 +636,7 @@ become no-ops.
 > | Mode            | How to launch                                                                                   | Works for                                  | Doesn't work for          |
 > |-----------------|-------------------------------------------------------------------------------------------------|--------------------------------------------|---------------------------|
 > | **Expo Go**     | `npm start`, scan QR in Expo Go                                                                 | UI, local SQLite, all offline behaviour    | Cloud-drive OAuth sign-in |
-> | **Dev client**  | [`npx expo run:android`](#-building-a-local-dev-client-npx-expo-runandroid) (full native build) | Everything, with hot reload                | —                         |
+> | **Dev client**  | [`npm run android`](#-building-a-local-dev-client-npm-run-android) (full native build)          | Everything, with hot reload                | —                         |
 > | **Release APK** | [`eas build --profile preview`](#-building--sideloading-a-production-apk) or Option C (Gradle)  | Everything, optimised; install on a phone  | Hot reload                |
 >
 > Iterate in Expo Go for JS-only work. Switch to a dev client whenever you need to test cloud-drive
@@ -741,7 +741,7 @@ effect instead of being shadowed by the old userdata image).
 |---------------------------|--------------|---------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **Device profile**        | Pixel 9 / 10 | **Pixel 7**                                             | Most battle-tested profile; what most Expo / RN guides assume.                                                                                                                                           |
 | **API level**             | Latest       | **34** (Android 14)                                     | Expo SDK 55 / RN 0.83 cap `targetSdk` at 35. Preview API images (37+) are explicitly unstable.                                                                                                           |
-| **Services**              | Google Play  | **Google APIs**                                         | The Play image runs Play Services + Play Store auto-updaters in the background — #1 cause of random freezes. You don't need Play Store for `npx expo run:android`.                                       |
+| **Services**              | Google Play  | **Google APIs**                                         | The Play image runs Play Services + Play Store auto-updaters in the background — #1 cause of random freezes. You don't need Play Store for `npm run android`.                                            |
 | **ABI**                   | x86_64       | **x86_64** (Intel/AMD) or **arm64-v8a** (Apple Silicon) | Match the host architecture exactly.                                                                                                                                                                     |
 | **Preferred ABI**         | Optimal      | **x86_64** (or arm64-v8a)                               | "Optimal" lets the emulator translate cross-arch binaries via `libndk_translation`. Translation is slow *and* a known crash source. Force the host arch to disable it.                                   |
 | **Default boot**          | Quick        | **Cold**                                                | Quick boot uses a snapshot; snapshot restore is the #1 source of "started, then froze" and "Metro can't connect" reports. Cold boots take 20–40 s but are far more reliable.                             |
@@ -833,15 +833,22 @@ eas build --platform ios --profile preview
 
 ---
 
-## 🔧 Building a Local Dev Client (`npx expo run:android`)
+## 🔧 Building a Local Dev Client (`npm run android`)
 
 `npm start` + Expo Go covers most JS-only work, but features that need native modules
 (cloud-drive OAuth, `expo-secure-store`, background sync) require a **dev client** built
 locally. From `expenses-tracker-mobile/`:
 
 ```bash
-npx expo run:android   # generates android/, runs Gradle, installs APK on device/emulator
+npm run android   # generates android/, runs Gradle, installs APK on device/emulator
 ```
+
+> **Why `npm run android` and not `npx expo run:android`?** They resolve to the same command
+> (`scripts.android` in [`package.json`](./package.json)), but `npm run` always uses the Expo CLI
+> pinned in `node_modules`, whereas `npx expo` silently falls back to **downloading a different
+> version from the registry** when the local install is missing or broken. Expo's own docs use the
+> `npx` form; prefer the script here. Commands with no script equivalent (`expo prebuild`) still
+> use `npx expo`.
 
 This invokes the full Android NDK + CMake + Kotlin/Gradle pipeline and has three host-level
 prerequisites beyond the SDK / emulator setup above.
@@ -903,7 +910,7 @@ Remove-Item -Recurse -Force app\.cxx, app\build -ErrorAction SilentlyContinue
 
 ### Refreshing launcher icons / splash after editing `assets/`
 
-`npx expo run:android` does **not** regenerate Android launcher icons. The `mipmap-*/ic_launcher*.webp`
+`npm run android` does **not** regenerate Android launcher icons. The `mipmap-*/ic_launcher*.webp`
 files under [`android/app/src/main/res/`](./android/app/src/main/res/) are baked once by
 `expo prebuild` and treated as committed source afterward. If you re-export
 [`assets/source/icon.svg`](./assets/source/icon.svg) → `assets/icon.png` /
@@ -926,7 +933,7 @@ npx expo prebuild --platform android --clean
 adb uninstall com.vshpynta.spendium
 
 # 3. Rebuild and reinstall
-npx expo run:android
+npm run android
 ```
 
 The `--clean` flag is critical: without it `expo prebuild` is a no-op when `android/` already
@@ -1014,7 +1021,7 @@ client IDs are wired in.
 
 > **Already set during development?** If you wired in `GOOGLE_OAUTH_CLIENT_ID_ANDROID` /
 > `GOOGLE_OAUTH_CLIENT_ID_IOS` / `MICROSOFT_OAUTH_CLIENT_ID` earlier (for example while testing
-> [`npx expo run:android`](#-building-a-local-dev-client-npx-expo-runandroid)), there is nothing
+> [`npm run android`](#-building-a-local-dev-client-npm-run-android)), there is nothing
 > extra to do here — the values are already committed to the source tree and the bundler will inline
 > them into the release APK automatically. Skip this step.
 
@@ -1042,7 +1049,7 @@ eas build --platform android --profile preview --local
 ```
 
 This runs the same pipeline as Option A on **your** machine — no Expo cloud round-trip. Requires
-everything the [`expo run:android`](#-building-a-local-dev-client-npx-expo-runandroid) section
+everything the [`npm run android`](#-building-a-local-dev-client-npm-run-android) section
 already documents:
 
 - **JDK 17–21** (not 22+) with `JAVA_HOME` pointed at it.
@@ -1068,7 +1075,7 @@ This path uses only Node, Expo's `prebuild` codegen, and the Android Gradle tool
 account, no `eas-cli`. Use it when you want a fully offline, EAS-free build pipeline.
 
 **Prerequisites** — same host setup as the dev-client section
-[Building a Local Dev Client (`npx expo run:android`)](#-building-a-local-dev-client-npx-expo-runandroid).
+[Building a Local Dev Client (`npm run android`)](#-building-a-local-dev-client-npm-run-android).
 You need **all three** host-level requirements documented there:
 
 1. **JDK 17–21** with `JAVA_HOME` pointed at it (not JDK 22+).
@@ -1218,10 +1225,10 @@ for both iOS and Android.
 > # npx expo install expo-dev-client
 >
 > # Android (requires Android SDK / emulator / USB-connected device):
-> npx expo run:android
+> npm run android
 >
 > # iOS (requires macOS + Xcode):
-> npx expo run:ios
+> npm run ios
 >
 > # Or build a dev client in the cloud and install the resulting .apk / .ipa:
 > eas build --profile development --platform android
@@ -1305,7 +1312,7 @@ for both iOS and Android.
         Copy the **SHA-1 certificate fingerprint** value from the **App signing key certificate**
         block (the top one — *not* the **Upload key certificate** block underneath) and paste it
         into the OAuth client form.
-      - **Local Gradle / `npx expo run:android` builds** — only relevant if you sideload the APK
+      - **Local Gradle / `npm run android` builds** — only relevant if you sideload the APK
         instead of installing it from a Play track. The project's `android/app/build.gradle`
         currently signs both debug *and* release with the bundled `android/app/debug.keystore`
         (see `signingConfigs.debug`), so use that keystore's SHA-1. From the

@@ -14,7 +14,8 @@
  *     and, when `reserveBottomNav` is set, the in-app bottom tab bar) so a
  *     tall dialog auto-grows with content but never covers the full screen
  *     or overlaps the bottom navigation
- *   - Reduced horizontal margin so the dialog uses more of the screen
+ *   - A computed `width` that uses nearly the whole window on phones but
+ *     caps at `MAX_DIALOG_WIDTH` on tablets / landscape
  *
  * Two title-bar shapes
  * --------------------
@@ -60,6 +61,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useFontScale } from '../context/preferencesProvider';
 import { tabBarBodyHeight } from '../theme/tabBar';
+import { MAX_DIALOG_WIDTH } from '../theme/layout';
 
 // Smallest height we'll ever cap a dialog to, so a misreported window size
 // can't collapse the dialog to nothing.
@@ -68,6 +70,10 @@ const MIN_DIALOG_HEIGHT = 320;
 // Breathing room kept between the dialog and the reserved region edges so
 // the action buttons never sit flush against the system nav / tab bar.
 const DIALOG_VERTICAL_GAP = 16;
+
+// Backdrop strip left exposed on each side on phones, where the dialog is
+// narrower than `MAX_DIALOG_WIDTH` and so sized by the window.
+const DIALOG_HORIZONTAL_GAP = 12;
 
 export interface AppDialogProps {
   readonly visible: boolean;
@@ -102,7 +108,7 @@ export function AppDialog({
   const theme = useTheme();
   const { t: translate } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { fontScale } = useFontScale();
 
   // Reserve space for the in-app tab bar (0 when the dialog isn't shown over
@@ -118,6 +124,14 @@ export function AppDialog({
     windowHeight - insets.top - insets.bottom - bottomReserve - DIALOG_VERTICAL_GAP,
   );
 
+  // Fill the window (minus a backdrop strip) on phones, but stop growing on
+  // tablets / landscape, where an edge-to-edge dialog would be unreadable.
+  // Paper's `Modal` already pads by the horizontal safe-area insets.
+  const width = Math.min(
+    MAX_DIALOG_WIDTH,
+    windowWidth - insets.left - insets.right - DIALOG_HORIZONTAL_GAP * 2,
+  );
+
   // Override the bottom inset Paper's `Modal` reads so the vertically
   // centred dialog is lifted clear of the tab bar as well as the OS nav.
   const insetsWithNav = useMemo(
@@ -129,7 +143,7 @@ export function AppDialog({
     <Dialog
       visible={visible}
       onDismiss={onDismiss}
-      style={[styles.dialog, { backgroundColor: theme.colors.background, maxHeight }]}
+      style={[styles.dialog, { backgroundColor: theme.colors.background, maxHeight, width }]}
     >
       {showCloseButton ? (
         <View style={styles.titleRow}>
@@ -174,10 +188,12 @@ export function AppDialog({
 
 const styles = StyleSheet.create({
   dialog: {
-    // `maxHeight` is computed per-render (screen height minus the safe-area
-    // insets and, when requested, the bottom tab bar) and merged in via the
-    // inline style so the dialog never overlaps the bottom navigation.
-    marginHorizontal: 12,
+    // `maxHeight` and `width` are computed per-render (see the render) from
+    // the window size, the safe-area insets and, when requested, the bottom
+    // tab bar — so the dialog never overlaps the bottom navigation and never
+    // stretches edge to edge on a large screen.
+    marginHorizontal: 0,
+    alignSelf: 'center',
   },
   titleRow: {
     flexDirection: 'row',

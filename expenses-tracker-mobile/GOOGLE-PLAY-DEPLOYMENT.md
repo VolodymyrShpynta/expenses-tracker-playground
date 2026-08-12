@@ -501,7 +501,7 @@ Trade-offs vs Options A/B:
 **Host prerequisites** — identical to the dev-client section in the README:
 JDK 17–21 with `JAVA_HOME` set, Android SDK platform 34+ with NDK 27.x and
 CMake 3.22+, and (on Windows) long-path support enabled. Full instructions
-in [README → Building a Local Dev Client](README.md#-building-a-local-dev-client-npx-expo-runandroid).
+in [README → Building a Local Dev Client](README.md#-building-a-local-dev-client-npm-run-android).
 
 #### One-time setup
 

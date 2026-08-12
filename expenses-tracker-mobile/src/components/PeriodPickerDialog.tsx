@@ -43,6 +43,7 @@ import {
   type DateRange,
   type PresetKey,
 } from '../utils/dateRange';
+import { layoutStyles } from '../theme/layout';
 
 export interface PeriodPickerDialogProps {
   readonly visible: boolean;
@@ -140,6 +141,7 @@ export function PeriodPickerDialog({
           accessible={false}
           style={[
             styles.sheet,
+            layoutStyles.contentColumn,
             {
               backgroundColor: theme.colors.background,
               maxHeight: windowHeight * 0.9,

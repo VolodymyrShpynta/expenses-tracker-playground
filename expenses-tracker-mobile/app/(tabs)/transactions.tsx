@@ -39,6 +39,7 @@ import type { ConvertedAmount } from '../../src/domain/exchangeRates';
 import { sumAmounts } from '../../src/domain/exchangeRates';
 import type { ExpenseProjection } from '../../src/domain/types';
 import { useAppColors } from '../../src/theme/appColors';
+import { layoutStyles } from '../../src/theme/layout';
 
 /**
  * Memoized expense row hoisted to module scope. With stable props
@@ -562,7 +563,7 @@ export default function TransactionsScreen() {
 
   return (
     <>
-      <View style={{ flex: 1 }}>
+      <View style={[{ flex: 1 }, layoutStyles.contentColumn]}>
         {/*
          * `SectionList` virtualizes the list: only rows currently on
          * screen (plus a small buffer set by `windowSize`) are mounted.
