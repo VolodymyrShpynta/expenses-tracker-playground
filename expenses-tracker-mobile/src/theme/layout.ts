@@ -18,6 +18,12 @@ export const MAX_CONTENT_WIDTH = 1100;
 export const MAX_DIALOG_WIDTH = 560;
 
 /**
+ * Tallest a bottom sheet may get. Its rows flex-fill, so without a ceiling an
+ * 80%-of-window floor turns every keypad key into a slab on a tablet.
+ */
+export const MAX_SHEET_HEIGHT = 720;
+
+/**
  * Material's "expanded" window class. Below this a side-by-side layout would
  * squeeze both panes past the point where either is readable.
  */
@@ -58,12 +64,21 @@ export function useContentGutter(): number {
 
 export const layoutStyles = StyleSheet.create({
   /**
-   * Fill the window on phones, cap and centre on large screens. Also used by
-   * the bottom sheets, which are content columns anchored to the bottom.
+   * Fill the window on phones, cap and centre on large screens.
    */
   contentColumn: {
     width: '100%',
     maxWidth: MAX_CONTENT_WIDTH,
+    alignSelf: 'center',
+  },
+  /**
+   * Bottom sheets. A sheet is a dialog anchored to the bottom, not a content
+   * column, so it takes the dialog cap — `MAX_CONTENT_WIDTH` never binds on a
+   * tablet and leaves the sheet edge to edge.
+   */
+  sheetColumn: {
+    width: '100%',
+    maxWidth: MAX_DIALOG_WIDTH,
     alignSelf: 'center',
   },
   /** Row container for a screen split into side-by-side panes. */

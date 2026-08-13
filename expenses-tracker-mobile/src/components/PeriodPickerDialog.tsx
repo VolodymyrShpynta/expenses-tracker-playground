@@ -43,7 +43,7 @@ import {
   type DateRange,
   type PresetKey,
 } from '../utils/dateRange';
-import { layoutStyles } from '../theme/layout';
+import { layoutStyles, MAX_SHEET_HEIGHT } from '../theme/layout';
 import { useAppColors } from '../theme/appColors';
 import { FONT_SCALES, useFontScale } from '../context/preferencesProvider';
 import { radius } from '../theme/tokens';
@@ -153,12 +153,12 @@ export function PeriodPickerDialog({
           accessible={false}
           style={[
             styles.sheet,
-            layoutStyles.contentColumn,
+            layoutStyles.sheetColumn,
             {
-              backgroundColor: theme.colors.background,
+              backgroundColor: theme.colors.surface,
               borderColor: appColors.border,
-              maxHeight: windowHeight * 0.9,
-              minHeight: windowHeight * 0.8,
+              maxHeight: Math.min(windowHeight * 0.9, MAX_SHEET_HEIGHT),
+              minHeight: Math.min(windowHeight * 0.8, MAX_SHEET_HEIGHT),
               paddingBottom: insets.bottom + 16,
             },
           ]}

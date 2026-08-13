@@ -50,7 +50,7 @@ import { FONT_SCALES, useFontScale, useMainCurrency } from '../context/preferenc
 import { useAppColors } from '../theme/appColors';
 import { radius } from '../theme/tokens';
 import { interFont } from '../theme/typography';
-import { layoutStyles } from '../theme/layout';
+import { layoutStyles, MAX_SHEET_HEIGHT } from '../theme/layout';
 import type { ExpenseProjection } from '../domain/types';
 
 export interface AddExpenseDialogProps {
@@ -339,7 +339,7 @@ function AddExpenseDialogContent({
               accessible={false}
               style={[
                 styles.sheet,
-                layoutStyles.contentColumn,
+                layoutStyles.sheetColumn,
                 {
                   backgroundColor: theme.colors.background,
                   borderColor: appColors.border,
@@ -348,13 +348,13 @@ function AddExpenseDialogContent({
                   // auto-height KeyboardAvoidingView parent, not the screen,
                   // so it collapsed the sheet well below 90%). Leaves a
                   // backdrop strip above for tap-to-dismiss.
-                  maxHeight: windowHeight * 0.9,
+                  maxHeight: Math.min(windowHeight * 0.9, MAX_SHEET_HEIGHT),
                   // Stretch to a floor of 80% of the screen so the sheet
                   // doesn't look lost on big/tall devices; the flexible
                   // spacer + taller keypad cells fill the extra height. On
                   // small screens the content is taller than this floor, so
                   // it has no effect there.
-                  minHeight: windowHeight * 0.8,
+                  minHeight: Math.min(windowHeight * 0.8, MAX_SHEET_HEIGHT),
                   // Pad the bottom by the system gesture/home-indicator
                   // inset so the OK button isn't crushed under the
                   // navigation handle now that the sheet extends past
