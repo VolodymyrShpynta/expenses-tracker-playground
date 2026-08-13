@@ -25,7 +25,7 @@
  * the parent screen handles the calendar transition.
  */
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import {
   Icon,
   Portal,
@@ -45,6 +45,7 @@ import {
 } from '../utils/dateRange';
 import { layoutStyles } from '../theme/layout';
 import { useAppColors } from '../theme/appColors';
+import { FONT_SCALES, useFontScale } from '../context/preferencesProvider';
 import { radius } from '../theme/tokens';
 import { interFont } from '../theme/typography';
 
@@ -55,6 +56,10 @@ export interface PeriodPickerDialogProps {
   readonly onDismiss: () => void;
   readonly onSelect: (key: PresetKey) => void;
 }
+
+// Icon + label + subtitle + padding. A floor rather than a fixed height: the
+// rows grow to fill a tall sheet, and below this the sheet scrolls.
+const TILE_MIN_HEIGHT = 96;
 
 // Material Community Icons name per preset (Paper's `Icon` uses the MCI set).
 const ICONS: Record<PresetKey, string> = {
@@ -77,6 +82,7 @@ export function PeriodPickerDialog({
   const { t: translate, i18n } = useTranslation();
   const theme = useTheme();
   const appColors = useAppColors();
+  const { fontScale } = useFontScale();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
 
@@ -127,6 +133,8 @@ export function PeriodPickerDialog({
 
   if (!visible) return null;
 
+  const rowMin = { minHeight: Math.round(TILE_MIN_HEIGHT * FONT_SCALES[fontScale]) };
+
   return (
     // Bottom-sheet overlay teleported above the tab bar via <Portal>, mirroring
     // the Add/Edit Expense sheet: anchored to the screen bottom, stretched to a
@@ -159,21 +167,27 @@ export function PeriodPickerDialog({
             {translate('dateRange.period')}
           </Text>
 
-          <View style={styles.grid}>
-            {renderTile('range')}
-            <View style={styles.row}>
-              {renderTile('all')}
-              {renderTile('day')}
+          {/* Fill the sheet when it's tall enough, scroll when it isn't (e.g.
+              landscape) — the rows' `minHeight` is what makes the content
+              outgrow the viewport instead of squashing under `overflow:
+              hidden`. Mirrors the Add/Edit Expense sheet. */}
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            <View style={styles.grid}>
+              <View style={[styles.row, rowMin]}>{renderTile('range')}</View>
+              <View style={[styles.row, rowMin]}>
+                {renderTile('all')}
+                {renderTile('day')}
+              </View>
+              <View style={[styles.row, rowMin]}>
+                {renderTile('week')}
+                {renderTile('today')}
+              </View>
+              <View style={[styles.row, rowMin]}>
+                {renderTile('year')}
+                {renderTile('month')}
+              </View>
             </View>
-            <View style={styles.row}>
-              {renderTile('week')}
-              {renderTile('today')}
-            </View>
-            <View style={styles.row}>
-              {renderTile('year')}
-              {renderTile('month')}
-            </View>
-          </View>
+          </ScrollView>
         </Pressable>
       </Pressable>
     </Portal>
@@ -204,12 +218,18 @@ const styles = StyleSheet.create({
     fontFamily: interFont.bold,
     marginBottom: 12,
   },
+  // `flexGrow` with the default auto basis, not `flex: 1`: a zero basis would
+  // report no natural height, so the scroll view would never learn the content
+  // is taller than it is.
+  scrollContent: {
+    flexGrow: 1,
+  },
   grid: {
-    flex: 1,
+    flexGrow: 1,
     gap: 8,
   },
   row: {
-    flex: 1,
+    flexGrow: 1,
     flexDirection: 'row',
     gap: 8,
   },
