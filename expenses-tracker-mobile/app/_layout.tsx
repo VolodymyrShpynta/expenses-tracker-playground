@@ -10,13 +10,14 @@
  * font-scale changes without remounting the entire tree.
  */
 import { useEffect, useState } from 'react';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, useWindowDimensions } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { I18nextProvider } from 'react-i18next';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { useTheme } from 'react-native-paper';
 import {
   useFonts,
@@ -40,6 +41,7 @@ import {
 import { SyncProvider } from '../src/context/syncProvider';
 import { AmbientGlow } from '../src/components/AmbientGlow';
 import { ThemedPaperProvider } from '../src/theme/ThemedPaperProvider';
+import { MEDIUM_LAYOUT_MIN_WIDTH } from '../src/theme/layout';
 import { interFont } from '../src/theme/typography';
 import { useExchangeRatesSync } from '../src/hooks/useExchangeRatesSync';
 
@@ -65,6 +67,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
+        <OrientationPolicy />
         <I18nextProvider i18n={i18n}>
           <DatabaseProvider>
             <QueryClientProvider client={queryClient}>
@@ -120,6 +123,35 @@ function ScaledRootStack() {
       <Stack.Screen name="settings" />
     </Stack>
   );
+}
+
+/**
+ * Headless: portrait-only on phones, free rotation on tablets.
+ *
+ * The phone layouts assume a tall window — a landscape phone is ~400dp high,
+ * which is less than a date-picker calendar's intrinsic height and leaves a
+ * dialog room for barely more than its own chrome. Tablets have the height to
+ * spare, and rotating them is genuinely useful.
+ *
+ * Applied at runtime rather than through `app.json`, whose `orientation` is a
+ * single value for every device. It stays `default` so this can widen the
+ * allowed set on tablets: on iOS `unlockAsync` can't exceed what the Info.plist
+ * permits, so a static `portrait` there would pin tablets too.
+ */
+function OrientationPolicy() {
+  const { width, height } = useWindowDimensions();
+  // Compare the device's *smallest* dimension, Android's `sw600dp` rule, so
+  // the answer doesn't flip as the window rotates.
+  const isTablet = Math.min(width, height) >= MEDIUM_LAYOUT_MIN_WIDTH;
+
+  useEffect(() => {
+    const apply = isTablet
+      ? ScreenOrientation.unlockAsync()
+      : ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+    void apply.catch((e) => console.warn('Failed to apply orientation policy', e));
+  }, [isTablet]);
+
+  return null;
 }
 
 /**
