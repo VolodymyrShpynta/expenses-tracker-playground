@@ -18,10 +18,8 @@
  * ----------------
  *   - Pill radius — the landing site's `.btn-primary` / `.btn-ghost` shape.
  *   - Inter SemiBold in sentence case, matching the site's buttons.
- *   - `labelStyle.lineHeight === fontSize` — Paper's default label
- *     `lineHeight` sits taller than its glyph box, which drifts the
- *     baseline-aligned text toward the top of the container. Pinning the
- *     line-height vertically re-centers it.
+ *   - A label line box sized to Inter's glyph box, so the text sits centered
+ *     in the button without clipping ascenders or descenders.
  *
  * Caller-supplied `style` / `labelStyle` are merged on top of these
  * defaults, so individual call sites can still override anything.
@@ -48,13 +46,16 @@ const BASE_LABEL_SIZE = 14;
 // height, since Paper's `Button` sizes to its label). Scaled with the screen
 // so buttons grow a touch on big devices.
 const BASE_LABEL_MARGIN = 12;
+// Inter's ascender-to-descender box is ~1.21x the font size. A line height
+// below that makes both platforms cut glyphs off — descenders such as the
+// Cyrillic "у" or Latin "g" go missing — so keep a little headroom above it.
+const LABEL_LINE_HEIGHT_RATIO = 1.25;
 
 export type ThemedButtonProps = ButtonProps;
 
 export function ThemedButton({ style, labelStyle, ...rest }: ThemedButtonProps) {
   // Honor Settings → Font size (like AppListItem does). Paper's `Button`
-  // ignores the theme's scaled variants, so we size the label ourselves;
-  // `lineHeight === fontSize` re-centers the text in the flat button.
+  // ignores the theme's scaled variants, so we size the label ourselves.
   const { fontScale } = useFontScale();
   // No CSS media queries in RN: derive a gentle screen-size multiplier from the
   // window height so every button grows slightly on large / tall devices. 1.0
@@ -63,7 +64,13 @@ export function ThemedButton({ style, labelStyle, ...rest }: ThemedButtonProps) 
   const { height } = useWindowDimensions();
   const screenScale = Math.min(1.3, Math.max(1, height / 760));
   const size = Math.round(BASE_LABEL_SIZE * FONT_SCALES[fontScale] * screenScale);
-  const labelMargin = Math.round(BASE_LABEL_MARGIN * screenScale);
+  const lineHeight = Math.ceil(size * LABEL_LINE_HEIGHT_RATIO);
+  // Take the label's leading back out of the margin so the taller line box
+  // does not make every button grow.
+  const labelMargin = Math.max(
+    4,
+    Math.round(BASE_LABEL_MARGIN * screenScale - (lineHeight - size) / 2),
+  );
   return (
     <Button
       {...rest}
@@ -71,7 +78,7 @@ export function ThemedButton({ style, labelStyle, ...rest }: ThemedButtonProps) 
       labelStyle={
         [
           styles.label,
-          { fontSize: size, lineHeight: size, marginVertical: labelMargin },
+          { fontSize: size, lineHeight, marginVertical: labelMargin },
           labelStyle,
         ] as StyleProp<TextStyle>
       }
@@ -86,5 +93,8 @@ const styles = StyleSheet.create({
   label: {
     marginVertical: BASE_LABEL_MARGIN,
     fontFamily: interFont.semiBold,
+    // Android otherwise pads the line box asymmetrically, which both shifts the
+    // label off-center and eats into the room reserved for the glyphs.
+    includeFontPadding: false,
   },
 });

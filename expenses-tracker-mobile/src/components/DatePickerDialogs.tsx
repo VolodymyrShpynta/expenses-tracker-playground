@@ -15,8 +15,14 @@
  * library's full-screen `DatePickerModal` so the look/feel is identical
  * to the rest of the app's dialogs.
  */
-import { useMemo, useState } from 'react';
-import { LogBox, ScrollView, StyleSheet, View } from 'react-native';
+import { useMemo, useState, type ReactNode } from 'react';
+import {
+  LogBox,
+  ScrollView,
+  StyleSheet,
+  View,
+  type LayoutChangeEvent,
+} from 'react-native';
 import {
   Dialog,
   Text,
@@ -51,17 +57,11 @@ import { ThemedButton } from './ThemedButton';
 import { FONT_SCALES, useFontScale } from '../context/preferencesProvider';
 import { ALL_TIME_START_YEAR, formatDate } from '../utils/dateRange';
 
-// `react-native-paper-dates`' `Calendar` ALWAYS mounts its year picker — a
-// `FlatList` — even while it's an invisible (opacity 0, pointer-events none)
-// overlay you only see after tapping the month/year header. We deliberately
-// host the `Calendar` inside a `ScrollView` (see the `Dialog.ScrollArea`
-// below) so the date-picker's Cancel / Apply footer stays pinned and clear
-// of the bottom tab bar on short screens. RN flags that FlatList-in-ScrollView
-// as nested VirtualizedLists, but the year list is a tiny (~30-item) overlay,
-// so the windowing/perf problems the warning guards against don't apply here.
-// We can't restructure a third-party component, so silence just this one
-// dev-only log. (No-op in production, where LogBox is inactive.) Remove this
-// if the calendar ever stops living inside a ScrollView.
+// `Calendar` always mounts its year picker — a `FlatList` — as an overlay, so
+// the scroll fallback in `CalendarFrame` nests it in a plain `ScrollView`. RN
+// flags that as nested VirtualizedLists, but the year list is a tiny (~30-item)
+// overlay, so the windowing problems the warning guards against don't apply.
+// (No-op in production, where LogBox is inactive.)
 LogBox.ignoreLogs([
   'VirtualizedLists should never be nested inside plain ScrollViews',
 ]);
@@ -104,14 +104,6 @@ for (const [code, translation] of Object.entries(CALENDAR_TRANSLATIONS)) {
  * are practically meaningless, so we constrain the picker to a sensible
  * window and re-derive `END_YEAR` at module load (acceptable: month-long
  * staleness is fine for a date picker).
- */
-/**
- * Year range exposed by the calendar's tappable year header. The library
- * defaults to 1800–2200, which makes the year picker an unusably long list.
- * For an expense tracker, dates outside a couple of decades around "now"
- * are practically meaningless, so we constrain the picker to a sensible
- * window and re-derive `END_YEAR` at module load (acceptable: month-long
- * staleness is fine for a date picker).
  *
  * `START_YEAR` must stay **strictly earlier** than the earliest date the app
  * can hand the calendar, which is the "all time" floor. When the two matched,
@@ -119,6 +111,11 @@ for (const [code, translation] of Object.entries(CALENDAR_TRANSLATIONS)) {
  * (index 0 === the library's `getMinIndex`), and the library rendered the
  * month *below* the minimum on top of it — two overlapping grids. It also left
  * the ‹ arrow with nowhere to go.
+ *
+ * Upstream bug, unfixed in 0.23.9: web-ridge/react-native-paper-dates#415 and
+ * #285. The cost of the workaround is that the buffer year is listed in the
+ * year picker, where picking it from a January does nothing — the library
+ * discards index 0 as falsy in `Swiper.native`'s `useYearChange` callback.
  */
 const START_YEAR = ALL_TIME_START_YEAR - 1;
 const END_YEAR = new Date().getFullYear() + 5;
@@ -177,22 +174,18 @@ export function SingleDatePickerDialog({
       showCloseButton={false}
       reserveBottomNav
     >
-      <Dialog.ScrollArea style={styles.scrollArea}>
-        <ScrollView>
-          <View style={styles.calendarWrap}>
-            <ThemeProvider theme={calendarTheme}>
-              <Calendar
-                locale={i18n.language}
-                mode="single"
-                date={pending}
-                onChange={handleCalendarChange}
-                startYear={START_YEAR}
-                endYear={END_YEAR}
-              />
-            </ThemeProvider>
-          </View>
-        </ScrollView>
-      </Dialog.ScrollArea>
+      <CalendarFrame>
+        <ThemeProvider theme={calendarTheme}>
+          <Calendar
+            locale={i18n.language}
+            mode="single"
+            date={pending}
+            onChange={handleCalendarChange}
+            startYear={START_YEAR}
+            endYear={END_YEAR}
+          />
+        </ThemeProvider>
+      </CalendarFrame>
       <Dialog.Actions style={styles.actions}>
         <ThemedButton mode="text" onPress={onDismiss}>
           {translate('common.cancel')}
@@ -333,32 +326,28 @@ export function RangeDatePickerDialog({
           />
         </View>
       </Dialog.Content>
-      <Dialog.ScrollArea style={styles.scrollArea}>
-        <ScrollView>
-          <View style={styles.calendarWrap}>
-            <ThemeProvider theme={calendarTheme}>
-              <Calendar
-                // `react-native-paper-dates` derives the swiper's initial
-                // month from the `date` prop *only on mount* (see
-                // `getInitialIndex` in the library's `Calendar.tsx`). Keying
-                // by `step` remounts the calendar when the user advances
-                // from "from" → "to" (or flips back via the chips) so it
-                // scrolls to the newly bound date instead of getting stuck
-                // on the previous step's month. Within a step, manual
-                // month-swipes still stick.
-                key={step}
-                locale={i18n.language}
-                mode="single"
-                date={step === 'from' ? pendingFrom : pendingTo}
-                onChange={handleCalendarChange}
-                startYear={START_YEAR}
-                endYear={END_YEAR}
-                {...validRangeProp}
-              />
-            </ThemeProvider>
-          </View>
-        </ScrollView>
-      </Dialog.ScrollArea>
+      <CalendarFrame>
+        <ThemeProvider theme={calendarTheme}>
+          <Calendar
+            // `react-native-paper-dates` derives the swiper's initial
+            // month from the `date` prop *only on mount* (see
+            // `getInitialIndex` in the library's `Calendar.tsx`). Keying
+            // by `step` remounts the calendar when the user advances
+            // from "from" → "to" (or flips back via the chips) so it
+            // scrolls to the newly bound date instead of getting stuck
+            // on the previous step's month. Within a step, manual
+            // month-swipes still stick.
+            key={step}
+            locale={i18n.language}
+            mode="single"
+            date={step === 'from' ? pendingFrom : pendingTo}
+            onChange={handleCalendarChange}
+            startYear={START_YEAR}
+            endYear={END_YEAR}
+            {...validRangeProp}
+          />
+        </ThemeProvider>
+      </CalendarFrame>
       <Dialog.Actions style={styles.actions}>
         <ThemedButton mode="text" onPress={onDismiss}>
           {translate('common.cancel')}
@@ -478,9 +467,9 @@ function useCalendarTheme(): MD3Theme {
  * Height to give the calendar's parent.
  *
  * The library's `Calendar` measures its parent (via its internal `AutoSizer`)
- * and silently clips trailing day rows when that parent is too short. Inside a
- * `ScrollView` a bare `minHeight` collapses — the `AutoSizer`'s `flex: 1` root
- * has nothing to fill — so the height has to be definite.
+ * and silently clips trailing day rows when that parent is too short, so the
+ * height has to be definite — a bare `minHeight` leaves the `AutoSizer`'s
+ * `flex: 1` root nothing to fill.
  *
  * It also has to fit a **6-row** month (one whose 1st falls late enough in the
  * week to push into a sixth row, e.g. August 2026), which is the case a
@@ -500,6 +489,46 @@ const CALENDAR_HEIGHT =
   DAY_NAMES_HEIGHT +
   MAX_WEEK_ROWS * (DAY_SIZE + WEEK_MARGIN) +
   MONTH_LABEL_HEIGHT;
+
+// Below this the 46px day circles stop being reliable touch targets, so a
+// viewport that short scrolls the calendar instead of shrinking it further.
+const MIN_CALENDAR_SCALE = 0.75;
+
+/**
+ * Hosts the calendar at its required height, scaling it down when the dialog
+ * can't spare that much.
+ *
+ * The obvious alternative — always scrolling — breaks the calendar's own year
+ * picker: that picker is a `FlatList` the library always mounts as an overlay,
+ * and on Android a *scrollable* ancestor swallows every vertical drag before
+ * the inner list sees it, so the year list can't be scrolled. Scaling keeps the
+ * whole month reachable with nothing scrollable above it; only a viewport too
+ * short to scale into (a phone in landscape) falls back to scrolling.
+ *
+ * The frame keeps its full layout height and only shrinks via `flexShrink`, so
+ * the measured height never depends on the scale — no measure/resize loop.
+ */
+function CalendarFrame({ children }: { readonly children: ReactNode }) {
+  const [height, setHeight] = useState(CALENDAR_HEIGHT);
+  const scale = Math.min(1, Math.max(MIN_CALENDAR_SCALE, height / CALENDAR_HEIGHT));
+  // Floor, so rounding can never leave the frame one pixel short and re-enable
+  // the scrolling this exists to avoid.
+  const scaledHeight = Math.floor(CALENDAR_HEIGHT * scale);
+  const onLayout = (event: LayoutChangeEvent) =>
+    setHeight(event.nativeEvent.layout.height);
+
+  return (
+    <View style={styles.calendarFrame} onLayout={onLayout}>
+      <ScrollView scrollEnabled={scaledHeight > height}>
+        <View style={[styles.calendarClip, { height: scaledHeight }]}>
+          <View style={[styles.calendarBox, { transform: [{ scale }] }]}>
+            {children}
+          </View>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
   chipRow: {
@@ -522,32 +551,30 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     paddingHorizontal: 2,
   },
-  // Drop `Dialog.Content`'s default bottom padding under the chip row so
-  // the calendar (now in its own scroll area below) sits close to it. Also
-  // trim the default 24px side padding so the two date chips have more room
-  // before they need to shrink.
+  // Drop `Dialog.Content`'s default bottom padding under the chip row so the
+  // calendar below sits close to it. Also trim the default 24px side padding
+  // so the two date chips have more room before they need to shrink.
   chipContent: {
     paddingBottom: 0,
     paddingHorizontal: 12,
   },
-  // The calendar lives in a `Dialog.ScrollArea` so that on short screens
-  // it can scroll while the title and Cancel / Apply footer stay pinned
-  // (and clear of the tab bar). Strip the scroll area's default divider
-  // borders, and trim its default 24px side padding right down: the
-  // library draws each day as a fixed 46px circle across 7 `flex: 1`
-  // columns, so on a ~360dp screen the generous padding shrank the
-  // columns below 46px and adjacent circles overlapped. A small inset
-  // keeps the columns >= 46px so the circles never touch.
-  scrollArea: {
-    borderTopWidth: 0,
-    borderBottomWidth: 0,
+  // Only the calendar gives up height when the dialog hits its cap, so the
+  // title, chips and Cancel / Apply footer keep their size. The side inset is
+  // small on purpose: the library draws each day as a fixed 46px circle across
+  // 7 `flex: 1` columns, so on a ~360dp screen generous padding shrank the
+  // columns below 46px and adjacent circles overlapped.
+  calendarFrame: {
+    height: CALENDAR_HEIGHT,
+    flexShrink: 1,
     paddingHorizontal: 4,
   },
-  // The library's `Calendar` measures its parent and clips trailing day rows
-  // when it's too short — see `CALENDAR_HEIGHT` above. Shorter months leave
-  // some space below; the scroll area scrolls when the viewport can't fit it.
-  calendarWrap: {
+  calendarClip: {
+    overflow: 'hidden',
+  },
+  // Laid out at the height the library needs; the scale is what makes it fit.
+  calendarBox: {
     height: CALENDAR_HEIGHT,
+    transformOrigin: 'top center',
   },
   // Let the Cancel / Apply pair wrap onto stacked rows instead of
   // clipping off-screen when a large system font (or a long localized
