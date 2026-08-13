@@ -6,9 +6,10 @@
  * Filtering: case-insensitive substring match against the resolved
  * display name (no diacritic folding for now).
  *
- * Ordering is the user's choice and lives here rather than in a preference:
- * it's cheap to re-pick and only meaningful while choosing. See
- * `domain/categoryOrder.ts` for why it can't be done in SQL.
+ * Ordering is the user's choice and is remembered across opens (and restarts)
+ * as a preference — re-picking it every time you add an expense would be worse
+ * than the default it replaced. See `domain/categoryOrder.ts` for why it can't
+ * be done in SQL.
  */
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -28,6 +29,7 @@ import { CategoryAvatar } from './CategoryAvatar';
 import { PortalSafeTextInput } from './PortalSafeTextInput';
 import { useCategories } from '../hooks/useCategories';
 import { useCategoryLookup } from '../hooks/useCategoryLookup';
+import { useCategorySort } from '../context/preferencesProvider';
 import { useExpenses } from '../hooks/useExpenses';
 import { radius } from '../theme/tokens';
 import {
@@ -69,7 +71,7 @@ export function CategoryPickerDialog({
   const { expenses } = useExpenses();
   const lookup = useCategoryLookup();
   const [query, setQuery] = useState('');
-  const [sortMode, setSortMode] = useState<CategorySortMode>('used');
+  const { categorySort: sortMode, setCategorySort: setSortMode } = useCategorySort();
 
   const usage = useMemo(() => buildCategoryUsage(expenses), [expenses]);
 

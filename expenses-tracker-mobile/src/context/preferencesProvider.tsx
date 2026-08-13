@@ -24,11 +24,13 @@ import {
   type DateRange,
   type PresetKey,
 } from '../utils/dateRange';
+import type { CategorySortMode } from '../domain/categoryOrder';
 
 const CURRENCY_KEY = 'expenses-tracker-main-currency';
 const PRESET_KEY = 'expenses-tracker-period-preset';
 const THEME_KEY = 'expenses-tracker-theme-mode';
 const FONT_SCALE_KEY = 'expenses-tracker-font-scale';
+const CATEGORY_SORT_KEY = 'expenses-tracker-category-sort';
 const DEFAULT_CURRENCY = 'USD';
 const DEFAULT_PRESET: PresetKey = 'month';
 
@@ -44,6 +46,7 @@ export const FONT_SCALES: Readonly<Record<FontScaleKey, number>> = {
 
 const VALID_THEME_MODES: ReadonlyArray<ThemeMode> = ['system', 'light', 'dark'];
 const VALID_FONT_SCALES: ReadonlyArray<FontScaleKey> = ['small', 'medium', 'large', 'xlarge'];
+const VALID_CATEGORY_SORTS: ReadonlyArray<CategorySortMode> = ['alpha', 'used', 'recent'];
 
 interface PreferencesContextValue {
   readonly mainCurrency: string;
@@ -56,6 +59,8 @@ interface PreferencesContextValue {
   readonly setThemeMode: (mode: ThemeMode) => void;
   readonly fontScale: FontScaleKey;
   readonly setFontScale: (s: FontScaleKey) => void;
+  readonly categorySort: CategorySortMode;
+  readonly setCategorySort: (mode: CategorySortMode) => void;
 }
 
 const PreferencesContext = createContext<PreferencesContextValue | null>(null);
@@ -72,6 +77,7 @@ export function PreferencesProvider({ children }: PreferencesProviderProps) {
   );
   const [themeMode, setThemeModeState] = useState<ThemeMode>('system');
   const [fontScale, setFontScaleState] = useState<FontScaleKey>('medium');
+  const [categorySort, setCategorySortState] = useState<CategorySortMode>('used');
 
   // Hydrate from AsyncStorage. We don't gate render on this — defaults
   // are already valid; the UI just snaps to the user's prefs once loaded.
@@ -79,12 +85,14 @@ export function PreferencesProvider({ children }: PreferencesProviderProps) {
     let cancelled = false;
     (async () => {
       try {
-        const [storedCurrency, storedPreset, storedTheme, storedFont] = await Promise.all([
-          AsyncStorage.getItem(CURRENCY_KEY),
-          AsyncStorage.getItem(PRESET_KEY),
-          AsyncStorage.getItem(THEME_KEY),
-          AsyncStorage.getItem(FONT_SCALE_KEY),
-        ]);
+        const [storedCurrency, storedPreset, storedTheme, storedFont, storedCategorySort] =
+          await Promise.all([
+            AsyncStorage.getItem(CURRENCY_KEY),
+            AsyncStorage.getItem(PRESET_KEY),
+            AsyncStorage.getItem(THEME_KEY),
+            AsyncStorage.getItem(FONT_SCALE_KEY),
+            AsyncStorage.getItem(CATEGORY_SORT_KEY),
+          ]);
         if (cancelled) return;
         if (storedCurrency) setMainCurrencyState(storedCurrency);
         if (storedPreset && VALID_PRESETS.includes(storedPreset as PresetKey)) {
@@ -97,6 +105,12 @@ export function PreferencesProvider({ children }: PreferencesProviderProps) {
         }
         if (storedFont && VALID_FONT_SCALES.includes(storedFont as FontScaleKey)) {
           setFontScaleState(storedFont as FontScaleKey);
+        }
+        if (
+          storedCategorySort &&
+          VALID_CATEGORY_SORTS.includes(storedCategorySort as CategorySortMode)
+        ) {
+          setCategorySortState(storedCategorySort as CategorySortMode);
         }
       } catch (e) {
         console.warn('Failed to hydrate preferences', e);
@@ -157,6 +171,16 @@ export function PreferencesProvider({ children }: PreferencesProviderProps) {
     [],
   );
 
+  const setCategorySort = useCallback(
+    (mode: CategorySortMode) => {
+      setCategorySortState(mode);
+      void AsyncStorage.setItem(CATEGORY_SORT_KEY, mode).catch((e) =>
+        console.warn('Failed to save categorySort', e),
+      );
+    },
+    [],
+  );
+
   /**
    * Memoize the context value so every preference change only invalidates
    * consumers when its slice actually changed (the value object identity
@@ -176,6 +200,8 @@ export function PreferencesProvider({ children }: PreferencesProviderProps) {
       setThemeMode,
       fontScale,
       setFontScale,
+      categorySort,
+      setCategorySort,
     }),
     [
       mainCurrency,
@@ -188,6 +214,8 @@ export function PreferencesProvider({ children }: PreferencesProviderProps) {
       setThemeMode,
       fontScale,
       setFontScale,
+      categorySort,
+      setCategorySort,
     ],
   );
 
@@ -229,4 +257,12 @@ export function useThemeMode(): { themeMode: ThemeMode; setThemeMode: (m: ThemeM
 export function useFontScale(): { fontScale: FontScaleKey; setFontScale: (s: FontScaleKey) => void } {
   const { fontScale, setFontScale } = usePreferences();
   return { fontScale, setFontScale };
+}
+
+export function useCategorySort(): {
+  categorySort: CategorySortMode;
+  setCategorySort: (mode: CategorySortMode) => void;
+} {
+  const { categorySort, setCategorySort } = usePreferences();
+  return { categorySort, setCategorySort };
 }
