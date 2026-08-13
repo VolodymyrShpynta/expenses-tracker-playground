@@ -63,6 +63,22 @@ import MedicalServicesIcon from '@mui/icons-material/MedicalServices';
 import VaccinesIcon from '@mui/icons-material/Vaccines';
 import SpaIcon from '@mui/icons-material/Spa';
 import HealingIcon from '@mui/icons-material/Healing';
+import WomanIcon from '@mui/icons-material/Woman';
+import GirlIcon from '@mui/icons-material/Girl';
+import PregnantWomanIcon from '@mui/icons-material/PregnantWoman';
+import FaceRetouchingNaturalIcon from '@mui/icons-material/FaceRetouchingNatural';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import PaletteIcon from '@mui/icons-material/Palette';
+import ColorizeIcon from '@mui/icons-material/Colorize';
+import ContentCutIcon from '@mui/icons-material/ContentCut';
+import DiamondIcon from '@mui/icons-material/Diamond';
+import WatchIcon from '@mui/icons-material/Watch';
+import ShoppingBagIcon from '@mui/icons-material/ShoppingBag';
+import DryCleaningIcon from '@mui/icons-material/DryCleaning';
+import IronIcon from '@mui/icons-material/Iron';
+import BathtubIcon from '@mui/icons-material/Bathtub';
+import ShowerIcon from '@mui/icons-material/Shower';
+import SoapIcon from '@mui/icons-material/Soap';
 import BoltIcon from '@mui/icons-material/Bolt';
 import HomeRepairServiceIcon from '@mui/icons-material/HomeRepairService';
 import CleaningServicesIcon from '@mui/icons-material/CleaningServices';
@@ -201,6 +217,22 @@ export const ICON_MAP: Record<string, SvgIconComponent> = {
   Vaccines: VaccinesIcon,
   Spa: SpaIcon,
   Healing: HealingIcon,
+  Woman: WomanIcon,
+  Girl: GirlIcon,
+  PregnantWoman: PregnantWomanIcon,
+  FaceRetouchingNatural: FaceRetouchingNaturalIcon,
+  AutoAwesome: AutoAwesomeIcon,
+  Palette: PaletteIcon,
+  Colorize: ColorizeIcon,
+  ContentCut: ContentCutIcon,
+  Diamond: DiamondIcon,
+  Watch: WatchIcon,
+  ShoppingBag: ShoppingBagIcon,
+  DryCleaning: DryCleaningIcon,
+  Iron: IronIcon,
+  Bathtub: BathtubIcon,
+  Shower: ShowerIcon,
+  Soap: SoapIcon,
   // Home & utilities
   Bolt: BoltIcon,
   HomeRepairService: HomeRepairServiceIcon,
