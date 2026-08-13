@@ -36,6 +36,12 @@ import { layoutStyles, useContentGutter, useIsWideLayout } from '../../src/theme
 const DONUT_SIZE = 220;
 const DONUT_SIZE_WIDE = 300;
 
+// Share of the window a phone-sized donut may take. Without it the chart is a
+// fixed 220 on every device, so a small screen — more so at a large font size,
+// where the hero and tab bar both grow — pushes the ranked list off the fold
+// entirely and the screen looks empty.
+const DONUT_VIEWPORT_SHARE = 0.28;
+
 // Vertical room the summary pane keeps for the total + period picker sitting
 // above the donut, so a short window shrinks the chart instead of colliding.
 const SUMMARY_HEADER_RESERVE = 200;
@@ -96,7 +102,7 @@ export default function CategoriesScreen() {
 
   const donutSize = twoPane
     ? Math.min(DONUT_SIZE_WIDE, Math.max(DONUT_SIZE, windowHeight - SUMMARY_HEADER_RESERVE))
-    : DONUT_SIZE;
+    : Math.min(DONUT_SIZE, Math.round(windowHeight * DONUT_VIEWPORT_SHARE));
 
   const summary = (
     <>

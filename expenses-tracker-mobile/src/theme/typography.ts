@@ -24,6 +24,21 @@ export const interFont = {
 
 type FontVariant = MD3Theme['fonts'][keyof MD3Theme['fonts']];
 
+/**
+ * Damps the user's font-scale preference for display-sized text.
+ *
+ * The preference exists so *body* text stays readable; a 40px hero number
+ * already is, so the last step of the scale buys almost no legibility there
+ * while costing a lot of vertical space. It costs more than it looks, too:
+ * `adjustsFontSizeToFit` shrinks the glyphs to fit a narrow screen but the
+ * line box keeps its full height, so a hero always reserves its worst case.
+ *
+ * Half the step, so xlarge lands on 1.15 rather than 1.3.
+ */
+export function displayFontScale(scale: number): number {
+  return 1 + (scale - 1) * 0.5;
+}
+
 /** Tracking as a fraction of font size, matching the site's `em` values. */
 const TRACKING = {
   display: -0.035,

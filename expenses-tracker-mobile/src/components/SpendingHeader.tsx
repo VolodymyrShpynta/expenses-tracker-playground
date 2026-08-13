@@ -45,7 +45,7 @@ import { formatTotalCompactWithCurrency } from '../utils/format';
 import type { ConvertedAmount } from '../domain/exchangeRates';
 import { useAppColors } from '../theme/appColors';
 import { radius } from '../theme/tokens';
-import { interFont } from '../theme/typography';
+import { displayFontScale, interFont } from '../theme/typography';
 import { Eyebrow } from './Eyebrow';
 import { PeriodPickerDialog } from './PeriodPickerDialog';
 import { RangeDatePickerDialog, SingleDatePickerDialog } from './DatePickerDialogs';
@@ -72,6 +72,7 @@ export function SpendingHeader({ total, currency }: SpendingHeaderProps) {
   const appColors = useAppColors();
   const { fontScale } = useFontScale();
   const scale = FONT_SCALES[fontScale];
+  const heroScale = displayFontScale(scale);
   const { dateRange, preset, setPreset, setDateRange } = useDateRange();
   const [periodOpen, setPeriodOpen] = useState(false);
   const [rangePickerOpen, setRangePickerOpen] = useState(false);
@@ -146,10 +147,10 @@ export function SpendingHeader({ total, currency }: SpendingHeaderProps) {
             {
               color: theme.colors.onSurface,
               fontFamily: interFont.extraBold,
-              fontSize: Math.round(TOTAL_FONT_SIZE * scale),
-              lineHeight: Math.round(TOTAL_FONT_SIZE * 1.15 * scale),
+              fontSize: Math.round(TOTAL_FONT_SIZE * heroScale),
+              lineHeight: Math.round(TOTAL_FONT_SIZE * 1.15 * heroScale),
               // The site's hero tracking, -0.035em.
-              letterSpacing: -0.035 * TOTAL_FONT_SIZE * scale,
+              letterSpacing: -0.035 * TOTAL_FONT_SIZE * heroScale,
             },
           ]}
           numberOfLines={1}
