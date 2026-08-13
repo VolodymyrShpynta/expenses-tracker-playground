@@ -30,7 +30,12 @@
     "themeMode": {
       "system": "Sistemi izle",
       "light": "Açık",
-      "dark": "Koyu"
+      "dim": "Loş",
+      "dark": "Koyu",
+      "indigo": "Çivit",
+      "emerald": "Zümrüt",
+      "lime": "Misket limonu",
+      "violet": "Menekşe"
     },
     "fontScale": {
       "small": "Küçük",

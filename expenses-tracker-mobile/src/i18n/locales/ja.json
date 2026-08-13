@@ -30,7 +30,12 @@
     "themeMode": {
       "system": "システムに従う",
       "light": "ライト",
-      "dark": "ダーク"
+      "dim": "ディム",
+      "dark": "ダーク",
+      "indigo": "インディゴ",
+      "emerald": "エメラルド",
+      "lime": "ライム",
+      "violet": "バイオレット"
     },
     "fontScale": {
       "small": "小",

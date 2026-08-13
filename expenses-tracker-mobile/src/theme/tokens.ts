@@ -13,6 +13,7 @@
  * colour ramps below are for `src/theme/` only. `radius` and `shadow` have no
  * semantic layer and are imported directly by components.
  */
+import { rgbTriplet } from '../utils/colorContrast';
 
 /** Indigo brand ramp. Identical in light and dark — only `50`/`100` flip. */
 export const brand = {
@@ -29,7 +30,7 @@ export const brandSurface = {
 } as const;
 
 /** Green accent — logo chart, checkmarks, positive states. */
-export const accent = {
+export const green = {
   /** On dark backgrounds. */
   base: '#22c55e',
   /** Darkened for contrast on white. */
@@ -79,7 +80,169 @@ export const surfaces = {
     textMuted: '#cbd5e1',
     textDim: '#94a3b8',
   },
+  /**
+   * A dark theme that stops short of the site's near-black — every neutral
+   * raised about one step, same hue, same text ramp. For a lit room, where
+   * `dark`'s `#0a0a0f` reads as a hole in the screen rather than as a page.
+   *
+   * Both hairlines are stronger than `dark`'s: a white hairline loses contrast
+   * as the surface under it lightens, so holding the same alpha would make
+   * card edges disappear.
+   */
+  dim: {
+    bg: '#16161f',
+    bgElev: '#1f1f2b',
+    bgSoft: '#272734',
+    bgSunken: '#30303f',
+    bgSunkenStrong: '#3a3a4b',
+    border: 'rgba(255, 255, 255, 0.10)',
+    borderStrong: 'rgba(255, 255, 255, 0.20)',
+    text: '#f1f5f9',
+    textMuted: '#cbd5e1',
+    textDim: '#94a3b8',
+  },
+  /**
+   * The four themes below are *accented*: each pairs a tinted neutral ramp with
+   * a brand colour of its own (see `accents`), so the app changes character and
+   * not just brightness. Every one keeps the near-black lineage of `dark` — the
+   * tint sits in the surfaces, never in the text, which stays a near-white of
+   * the same hue so it reads as paper-under-light rather than as coloured ink.
+   */
+  indigo: {
+    bg: '#0e1030',
+    bgElev: '#171a3f',
+    bgSoft: '#1f2350',
+    bgSunken: '#282d63',
+    bgSunkenStrong: '#333976',
+    border: 'rgba(255, 255, 255, 0.1)',
+    borderStrong: 'rgba(255, 255, 255, 0.2)',
+    text: '#eef0ff',
+    textMuted: '#c2c7f0',
+    textDim: '#9298cc',
+  },
+  emerald: {
+    bg: '#05100c',
+    bgElev: '#0c1c16',
+    bgSoft: '#12261d',
+    bgSunken: '#1a3328',
+    bgSunkenStrong: '#234233',
+    border: 'rgba(255, 255, 255, 0.09)',
+    borderStrong: 'rgba(255, 255, 255, 0.18)',
+    text: '#e8f5ee',
+    textMuted: '#bcd6c8',
+    textDim: '#8fae9d',
+  },
+  lime: {
+    bg: '#0a0b07',
+    bgElev: '#14160f',
+    bgSoft: '#1c1f14',
+    bgSunken: '#262a1b',
+    bgSunkenStrong: '#333823',
+    border: 'rgba(255, 255, 255, 0.09)',
+    borderStrong: 'rgba(255, 255, 255, 0.18)',
+    text: '#f4f6ec',
+    textMuted: '#d2d6c2',
+    textDim: '#a3a992',
+  },
+  violet: {
+    bg: '#0f0a1c',
+    bgElev: '#191130',
+    bgSoft: '#22183f',
+    bgSunken: '#2d2152',
+    bgSunkenStrong: '#3a2c68',
+    border: 'rgba(255, 255, 255, 0.1)',
+    borderStrong: 'rgba(255, 255, 255, 0.2)',
+    text: '#f2ecff',
+    textMuted: '#d4c9ee',
+    textDim: '#a99ccb',
+  },
 } as const;
+
+/** One neutral ramp, widened from the literals so themes can take any of them. */
+export type SurfacePalette = { readonly [K in keyof typeof surfaces.dark]: string };
+
+/**
+ * A theme's brand colour, in the forms the app draws it in: a fill, the two
+ * ends of the 135° gradient, and a tinted container.
+ */
+export interface ThemeAccent {
+  /** Fill for primary actions, and the light end of the gradient. */
+  readonly base: string;
+  /** Deep end of the gradient. */
+  readonly deep: string;
+  /** Text and glyphs drawn on `base`. */
+  readonly on: string;
+  /** Tinted plate for eyebrows and containers. */
+  readonly container: string;
+  readonly onContainer: string;
+  /**
+   * Colours for *state* rather than for the brand: a selected chip, the
+   * equals key, a pressed operator key. Omitted means "the accent itself",
+   * which is what a single-accent theme wants; the neutral themes carry the
+   * site's green here, because on them selection is a different colour from
+   * the brand.
+   */
+  readonly selection?: ThemeSelection;
+}
+
+export interface ThemeSelection {
+  readonly base: string;
+  readonly on: string;
+  readonly container: string;
+  readonly onContainer: string;
+  /** The container while it is held down. */
+  readonly containerPressed: string;
+}
+
+export const accents = {
+  /** The site's indigo, worn by the light, dim and dark themes. */
+  brand: {
+    base: brand[500],
+    deep: brand[700],
+    on: '#ffffff',
+    container: brandSurface.dark[50],
+    onContainer: brand[300],
+    // The site selects in green, not in its own indigo. As a *fill* the
+    // dark-background green carries ~2.2x the luminance of the indigo beside
+    // it, so `strong` is used instead — `base` glares on near-black.
+    selection: {
+      base: green.strong,
+      on: '#04150a',
+      container: green.deep,
+      onContainer: green.soft,
+      containerPressed: brandSurface.dark[100],
+    },
+  },
+  indigo: {
+    base: '#5b5cf6',
+    deep: '#3730a3',
+    on: '#ffffff',
+    container: '#2b2f75',
+    onContainer: '#c7caff',
+  },
+  emerald: {
+    base: '#2ec894',
+    deep: '#0f7a58',
+    on: '#04150a',
+    container: '#134e3a',
+    onContainer: '#a7f3d0',
+  },
+  /** The one accent bright enough to need dark glyphs on top of it. */
+  lime: {
+    base: '#c8f53f',
+    deep: '#7fa716',
+    on: '#141a00',
+    container: '#3c4a12',
+    onContainer: '#dcff8f',
+  },
+  violet: {
+    base: '#a855f7',
+    deep: '#6d28d9',
+    on: '#ffffff',
+    container: '#4c1d95',
+    onContainer: '#e9d5ff',
+  },
+} as const satisfies Record<string, ThemeAccent>;
 
 /**
  * Corner radii. The site's `--radius-*` scale, plus a small step for
@@ -114,9 +277,18 @@ export const shadow = {
     md: '0px 4px 14px rgba(0, 0, 0, 0.45)',
     lg: '0px 20px 50px rgba(0, 0, 0, 0.55)',
   },
-  /** Indigo glow under the primary button — same in both themes. */
-  brandGlow: '0px 12px 24px rgba(99, 102, 241, 0.35)',
-  brandGlowStrong: '0px 16px 32px rgba(99, 102, 241, 0.45)',
-  /** The hero icon's oversized halo. */
-  brandHalo: '0px 24px 48px rgba(99, 102, 241, 0.45)',
 } as const;
+
+/**
+ * The glow under the primary action, in the accent of whichever theme is live —
+ * on this design the shadow carries the brand as much as the fill does.
+ */
+export function accentGlow(hex: string) {
+  const rgb = rgbTriplet(hex);
+  return {
+    glow: `0px 12px 24px rgba(${rgb}, 0.35)`,
+    glowStrong: `0px 16px 32px rgba(${rgb}, 0.45)`,
+    /** The hero icon's oversized halo. */
+    halo: `0px 24px 48px rgba(${rgb}, 0.45)`,
+  };
+}

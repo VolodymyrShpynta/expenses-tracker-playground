@@ -40,7 +40,8 @@ import {
 } from '../src/context/preferencesProvider';
 import { SyncProvider } from '../src/context/syncProvider';
 import { AmbientGlow } from '../src/components/AmbientGlow';
-import { ThemedPaperProvider } from '../src/theme/ThemedPaperProvider';
+import { ThemedPaperProvider, resolveThemeVariant } from '../src/theme/ThemedPaperProvider';
+import { themes } from '../src/theme/theme';
 import { MEDIUM_LAYOUT_MIN_WIDTH } from '../src/theme/layout';
 import { interFont } from '../src/theme/typography';
 import { useExchangeRatesSync } from '../src/hooks/useExchangeRatesSync';
@@ -163,10 +164,9 @@ function OrientationPolicy() {
 function ThemedStatusBar() {
   const systemScheme = useColorScheme();
   const { themeMode } = useThemeMode();
-  const isDark =
-    themeMode === 'dark' ||
-    (themeMode === 'system' && systemScheme === 'dark');
-  return <StatusBar style={isDark ? 'light' : 'dark'} />;
+  const variant = resolveThemeVariant(themeMode, systemScheme);
+  // Read the theme rather than the variant name: two of the four are light.
+  return <StatusBar style={themes[variant].dark ? 'light' : 'dark'} />;
 }
 
 /**

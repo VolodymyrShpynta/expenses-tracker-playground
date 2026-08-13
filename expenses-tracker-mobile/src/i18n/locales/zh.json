@@ -30,7 +30,12 @@
     "themeMode": {
       "system": "跟随系统",
       "light": "浅色",
-      "dark": "深色"
+      "dim": "暗淡",
+      "dark": "深色",
+      "indigo": "靖蓝",
+      "emerald": "翡翠绿",
+      "lime": "青柠",
+      "violet": "紫罗兰"
     },
     "fontScale": {
       "small": "小",

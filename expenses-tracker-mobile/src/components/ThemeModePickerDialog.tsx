@@ -1,14 +1,15 @@
 /**
- * Theme-mode picker — System / Light / Dark. Trivial radio-list dialog
- * built on `AppDialog` so it shares the title row + close button with
- * every other picker.
+ * Theme-mode picker — the three neutral themes, then the accented ones. Radio
+ * list built on `AppDialog` so it shares the title row with every other picker;
+ * it scrolls because the list is now longer than a short screen.
  */
+import { ScrollView } from 'react-native';
 import { Dialog, RadioButton } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 
 import { AppDialog } from './AppDialog';
 import { AppRadioItem } from './AppRadioItem';
-import type { ThemeMode } from '../context/preferencesProvider';
+import { THEME_MODES, type ThemeMode } from '../theme/theme';
 
 export interface ThemeModePickerDialogProps {
   readonly visible: boolean;
@@ -16,8 +17,6 @@ export interface ThemeModePickerDialogProps {
   readonly onDismiss: () => void;
   readonly onPick: (mode: ThemeMode) => void;
 }
-
-const MODES: ReadonlyArray<ThemeMode> = ['system', 'light', 'dark'];
 
 export function ThemeModePickerDialog({
   visible,
@@ -33,17 +32,19 @@ export function ThemeModePickerDialog({
       title={translate('settings.darkMode')}
       showCloseButton={false}
     >
-      <Dialog.Content>
-        <RadioButton.Group value={value} onValueChange={(v) => onPick(v as ThemeMode)}>
-          {MODES.map((m) => (
-            <AppRadioItem
-              key={m}
-              value={m}
-              label={translate(`settings.themeMode.${m}`)}
-            />
-          ))}
-        </RadioButton.Group>
-      </Dialog.Content>
+      <Dialog.ScrollArea>
+        <ScrollView>
+          <RadioButton.Group value={value} onValueChange={(v) => onPick(v as ThemeMode)}>
+            {THEME_MODES.map((m) => (
+              <AppRadioItem
+                key={m}
+                value={m}
+                label={translate(`settings.themeMode.${m}`)}
+              />
+            ))}
+          </RadioButton.Group>
+        </ScrollView>
+      </Dialog.ScrollArea>
     </AppDialog>
   );
 }

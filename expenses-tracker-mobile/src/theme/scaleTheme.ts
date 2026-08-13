@@ -9,7 +9,7 @@ import type { MD3Theme } from 'react-native-paper';
 
 type FontVariant = MD3Theme['fonts'][keyof MD3Theme['fonts']];
 
-export function scaleTheme(theme: MD3Theme, scale: number): MD3Theme {
+export function scaleTheme<T extends MD3Theme>(theme: T, scale: number): T {
   if (scale === 1) return theme;
   const scaled: Record<string, FontVariant> = {};
   for (const [key, variant] of Object.entries(theme.fonts) as Array<[string, FontVariant]>) {

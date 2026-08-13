@@ -25,6 +25,7 @@ import {
   type PresetKey,
 } from '../utils/dateRange';
 import type { CategorySortMode } from '../domain/categoryOrder';
+import { THEME_MODES, type ThemeMode } from '../theme/theme';
 
 const CURRENCY_KEY = 'expenses-tracker-main-currency';
 const PRESET_KEY = 'expenses-tracker-period-preset';
@@ -34,7 +35,7 @@ const CATEGORY_SORT_KEY = 'expenses-tracker-category-sort';
 const DEFAULT_CURRENCY = 'USD';
 const DEFAULT_PRESET: PresetKey = 'month';
 
-export type ThemeMode = 'system' | 'light' | 'dark';
+export type { ThemeMode } from '../theme/theme';
 export type FontScaleKey = 'small' | 'medium' | 'large' | 'xlarge';
 
 export const FONT_SCALES: Readonly<Record<FontScaleKey, number>> = {
@@ -44,7 +45,6 @@ export const FONT_SCALES: Readonly<Record<FontScaleKey, number>> = {
   xlarge: 1.3,
 };
 
-const VALID_THEME_MODES: ReadonlyArray<ThemeMode> = ['system', 'light', 'dark'];
 const VALID_FONT_SCALES: ReadonlyArray<FontScaleKey> = ['small', 'medium', 'large', 'xlarge'];
 const VALID_CATEGORY_SORTS: ReadonlyArray<CategorySortMode> = ['alpha', 'used', 'recent'];
 
@@ -100,7 +100,7 @@ export function PreferencesProvider({ children }: PreferencesProviderProps) {
           setPresetState(p);
           setDateRangeState(buildRangeForPreset(p));
         }
-        if (storedTheme && VALID_THEME_MODES.includes(storedTheme as ThemeMode)) {
+        if (storedTheme && THEME_MODES.includes(storedTheme as ThemeMode)) {
           setThemeModeState(storedTheme as ThemeMode);
         }
         if (storedFont && VALID_FONT_SCALES.includes(storedFont as FontScaleKey)) {

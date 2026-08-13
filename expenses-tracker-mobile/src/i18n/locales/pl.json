@@ -30,7 +30,12 @@
     "themeMode": {
       "system": "Według systemu",
       "light": "Jasny",
-      "dark": "Ciemny"
+      "dim": "Przygaszony",
+      "dark": "Ciemny",
+      "indigo": "Indygo",
+      "emerald": "Szmaragdowy",
+      "lime": "Limonkowy",
+      "violet": "Fioletowy"
     },
     "fontScale": {
       "small": "Mały",

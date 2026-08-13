@@ -30,7 +30,12 @@
     "themeMode": {
       "system": "Podle systému",
       "light": "Světlý",
-      "dark": "Tmavý"
+      "dim": "Tlumený",
+      "dark": "Tmavý",
+      "indigo": "Indigový",
+      "emerald": "Smaragdový",
+      "lime": "Limetkový",
+      "violet": "Fialový"
     },
     "fontScale": {
       "small": "Malé",

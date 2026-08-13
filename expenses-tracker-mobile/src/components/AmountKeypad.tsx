@@ -287,7 +287,7 @@ function cellPalette(theme: MD3Theme, appColors: AppColors, variant: Variant): P
     case 'equals':
       return {
         bg: theme.colors.secondary,
-        bgPressed: theme.colors.primary,
+        bgPressed: appColors.accentPressed,
         color: theme.colors.onSecondary,
       };
     case 'op':

@@ -30,7 +30,12 @@
     "themeMode": {
       "system": "시스템 설정 따르기",
       "light": "라이트",
-      "dark": "다크"
+      "dim": "딜",
+      "dark": "다크",
+      "indigo": "인디고",
+      "emerald": "에메랄드",
+      "lime": "라임",
+      "violet": "바이올렛"
     },
     "fontScale": {
       "small": "작게",

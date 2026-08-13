@@ -17,7 +17,7 @@
  * dark chrome). `adaptNavigationTheme` from Paper produces matching
  * navigation themes that we feed into the navigation `ThemeProvider`.
  */
-import { useColorScheme } from 'react-native';
+import { useColorScheme, type ColorSchemeName } from 'react-native';
 import { useMemo } from 'react';
 import { PaperProvider, adaptNavigationTheme } from 'react-native-paper';
 import {
@@ -28,9 +28,14 @@ import {
 } from '@react-navigation/native';
 import type { ReactNode } from 'react';
 
-import { darkTheme, lightTheme } from './theme';
+import { themes, type ThemeVariant } from './theme';
 import { scaleTheme } from './scaleTheme';
-import { FONT_SCALES, useFontScale, useThemeMode } from '../context/preferencesProvider';
+import {
+  FONT_SCALES,
+  useFontScale,
+  useThemeMode,
+  type ThemeMode,
+} from '../context/preferencesProvider';
 
 export interface ThemedPaperProviderProps {
   readonly children: ReactNode;
@@ -42,23 +47,34 @@ const { LightTheme: AdaptedLightTheme, DarkTheme: AdaptedDarkTheme } =
     reactNavigationDark: NavigationDarkTheme,
   });
 
+/**
+ * The preference names one more choice than there are palettes, and the OS
+ * reports only two. Exported so the status bar resolves the same way instead
+ * of re-deriving "is it dark" from the raw preference.
+ */
+export function resolveThemeVariant(
+  mode: ThemeMode,
+  systemScheme: ColorSchemeName,
+): ThemeVariant {
+  if (mode === 'system') return systemScheme === 'dark' ? 'dark' : 'light';
+  return mode;
+}
+
 export function ThemedPaperProvider({ children }: ThemedPaperProviderProps) {
   const systemScheme = useColorScheme();
   const { themeMode } = useThemeMode();
   const { fontScale } = useFontScale();
 
-  const isDark =
-    themeMode === 'dark' ||
-    (themeMode === 'system' && systemScheme === 'dark');
-
-  const baseTheme = isDark ? darkTheme : lightTheme;
-  const theme = scaleTheme(baseTheme, FONT_SCALES[fontScale]);
+  const theme = scaleTheme(
+    themes[resolveThemeVariant(themeMode, systemScheme)],
+    FONT_SCALES[fontScale],
+  );
 
   // The ambient glow is painted once at the root, behind the navigator, so the
   // navigator's own container has to be transparent. Individual screens opt
   // back into it; see the stack's `screenOptions` for why the default is opaque.
   const navTheme: NavigationTheme = useMemo(() => {
-    const adapted = isDark ? AdaptedDarkTheme : AdaptedLightTheme;
+    const adapted = theme.dark ? AdaptedDarkTheme : AdaptedLightTheme;
     return {
       ...adapted,
       colors: {
@@ -70,7 +86,7 @@ export function ThemedPaperProvider({ children }: ThemedPaperProviderProps) {
         primary: theme.colors.primary,
       },
     };
-  }, [isDark, theme]);
+  }, [theme]);
 
   return (
     <PaperProvider theme={theme}>

@@ -30,7 +30,12 @@
     "themeMode": {
       "system": "Ikuti sistem",
       "light": "Terang",
-      "dark": "Gelap"
+      "dim": "Redup",
+      "dark": "Gelap",
+      "indigo": "Nila",
+      "emerald": "Zamrud",
+      "lime": "Limau",
+      "violet": "Ungu"
     },
     "fontScale": {
       "small": "Kecil",

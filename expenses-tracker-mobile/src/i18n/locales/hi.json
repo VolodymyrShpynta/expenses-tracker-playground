@@ -30,7 +30,12 @@
     "themeMode": {
       "system": "सिस्टम के अनुसार",
       "light": "लाइट",
-      "dark": "डार्क"
+      "dim": "डिम",
+      "dark": "डार्क",
+      "indigo": "इंडिगो",
+      "emerald": "एमरल्ड",
+      "lime": "लाइम",
+      "violet": "वायलेट"
     },
     "fontScale": {
       "small": "छोटा",

@@ -211,20 +211,31 @@ export function CategoryDonutChart({
             },
           ]}
         >
-          <Text variant="labelMedium" numberOfLines={1} style={{ color: appColors.textDim }}>
+          <Text
+            variant="labelMedium"
+            numberOfLines={2}
+            style={[styles.tipText, { color: appColors.textDim }]}
+          >
             {selected.label}
           </Text>
           <Text
             variant="titleSmall"
             numberOfLines={1}
-            style={{ color: theme.colors.onSurface }}
+            style={[styles.tipText, { color: theme.colors.onSurface }]}
           >
-            {`${formatTotalCompactWithCurrency(
+            {formatTotalCompactWithCurrency(
               selected.value,
               currency,
               language,
               selected.approx ?? false,
-            )} · ${Math.round(selected.share * 100)}%`}
+            )}
+          </Text>
+          <Text
+            variant="labelMedium"
+            numberOfLines={1}
+            style={[styles.tipText, { color: appColors.textDim }]}
+          >
+            {`${Math.round(selected.share * 100)}%`}
           </Text>
           <View
             style={[
@@ -282,9 +293,10 @@ function wedgePath(
 }
 
 /**
- * Sits the callout above the slice it points at, flipping below when the
- * slice is near the top of the ring, and never letting it leave the chart's
- * own box — the pointer slides along the callout instead.
+ * Sits the callout above the slice it points at, flipping below when the slice
+ * is near the top of the ring, and never letting it leave the chart's own box —
+ * the pointer slides along the callout, and a tall callout gives up its
+ * distance from the slice rather than its last line.
  */
 function placeTip(
   anchor: { x: number; y: number },
@@ -293,12 +305,17 @@ function placeTip(
 ) {
   const above = anchor.y - tipSize.height - ARROW - TIP_GAP >= 0;
   const left = clamp(anchor.x - tipSize.width / 2, 0, Math.max(0, size - tipSize.width));
+  const top = clamp(
+    above
+      ? anchor.y - tipSize.height - ARROW - TIP_GAP
+      : anchor.y + ARROW + TIP_GAP,
+    0,
+    Math.max(0, size - tipSize.height),
+  );
   return {
     above,
     left,
-    top: above
-      ? anchor.y - tipSize.height - ARROW - TIP_GAP
-      : anchor.y + ARROW + TIP_GAP,
+    top,
     arrowLeft: clamp(
       anchor.x - left - ARROW,
       ARROW,
@@ -319,6 +336,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1.5,
     alignItems: 'center',
+  },
+  // Each value gets its own line, so a long category or a nine-figure total
+  // makes the callout taller instead of cutting the figure off.
+  tipText: {
+    textAlign: 'center',
   },
   arrow: {
     position: 'absolute',

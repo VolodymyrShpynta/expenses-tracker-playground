@@ -89,7 +89,7 @@ expenses-tracker-mobile/
 │   ├── hooks/                # TanStack Query hooks + screen-level model hooks
 │   ├── context/              # PreferencesProvider, SyncProvider, useAutoSync
 │   ├── components/           # Shared RN Paper components (charts, dialogs, list rows)
-│   ├── theme/                # MD3 light/dark theme (folder, not single file)
+│   ├── theme/                # MD3 themes: 3 neutral + 4 accented (folder, not single file)
 │   ├── i18n/                 # i18next bootstrap + locale JSON (mobile-owned)
 │   ├── utils/                # time, format, dateRange, calculator, chartTicks, …
 │   ├── queryClient.ts        # Singleton TanStack QueryClient
@@ -364,9 +364,28 @@ Use only Paper v5 (Material 3) APIs. Do **not** generate Paper v4 patterns.
 
 ### Theme integration with the Expo dark/light system
 
-Read color scheme from `useColorScheme()` (RN) and select between
-`MD3LightTheme` and `MD3DarkTheme`. Always wrap the app in
-`<PaperProvider theme={…}>` at the root layout (`app/_layout.tsx`).
+There are **seven** palettes behind an eight-way preference: the neutral
+`light` / `dim` / `dark`, and the accented `indigo` / `emerald` / `lime` /
+`violet`, plus `system`. `src/theme/theme.ts` owns `ThemeMode` and
+`THEME_MODES`; the picker renders that list and the stored preference is
+validated against it, so never write a second copy of it. Never re-derive
+"is it dark" from the raw preference either: call `resolveThemeVariant(mode,
+useColorScheme())` from `src/theme/ThemedPaperProvider.tsx` and read
+`themes[variant]`, which is also what feeds `<PaperProvider theme={…}>` at the
+root layout (`app/_layout.tsx`).
+
+`theme.dark` is true for six of the seven, so anything that must tell them
+apart reads `theme.variant` (`useTheme<AppTheme>()`) — see `useAppColors()`.
+
+**Adding a theme** is a palette in `surfaces`, an accent in `accents`, one
+`darkVariant(…)` call registered in `themes`, its entry in `APP_COLORS`, and
+the label in all 15 locales. Everything else follows: the two `Record<
+ThemeVariant, …>` tables fail to compile without it, and `src/theme/theme.test.ts`
+fails without a label or with an unreadable colour pair. The accent carries the
+brand *everywhere* — gradient, glow shadow, pressed shade, selection roles and
+one of the three ambient washes — so a theme never mixes two brand colours;
+omit `selection` on it unless the theme selects in a different colour than it
+brands with (only the site's indigo/green pair does).
 
 ---
 

@@ -30,7 +30,12 @@
     "themeMode": {
       "system": "System folgen",
       "light": "Hell",
-      "dark": "Dunkel"
+      "dim": "Gedämpft",
+      "dark": "Dunkel",
+      "indigo": "Indigo",
+      "emerald": "Smaragd",
+      "lime": "Limette",
+      "violet": "Violett"
     },
     "fontScale": {
       "small": "Klein",
