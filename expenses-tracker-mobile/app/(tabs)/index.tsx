@@ -83,7 +83,13 @@ export default function CategoriesScreen() {
     () =>
       active.map((c) => {
         const r = lookup.resolve(c.categoryId);
-        return { id: c.categoryId, label: r.name, value: c.total.amount, color: r.color };
+        return {
+          id: c.categoryId,
+          label: r.name,
+          value: c.total.amount,
+          color: r.color,
+          approx: c.total.approx,
+        };
       }),
     [active, lookup],
   );
@@ -110,7 +116,12 @@ export default function CategoriesScreen() {
 
       {active.length > 0 ? (
         <View style={twoPane ? styles.donutPane : styles.donutBlock}>
-          <CategoryDonutChart slices={slices} size={donutSize} />
+          <CategoryDonutChart
+            slices={slices}
+            size={donutSize}
+            currency={mainCurrency}
+            language={i18n.language}
+          />
         </View>
       ) : null}
     </>

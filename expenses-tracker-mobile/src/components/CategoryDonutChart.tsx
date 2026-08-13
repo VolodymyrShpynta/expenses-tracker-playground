@@ -1,63 +1,84 @@
 /**
  * Category donut chart — pure SVG, no external charting library.
  *
- * Slices are stroked arcs on a shared circle rather than filled annular
- * wedges: a stroke gives round end caps and a gap between neighbours for
- * free, which is what makes the ring read as a set of separate segments
- * instead of a pie with lines drawn on it. Each slice is painted with its
- * own two-stop gradient (its colour, lightened at the head) so the ring
- * has the same depth as the gradients elsewhere in the app.
+ * Slices are contiguous annular sectors: neighbours meet edge to edge, so the
+ * ring reads as one whole that has been divided, which is the thing the chart
+ * is for. Each slice is painted with its own two-stop gradient (its colour,
+ * lightened at the head) so the ring has the same depth as the gradients
+ * elsewhere in the app.
  *
- * The centre stays empty on purpose. The ring's job is proportion; the
- * period total is already the hero above it and the leading category is
- * already the first row of the list below, so anything written here is a
- * third printing of something on the same screen.
+ * The centre stays empty on purpose. The ring's job is proportion; the period
+ * total is already the hero above it and the leading category is already the
+ * first row of the list below, so anything written there permanently is a
+ * third printing of something on the same screen. Detail is on demand
+ * instead: tapping a slice lifts it and pins a callout with that category's
+ * name, amount and share. Tapping it again — or the callout — puts it away.
  *
  * Motion is a fade-scale-unwind on the container — a plain view transform,
  * so it can't interact with SVG rendering. Empty input renders the muted
  * track ring on its own.
  */
-import { useEffect, useMemo } from 'react';
-import Svg, { Circle, Defs, G, LinearGradient, Stop } from 'react-native-svg';
-import { useTheme } from 'react-native-paper';
+import { useEffect, useMemo, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
+import { Text, useTheme } from 'react-native-paper';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
 
+import { useAppColors } from '../theme/appColors';
 import { motionDuration, motionEasing, useMotionEnabled } from '../theme/motion';
 import { lighten } from '../utils/colorContrast';
+import { formatTotalCompactWithCurrency } from '../utils/format';
 
 export interface DonutSlice {
   readonly id: string;
   readonly label: string;
   readonly value: number;
   readonly color: string;
+  /** Set when the converted total fell back to the live FX rate. */
+  readonly approx?: boolean;
 }
 
 export interface CategoryDonutChartProps {
   readonly slices: ReadonlyArray<DonutSlice>;
+  readonly currency: string;
+  readonly language: string;
   readonly size?: number;
   readonly thickness?: number;
 }
 
-/** Visible gap between neighbouring segments, in px of arc length. */
-const SEGMENT_GAP = 5;
+const TAU = Math.PI * 2;
+/** Slices run clockwise from 12 o'clock, not from SVG's 3 o'clock. */
+const START_ANGLE = -Math.PI / 2;
+/** How far the selected slice grows out of the ring. */
+const POP = 4;
+/** Half-width of the callout's pointer, which is a square turned 45°. */
+const ARROW = 7;
+/** Kept between the callout and the slice it points at. */
+const TIP_GAP = 6;
 
 export function CategoryDonutChart({
   slices,
+  currency,
+  language,
   size = 220,
-  thickness = 26,
+  thickness = Math.round(size * 0.26),
 }: CategoryDonutChartProps) {
   const theme = useTheme();
+  const appColors = useAppColors();
   const motionEnabled = useMotionEnabled();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [tipSize, setTipSize] = useState<{ width: number; height: number } | null>(null);
 
   const center = size / 2;
-  // Stroke straddles the path, so the ring's centreline sits half a
-  // stroke inside the box.
-  const trackRadius = center - thickness / 2;
-  const circumference = 2 * Math.PI * trackRadius;
+  // The selected slice grows outward, so the ring gives up `POP` to keep it
+  // inside the box.
+  const outerRadius = center - POP;
+  const innerRadius = outerRadius - thickness;
+  const midRadius = (outerRadius + innerRadius) / 2;
 
   const total = useMemo(
     () => slices.reduce((sum, s) => sum + (Number.isFinite(s.value) ? s.value : 0), 0),
@@ -66,29 +87,35 @@ export function CategoryDonutChart({
 
   const segments = useMemo(() => {
     if (total <= 0) return [];
-    let consumed = 0;
+    let angle = START_ANGLE;
     return slices
       .filter((s) => s.value > 0)
       .map((s) => {
-        const arcLength = (s.value / total) * circumference;
-        const offset = consumed;
-        consumed += arcLength;
-        // Round caps add half a stroke of arc at each end, so the dash is
-        // shortened by a full stroke to land back on the intended length.
-        // Tiny slices clamp to a hairline and render as a single dot.
-        const dash = Math.max(0.5, arcLength - thickness - SEGMENT_GAP);
-        return {
-          id: s.id,
-          color: s.color,
-          dash,
-          // Negative offset advances clockwise from the 12 o'clock rotation.
-          dashOffset: -(offset + (arcLength - dash) / 2),
+        const sweep = (s.value / total) * TAU;
+        const segment = {
+          ...s,
+          start: angle,
+          end: angle + sweep,
+          mid: angle + sweep / 2,
+          share: s.value / total,
         };
+        angle += sweep;
+        return segment;
       });
-  }, [slices, total, circumference, thickness]);
+  }, [slices, total]);
 
   const reveal = useSharedValue(motionEnabled ? 0 : 1);
   const compositionKey = segments.map((s) => s.id).join('|');
+
+  // Drop a pinned callout when the period's categories change under it.
+  // Adjusting state during render is React's recommended alternative to the
+  // effect this would otherwise need.
+  const [prevComposition, setPrevComposition] = useState(compositionKey);
+  if (compositionKey !== prevComposition) {
+    setPrevComposition(compositionKey);
+    setSelectedId(null);
+    setTipSize(null);
+  }
 
   useEffect(() => {
     if (!motionEnabled) {
@@ -110,6 +137,17 @@ export function CategoryDonutChart({
     ],
   }));
 
+  const selected = segments.find((s) => s.id === selectedId) ?? null;
+  const anchor = selected ? polar(center, center, midRadius, selected.mid) : null;
+  const tip = anchor && tipSize ? placeTip(anchor, tipSize, size) : null;
+
+  const select = (id: string) => {
+    // Drop the measurement with the selection: a wider label would otherwise
+    // be positioned for one frame using the previous slice's width.
+    setTipSize(null);
+    setSelectedId(id === selectedId ? null : id);
+  };
+
   return (
     <Animated.View
       style={[{ width: size, height: size, alignSelf: 'center' }, revealStyle]}
@@ -130,37 +168,162 @@ export function CategoryDonutChart({
             </LinearGradient>
           ))}
         </Defs>
-        {/*
-         * Rotate so arcs start at 12 o'clock instead of 3. SVG's transform
-         * string carries the pivot with it; the array form rotates about the
-         * element's own centre, and the `origin*` props that used to supply
-         * a pivot are deprecated.
-         */}
-        <G transform={`rotate(-90, ${center}, ${center})`}>
-          <Circle
-            cx={center}
-            cy={center}
-            r={trackRadius}
-            stroke={theme.colors.surfaceVariant}
-            strokeWidth={thickness}
-            fill="none"
+        <Circle
+          cx={center}
+          cy={center}
+          r={midRadius}
+          stroke={theme.colors.surfaceVariant}
+          strokeWidth={thickness}
+          fill="none"
+        />
+        {segments.map((segment) => (
+          <Path
+            key={segment.id}
+            d={wedgePath(
+              center,
+              segment.id === selectedId ? outerRadius + POP : outerRadius,
+              innerRadius,
+              segment.start,
+              segment.end,
+            )}
+            fill={`url(#slice-${segment.id})`}
+            onPress={() => select(segment.id)}
           />
-          {segments.map((segment) => (
-            <Circle
-              key={segment.id}
-              cx={center}
-              cy={center}
-              r={trackRadius}
-              stroke={`url(#slice-${segment.id})`}
-              strokeWidth={thickness}
-              strokeLinecap="round"
-              strokeDasharray={[segment.dash, circumference - segment.dash]}
-              strokeDashoffset={segment.dashOffset}
-              fill="none"
-            />
-          ))}
-        </G>
+        ))}
       </Svg>
+
+      {selected && anchor ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setSelectedId(null)}
+          onLayout={(event) => setTipSize(event.nativeEvent.layout)}
+          style={[
+            styles.tip,
+            {
+              backgroundColor: theme.colors.elevation.level3,
+              borderColor: selected.color,
+              maxWidth: size,
+              // Placement needs the measured size, so the first frame after a
+              // tap is laid out but not yet shown.
+              opacity: tip ? 1 : 0,
+              left: tip?.left ?? 0,
+              top: tip?.top ?? 0,
+            },
+          ]}
+        >
+          <Text variant="labelMedium" numberOfLines={1} style={{ color: appColors.textDim }}>
+            {selected.label}
+          </Text>
+          <Text
+            variant="titleSmall"
+            numberOfLines={1}
+            style={{ color: theme.colors.onSurface }}
+          >
+            {`${formatTotalCompactWithCurrency(
+              selected.value,
+              currency,
+              language,
+              selected.approx ?? false,
+            )} · ${Math.round(selected.share * 100)}%`}
+          </Text>
+          <View
+            style={[
+              styles.arrow,
+              {
+                backgroundColor: theme.colors.elevation.level3,
+                borderColor: selected.color,
+                left: tip?.arrowLeft ?? 0,
+                ...(tip?.above
+                  ? { bottom: -ARROW, borderRightWidth: 1.5, borderBottomWidth: 1.5 }
+                  : { top: -ARROW, borderLeftWidth: 1.5, borderTopWidth: 1.5 }),
+              },
+            ]}
+          />
+        </Pressable>
+      ) : null}
     </Animated.View>
   );
 }
+
+function polar(cx: number, cy: number, r: number, angle: number) {
+  return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+}
+
+/**
+ * One slice as a closed annular sector: out along the start edge, round the
+ * outer rim, in along the end edge, back round the inner rim.
+ *
+ * A sector spanning the whole circle has coincident endpoints, which an arc
+ * command draws as nothing at all, so a lone slice is split into two halves.
+ */
+function wedgePath(
+  center: number,
+  outer: number,
+  inner: number,
+  start: number,
+  end: number,
+): string {
+  if (end - start >= TAU - 1e-6) {
+    const half = start + Math.PI;
+    return `${wedgePath(center, outer, inner, start, half)} ${wedgePath(center, outer, inner, half, start + TAU)}`;
+  }
+  const sweptOver180 = end - start > Math.PI ? 1 : 0;
+  const o1 = polar(center, center, outer, start);
+  const o2 = polar(center, center, outer, end);
+  const i2 = polar(center, center, inner, end);
+  const i1 = polar(center, center, inner, start);
+  return [
+    `M${o1.x} ${o1.y}`,
+    `A${outer} ${outer} 0 ${sweptOver180} 1 ${o2.x} ${o2.y}`,
+    `L${i2.x} ${i2.y}`,
+    `A${inner} ${inner} 0 ${sweptOver180} 0 ${i1.x} ${i1.y}`,
+    'Z',
+  ].join(' ');
+}
+
+/**
+ * Sits the callout above the slice it points at, flipping below when the
+ * slice is near the top of the ring, and never letting it leave the chart's
+ * own box — the pointer slides along the callout instead.
+ */
+function placeTip(
+  anchor: { x: number; y: number },
+  tipSize: { width: number; height: number },
+  size: number,
+) {
+  const above = anchor.y - tipSize.height - ARROW - TIP_GAP >= 0;
+  const left = clamp(anchor.x - tipSize.width / 2, 0, Math.max(0, size - tipSize.width));
+  return {
+    above,
+    left,
+    top: above
+      ? anchor.y - tipSize.height - ARROW - TIP_GAP
+      : anchor.y + ARROW + TIP_GAP,
+    arrowLeft: clamp(
+      anchor.x - left - ARROW,
+      ARROW,
+      Math.max(ARROW, tipSize.width - ARROW * 3),
+    ),
+  };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+const styles = StyleSheet.create({
+  tip: {
+    position: 'absolute',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    alignItems: 'center',
+  },
+  arrow: {
+    position: 'absolute',
+    width: ARROW * 2,
+    height: ARROW * 2,
+    transform: [{ rotate: '45deg' }],
+  },
+});
