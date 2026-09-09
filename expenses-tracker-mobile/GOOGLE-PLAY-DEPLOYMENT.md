@@ -1599,6 +1599,13 @@ base, and a first release has none; a percentage there merely limits who
 can install. Staged rollouts start mattering with the *second* release
 — see [Step 10](#staged-rollout).
 
+The release is then **saved**, not published — finish it from
+**Publishing overview → Submit changes for review**, as described in
+[Step 10 → A](#a--store-release). A release left at this stage shows as
+**Draft** on the Production track, with *Create new release* greyed out
+(Play allows only one draft per track) — open it via **Edit release** and
+complete the flow.
+
 ---
 
 ## Step 10 — Shipping subsequent updates
@@ -1674,8 +1681,27 @@ The third is the reliable fallback when the promote control isn't where
 you expect, and all three reuse the exact artifact you tested rather
 than producing a new build.
 
-**5. Write release notes** (below), then **Save → Review release →
-Start rollout to Production**.
+**5. Write release notes** (below), then **Next → Save**.
+
+**6. Submit from Publishing overview.** The release screen has **no**
+"Start rollout" button — its footer reads *"changes will be saved in
+Publishing overview, ready for you to send for review"*. Saving only
+stages the release. Go to **Publishing overview** → **Submit N changes
+for review**.
+
+Play batches everything unpublished into one submission, so a release
+saved while other edits (country targeting, listing copy) are pending
+goes to review together with them. A short *"Running quick checks"* pass
+runs first (~15 min); you can submit immediately, and the batch is
+forwarded as soon as the checks pass.
+
+With **Managed publishing off** (the default, shown on that page) the
+release goes live automatically once review approves — there is no
+second button later. Turn managed publishing *on* if you want approved
+changes held until you press *Publish*.
+
+Don't edit the listing or release while it sits in *Changes in review*;
+each edit can restart the clock.
 
 ### Release notes — per-locale format
 
@@ -1774,6 +1800,8 @@ store release. See the channel table at the top of this step.
 | Can't find **Promote release** anywhere in the Console                | The page was renamed. Older docs say *Releases overview*; the current Console calls it **Latest releases and bundles**. | Three equivalent routes: the track's **Manage track** page → release row → *Promote release*; **Test and release → Latest releases and bundles** → *Promote release*; or **Production → Create new release → Add from library** and pick the version code already uploaded. The last one always works and still reuses the tested artifact. |
 | `eas update` reports success, but no user ever receives the update    | `runtimeVersion.policy` is `"appVersion"` in [app.json](app.json), so an update only reaches installed builds whose `expo.version` matches **exactly**. Bumping `expo.version` before publishing targets a runtime nobody has installed. Fails silently — no error on either side. | Publish the OTA **before** bumping the version, while [app.json](app.json) still carries the version that's live on Play. See [Step 10 → B — OTA update via EAS Update](#b--ota-update-via-eas-update). |
 | Production release published but nobody can install it                | The Production track's *Countries / regions* list is empty. Country targeting is a separate save from the release itself. | **Test and release → Production → Countries / regions** → select all → add *rest of world* → **Save**. Propagation takes a few hours. See [Step 9 → Countries / regions](#countries--regions). |
+| Release sits at **Draft** on the Production track and never publishes; **Create new release** is greyed out | The release was saved but never submitted. Saving only stages it — submission happens centrally. Play also allows just one draft per track, which is why the create button is disabled. | **Production → Releases → Edit release** → **Next** → **Save**, then **Publishing overview → Submit N changes for review**. See [Step 10 → A](#a--store-release). |
+| Bundle warning: `There is no deobfuscation file associated with this App Bundle` | React Native release builds don't enable R8/ProGuard by default, so there is no mapping file to attach. | Ignore it — it's a warning, not an error, and doesn't block publishing. Spendium's crashes originate in JS and are symbolicated by Hermes, not by a Java mapping. If you ever enable minification, AGP embeds the mapping in the AAB automatically and the warning disappears on its own. |
 | `Your app is using a non-compliant version of the Play Core library` | A transitive RN dep still imports the legacy Play Core API.                                    | Bump to Expo SDK 55+ (already on it). If the error persists, run `npx expo-doctor` and follow its upgrade hints.                                                                                                                                                       |
 | `App not installed: package conflicts with an existing package`      | A sideloaded `preview` APK on the test phone uses the same package id but a different signing key. | Uninstall the sideloaded copy first: `adb uninstall com.vshpynta.spendium`. Play-installed and dev-signed builds can't coexist on one device.                                                                                                                          |
 | Play Console: "Privacy policy URL is required"                       | The URL field is empty or returns non-200 to Google's crawler.                                 | Make sure the URL is HTTPS and publicly reachable (no Cloudflare bot-blocker, no auth wall, no robots-disallow).                                                                                                                                                       |
