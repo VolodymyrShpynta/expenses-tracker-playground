@@ -20,7 +20,9 @@ Manage translations** for the matching language.
 ## Locale codes
 
 Folder names are Play Console BCP-47 codes, chosen to match the flavor of
-the app's own translations:
+the app's own translations. **Not all of them take a region suffix** —
+Indonesian and Ukrainian are bare `id` / `uk`, and Play rejects `id-ID` /
+`uk-UA`.
 
 | App locale | Play locale | Notes                                  |
 |------------|-------------|----------------------------------------|
@@ -30,14 +32,14 @@ the app's own translations:
 | es         | es-ES       | Castilian; es-419 / es-US also offered |
 | fr         | fr-FR       |                                        |
 | hi         | hi-IN       |                                        |
-| id         | id-ID       |                                        |
+| id         | id          | bare code — Play rejects `id-ID`      |
 | it         | it-IT       |                                        |
 | ja         | ja-JP       |                                        |
 | ko         | ko-KR       |                                        |
 | pl         | pl-PL       |                                        |
 | pt         | pt-BR       | app strings are Brazilian Portuguese   |
 | tr         | tr-TR       |                                        |
-| uk         | uk-UA       |                                        |
+| uk         | uk          | bare code — Play rejects `uk-UA`      |
 | zh         | zh-CN       | Simplified; zh-TW / zh-HK also offered |
 
 ## Files per locale

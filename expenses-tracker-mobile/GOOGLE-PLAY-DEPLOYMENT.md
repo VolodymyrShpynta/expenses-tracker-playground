@@ -21,8 +21,30 @@ pick whichever matches your machine and skip the other.
 
 ---
 
+## Current status
+
+Spendium is **live on Google Play**. What that means for reading this guide:
+
+| Fact                        | State                                                                                     |
+|-----------------------------|-------------------------------------------------------------------------------------------|
+| Play listing                | `com.vshpynta.spendium` — *Spendium: Expense Tracker*                                     |
+| Production access           | **Granted.** The 12-testers / 14-day gate in [Step 9](#step-9--promote-internal--closed--open--production) is cleared and does not repeat. |
+| Countries / regions         | All, plus *rest of world* (new Play territories are included automatically)               |
+| First production release    | `1.0.0`                                                                                    |
+| Store listing localizations | 15 locales, sourced from [fastlane/metadata/android/](fastlane/metadata/android)           |
+| OTA updates                 | `expo-updates` installed and wired to the `production` channel — see [Step 10](#b--ota-update-via-eas-update) |
+
+**Steps 1–9 are the from-scratch path** — follow them when publishing a
+*new* app, or as reference for how the current setup was built.
+**[Step 10](#step-10--shipping-subsequent-updates) is the steady-state
+workflow** and the only part you need for shipping another version of
+Spendium.
+
+---
+
 ## Table of Contents <!-- omit in toc -->
 
+- [Current status](#current-status)
 - [Prerequisites](#prerequisites)
 - [Step 1 — Pre-flight: verify app.json and EAS config](#step-1--pre-flight-verify-appjson-and-eas-config)
 - [Step 2 — Create the app in Play Console](#step-2--create-the-app-in-play-console)
@@ -42,7 +64,12 @@ pick whichever matches your machine and skip the other.
   - [Hosting the privacy policy (and a landing page) on GitHub Pages](#hosting-the-privacy-policy-and-a-landing-page-on-github-pages)
 - [Step 9 — Promote Internal → Closed → Open → Production](#step-9--promote-internal--closed--open--production)
 - [Step 10 — Shipping subsequent updates](#step-10--shipping-subsequent-updates)
-- [Optional — EAS Update (OTA JS-only patches)](#optional--eas-update-ota-js-only-patches)
+  - [Which channel: store release or OTA?](#which-channel-store-release-or-ota)
+  - [A — Store release](#a--store-release)
+  - [Release notes — per-locale format](#release-notes--per-locale-format)
+  - [Staged rollout](#staged-rollout)
+  - [B — OTA update via EAS Update](#b--ota-update-via-eas-update)
+  - [Recurring obligations](#recurring-obligations)
 - [Troubleshooting](#troubleshooting)
 - [Appendix A — Listing copy (English)](#appendix-a--listing-copy-english)
   - [Short description (80 chars max)](#short-description-80-chars-max)
@@ -82,7 +109,7 @@ The values below are what Play Console will see. Open
 |----------------------------------|------------------------------------------------------|-------------------------------------------------------------|
 | `expo.name`                      | The user-visible app name shown on the device        | `"Spendium"`                                                |
 | `expo.slug`                      | Stable internal slug (used by EAS)                   | `"expenses-tracker-mobile"` — fine, never user-visible      |
-| `expo.version`                   | Semver shown in Play Store (e.g. `1.0.0`)            | **Bump from `0.0.1` before first release** — see note below |
+| `expo.version`                   | Semver shown in Play Store (e.g. `1.0.0`)            | `"1.0.0"` shipped to production — bump on every release ([Step 10](#step-10--shipping-subsequent-updates)) |
 | `expo.android.package`           | The Play Store application id, **immutable forever** | `"com.vshpynta.spendium"`                                   |
 | `expo.android.adaptiveIcon`      | 1024×1024 PNG foreground + a solid background color  | Already set                                                 |
 | `expo.android.permissions`       | Minimal set (currently just `INTERNET`)              | OK — sync uses the user's own cloud account, no extra perms |
@@ -98,7 +125,8 @@ The values below are what Play Console will see. Open
 > **First-release version.** The Play Store rejects releases with version
 > `0.x.x` as "alpha-looking" only in spirit, not by policy — but it's
 > strongly recommended to ship `1.0.0` for the first production release.
-> Bump [app.json](app.json) before the first `eas build --profile production`.
+> Spendium did; a new app should bump [app.json](app.json) before its
+> first `eas build --profile production`.
 
 Then verify the EAS profile in [eas.json](eas.json):
 
@@ -811,10 +839,22 @@ translations:
 | `pt`       | `pt-BR`     | app strings are Brazilian Portuguese  |
 | `zh`       | `zh-CN`     | Simplified (zh-TW / zh-HK also exist) |
 | `es`       | `es-ES`     | Castilian (es-419 / es-US also exist) |
+| `id`       | `id`        | **no region suffix** — `id-ID` is rejected |
+| `uk`       | `uk`        | **no region suffix** — `uk-UA` is rejected |
 
-The other 11 are the obvious primary — `cs-CZ`, `de-DE`, `fr-FR`,
-`hi-IN`, `id-ID`, `it-IT`, `ja-JP`, `ko-KR`, `pl-PL`, `tr-TR`, `uk-UA`
-— plus the `en-US` source.
+The other 9 are the obvious region-suffixed primary — `cs-CZ`, `de-DE`,
+`fr-FR`, `hi-IN`, `it-IT`, `ja-JP`, `ko-KR`, `pl-PL`, `tr-TR` — plus the
+`en-US` source.
+
+> **Play's locale codes are not uniformly `xx-YY`.** Indonesian and
+> Ukrainian are bare `id` / `uk`; supplying `id-ID` / `uk-UA` fails with
+> *"Unsupported language translation found"* when you paste release
+> notes (see [Step 10](#release-notes--per-locale-format)). Note also
+> that Ukrainian's language code is `uk` — `ua` is the *country* code
+> and is not a language code in any scheme. The authoritative list for
+> your app is the template Play pre-fills into the release-notes box:
+> it contains exactly the locales your listing supports, spelled the
+> way Play expects.
 
 **Manual upload (uses the files above — the path you want):**
 
@@ -866,54 +906,66 @@ opens a couple of useful shortcuts (covered below).
 | 10-inch tablet | **Pixel Tablet**                                    | 2560×1600 (16:10) | Google's reference tablet. 1600 px short side clears the 10-inch slot's 1080 px floor; same image also satisfies the 7-inch slot (320–3840 px). The single AVD that unlocks both tablet slots. |
 | 7-inch tablet | **Nexus 7 (2013)** *(skip if you take the shortcut below)* | 1920×1200 (16:10) | Closest thing to a modern 7-inch reference Android still ships — Google killed the 7-inch line in 2015 and never replaced it. Only worth creating if you want screenshots that actually look 7-inch shaped. |
 
-For each AVD pick **API 35 (Vanilla Ice Cream) Google Play x86_64** as
-the system image (matches what Play currently targets). Each tablet AVD
-is ~6–8 GB of disk; the phone is ~4 GB.
+For each AVD pick a **Google Play x86_64** system image at the API level
+the app currently targets (`targetSdk` 36 / Android 16 as of the last
+release — check the bundle row in *Latest releases and bundles*). Each
+tablet AVD is ~6–8 GB of disk; the phone is ~4 GB.
 
-##### Orientation: portrait for all slots
+##### Orientation: portrait on phones, landscape on tablets
 
-Spendium is a portrait-only app, so every screenshot — phone, 7-inch
-tablet, 10-inch tablet — should be captured in **portrait**. Leave
-each AVD in its default portrait orientation; do **not** press the
-rotate button in the emulator's side toolbar before capturing.
+Spendium is **not** a portrait-only app. `app.json` keeps
+`orientation: "default"` (setting it to `"portrait"` makes Android
+letterbox the app on tablets), and the runtime locks *phones* to
+portrait while leaving *tablets* free to rotate.
 
-Why this matters even though Play allows both orientations:
+That changes what each slot should show:
 
-- **Carousel real estate.** On the phone Play Store (where the vast
-  majority of installs originate) the screenshot strip fits ~1.3
-  portrait shots per scroll vs. ~0.5 landscape shots — landscape gets
-  shrunk to a thin horizontal sliver and only opens full-size on tap.
+| Slot           | Capture in    | Why                                                                                              |
+|----------------|---------------|--------------------------------------------------------------------------------------------------|
+| Phone          | **Portrait**  | The app is portrait-locked on phones, so landscape shots would misrepresent it.                   |
+| 7" / 10" tablet | **Landscape** | Two-pane Categories and Overview only render on wide canvases — the tablet layout *is* the selling point. |
+
+**Two-pane needs ≥ 840 dp wide and ≥ 480 dp tall** (`useIsWideLayout()`
+in [src/theme/layout.ts](src/theme/layout.ts)). At the Pixel Tablet's
+2.0 density that's ≈ 800×1280 dp in portrait — *below* the threshold, so
+a portrait tablet capture shows the same single column as a phone — and
+≈ 1280×800 dp in landscape, which renders the split panes. Capture
+tablets rotated, and confirm on the AVD that Categories and Overview
+actually split before you shoot.
+
+Remaining orientation rules:
+
 - **Don't mix orientations within a slot.** If a slot contains both
   portrait and landscape shots, Play renders them at the same height,
   so the landscape one collapses to ~30 % of the portrait one's width
   and looks broken. Pick one orientation per slot and stay consistent.
+- **Carousel real estate (phones).** On the phone Play Store, where the
+  vast majority of installs originate, the strip fits ~1.3 portrait
+  shots per scroll vs. ~0.5 landscape shots — another reason the phone
+  slot stays portrait.
 - **Match what the app actually does.** Play's review team flags
-  landscape screenshots of portrait-locked apps as "not representative
-  of the app experience" — a review delay we don't need.
+  screenshots in an orientation the app doesn't support as "not
+  representative of the app experience".
 
-In portrait the resolutions from the AVD table above come out as
-**1080×2400** (Pixel 8), **1200×1920** (Nexus 7 2013), and
-**1600×2560** (Pixel Tablet). All three sit inside Play's 320–3840 /
-1080–7680 px ranges with room to spare.
+Resolutions from the AVD table come out as **1080×2400** (Pixel 8
+portrait), **2560×1600** (Pixel Tablet landscape), and **1920×1200**
+(Nexus 7 landscape). All sit inside Play's 320–3840 / 1080–7680 px
+ranges with room to spare.
 
 ##### The pragmatic shortcut: one tablet AVD, both slots
 
-Spendium's React Native UI is a single-column layout that scales
-cleanly to wide canvases. The 7-inch and 10-inch screenshots end up
-looking nearly identical except for resolution — so:
+The 7-inch and 10-inch layouts are identical in structure — both clear
+the 840 dp two-pane threshold in landscape, and the content column is
+capped at 1100 dp either way, so the only difference is resolution. So:
 
 1. Create only the **Pixel Tablet** AVD (skip Nexus 7).
-2. Capture your 5 screens at 1600×2560 (portrait, as above).
-3. Upload the same 5 PNGs to both the **7-inch** and **10-inch** slot.
+2. Rotate it to landscape and capture your screens at 2560×1600.
+3. Upload the same PNGs to both the **7-inch** and **10-inch** slot.
 
-Play accepts this on the first try because 1600×2560 falls inside
+Play accepts this on the first try because 2560×1600 falls inside
 *both* the 7-inch range (320–3840) and the 10-inch range (1080–7680).
 Net effect: one emulator, one capture pass, both tablet slots filled,
-zero warnings on the listing. Tablet users browsing the 7-inch
-optimized rail will see screenshots that came from a 10-inch device,
-which is invisible for a single-column finance app. For a more
-layout-rich app (multi-pane email, drawing tool, kanban board) you'd
-want genuine 7-inch screenshots — but Spendium doesn't.
+zero warnings on the listing.
 
 ##### Capture mechanics
 
@@ -922,25 +974,38 @@ want genuine 7-inch screenshots — but Spendium doesn't.
   This is what Play wants.
 - **Alternative:** `adb exec-out screencap -p > shot.png` from
   PowerShell — handy when scripting multiple captures, e.g. seeding
-  the AVD with deterministic demo data then capturing 5 screens in a
-  loop.
+  the AVD with deterministic demo data then capturing the whole set in
+  a loop.
 - **Don't** use Windows Snipping Tool / `Win+Shift+S` against the
   emulator window — it captures at your monitor's DPI, not the
   emulator's native resolution, so the PNG comes out at the wrong
   pixel dimensions and Play rejects it.
 
-##### Suggested 5 screens, in order
+##### Suggested screens, in order
 
-The first 2 screenshots dominate the carousel because Play crops the
-rest off-screen until the user scrolls — put your most visually
-distinctive screens first.
+Play allows 2–8 per slot. The first 2 dominate the carousel because
+Play crops the rest off-screen until the user scrolls — put your most
+visually distinctive screens first.
 
-1. **Overview chart** — most visually informative, leads the carousel.
-2. **Categories** with category-level totals.
-3. **Transactions list**.
-4. **Add-expense dialog open**.
-5. **Settings → Cloud sync** showing the Drive / OneDrive toggle
-   (sells the differentiator that's hard to convey in screenshot 1).
+1. **Categories** — donut plus per-category totals; the most recognisable screen.
+2. **Transactions** with a multi-currency row showing historical FX conversion.
+3. **Transactions** with search and a category filter active.
+4. **Edit-expense dialog** open.
+5. **Period picker** open.
+6. **Overview** — stacked or lines breakdown.
+7. **Cloud sync** settings showing the Drive / OneDrive toggle
+   (sells the differentiator that's hard to convey in a chart).
+8. **Export / import** dialog.
+
+> **Re-shooting after a UI change.** Screenshots go stale the moment
+> you change typography, layout, or themes. Re-capture the whole set
+> rather than a few — a carousel mixing old and new styling reads as
+> unmaintained. Uploading does **not** replace the existing images;
+> delete the old ones in each slot first, or you'll hit the 8-image cap.
+> Listing edits need no new release and propagate within minutes.
+>
+> The same captures feed the marketing site's screenshot grid, so
+> re-shoot once and update both.
 
 > **Languages.** The app ships **15 languages** (see
 > [src/i18n/locales/](src/i18n/locales/)), but the listing defaults to
@@ -1474,72 +1539,229 @@ Promotion is technically one click — **Track → Promote release → <target>*
 
 > **Organization accounts skip the gate.** A Google Play developer account registered as an **organization** (DUNS-verified) can publish directly to Open testing and Production with no 12/14 requirement and no questionnaire. The trade-off is the one-time business-verification overhead during account setup.
 
+#### Answering the production-access questionnaire
+
+Google reviews this by hand, and thin answers get rejected — Spendium
+was turned down twice before being granted access. What the reviewer is
+looking for:
+
+- **A feedback → fix → published → re-verified loop**, with named,
+  concrete changes. "We fixed a few minor layout issues" is the answer
+  that fails; "testers reported stretched layouts on tablets, so we
+  added two-pane Overview and Categories and the reporters confirmed the
+  fix on the closed track" is the answer that passes.
+- **Numbers the Console corroborates.** Reviewers see your opted-in
+  tester count, installed audience and Android vitals. Never write a
+  figure the Console contradicts — claiming "12 active testers" while
+  *Installed audience* shows 6 is worse than admitting the gap.
+- **Breadth beats headcount** when headcount is small. "7 devices
+  spanning Android 8–16" is nine major OS versions and reads as serious
+  coverage; the same 7 devices described as "7 testers" reads as thin.
+- **Name your limitations.** A small, single-country tester base is a
+  fact the reviewer can see. Stating it and explaining how you
+  compensated beats leaving them to infer bad faith.
+- Free-text fields are often capped at **300 characters**. Spend the
+  budget on what changed, not on restating metrics they already have.
+
+> **Reading *Installed audience* correctly.** At **Daily** granularity
+> this metric counts devices that *checked in with Play that day*, not
+> devices that have the app. Phones that were off, offline or in Doze
+> drop out and reappear, so the line saws up and down — and occasional
+> all-zero days are missing data, not mass uninstalls. Switch the
+> interval to **30 days** before reading a trend or quoting a number.
+
+#### Countries / regions
+
+**Test and release → Production → Countries / regions → Edit countries /
+regions.** Tick the header checkbox to select everything, and add
+*rest of world* so territories Play adds later are included
+automatically.
+
+For Spendium there's no reason to restrict: no monetization means no
+per-country pricing or tax setup, and no backend means no data-residency
+concern. Play already excludes territories where distribution is
+prohibited, so "all" never means "including sanctioned regions".
+
+Removing a country later stops *new* installs but does not uninstall the
+app for existing users.
+
+> A production release targeting **zero** countries publishes to nobody.
+> Save this before starting a rollout.
+
+#### The first production release
+
+Promote the artifact your testers validated rather than building a fresh
+one — **Create new release → Add from library** picks the `.aab` already
+uploaded to the closed track.
+
+Roll out at **100 %**. Staged percentages protect an existing install
+base, and a first release has none; a percentage there merely limits who
+can install. Staged rollouts start mattering with the *second* release
+— see [Step 10](#staged-rollout).
+
 ---
 
 ## Step 10 — Shipping subsequent updates
 
+This is the steady-state workflow. Production access is already granted,
+so nothing below is gated on tester counts or questionnaires.
+
+### Which channel: store release or OTA?
+
+| Change                                                                                  | Channel                                     |
+|-----------------------------------------------------------------------------------------|---------------------------------------------|
+| JS/TS logic, styles, layout, translations, bundled images                                | **OTA** — [B](#b--ota-update-via-eas-update) |
+| New dependency that ships native code                                                    | Store release                               |
+| `app.json` changes that reach the manifest (permissions, orientation, scheme, plugins)   | Store release                               |
+| Icon, splash, app name                                                                   | Store release                               |
+| Expo SDK upgrade / `targetSdk` bump                                                      | Store release                               |
+
+An OTA takes minutes and lands on next launch; a store release is a
+build plus a review. When in doubt ship a store release — an OTA that
+should have been native fails silently at runtime instead of loudly at
+build time.
+
+### A — Store release
+
+**1. Bump the version.** Edit `expo.version` in [app.json](app.json)
+(`"1.0.0"` → `"1.0.1"` for a fix, `"1.1.0"` for features). Leave
+`versionCode` alone: [eas.json](eas.json) sets
+`cli.appVersionSource: "remote"` with `autoIncrement: true` on the
+`production` profile, so EAS owns that counter. Pure-Gradle (Option C)
+builds are the exception — there you bump `expo.android.versionCode`
+by hand.
+
+**2. Build and upload.** Pick the path matching [Step 3](#step-3--build-a-play-store-ready-aab):
+
 ```powershell
-# 1. Bump the human-readable version in app.json (e.g. "1.0.0" -> "1.1.0").
-#    Options A/B: versionCode auto-increments via EAS — don't touch it.
-#    Option C:    bump expo.android.versionCode in app.json by hand.
-
-# 2. Build + submit. Pick the path you used in Step 3:
-
-# Option A (EAS Cloud):
+# Option A — EAS Cloud: build and submit in one shot
 npx eas build --platform android --profile production --auto-submit
 
-# Option B (EAS Local):
+# Option B — EAS Local (macOS / Linux / WSL2 only)
 npx eas build --platform android --profile production --local
 npx eas submit --platform android --path ./build-*.aab
 
-# Option C (Pure Gradle):
+# Option C — Pure Gradle
 npx expo prebuild --platform android --clean
-# Reapply the release-signingConfig patch from Step 3 → Option C step 3
-#   (or use the sed one-liner / your config plugin).
+#   Reapply the release-signingConfig patch from Step 3 → Option C step 3.
 cd android ; .\gradlew.bat bundleRelease ; cd ..
-# Either upload android/app/build/outputs/bundle/release/app-release.aab
-# via the Play Console UI, or, if you still have eas-cli:
 npx eas submit --platform android --path android/app/build/outputs/bundle/release/app-release.aab
-
-# 3. In Play Console -> Internal testing, write release notes (per locale)
-#    and start rollout to Internal testing.
-
-# 4. Smoke-test on a tester device. When happy:
-#    Internal testing -> Promote release -> Production -> Start staged rollout.
 ```
 
-Staged rollout starts at 1–10 % of users and you bump it up over days.
-If a crash spike shows in Play Console → Quality → Android vitals,
-**Halt rollout** stops new installs immediately (existing installs keep
-the bad build until you ship a fix).
+`--auto-submit` and `eas submit` need the service account from
+[Step 5](#step-5--wire-up-eas-submit-for-future-releases). Without it,
+upload the `.aab` through the Play Console UI — everything downstream is
+identical.
 
----
+**3. Land it on a testing track first.** `eas submit` targets whatever
+`track` you set in [eas.json](eas.json)'s `submit.production.android`
+block (`internal` is the sane default). Install from Play on a real
+device and smoke-test. Sideloading doesn't exercise Play App Signing, so
+this step catches a class of bug that nothing local can — notably OAuth
+breaking because the runtime SHA-1 is Google's app signing key, not your
+upload key (see [Troubleshooting](#troubleshooting)).
 
-## Optional — EAS Update (OTA JS-only patches)
+**4. Promote to Production.** Three routes, same destination:
 
-For JavaScript-only fixes (a typo, a logic bug in `src/`, no native
-changes), you can push an over-the-air update without going through the
-Play Store review:
+- **Test and release → Testing → \<track\> → Manage track** → the
+  release row's **Promote release** control → *Production*.
+- **Test and release → Latest releases and bundles** → **Promote
+  release** → *Production*.
+- **Test and release → Production → Create new release** → **Add from
+  library** → pick the version code you already uploaded.
+
+The third is the reliable fallback when the promote control isn't where
+you expect, and all three reuse the exact artifact you tested rather
+than producing a new build.
+
+**5. Write release notes** (below), then **Save → Review release →
+Start rollout to Production**.
+
+### Release notes — per-locale format
+
+Play pre-fills the release-notes box with one tagged block per locale
+your listing supports. Keep the tags; replace only the text inside:
+
+```
+<en-US>
+What's new in this version.
+</en-US>
+<uk>
+Що нового в цій версії.
+</uk>
+```
+
+Rules that bite:
+
+- **500 characters per locale**, counted per block.
+- **Play's locale codes are not uniformly `xx-YY`.** Spendium's set is
+  `cs-CZ`, `de-DE`, `en-US`, `es-ES`, `fr-FR`, `hi-IN`, **`id`**,
+  `it-IT`, `ja-JP`, `ko-KR`, `pl-PL`, `pt-BR`, `tr-TR`, **`uk`**,
+  `zh-CN`. Supplying `id-ID` or `uk-UA` fails with *"Unsupported
+  language translation found: … Delete this language translation to
+  continue"*. The pre-filled template is the authoritative list.
+- Omitting a locale is safe — it falls back to the default language. So
+  deleting a problematic block is always a valid way to get unblocked.
+- The **release name** field is internal only; users never see it.
+
+### Staged rollout
+
+Unlike the first release, updates have an install base to protect.
+
+1. Start the rollout at **20 %**.
+2. Watch **Monitor and improve → Android vitals** for a day — crash
+   rate, ANR rate, crash-free users.
+3. Step to 50 %, then 100 %.
+
+**Halt rollout** stops new installs immediately if vitals move. It does
+*not* roll anyone back: users who already took the bad build keep it
+until you ship a fix, so the follow-up release is still urgent.
+
+For the *first* release of a brand-new app the calculus is reversed —
+there's no install base to protect and a percentage merely limits who
+can install, so go straight to 100 %.
+
+### B — OTA update via EAS Update
+
+`expo-updates` is installed, [app.json](app.json) points at the EAS
+update service with `runtimeVersion.policy: "appVersion"`, and the
+`production` channel is bound to the `production` build profile in
+[eas.json](eas.json). Nothing to configure:
 
 ```powershell
-npx eas update --channel production --message "fix: typo in settings"
+npx eas update --channel production --message "fix: category sort on small screens"
 ```
 
-This requires `expo-updates` to be installed and configured. **Native
-changes** (new dependency that ships native code, `app.json` plugin
-tweaks, icon updates, permission changes) still require a fresh
-`eas build` + Play Store release — EAS Update can only swap the JS
-bundle.
+The bundle downloads in the background and applies on the next launch.
+No Play review, no version bump.
 
-Configure once via:
+> **The `appVersion` trap.** Because `runtimeVersion.policy` is
+> `"appVersion"`, an update reaches **only** installed builds whose
+> `expo.version` matches exactly. To patch the live `1.0.0` build,
+> publish while [app.json](app.json) still says `1.0.0`. Bump to
+> `1.0.1` first and the update targets a runtime nobody has installed —
+> it reaches zero users, with no error anywhere.
 
-```powershell
-npx expo install expo-updates
-npx eas update:configure
-```
+> **Policy boundary.** Play permits OTA JS updates provided they don't
+> change the app's primary purpose or sidestep policy review. Bug fixes,
+> copy, layout and translation changes are fine. Anything that would
+> alter your Data safety answers is not.
 
-…then add `runtimeVersion` to [app.json](app.json) so a JS bundle is only
-served to compatible native builds.
+EAS Update only swaps the JS bundle — native changes must go through a
+store release. See the channel table at the top of this step.
+
+### Recurring obligations
+
+| Cadence                  | What                                                                                                                                    |
+|--------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| Annually, around Aug 31  | Google raises the `targetSdk` requirement. Upgrade the Expo SDK and ship a store release, or Play stops accepting updates.                 |
+| On any dependency change | Re-run the [Data safety audit](#confirm-whats-actually-shipping-before-you-fill-the-form). Adding an analytics or crash SDK means re-filing the form. |
+| When the UI changes      | Re-capture screenshots ([Capturing screenshots](#capturing-screenshots)) — a carousel mixing old and new styling reads as unmaintained.    |
+
+> **Managed publishing.** *Publishing overview → Managed publishing*
+> holds approved changes until you press *Publish*, instead of pushing
+> them live the moment review finishes. Worth enabling once release
+> timing matters.
 
 ---
 
@@ -1548,6 +1770,10 @@ served to compatible native builds.
 | Symptom                                                              | Cause                                                                                          | Fix                                                                                                                                                                                                                                                                       |
 |----------------------------------------------------------------------|------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `Version code X has already been used`                               | EAS's auto-increment got out of sync with what Play already has (e.g. you uploaded manually).  | Run `npx eas build:version:set` (interactive) to align the EAS counter with the highest value Play has seen. The flag form `--platform android --value 42` skips the prompts. Alternatively, switch `cli.appVersionSource` to `"local"` in [eas.json](eas.json) and set `expo.android.versionCode` in [app.json](app.json) directly — then EAS reads from there instead of its remote counter. |
+| Release-notes box rejects a locale: `Unsupported language translation found: id-ID. Delete this language translation to continue.` (same for `uk-UA`) | Play's locale codes are **not** uniformly `xx-YY`. Indonesian is bare **`id`** and Ukrainian is bare **`uk`**; the region-suffixed forms are rejected. (`ua-UA` is doubly wrong — `uk` is the ISO 639-1 *language* code, `UA` the ISO 3166-1 *country* code, and `ua` is not a language code at all.) | Change the tags to `<id>` / `<uk>`. If a code is still rejected, delete that block entirely — omitted locales fall back to the default language, so the release still saves. The template Play pre-fills into an empty release-notes box is the authoritative list of codes for *your* listing. See [Step 10 → Release notes](#release-notes--per-locale-format). |
+| Can't find **Promote release** anywhere in the Console                | The page was renamed. Older docs say *Releases overview*; the current Console calls it **Latest releases and bundles**. | Three equivalent routes: the track's **Manage track** page → release row → *Promote release*; **Test and release → Latest releases and bundles** → *Promote release*; or **Production → Create new release → Add from library** and pick the version code already uploaded. The last one always works and still reuses the tested artifact. |
+| `eas update` reports success, but no user ever receives the update    | `runtimeVersion.policy` is `"appVersion"` in [app.json](app.json), so an update only reaches installed builds whose `expo.version` matches **exactly**. Bumping `expo.version` before publishing targets a runtime nobody has installed. Fails silently — no error on either side. | Publish the OTA **before** bumping the version, while [app.json](app.json) still carries the version that's live on Play. See [Step 10 → B — OTA update via EAS Update](#b--ota-update-via-eas-update). |
+| Production release published but nobody can install it                | The Production track's *Countries / regions* list is empty. Country targeting is a separate save from the release itself. | **Test and release → Production → Countries / regions** → select all → add *rest of world* → **Save**. Propagation takes a few hours. See [Step 9 → Countries / regions](#countries--regions). |
 | `Your app is using a non-compliant version of the Play Core library` | A transitive RN dep still imports the legacy Play Core API.                                    | Bump to Expo SDK 55+ (already on it). If the error persists, run `npx expo-doctor` and follow its upgrade hints.                                                                                                                                                       |
 | `App not installed: package conflicts with an existing package`      | A sideloaded `preview` APK on the test phone uses the same package id but a different signing key. | Uninstall the sideloaded copy first: `adb uninstall com.vshpynta.spendium`. Play-installed and dev-signed builds can't coexist on one device.                                                                                                                          |
 | Play Console: "Privacy policy URL is required"                       | The URL field is empty or returns non-200 to Google's crawler.                                 | Make sure the URL is HTTPS and publicly reachable (no Cloudflare bot-blocker, no auth wall, no robots-disallow).                                                                                                                                                       |
