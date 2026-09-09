@@ -126,10 +126,9 @@ function rowToCategoryEvent(row: CategoryEventRow): CategoryEvent {
  * responsible for calling `migrate(db)` before passing the handle in.
  *
  * Transactions are routed through `withExclusiveWriteTransaction`,
- * which wraps `db.withExclusiveTransactionAsync` so the dedicated
- * connection has a `busy_timeout` set — without it, two concurrent
- * writers on different connections fail immediately with
- * `database is locked` (see `src/db/transactions.ts`). Per the Expo
+ * which queues writers by database file before opening their dedicated
+ * connections. The per-connection `busy_timeout` is a fallback for
+ * writers outside the JS queue (see `src/db/transactions.ts`). Per the Expo
  * contract, every query issued inside the callback MUST go through the
  * `txn` proxy — mixing the outer `db` handle with an active exclusive
  * transaction triggers `database is locked`. We honour that contract by

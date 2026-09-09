@@ -106,9 +106,8 @@ export function createExchangeRateStore(db: SQLiteDatabase): ExchangeRateStore {
       // the shared connection can't collide on BEGIN. Per the Expo
       // contract every query MUST go through the `txn` proxy — the
       // outer `db` handle would deadlock against the exclusive transaction.
-      // `withExclusiveWriteTransaction` also sets `busy_timeout` so a
-      // concurrent writer on another connection waits for the lock
-      // instead of failing fast with `database is locked`.
+      // The shared helper queues this batch with expense and sync writes
+      // before opening a connection, avoiding native lock contention.
       await withExclusiveWriteTransaction(db, async (txn) => {
         for (const row of rows) {
           await txn.runAsync(

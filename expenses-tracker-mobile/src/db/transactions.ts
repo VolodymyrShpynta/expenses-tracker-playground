@@ -2,39 +2,24 @@
  * Shared helper for opening exclusive write transactions against the
  * local SQLite database.
  *
- * Why this exists
- * ---------------
- * `db.withExclusiveTransactionAsync` opens a dedicated connection for
- * each call (see `Transaction.createAsync` in `expo-sqlite`). In WAL
- * mode the write lock can be held by exactly one connection at a time;
- * with the SQLite default `busy_timeout = 0`, a second concurrent
- * writer (e.g. `createExpense` racing `useExchangeRatesSync.upsertRates`)
- * aborts immediately with `database is locked` instead of waiting for
- * the first commit. The two writers don't share a connection so a JS
- * mutex on a single store would not help.
+ * Expo opens a dedicated connection for each exclusive transaction,
+ * but SQLite still allows only one writer per database file. Queue
+ * writers across stores and handles before opening their connections
+ * so they do not contend inside SQLite while awaiting JS callbacks.
  *
- * The fix is to set `busy_timeout` on every exclusive-tx connection.
- * `BEGIN` issued by `withExclusiveTransactionAsync` is `BEGIN DEFERRED`,
- * so the write lock is not acquired until the first INSERT/UPDATE in
- * the callback — by the time we run our PRAGMA the lock is still free,
- * and the subsequent statements respect the timeout.
+ * The per-connection busy timeout remains a fallback for writers
+ * outside this JS runtime. Expo uses BEGIN DEFERRED, so the PRAGMA
+ * takes effect before the callback's first write acquires the lock.
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-/**
- * Upper bound on how long a writer will wait for the lock before
- * surfacing `database is locked`. Real writes finish in a few ms; the
- * generous 30 s ceiling makes the failure mode effectively impossible
- * in practice while still being well below any UI timeout the user
- * might perceive (the app would already be showing a spinner long
- * before this fires).
- */
 const WRITE_BUSY_TIMEOUT_MS = 30_000;
+const pendingWrites = new Map<string, Promise<void>>();
 
 /**
- * Run `task` inside an exclusive write transaction on `db`, with the
- * dedicated connection's busy timeout set so concurrent writers wait
- * instead of failing fast.
+ * Run `task` inside an exclusive write transaction on `db`. The queue
+ * is held until native commit or rollback completes, not just until
+ * the callback returns.
  *
  * `task` receives the transaction-bound database handle (typed as
  * `SQLiteDatabase` because the private `Transaction` subclass is not
@@ -46,8 +31,19 @@ export async function withExclusiveWriteTransaction(
   db: SQLiteDatabase,
   task: (txn: SQLiteDatabase) => Promise<void>,
 ): Promise<void> {
-  await db.withExclusiveTransactionAsync(async (txn) => {
+  const previous = pendingWrites.get(db.databasePath) ?? Promise.resolve();
+  const current = previous.then(() => db.withExclusiveTransactionAsync(async (txn) => {
     await txn.execAsync(`PRAGMA busy_timeout = ${WRITE_BUSY_TIMEOUT_MS}`);
     await task(txn);
-  });
+  }));
+  const settled = current.catch(() => undefined);
+  pendingWrites.set(db.databasePath, settled);
+
+  try {
+    await current;
+  } finally {
+    if (pendingWrites.get(db.databasePath) === settled) {
+      pendingWrites.delete(db.databasePath);
+    }
+  }
 }
