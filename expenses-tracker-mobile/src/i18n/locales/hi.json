@@ -67,6 +67,7 @@
     "statusSuccess": "{{applied}} लागू, {{uploaded}} अपलोड।",
     "statusUpToDate": "पहले से अद्यतित।",
     "statusError": "सिंक विफल: {{message}}",
+    "statusApplyErrors": "लागू नहीं: {{failed}} — अगले सिंक में फिर से कोशिश होगी।",
     "signInPrompt": "सिंक सक्षम करने के लिए साइन इन करें।",
     "notConfigured": "पहले एक क्लाउड प्रदाता चुनें।",
     "googleDisabled": "Google Drive अभी तक कॉन्फ़िगर नहीं है — पहले GOOGLE_OAUTH_CLIENT_ID सेट करें।"

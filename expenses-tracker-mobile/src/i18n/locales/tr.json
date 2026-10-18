@@ -67,6 +67,7 @@
     "statusSuccess": "{{applied}} uygulandı, {{uploaded}} yüklendi.",
     "statusUpToDate": "Zaten güncel.",
     "statusError": "Eşitleme başarısız: {{message}}",
+    "statusApplyErrors": "Uygulanamadı: {{failed}} — sonraki eşitlemede yeniden denenecek.",
     "signInPrompt": "Eşitlemeyi etkinleştirmek için oturum aç.",
     "notConfigured": "Önce bir bulut sağlayıcısı seç.",
     "googleDisabled": "Google Drive henüz yapılandırılmadı — önce GOOGLE_OAUTH_CLIENT_ID ayarla."

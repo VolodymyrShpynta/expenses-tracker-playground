@@ -217,6 +217,11 @@ This rule applies uniformly to `CREATED`, `UPDATED`, and `DELETED` events. Two c
 
 - **Soft deletes are not terminal.** A `DELETED` event with `updatedAt = T` can be superseded by
   a later `UPDATED` event with `updatedAt > T` (resurrection).
+- **A delete can arrive before its create.** Events are applied in emission-time order, but LWW
+  compares payload `updatedAt`, so clock skew between devices can sort a `DELETED` before the
+  `CREATED` it supersedes. A remote `DELETED` for an absent row therefore inserts a tombstone from
+  its payload, and the older create then loses instead of resurrecting the row on that device
+  only. Existing rows keep `markAsDeleted` semantics (only `deleted` and `updatedAt` change).
 - **Equal timestamps are rejected** (strict `>`, not `>=`) — necessary to make the rule symmetric
   across devices and avoid a "last receiver wins" tiebreak.
 
@@ -241,9 +246,14 @@ SyncEngine.performFullSync(adapter)
 ```
 
 > **One round-trip on a no-op cycle.** The engine never calls a separate `getMetadata()` probe
-> before `download()`. The adapter folds the eTag check into the same request — Google Drive sends
-> HTTP `If-None-Match`; OneDrive folds it into the metadata round-trip it already needs for the
-> item id, so a cache hit never touches `/content`.
+> before `download()`. The adapter folds the eTag check into the metadata read it already needs —
+> Google Drive compares the file's content checksum (`md5Checksum`, read by file id), OneDrive
+> compares the item `eTag` — so a cache hit never fetches the file content.
+>
+> **Why Drive uses the checksum, not `version`.** Drive bumps `version` on every server-side
+> change, including ones invisible to the user, so a version cached from the upload reply could
+> stop matching with no new content and every idle sync re-downloaded the whole file. The
+> checksum changes only when the bytes do. `version` is used only if Drive omits the checksum.
 
 **Concurrency.** Both Drive REST and Microsoft Graph return an eTag on the file resource; the
 engine forwards it as `If-Match` on upload. A `412 Precondition Failed` becomes a
@@ -355,7 +365,10 @@ update React state, since a state update on every sync would rebuild the engine 
 reset the coordinator's 30 s throttle. On sign-out the persisted entry is cleared, so a subsequent
 sign-in to a different account on the same provider never reuses the previous account's
 validator. The engine also reports `undefined` whenever it invalidates the cache (concurrency
-conflict, remote file disappeared), so the persisted copy is dropped at the same moment.
+conflict, remote file disappeared, remote events that failed to apply), so the persisted copy is
+dropped at the same moment. Failed events are not marked processed; dropping the validator makes
+the next cycle download and retry them instead of short-circuiting, and the sync dialog shows
+how many were not applied.
 
 The first sync after install still does one unconditional download — there is nothing to
 revalidate against. Every subsequent cold start should short-circuit at 304.
@@ -371,6 +384,11 @@ events are applied in chunks of `CHUNK_SIZE = 200` inside a single `expo-sqlite`
 per-event bridge cost amortizes. A failing chunk falls back to a per-event retry loop so one
 corrupt payload can never abort the rest. Between chunks the helper does a `setTimeout(0)` to let
 the UI thread render — important on a list screen that's open during a large initial sync.
+
+The sync dialog's **Applied** count includes only actual expense/category projection changes,
+including changes loaded from a snapshot. Already-processed events and equal/older LWW writes
+are counted as skipped, even if their processed IDs have expired. Re-downloading identical state
+with a different cloud validator therefore reports zero applied, not the historical event count.
 
 **2. Embedded snapshot in the sync file**
 ([`src/sync/snapshotBuilder.ts`](src/sync/snapshotBuilder.ts),
@@ -407,27 +425,37 @@ every cycle wastes bandwidth; never rewriting it lets cold-install cost grow wit
 chosen heuristic refreshes the snapshot when **more than `SNAPSHOT_REFRESH_THRESHOLD = 500`
 events** have accumulated past the existing snapshot's `createdAt` (counted across both event
 streams). Idle periods produce zero rewrites; busy periods produce exactly enough refreshes to
-bound cold-install cost.
+bound cold-install cost. An upload also refreshes when any body event is older than the 30-day
+retention window, even below the 500-event threshold, so expired IDs cannot leave a permanent
+replay tail in the cloud file. Pull-only cycles never upload just to refresh a snapshot.
 
 **Retention window** (`PRUNE_WINDOW_MS = 30 days` in
 [`snapshotBuilder.ts`](src/sync/snapshotBuilder.ts)). When the snapshot is rebuilt, entries in
 `coveredEvents` whose `timestamp <= createdAt - PRUNE_WINDOW_MS` are dropped. This bounds the size
 of `coveredEvents` even after years of writes — the projections continue to reflect those events,
-but their ids are no longer enumerated. The trade-off is precise: an event whose id has been
-pruned is no longer detectable as covered by `dropCoveredEvents`, so if a stale copy of that event
-somehow still rides along in a peer's body it will be re-applied on the next sync. Re-apply is a
-no-op by LWW (the projection already reflects the same `updatedAt`), so the correctness cost is
-zero — only a one-time CPU cost on the rare "old straggler" event. The window value is the
+but their ids are no longer enumerated. Body compaction therefore checks both covered IDs and
+snapshot projection state: an event is also covered when the snapshot contains its aggregate ID
+with an equal or newer `updatedAt`. A stale copy from an older peer can still be processed again
+after its ID expires, but an unchanged LWW write is reported as skipped and the next upload
+compacts it. The window value is the
 smallest that comfortably exceeds expected sync latency for offline-then-reconnect scenarios
 (cellular dead zones, lost phones turned back on weeks later).
 
-**3. Body truncation against `coveredEvents`.** Every upload — not just refresh cycles — runs
-`dropCoveredEvents(events, snapshot.coveredEvents)` before encoding. The body then carries only
+**3. Body truncation against snapshot IDs and state.** Every upload — not just refresh cycles —
+runs `dropCoveredEvents(events, snapshot.coveredEvents, snapshot.expenses)` (and the category
+equivalent) before encoding. The body then carries only
 events past the embedded snapshot, bounding steady-state file growth to one refresh window.
 Always-on truncation is also self-healing: if an upload was ever interrupted and left a stale
-event in the body, the next cycle drops it because a covered event can never re-enter the body
-(until the retention window drops its id, at which point LWW absorbs the re-apply as described
-above).
+event in the body, the next upload drops it when either its ID or its state is covered.
+State coverage compares the aggregate ID and **payload `updatedAt`**, never just the event's
+emission timestamp or `snapshot.createdAt`. A late-arriving/backdated event whose state is newer
+than the snapshot, or whose aggregate is absent, must remain in the body until a refresh captures
+it. Soft-deleted rows stay in snapshots, preserving deletion and resurrection semantics.
+
+`buildSnapshot` reads covered IDs **before** projection and category rows. Each local write commits
+its event and its row in one transaction, so every covered ID is backed by its row even when the
+user saves while a sync is rebuilding the snapshot. Reading rows first let such a write be covered
+by ID without its row, and truncation then dropped it from the cloud file.
 
 **4. Local event-log retention (`pruneCommittedEvents`).** The wire format already evicts old
 events via `dropCoveredEvents`; the local DB needs the same treatment or the on-device
@@ -609,7 +637,7 @@ become no-ops.
 | [`src/sync/remoteEventApplier.ts`](src/sync/remoteEventApplier.ts)           | Per-event idempotency check (`processed_events` registry).                    |
 | [`src/sync/remoteCategoryEventApplier.ts`](src/sync/remoteCategoryEventApplier.ts) | Same, for category events.                                                    |
 | [`src/sync/cloudDriveAdapter.ts`](src/sync/cloudDriveAdapter.ts)             | Adapter interface (DIP boundary for cloud-drive I/O).                         |
-| [`src/sync/googleDriveAdapter.ts`](src/sync/googleDriveAdapter.ts)           | Google Drive `appDataFolder` adapter (REST v3, `If-None-Match`).              |
+| [`src/sync/googleDriveAdapter.ts`](src/sync/googleDriveAdapter.ts)           | Google Drive `appDataFolder` adapter (REST v3, `md5Checksum` validator).      |
 | [`src/sync/oneDriveAdapter.ts`](src/sync/oneDriveAdapter.ts)                 | OneDrive `approot` adapter (Microsoft Graph).                                 |
 | [`src/db/databaseProvider.tsx`](src/db/databaseProvider.tsx)                 | SQLite connection provider (WAL, `synchronous = NORMAL`).                     |
 | [`src/db/sqliteLocalStore.ts`](src/db/sqliteLocalStore.ts)                   | `LocalStore` implementation against `expo-sqlite`.                            |
@@ -1413,9 +1441,10 @@ To verify the sync file actually exists after a successful sync:
    successful upload.
 3. **OAuth Playground.** Sign into <https://developers.google.com/oauthplayground>, authorize
    `https://www.googleapis.com/auth/drive.appdata`, then call
-   `GET https://www.googleapis.com/drive/v3/files?spaces=appDataFolder`. The response lists
-   `sync.json.gz` with its `id`, `modifiedTime`, and `version` (Drive v3's monotonic concurrency
-   token — see `googleDriveAdapter.ts` for why we use this instead of HTTP `ETag`).
+   `GET https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,md5Checksum,version)`.
+   The response lists `sync.json.gz` with its `id`, `md5Checksum` (the content checksum the app
+   uses for change detection and concurrency — see `googleDriveAdapter.ts` for why not `version`
+   or HTTP `ETag`), and `version`.
 
 OneDrive's `approot` is slightly more visible: on OneDrive Web it appears as a regular folder under
 **My files → Apps → vs-expenses-tracker**. The app-private guarantee is the same — other apps still

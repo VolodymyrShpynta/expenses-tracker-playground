@@ -67,6 +67,7 @@
     "statusSuccess": "{{applied}}개 적용, {{uploaded}}개 업로드.",
     "statusUpToDate": "이미 최신 상태입니다.",
     "statusError": "동기화 실패: {{message}}",
+    "statusApplyErrors": "{{failed}}개를 적용하지 못했습니다. 다음 동기화 때 다시 시도합니다.",
     "signInPrompt": "동기화를 활성화하려면 로그인하세요.",
     "notConfigured": "먼저 클라우드 제공자를 선택하세요.",
     "googleDisabled": "Google Drive가 아직 구성되지 않았습니다 — 먼저 GOOGLE_OAUTH_CLIENT_ID를 설정하세요."

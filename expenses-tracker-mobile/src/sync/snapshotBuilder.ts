@@ -22,9 +22,10 @@
  * The builder is read-only — it does not mutate the store. Snapshot
  * upload is the engine's responsibility.
  *
- * Build cost is dominated by the three table scans. For 4,500 events on
- * mid-range Android this completes in well under a second. We don't
- * batch the reads because they are pure SELECTs — no transaction needed.
+ * Build cost is dominated by the table scans. For 4,500 events on
+ * mid-range Android this completes in well under a second. No read
+ * transaction is needed: reading covered IDs before rows is enough to
+ * keep every covered ID backed by its row (see `buildSnapshot`).
  */
 import type { LocalStore } from '../domain/localStore';
 import type { CoveredEvent, SyncFileSnapshot } from '../domain/types';
@@ -53,13 +54,10 @@ export const SNAPSHOT_VERSION = 2;
  *   - Short enough that snapshot size stays bounded by ~one month of
  *     write volume rather than the full history.
  *
- * Trade-off: a body event whose ID was pruned from `coveredEvents` will
- * no longer be detected as covered and will ride along in future
- * uploads until the snapshot is rebuilt. In practice this only happens
- * for events with timestamps older than the window (i.e. late
- * cross-device arrivals or imports backdated by 30+ days), which are
- * rare under realistic clock-skew bounds. Applying such an event twice
- * is a no-op under LWW.
+ * Body compaction also checks snapshot projection state, so removing an
+ * old ID does not keep its event in the cloud forever. Uploads refresh
+ * the snapshot when body events expire, then drop events whose state
+ * the refreshed snapshot already represents.
  *
  * Re-exported so `syncEngine.ts` can use the same cutoff when pruning
  * the local event-log tables — the two must agree, otherwise the
@@ -74,9 +72,8 @@ export interface BuildSnapshotOptions {
 
 /**
  * Build a `SyncFileSnapshot` reflecting the current state of the local
- * store. Runs three table scans in parallel; the resulting snapshot is
- * a point-in-time view of expense projections, categories, and recent
- * event IDs (within the retention window).
+ * store: expense projections, categories, and recent event IDs (within
+ * the retention window).
  */
 export async function buildSnapshot(
   store: LocalStore,
@@ -85,11 +82,15 @@ export async function buildSnapshot(
   const createdAt = options.createdAt ?? Date.now();
   const cutoff = createdAt - PRUNE_WINDOW_MS;
 
-  // Parallel scans — none of them depend on each other.
-  const [expenses, categories, coveredEvents] = await Promise.all([
+  // Covered IDs are read BEFORE the rows. Every write commits its event
+  // and its row in one transaction, so any event seen here has its row in
+  // the scans below. In the reverse order a local write landing between
+  // the scans was covered by ID without its row, and compaction then
+  // dropped the event, so the expense never reached the cloud.
+  const coveredEvents = await collectCoveredEvents(store, cutoff);
+  const [expenses, categories] = await Promise.all([
     store.findAllProjections(),
     store.findAllCategories(),
-    collectCoveredEvents(store, cutoff),
   ]);
 
   return {

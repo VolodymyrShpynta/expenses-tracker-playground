@@ -163,6 +163,10 @@ unit-testable in isolation. **Do not merge them.**
 - **Last-write-wins by timestamp** — uniformly for CREATED, UPDATED, DELETED.
 - Soft deletes (`deleted=true`) can be superseded by a newer non-deleted
   update (resurrection).
+- A remote `DELETED` for an absent row inserts a tombstone from its
+  payload (`projectRemoteDeletion`): clock skew can sort a delete before
+  its create, and the older create must then lose. Existing rows keep
+  `markAsDeleted` semantics.
 - Equal timestamps are **rejected** (strict `>`, not `>=`).
 
 ### Automatic sync triggers
@@ -233,7 +237,11 @@ The engine flow:
 2. **When nothing local is pending and a cached eTag exists**, call
    `download({ ifNoneMatch: cachedEtag })`. The adapter must short-circuit
    without transferring the file body:
-   - **Google Drive** sends `If-None-Match` → server returns `304 Not Modified`.
+   - **Google Drive** reads the file by its remembered id and compares
+     `md5Checksum` (content hash). Never `version`: Drive bumps it on
+     server-side changes with no new content, which made every idle sync
+     re-download the file. `version` is only a fallback when the checksum
+     is missing.
    - **OneDrive** uses the metadata round-trip it already needs for the
      item id; if `meta.eTag === ifNoneMatch` we never hit `/content`.
 3. **When local writes are pending**, the engine calls `download()`
@@ -262,8 +270,10 @@ other's cache. Wiring:
   sign-in (possibly to a different account on the same provider) must
   not reuse the previous account's validator.
 - The engine reports `undefined` to `onEtagChange` whenever it
-  invalidates the cache (concurrency conflict, remote file disappeared)
-  so the persisted copy is dropped at the same moment.
+  invalidates the cache (concurrency conflict, remote file disappeared,
+  remote events that failed to apply) so the persisted copy is dropped at
+  the same moment. Failed events are not marked processed, so a cached
+  validator would stop them from ever being retried.
 
 The first sync after install (no seed) still does one unconditional
 download — there is nothing to revalidate against. Every subsequent

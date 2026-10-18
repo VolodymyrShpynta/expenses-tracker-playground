@@ -15,7 +15,7 @@
  * to it become an obvious diff in review (the value is a deliberate
  * tuning choice, not a magic number).
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   CategoryEventEntry,
   CoveredEvent,
@@ -27,6 +27,7 @@ import {
   dropCoveredEvents,
   shouldRefreshSnapshot,
 } from './snapshotPolicy';
+import { PRUNE_WINDOW_MS } from './snapshotBuilder';
 
 const eventAt = (ts: number, id = `e${ts}`): EventEntry => ({
   eventId: id,
@@ -64,6 +65,14 @@ const covered = (...ids: string[]): ReadonlyArray<CoveredEvent> =>
   ids.map((eventId) => ({ eventId, timestamp: 0 }));
 
 describe('snapshotPolicy', () => {
+  beforeEach(() => {
+    vi.spyOn(Date, 'now').mockReturnValue(10_000);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('pins SNAPSHOT_REFRESH_THRESHOLD', () => {
     // The threshold tunes cold-install latency vs bandwidth per cycle —
     // changing it is a deliberate decision and should show up in diffs.
@@ -125,6 +134,19 @@ describe('snapshotPolicy', () => {
     );
     expect(shouldRefreshSnapshot(snapshot, events, [])).toBe(false);
   });
+
+  it('refreshes below the threshold when an expense or category event has expired', () => {
+    // Given
+    const now = Date.now();
+    const expired = now - PRUNE_WINDOW_MS - 1;
+    const snapshot = snapshotAt(expired - 1_000);
+
+    // When / Then
+    expect(shouldRefreshSnapshot(snapshot, [eventAt(expired)], [])).toBe(true);
+    expect(shouldRefreshSnapshot(snapshot, [], [categoryEventAt(expired)])).toBe(true);
+    expect(shouldRefreshSnapshot(snapshot, [eventAt(expired + 1)], [])).toBe(false);
+    expect(shouldRefreshSnapshot(snapshot, [], [])).toBe(false);
+  });
 });
 
 describe('dropCoveredEvents', () => {
@@ -166,5 +188,46 @@ describe('dropCoveredEvents', () => {
     const b = categoryEventAt(2, 'b');
     const result = dropCoveredEvents([a, b], covered('a'));
     expect(result.map((e) => e.eventId)).toEqual(['b']);
+  });
+
+  it('drops expired IDs only when the snapshot contains equal or newer aggregate state', () => {
+    // Given
+    const events = [eventAt(100, 'equal'), eventAt(200, 'older'), eventAt(400, 'newer'), eventAt(50, 'absent')];
+    const projections = [
+      { id: 'equal', updatedAt: 100 },
+      { id: 'older', updatedAt: 300 },
+      { id: 'newer', updatedAt: 300 },
+    ];
+
+    // When
+    const result = dropCoveredEvents(events, [], projections);
+
+    // Then
+    expect(result.map((e) => e.eventId)).toEqual(['newer', 'absent']);
+  });
+
+  it('keeps a backdated event whose payload is newer than the snapshot row', () => {
+    // Given
+    const event = { ...eventAt(1, 'late'), payload: { ...eventAt(500, 'late').payload } };
+
+    // When
+    const result = dropCoveredEvents([event], [], [{ id: 'late', updatedAt: 100 }]);
+
+    // Then
+    expect(result).toEqual([event]);
+  });
+
+  it('compacts category state using the same strict LWW rule', () => {
+    // Given
+    const events = [categoryEventAt(100, 'equal'), categoryEventAt(300, 'newer')];
+
+    // When
+    const result = dropCoveredEvents(events, [], [
+      { id: 'equal', updatedAt: 100 },
+      { id: 'newer', updatedAt: 200 },
+    ]);
+
+    // Then
+    expect(result.map((e) => e.eventId)).toEqual(['newer']);
   });
 });

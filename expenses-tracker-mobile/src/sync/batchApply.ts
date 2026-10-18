@@ -18,14 +18,14 @@
  *   4. **Yield to the UI thread between chunks.** Prevents the sync dialog
  *      from freezing during long apply loops.
  *
- * Public `ApplyResult` semantics are unchanged.
+ * Applied counts reflect projection changes, not merely processed IDs.
  */
 import type { LocalStore } from '../domain/localStore';
 
 export interface ApplyResult {
-  /** Events newly applied (excludes already-processed and errored). */
+  /** Events that actually changed a projection. */
   readonly applied: number;
-  /** Events skipped because already in `processed_events`. */
+  /** Already-processed events and projection no-ops under last-write-wins. */
   readonly skipped: number;
   /** Events that threw during apply. Callers may surface a banner. */
   readonly errors: number;
@@ -51,7 +51,8 @@ const CHUNK_SIZE = 200;
  *   for the retention-window prune).
  * `applyOne` performs the projection step for a single event WITHIN the
  *   ambient transaction; it receives the `tx`-bound store opened by
- *   `LocalStore.transaction`. It must not open its own transaction and
+ *   `LocalStore.transaction` and returns the number of rows changed.
+ *   It must not open its own transaction and
  *   must not write to `processed_events` (that is handled here).
  * `errorLabel` is prepended to per-event error logs (e.g. "remote event").
  */
@@ -60,7 +61,7 @@ export async function applyEventsBatched<TEvent>(
   events: ReadonlyArray<TEvent>,
   getEventId: (event: TEvent) => string,
   getTimestamp: (event: TEvent) => number,
-  applyOne: (event: TEvent, tx: LocalStore) => Promise<void>,
+  applyOne: (event: TEvent, tx: LocalStore) => Promise<number>,
   errorLabel: string,
   log: BatchApplyLog,
 ): Promise<ApplyResult> {
@@ -71,17 +72,19 @@ export async function applyEventsBatched<TEvent>(
   // here — timestamps are read from the events themselves.
   const processed = await store.findAllProcessedEvents();
   const seen = new Set<string>(processed.map((p) => p.eventId));
-  const { pending, skipped } = partitionUnseen(events, getEventId, seen);
+  const { pending, skipped: alreadyProcessed } = partitionUnseen(events, getEventId, seen);
 
   let applied = 0;
+  let skipped = alreadyProcessed;
   let errors = 0;
 
   for (let i = 0; i < pending.length; i += CHUNK_SIZE) {
     const chunk = pending.slice(i, i + CHUNK_SIZE);
 
     try {
-      await applyChunkAtomically(store, chunk, getEventId, getTimestamp, applyOne);
-      applied += chunk.length;
+      const changed = await applyChunkAtomically(store, chunk, getEventId, getTimestamp, applyOne);
+      applied += changed;
+      skipped += chunk.length - changed;
       markSeen(chunk, getEventId, seen);
     } catch (chunkError) {
       // The chunk transaction rolled back — none of its events landed.
@@ -102,6 +105,7 @@ export async function applyEventsBatched<TEvent>(
         seen,
       );
       applied += fallback.applied;
+      skipped += fallback.skipped;
       errors += fallback.errors;
     }
 
@@ -153,13 +157,15 @@ async function applyChunkAtomically<TEvent>(
   chunk: ReadonlyArray<TEvent>,
   getEventId: (event: TEvent) => string,
   getTimestamp: (event: TEvent) => number,
-  applyOne: (event: TEvent, tx: LocalStore) => Promise<void>,
-): Promise<void> {
-  await store.transaction(async (tx) => {
+  applyOne: (event: TEvent, tx: LocalStore) => Promise<number>,
+): Promise<number> {
+  return store.transaction(async (tx) => {
+    let changed = 0;
     for (const event of chunk) {
-      await applyOne(event, tx);
+      if (await applyOne(event, tx) > 0) changed += 1;
       await tx.recordProcessedEvent(getEventId(event), getTimestamp(event));
     }
+    return changed;
   });
 }
 
@@ -174,28 +180,31 @@ async function applyChunkPerEvent<TEvent>(
   chunk: ReadonlyArray<TEvent>,
   getEventId: (event: TEvent) => string,
   getTimestamp: (event: TEvent) => number,
-  applyOne: (event: TEvent, tx: LocalStore) => Promise<void>,
+  applyOne: (event: TEvent, tx: LocalStore) => Promise<number>,
   errorLabel: string,
   log: BatchApplyLog,
   seen: Set<string>,
-): Promise<{ applied: number; errors: number }> {
+): Promise<ApplyResult> {
   let applied = 0;
+  let skipped = 0;
   let errors = 0;
   for (const event of chunk) {
     const id = getEventId(event);
     try {
-      await store.transaction(async (tx) => {
-        await applyOne(event, tx);
+      const changed = await store.transaction(async (tx) => {
+        const rows = await applyOne(event, tx);
         await tx.recordProcessedEvent(id, getTimestamp(event));
+        return rows > 0;
       });
-      applied += 1;
+      if (changed) applied += 1;
+      else skipped += 1;
       seen.add(id);
     } catch (e) {
       errors += 1;
       log.warn(`Failed to apply ${errorLabel} ${id}`, e);
     }
   }
-  return { applied, errors };
+  return { applied, skipped, errors };
 }
 
 /**

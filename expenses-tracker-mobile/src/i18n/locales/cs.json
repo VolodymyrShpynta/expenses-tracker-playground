@@ -67,6 +67,7 @@
     "statusSuccess": "Aplikováno {{applied}}, nahráno {{uploaded}}.",
     "statusUpToDate": "Vše je synchronizováno.",
     "statusError": "Synchronizace selhala: {{message}}",
+    "statusApplyErrors": "Neaplikováno: {{failed}} — zkusí se znovu při další synchronizaci.",
     "signInPrompt": "Pro synchronizaci se přihlaste.",
     "notConfigured": "Nejprve vyberte poskytovatele cloudu.",
     "googleDisabled": "Google Drive ještě není nastaven — doplňte GOOGLE_OAUTH_CLIENT_ID."

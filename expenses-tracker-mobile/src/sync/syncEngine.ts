@@ -80,7 +80,7 @@ export interface SyncEngineDeps {
    * to `AsyncStorage` keyed per provider — so the next cold start can
    * pass it back via `initialEtag`. Receives `undefined` when the engine
    * deliberately invalidates the cache (concurrency conflict, remote
-   * file disappeared, …). Errors thrown by the callback are not caught;
+   * file disappeared, remote events that failed to apply, …). Errors thrown by the callback are not caught;
    * keep it fire-and-forget on the caller side.
    */
   readonly onEtagChange?: (etag: string | undefined) => void;
@@ -239,7 +239,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     // probe.kind === 'modified' — apply remote, nothing to push.
     const file = decodeSyncFile(probe.bytes, compressed);
     const { remote, remoteCategories } = await applyRemoteFile(store, file);
-    setCachedEtag(probe.etag);
+    setCachedEtag(validatorAfterApply(probe.etag, remote, remoteCategories));
     return {
       remote,
       remoteCategories,
@@ -316,7 +316,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       localUncommitted,
       localUncommittedCategories,
     );
-    setCachedEtag(upload.etag);
+    setCachedEtag(validatorAfterApply(upload.etag, remote, remoteCategories));
 
     return {
       remote,
@@ -336,6 +336,21 @@ const NO_CHANGES_RESULT: CycleResult = {
   uploadedLocalCategories: 0,
   downloadedRemote: false,
 };
+
+/**
+ * Validator to cache after applying a remote file. Failed events are not
+ * recorded in `processed_events`, but a cached validator would make the
+ * next cycle skip the download (or the apply step) and never retry them.
+ * Dropping it trades one extra download per cycle for eventual delivery
+ * while the error persists.
+ */
+function validatorAfterApply(
+  etag: string,
+  remote: ApplyResult,
+  remoteCategories: ApplyResult,
+): string | undefined {
+  return remote.errors > 0 || remoteCategories.errors > 0 ? undefined : etag;
+}
 
 /** The three "remote file" inputs that compose into the merge step. */
 interface OutgoingBase {
@@ -361,12 +376,21 @@ async function applyRemoteFile(
   store: LocalStore,
   file: EventSyncFile,
 ): Promise<{ remote: ApplyResult; remoteCategories: ApplyResult }> {
-  if (file.snapshot !== undefined) {
-    await applySnapshot(store, file.snapshot);
-  }
+  const snapshotResult = file.snapshot !== undefined
+    ? await applySnapshot(store, file.snapshot)
+    : undefined;
   const remoteCategories = await applyRemoteCategoryEvents(store, file.categoryEvents);
   const remote = await applyRemoteEvents(store, file.events);
-  return { remote, remoteCategories };
+  return {
+    remote: {
+      ...remote,
+      applied: remote.applied + (snapshotResult?.projectionsApplied ?? 0),
+    },
+    remoteCategories: {
+      ...remoteCategories,
+      applied: remoteCategories.applied + (snapshotResult?.categoriesApplied ?? 0),
+    },
+  };
 }
 
 /**
@@ -375,13 +399,14 @@ async function applyRemoteFile(
  * 1. Merge base remote events with local uncommitted ones, sorted
  *    deterministically (`(timestamp ASC, eventId ASC)`).
  * 2. Decide whether to refresh the embedded snapshot. Refresh fires
- *    when enough events have piled up past the base snapshot's cutoff
- *    (or there is no snapshot yet); otherwise we reuse the base
+ *    when enough events have piled up, body events age out of the
+ *    processed-ID retention window, or there is no snapshot yet;
+ *    otherwise we reuse the base
  *    snapshot to keep idle uploads payload-stable. `buildSnapshot`
  *    runs after the apply step so it captures freshly-applied remote
  *    events alongside local-only ones.
- * 3. Drop events whose IDs are already captured by the resulting
- *    snapshot. Runs on every cycle — not just on refresh — so
+ * 3. Drop events whose IDs or projection state are already captured
+ *    by the resulting snapshot. Runs on every upload — not just on refresh — so
  *    partially-applied cycles self-heal: a covered event can never
  *    re-enter the body.
  */
@@ -410,8 +435,8 @@ async function buildOutgoingFile(
 
   const coveredEvents = nextSnapshot?.coveredEvents ?? [];
   return {
-    events: dropCoveredEvents(mergedEvents, coveredEvents),
-    categoryEvents: dropCoveredEvents(mergedCategoryEvents, coveredEvents),
+    events: dropCoveredEvents(mergedEvents, coveredEvents, nextSnapshot?.expenses),
+    categoryEvents: dropCoveredEvents(mergedCategoryEvents, coveredEvents, nextSnapshot?.categories),
     ...(nextSnapshot !== undefined ? { snapshot: nextSnapshot } : {}),
   };
 }

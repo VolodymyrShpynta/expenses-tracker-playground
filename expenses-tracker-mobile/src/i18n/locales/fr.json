@@ -67,6 +67,7 @@
     "statusSuccess": "{{applied}} appliquées, {{uploaded}} envoyées.",
     "statusUpToDate": "Déjà à jour.",
     "statusError": "Échec de la synchro : {{message}}",
+    "statusApplyErrors": "Non appliquées : {{failed}} — nouvel essai à la prochaine synchro.",
     "signInPrompt": "Connecte-toi pour activer la synchro.",
     "notConfigured": "Choisis d’abord un fournisseur cloud.",
     "googleDisabled": "Google Drive n’est pas encore configuré — définis d’abord GOOGLE_OAUTH_CLIENT_ID."

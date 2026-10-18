@@ -67,6 +67,7 @@
     "statusSuccess": "Applied {{applied}}, uploaded {{uploaded}}.",
     "statusUpToDate": "Already up to date.",
     "statusError": "Sync failed: {{message}}",
+    "statusApplyErrors": "Not applied: {{failed}} — will retry on the next sync.",
     "signInPrompt": "Sign in to enable sync.",
     "notConfigured": "Choose a cloud provider first.",
     "googleDisabled": "Google Drive is not configured yet — set GOOGLE_OAUTH_CLIENT_ID first."

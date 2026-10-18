@@ -67,6 +67,7 @@
     "statusSuccess": "{{applied}} 件適用、{{uploaded}} 件アップロード。",
     "statusUpToDate": "すでに最新です。",
     "statusError": "同期に失敗しました: {{message}}",
+    "statusApplyErrors": "{{failed}} 件を適用できませんでした。次回の同期で再試行します。",
     "signInPrompt": "同期を有効にするにはサインインしてください。",
     "notConfigured": "まずクラウドプロバイダーを選択してください。",
     "googleDisabled": "Google Drive はまだ設定されていません — 先に GOOGLE_OAUTH_CLIENT_ID を設定してください。"

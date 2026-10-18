@@ -30,6 +30,7 @@ import type {
   EventEntry,
   SyncFileSnapshot,
 } from '../domain/types';
+import { PRUNE_WINDOW_MS } from './snapshotBuilder';
 
 /**
  * Refresh the snapshot when this many events have accumulated past the
@@ -49,6 +50,8 @@ export const SNAPSHOT_REFRESH_THRESHOLD = 500;
  *   - No snapshot in the remote file → always refresh (first writer wins).
  *   - Snapshot present, but more than `threshold` events past its
  *     cutoff → refresh.
+ *   - Body events have aged out of the processed-ID retention window
+ *     → refresh so their projections can replace them in the body.
  *   - Otherwise keep the existing snapshot (free bandwidth — the engine
  *     re-uploads the same bytes).
  */
@@ -59,6 +62,9 @@ export function shouldRefreshSnapshot(
   threshold: number = SNAPSHOT_REFRESH_THRESHOLD,
 ): boolean {
   if (baseSnapshot === undefined) return true;
+  const retentionCutoff = Date.now() - PRUNE_WINDOW_MS;
+  if (events.some((e) => e.timestamp < retentionCutoff) ||
+      categoryEvents.some((e) => e.timestamp < retentionCutoff)) return true;
   const cutoff = baseSnapshot.createdAt;
   const post = countEventsAfter(events, cutoff) + countEventsAfter(categoryEvents, cutoff);
   return post > threshold;
@@ -76,31 +82,39 @@ function countEventsAfter(
 }
 
 /**
- * Drop every event whose `eventId` is captured by the snapshot's
- * `coveredEvents`. Used by the engine just before encoding the file
+ * Drop events captured by the snapshot's IDs or projection rows.
+ * Used by the engine just before encoding the file
  * for upload — together with the snapshot itself, this enforces the
  * invariant "the body contains only events not yet captured by the
  * embedded snapshot".
  *
- * Always safe to run: with no snapshot (or an empty `coveredEvents`)
- * the input is returned unchanged. Idempotent — a second pass over an
+ * With no snapshot rows or covered IDs, the input is returned unchanged.
+ * Idempotent — a second pass over an
  * already-truncated body is a no-op.
  *
- * Note that the snapshot may prune entries past its retention window
- * (see `snapshotBuilder.PRUNE_WINDOW_MS`), so a body event whose
- * timestamp is much older than the snapshot's `createdAt` may not be
- * present in `coveredEvents` and will therefore NOT be dropped. Such an
- * event will be re-applied as a LWW no-op on receiving devices.
+ * Projection coverage uses the aggregate ID and payload.updatedAt,
+ * never the emission timestamp or snapshot.createdAt: a late-arriving,
+ * backdated event must survive unless its state is already represented.
+ * This also compacts historical events whose processed IDs have expired.
  *
  * Runs on every cycle (not only on refresh) so legacy files written
  * before truncation existed, plus any interrupted cycles, self-heal on
  * the next upload.
  */
-export function dropCoveredEvents<T extends { readonly eventId: string }>(
+export function dropCoveredEvents<T extends {
+  readonly eventId: string;
+  readonly payload: { readonly id: string; readonly updatedAt: number };
+}>(
   events: ReadonlyArray<T>,
   coveredEvents: ReadonlyArray<CoveredEvent>,
+  projections: ReadonlyArray<{ readonly id: string; readonly updatedAt: number }> = [],
 ): ReadonlyArray<T> {
-  if (coveredEvents.length === 0 || events.length === 0) return events;
+  if (events.length === 0 || (coveredEvents.length === 0 && projections.length === 0)) return events;
   const covered = new Set(coveredEvents.map((c) => c.eventId));
-  return events.filter((e) => !covered.has(e.eventId));
+  const updatedAtById = new Map(projections.map((p) => [p.id, p.updatedAt]));
+  return events.filter((e) => {
+    if (covered.has(e.eventId)) return false;
+    const updatedAt = updatedAtById.get(e.payload.id);
+    return updatedAt === undefined || updatedAt < e.payload.updatedAt;
+  });
 }

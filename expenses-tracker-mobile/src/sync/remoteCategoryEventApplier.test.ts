@@ -176,6 +176,47 @@ describe('applyRemoteCategoryEvents', () => {
     expect(row?.deleted).toBe(true);
   });
 
+  it('inserts a tombstone when a DELETED sorts before the CREATED it supersedes', async () => {
+    // Given: an active category shares the template key, which tombstones must not violate
+    await store.projectCategoryFromEvent({
+      id: 'seed', templateKey: 'food', icon: 'food', color: '#000000', sortOrder: 0, updatedAt: 0, deleted: false,
+    });
+    const deleted = makeEvent({
+      eventId: 'delete',
+      categoryId: 'c1',
+      eventType: 'DELETED',
+      timestamp: 10,
+      payload: {
+        id: 'c1', templateKey: 'food', icon: 'food', color: '#FF0000', sortOrder: 0, updatedAt: 21, deleted: true,
+      },
+    });
+    const created = makeEvent({ eventId: 'create', categoryId: 'c1', timestamp: 20 });
+
+    // When
+    const result = await applyRemoteCategoryEvents(store, [deleted, created], silentLogger);
+
+    // Then
+    expect(result).toEqual({ applied: 1, skipped: 1, errors: 0 });
+    expect(await store.findCategoryById('c1')).toMatchObject({ deleted: true, updatedAt: 21, templateKey: 'food' });
+  });
+
+  it('counts equal and stale category events as skipped after their processed IDs expire', async () => {
+    // Given
+    const current = makeEvent({ eventId: 'current', categoryId: 'c1', timestamp: 200 });
+    await applyRemoteCategoryEvents(store, [current], silentLogger);
+    await store.pruneCommittedEvents(300);
+    const stale = makeEvent({ eventId: 'stale', categoryId: 'c1', timestamp: 100 });
+
+    // When
+    const result = await applyRemoteCategoryEvents(store, [current, stale], silentLogger);
+
+    // Then
+    expect(result).toEqual({ applied: 0, skipped: 2, errors: 0 });
+    expect(await store.isEventProcessed('current')).toBe(true);
+    expect(await store.isEventProcessed('stale')).toBe(true);
+    expect((await store.findCategoryById('c1'))?.updatedAt).toBe(200);
+  });
+
   it('supports resurrection — newer UPDATED supersedes older DELETED', async () => {
     const created = makeEvent({
       eventId: 'e1',

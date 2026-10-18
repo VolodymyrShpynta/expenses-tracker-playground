@@ -7,23 +7,32 @@
  *   - Scope is `https://www.googleapis.com/auth/drive.appdata` only —
  *     narrowest possible permission, satisfies App Verification.
  *
- * Concurrency: Drive v3 does **not** support HTTP `ETag` / `If-Match`
- * on `files` (only on `revisions`), and `?alt=media` responses carry
- * no `ETag` header at all. The canonical concurrency token is the
- * file's **`version`** metadata field — a monotonically-increasing
- * integer (returned as a string) that bumps on every server-visible
- * change. We use that string as the opaque etag in the adapter
- * contract.
+ * Change detection: Drive v3 does **not** support HTTP `ETag` /
+ * `If-Match` on `files` (only on `revisions`), and `?alt=media`
+ * responses carry no `ETag` header at all. The adapter's opaque etag is
+ * the file's **`md5Checksum`** — a hash of the content, so it changes
+ * only when the bytes do. `version` is deliberately not the primary
+ * token: Drive bumps it on "every change made to the file on the
+ * server, even those not visible to the user", so a version cached from
+ * the upload reply can stop matching with no new content, and every
+ * idle sync then re-downloads the whole file. `version` remains only as
+ * a fallback when Drive omits the checksum.
+ *
+ * Metadata is read with `files.get` on the remembered file id. The name
+ * search (`files.list`) only discovers the id — on first use, or when
+ * the remembered file is gone — so change detection reads the file
+ * directly instead of depending on search-index freshness.
  *
  * Because Drive offers no atomic compare-and-swap on file content, the
- * "If-Match" guard in `upload` is implemented as a best-effort version
- * re-fetch immediately before the write: if the cached version differs
- * we raise `ConcurrencyError` and the engine retries. A TOCTOU race
- * window remains (another writer can land in between the version
- * check and our multipart PATCH), but the engine's event-level
- * last-write-wins by timestamp resolves any resulting divergence on
- * the next sync cycle — which is the project's stated conflict model
- * anyway (`AGENTS.md`).
+ * "If-Match" guard in `upload` is implemented as a best-effort checksum
+ * re-read immediately before the write: if the content changed we
+ * raise `ConcurrencyError` and the engine retries. A writer that left
+ * identical bytes passes the check, which is harmless — there is
+ * nothing different to lose. A TOCTOU race window remains (another
+ * writer can land in between the check and our multipart PATCH), but
+ * the engine's event-level last-write-wins by timestamp resolves any
+ * resulting divergence on the next sync cycle — which is the project's
+ * stated conflict model anyway (`AGENTS.md`).
  *
  * Setup steps the user must complete BEFORE this adapter works:
  *   1. Create a project at https://console.cloud.google.com.
@@ -111,6 +120,39 @@ export function isGoogleDriveConfigured(): boolean {
 
 const SYNC_FILE_NAME = 'sync.json.gz';
 const APP_DATA_FOLDER = 'appDataFolder';
+/** Fields requested on every metadata read and upload reply. */
+const FILE_FIELDS = 'id,md5Checksum,version';
+
+/** Drive file fields the adapter reads; `version` only backs up a missing checksum. */
+interface DriveFileFields {
+  readonly id?: string;
+  readonly md5Checksum?: string;
+  readonly version?: string;
+}
+
+interface DriveFileMeta {
+  readonly id: string;
+  /** Opaque change-detection token handed to the engine as the etag. */
+  readonly validator: string;
+}
+
+function toFileMeta(file: DriveFileFields): DriveFileMeta {
+  if (typeof file.id !== 'string' || file.id.length === 0) {
+    throw new Error('Drive did not return a file id');
+  }
+  return { id: file.id, validator: validatorOf(file) };
+}
+
+/** Content checksum when present; otherwise the prefixed version so the two never collide. */
+function validatorOf(file: DriveFileFields): string {
+  if (typeof file.md5Checksum === 'string' && file.md5Checksum.length > 0) {
+    return file.md5Checksum;
+  }
+  if (typeof file.version === 'string' && file.version.length > 0) {
+    return `version:${file.version}`;
+  }
+  throw new Error('Drive returned neither md5Checksum nor version — cannot detect changes');
+}
 
 /**
  * Redirect scheme Google's Android / iOS OAuth clients accept. Must
@@ -162,39 +204,63 @@ export function createGoogleDriveAdapter(
     },
   });
 
+  // Remembered so metadata comes from a direct `files.get`; the name
+  // search only runs to discover the id. Reset on sign-out.
+  let knownFileId: string | null = null;
+
   /**
-   * Find the sync file's id + current version. Returns `null` when no
-   * file exists yet.
-   *
+   * Find the sync file's id + current validator. Returns `null` when no
+   * file exists yet. Reads the remembered id directly and falls back to
+   * the name search when it is unknown or the file is gone (404).
+   */
+  async function findFileMetadata(token: string): Promise<DriveFileMeta | null> {
+    if (knownFileId !== null) {
+      const byId = await getFileById(token, knownFileId);
+      if (byId !== null) return byId;
+      knownFileId = null;
+    }
+    const found = await searchFile(token);
+    knownFileId = found?.id ?? null;
+    return found;
+  }
+
+  async function getFileById(token: string, id: string): Promise<DriveFileMeta | null> {
+    const response = await authFetch(
+      `https://www.googleapis.com/drive/v3/files/${id}?fields=${FILE_FIELDS}`,
+      { method: 'GET' },
+      token,
+    );
+    if (response.status === 404) return null;
+    if (response.status === 401) throw new AuthError('Drive auth rejected');
+    if (!response.ok) {
+      throw new Error(`Drive metadata fetch failed: ${response.status}`);
+    }
+    return toFileMeta((await response.json()) as DriveFileFields);
+  }
+
+  /**
    * Drive REST list query restricted to the `appDataFolder` space and
    * filtered by exact name match — the appDataFolder typically has at
    * most one file but we still pick the most-recently-modified one for
-   * resilience. `fields=files(id,version)` keeps the response payload
-   * minimal.
+   * resilience.
    */
-  async function findFileMetadata(
-    token: string,
-  ): Promise<{ id: string; version: string } | null> {
+  async function searchFile(token: string): Promise<DriveFileMeta | null> {
     const url =
       `https://www.googleapis.com/drive/v3/files` +
       `?spaces=${APP_DATA_FOLDER}` +
       `&q=name%3D'${SYNC_FILE_NAME}'` +
       `&orderBy=modifiedTime desc` +
-      `&fields=files(id,version)`;
+      `&fields=files(${FILE_FIELDS})`;
     const response = await authFetch(url, { method: 'GET' }, token);
     if (response.status === 401) throw new AuthError('Drive auth rejected');
     if (!response.ok) {
       throw new Error(`Drive list failed: ${response.status}`);
     }
     const json = (await response.json()) as {
-      files?: ReadonlyArray<{ id: string; version: string }>;
+      files?: ReadonlyArray<DriveFileFields>;
     };
     if (!json.files || json.files.length === 0) return null;
-    const head = json.files[0]!;
-    if (typeof head.version !== 'string' || head.version.length === 0) {
-      throw new Error('Drive did not return a version — cannot guarantee concurrency');
-    }
-    return { id: head.id, version: head.version };
+    return toFileMeta(json.files[0]!);
   }
 
   async function authFetch(
@@ -210,7 +276,10 @@ export function createGoogleDriveAdapter(
   return {
     isSignedIn: () => oauth.isSignedIn(),
     signIn: () => oauth.signIn(),
-    signOut: () => oauth.signOut(),
+    signOut: async () => {
+      knownFileId = null;
+      await oauth.signOut();
+    },
 
     async download(opts?: { ifNoneMatch?: string }): Promise<DownloadOutcome> {
       let token: string;
@@ -225,10 +294,10 @@ export function createGoogleDriveAdapter(
 
       // Drive v3 has no working HTTP-level conditional GET on file
       // content (`If-None-Match` is silently ignored on `?alt=media`).
-      // Compare `version` ourselves and skip the body fetch if it
+      // Compare the validator ourselves and skip the body fetch if it
       // matches — exactly what `oneDriveAdapter` does.
-      if (opts?.ifNoneMatch !== undefined && opts.ifNoneMatch === meta.version) {
-        return { kind: 'not-modified', etag: meta.version };
+      if (opts?.ifNoneMatch !== undefined && opts.ifNoneMatch === meta.validator) {
+        return { kind: 'not-modified', etag: meta.validator };
       }
 
       const response = await authFetch(
@@ -240,7 +309,7 @@ export function createGoogleDriveAdapter(
       if (!response.ok) throw new Error(`Drive download failed: ${response.status}`);
 
       const buffer = await response.arrayBuffer();
-      return { kind: 'modified', bytes: new Uint8Array(buffer), etag: meta.version };
+      return { kind: 'modified', bytes: new Uint8Array(buffer), etag: meta.validator };
     },
 
     async upload(bytes: Uint8Array, ifMatch?: string): Promise<UploadResult> {
@@ -254,18 +323,18 @@ export function createGoogleDriveAdapter(
       const existing = await findFileMetadata(token);
 
       // Best-effort optimistic-concurrency check. Drive v3 has no
-      // server-side `If-Match` on files, so we re-read `version` here
-      // and reject the write if it has moved. A racing writer can
-      // still slip in between this check and the multipart PATCH
-      // below; the engine's event-level last-write-wins by timestamp
-      // resolves the resulting divergence on the next cycle.
+      // server-side `If-Match` on files, so we re-read the content
+      // checksum here and reject the write if it has moved. A racing
+      // writer can still slip in between this check and the multipart
+      // PATCH below; the engine's event-level last-write-wins by
+      // timestamp resolves the resulting divergence on the next cycle.
       if (
         ifMatch !== undefined &&
         existing !== null &&
-        existing.version !== ifMatch
+        existing.validator !== ifMatch
       ) {
         throw new ConcurrencyError(
-          `Drive version changed (expected ${ifMatch}, got ${existing.version})`,
+          `Drive content changed (expected ${ifMatch}, got ${existing.validator})`,
         );
       }
 
@@ -291,12 +360,12 @@ export function createGoogleDriveAdapter(
       body.set(bytes, head.length);
       body.set(tail, head.length + bytes.length);
 
-      // `fields=version` tells Drive to include the new version in the
-      // JSON response body, sparing us a second metadata round trip.
+      // `fields` asks Drive to return the new id + validator in the JSON
+      // reply, sparing a second metadata round trip.
       const url =
         existing === null
-          ? 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=version'
-          : `https://www.googleapis.com/upload/drive/v3/files/${existing.id}?uploadType=multipart&fields=version`;
+          ? `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=${FILE_FIELDS}`
+          : `https://www.googleapis.com/upload/drive/v3/files/${existing.id}?uploadType=multipart&fields=${FILE_FIELDS}`;
 
       const headers = new Headers({
         'Content-Type': `multipart/related; boundary=${boundary}`,
@@ -319,11 +388,9 @@ export function createGoogleDriveAdapter(
         throw new Error(`Drive upload failed: ${response.status}`);
       }
 
-      const json = (await response.json()) as { version?: string };
-      if (typeof json.version !== 'string' || json.version.length === 0) {
-        throw new Error('Drive did not return a new version after upload');
-      }
-      return { etag: json.version };
+      const uploaded = toFileMeta((await response.json()) as DriveFileFields);
+      knownFileId = uploaded.id;
+      return { etag: uploaded.validator };
     },
   };
 }

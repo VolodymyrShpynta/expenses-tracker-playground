@@ -216,4 +216,28 @@ describe('buildSnapshot', () => {
     const snapshot = await buildSnapshot(store, { createdAt: 0 });
     expect(snapshot.version).toBe(SNAPSHOT_VERSION);
   });
+
+  it('captures the row of every covered event when local writes commit during the build', async () => {
+    // Given: expense and category writes commit while the event logs are scanned
+    const findAllEvents = store.findAllEvents.bind(store);
+    store.findAllEvents = async () => {
+      await store.appendEvent(expenseEvent('racer-expense', 'x-racer', 500));
+      await store.projectFromEvent(projection('x-racer', 500));
+      return findAllEvents();
+    };
+    const findAllCategoryEvents = store.findAllCategoryEvents.bind(store);
+    store.findAllCategoryEvents = async () => {
+      await store.appendCategoryEvent(categoryEvent('racer-category', 'c-racer', 500));
+      await store.projectCategoryFromEvent(category('c-racer', 500));
+      return findAllCategoryEvents();
+    };
+
+    // When
+    const snapshot = await buildSnapshot(store, { createdAt: 1_000 });
+
+    // Then
+    expect(snapshot.coveredEvents.map((c) => c.eventId)).toEqual(['racer-category', 'racer-expense']);
+    expect(snapshot.expenses.map((p) => p.id)).toEqual(['x-racer']);
+    expect(snapshot.categories.map((c) => c.id)).toEqual(['c-racer']);
+  });
 });

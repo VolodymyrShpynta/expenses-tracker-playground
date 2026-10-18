@@ -10,8 +10,10 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createSyncEngine } from './syncEngine';
-import { encodeSyncFile } from './codec';
+import { decodeSyncFile, encodeSyncFile } from './codec';
 import { ConcurrencyError } from './cloudDriveAdapter';
+import { PRUNE_WINDOW_MS, SNAPSHOT_VERSION } from './snapshotBuilder';
+import { jsonToPayload } from '../domain/mapping';
 import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
 import { InMemoryCloudDriveAdapter } from '../test/inMemoryCloudDriveAdapter';
 import type {
@@ -19,6 +21,7 @@ import type {
   CategoryEventEntry,
   EventEntry,
   ExpenseEvent,
+  EventSyncFile,
 } from '../domain/types';
 
 const makeLocalEvent = (
@@ -336,6 +339,136 @@ describe('SyncEngine.performFullSync', () => {
     const second = await engine.performFullSync();
     expect(second.remote.applied).toBe(0);
     expect(second.remote.skipped).toBe(1);
+  });
+
+  it('compacts 411 expired remote events when uploading one new expense', async () => {
+    // Given
+    const old = Date.now() - PRUNE_WINDOW_MS - 10_000;
+    const events = Array.from({ length: 411 }, (_, i) =>
+      makeRemoteEvent(`old-${i}`, `expense-${i}`, old + i),
+    );
+    adapter.setRemoteBytes(encodeSyncFile({
+      events,
+      categoryEvents: [],
+      snapshot: {
+        version: SNAPSHOT_VERSION,
+        createdAt: old - 1_000,
+        expenses: [],
+        categories: [],
+        coveredEvents: [],
+      },
+    }, true));
+    await engine.performFullSync();
+    expect(await store.findAllProcessedEvents()).toEqual([]);
+
+    const local = makeLocalEvent('local', 'local-expense', Date.now());
+    await store.appendEvent(local);
+    await store.projectFromEvent(jsonToPayload(local.payload));
+    // A fresh engine also exercises a lost/stale validator after a cold start.
+    engine = createSyncEngine({ store, adapter });
+
+    // When
+    const uploaded = await engine.performFullSync();
+    const outgoing = decodeSyncFile(adapter.peekBytes()!, true);
+    const repeated = await engine.performFullSync();
+    adapter.setRemoteBytes(adapter.peekBytes()!);
+    const revalidated = await engine.performFullSync();
+
+    // Then
+    expect(uploaded.uploadedLocal).toBe(1);
+    expect(uploaded.remote).toEqual({ applied: 0, skipped: 411, errors: 0 });
+    expect(outgoing.events).toEqual([]);
+    expect(outgoing.snapshot?.expenses).toHaveLength(412);
+    expect(outgoing.snapshot?.coveredEvents.map((e) => e.eventId)).toEqual(['local']);
+    expect(repeated.remote.applied).toBe(0);
+    expect(repeated.uploadedLocal).toBe(0);
+    expect(repeated.downloadedRemote).toBe(false);
+    expect(adapter.notModifiedCount).toBe(1);
+    expect(revalidated.remote.applied).toBe(0);
+    expect(adapter.uploadCount).toBe(1);
+    const coldStore = new InMemoryLocalStore();
+    await createSyncEngine({ store: coldStore, adapter }).performFullSync();
+    expect(await coldStore.findAllProjections()).toEqual(await store.findAllProjections());
+  });
+
+  it('compacts expired category events without losing tombstones on a cold install', async () => {
+    // Given
+    const old = Date.now() - PRUNE_WINDOW_MS - 1_000;
+    const category = makeRemoteCategoryEvent('category-create', 'c1', old);
+    const deleted: CategoryEventEntry = {
+      ...category,
+      eventId: 'category-delete',
+      eventType: 'DELETED',
+      timestamp: old + 1,
+      payload: { ...category.payload, updatedAt: old + 1, deleted: true },
+    };
+    adapter.setRemoteBytes(encodeSyncFile({
+      events: [],
+      categoryEvents: [category, deleted],
+      snapshot: {
+        version: SNAPSHOT_VERSION,
+        createdAt: old - 1_000,
+        expenses: [],
+        categories: [],
+        coveredEvents: [],
+      },
+    }, true));
+    await store.appendEvent(makeLocalEvent('local', 'x1', Date.now()));
+
+    // When
+    await engine.performFullSync();
+    const outgoing = decodeSyncFile(adapter.peekBytes()!, true);
+    const coldStore = new InMemoryLocalStore();
+    await createSyncEngine({ store: coldStore, adapter }).performFullSync();
+
+    // Then
+    expect(outgoing.categoryEvents).toEqual([]);
+    expect(outgoing.snapshot?.categories).toEqual([deleted.payload]);
+    expect(await coldStore.findCategoryById('c1')).toEqual(deleted.payload);
+  });
+
+  it('still applies an unseen old event instead of treating its timestamp as a sync watermark', async () => {
+    // Given
+    const old = Date.now() - PRUNE_WINDOW_MS - 1_000;
+    const first = makeRemoteEvent('first', 'x1', old);
+    adapter.setRemoteBytes(encodeSyncFile({ events: [first], categoryEvents: [] }, true));
+    await engine.performFullSync();
+    const late = makeRemoteEvent('late', 'x2', old - 1);
+    adapter.setRemoteBytes(encodeSyncFile({ events: [late, first], categoryEvents: [] }, true));
+
+    // When
+    const result = await engine.performFullSync();
+
+    // Then
+    expect(result.remote).toEqual({ applied: 1, skipped: 1, errors: 0 });
+    expect(await store.findProjectionById('x2')).toEqual(late.payload);
+  });
+
+  it('counts only changed rows when a snapshot is downloaded again with a new validator', async () => {
+    // Given
+    const file: EventSyncFile = {
+      events: [],
+      categoryEvents: [],
+      snapshot: {
+        version: SNAPSHOT_VERSION,
+        createdAt: Date.now(),
+        expenses: [makeRemoteEvent('r1', 'x1', 100).payload],
+        categories: [makeRemoteCategoryEvent('c1', 'cat1', 100).payload],
+        coveredEvents: [],
+      },
+    };
+    adapter.setRemoteBytes(encodeSyncFile(file, true));
+
+    // When
+    const first = await engine.performFullSync();
+    adapter.setRemoteBytes(encodeSyncFile(file, true));
+    const second = await engine.performFullSync();
+
+    // Then
+    expect(first.remote.applied).toBe(1);
+    expect(first.remoteCategories.applied).toBe(1);
+    expect(second.remote.applied).toBe(0);
+    expect(second.remoteCategories.applied).toBe(0);
   });
 
   it('produces an upload whose snapshot captures both base and new events', async () => {

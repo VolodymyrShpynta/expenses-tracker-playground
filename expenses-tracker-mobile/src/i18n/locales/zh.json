@@ -67,6 +67,7 @@
     "statusSuccess": "已应用 {{applied}} 项，已上传 {{uploaded}} 项。",
     "statusUpToDate": "已是最新。",
     "statusError": "同步失败：{{message}}",
+    "statusApplyErrors": "有 {{failed}} 项未能应用，将在下次同步时重试。",
     "signInPrompt": "登录以启用同步。",
     "notConfigured": "请先选择云提供方。",
     "googleDisabled": "Google Drive 尚未配置 — 请先设置 GOOGLE_OAUTH_CLIENT_ID。"

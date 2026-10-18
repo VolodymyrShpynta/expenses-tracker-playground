@@ -17,12 +17,13 @@
  *     mid-apply leaves the store consistent.
  *   - Conflict semantics:
  *       CREATED, UPDATED → `projectFromEvent` (LWW UPSERT, strict `>` on `updated_at`)
- *       DELETED         → `markAsDeleted(payload.updatedAt)` (only transitions to deleted)
+ *       DELETED         → `projectRemoteDeletion` (`markAsDeleted` on an existing
+ *                         row; tombstone insert when absent; never resurrects)
  *
  * Logging never includes payload contents — same PII rule as the backend.
  */
 import type { LocalStore } from '../domain/localStore';
-import { projectEventEntry, softDelete } from '../domain/projector';
+import { projectEventEntry, projectRemoteDeletion } from '../domain/projector';
 import type { EventEntry, EventType } from '../domain/types';
 import { applyEventsBatched, type ApplyResult, type BatchApplyLog } from './batchApply';
 
@@ -52,15 +53,13 @@ export async function applyRemoteEvents(
 }
 
 /** Dispatch on event type — mirrors `ExpenseSyncRecorder.projectExpenseFromEvent`. */
-async function projectByEventType(store: LocalStore, event: EventEntry): Promise<void> {
+async function projectByEventType(store: LocalStore, event: EventEntry): Promise<number> {
   const eventType: EventType = event.eventType;
   switch (eventType) {
     case 'CREATED':
     case 'UPDATED':
-      await projectEventEntry(store, event);
-      return;
+      return projectEventEntry(store, event);
     case 'DELETED':
-      await softDelete(store, event.expenseId, event.payload.updatedAt);
-      return;
+      return projectRemoteDeletion(store, event.expenseId, event.payload);
   }
 }

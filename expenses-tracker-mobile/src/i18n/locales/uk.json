@@ -67,6 +67,7 @@
     "statusSuccess": "Застосовано {{applied}}, надіслано {{uploaded}}.",
     "statusUpToDate": "Вже синхронізовано.",
     "statusError": "Помилка синхронізації: {{message}}",
+    "statusApplyErrors": "Не застосовано: {{failed}} — повторна спроба під час наступної синхронізації.",
     "signInPrompt": "Увійдіть, щоб увімкнути синхронізацію.",
     "notConfigured": "Спочатку оберіть хмарного провайдера.",
     "googleDisabled": "Google Drive ще не налаштований — заповніть GOOGLE_OAUTH_CLIENT_ID."

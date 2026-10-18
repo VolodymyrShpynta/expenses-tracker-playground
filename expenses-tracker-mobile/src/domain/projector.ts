@@ -57,3 +57,22 @@ export async function softDelete(
 ): Promise<number> {
   return store.markAsDeleted(id, updatedAt);
 }
+
+/**
+ * Apply a remote DELETED event. An existing row keeps `markAsDeleted`
+ * semantics (only `deleted` and `updatedAt` change). An absent row gets a
+ * tombstone built from the event payload: clock skew between devices can
+ * sort a delete before the create it supersedes, and without the
+ * tombstone that older create would later resurrect the expense on this
+ * device only. Never resurrects — the tombstone is always `deleted=true`.
+ */
+export async function projectRemoteDeletion(
+  store: LocalStore,
+  id: string,
+  payload: ExpensePayload,
+): Promise<number> {
+  if (await store.findProjectionById(id) !== undefined) {
+    return store.markAsDeleted(id, payload.updatedAt);
+  }
+  return store.projectFromEvent(payloadToProjection({ ...payload, id, deleted: true }));
+}

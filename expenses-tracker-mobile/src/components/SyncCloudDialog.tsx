@@ -6,6 +6,7 @@
  *   - Sign-in / sign-out button (provider-aware).
  *   - "Sync now" button — disabled until the user is signed in.
  *   - Status footer — "Last synced …" / "Synced. Applied X, uploaded Y."
+ *     / "Not applied: N …" (remote changes retried next sync)
  *     / "Sync failed: …".
  *
  * Success and error feedback is reported back to the parent via
@@ -185,6 +186,11 @@ export function SyncCloudDialog({ visible, onDismiss, onShowStatus }: SyncCloudD
                 ? lastResult.uploadedLocal + lastResult.uploadedLocalCategories
                 : null
             }
+            lastFailed={
+              lastResult
+                ? lastResult.remote.errors + lastResult.remoteCategories.errors
+                : 0
+            }
           />
           </ScrollView>
         </Dialog.ScrollArea>
@@ -223,11 +229,13 @@ function SyncStatusFooter({
   lastError,
   lastApplied,
   lastUploaded,
+  lastFailed,
 }: {
   readonly lastSyncedAt: number | null;
   readonly lastError: string | null;
   readonly lastApplied: number | null;
   readonly lastUploaded: number | null;
+  readonly lastFailed: number;
 }) {
   const { t: translate } = useTranslation();
   const theme = useTheme();
@@ -245,19 +253,26 @@ function SyncStatusFooter({
       ? translate('syncDialog.lastSynced', { when: new Date(lastSyncedAt).toLocaleString() })
       : translate('syncDialog.neverSynced');
 
+  const nothingTransferred = lastApplied === 0 && lastUploaded === 0;
+
   return (
     <>
       <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
         {timestampLine}
       </Text>
-      {lastApplied !== null && lastUploaded !== null && (
+      {lastApplied !== null && lastUploaded !== null && !(nothingTransferred && lastFailed > 0) && (
         <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-          {lastApplied === 0 && lastUploaded === 0
+          {nothingTransferred
             ? translate('syncDialog.statusUpToDate')
             : translate('syncDialog.statusSuccess', {
                 applied: lastApplied,
                 uploaded: lastUploaded,
               })}
+        </Text>
+      )}
+      {lastFailed > 0 && (
+        <Text variant="bodySmall" style={{ color: theme.colors.error }}>
+          {translate('syncDialog.statusApplyErrors', { failed: lastFailed })}
         </Text>
       )}
     </>

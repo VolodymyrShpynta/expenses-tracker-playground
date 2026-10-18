@@ -67,6 +67,7 @@
     "statusSuccess": "{{applied}} diterapkan, {{uploaded}} diunggah.",
     "statusUpToDate": "Sudah terbaru.",
     "statusError": "Sinkronisasi gagal: {{message}}",
+    "statusApplyErrors": "Tidak diterapkan: {{failed}} — akan dicoba lagi pada sinkronisasi berikutnya.",
     "signInPrompt": "Masuk untuk mengaktifkan sinkronisasi.",
     "notConfigured": "Pilih penyedia cloud terlebih dahulu.",
     "googleDisabled": "Google Drive belum dikonfigurasi — atur GOOGLE_OAUTH_CLIENT_ID terlebih dahulu."

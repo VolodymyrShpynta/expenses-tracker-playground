@@ -16,13 +16,14 @@
  *   - Conflict semantics:
  *       CREATED, UPDATED → `projectCategoryFromEvent` (LWW UPSERT, strict
  *                          `>` on `updated_at`)
- *       DELETED         → `softDeleteCategory(payload.updatedAt)` (only
- *                          transitions to deleted, never resurrects)
+ *       DELETED         → `softDeleteCategory(payload.updatedAt)` on an
+ *                          existing row; tombstone insert when absent (see
+ *                          `projectRemoteDeletion`). Never resurrects.
  *
  * Logging never includes payload contents — same PII rule as the backend.
  */
 import type { LocalStore } from '../domain/localStore';
-import { categoryEventEntryToCategory } from '../domain/mapping';
+import { categoryEventEntryToCategory, categoryPayloadToCategory } from '../domain/mapping';
 import type { CategoryEventEntry, EventType } from '../domain/types';
 import { applyEventsBatched, type ApplyResult, type BatchApplyLog } from './batchApply';
 
@@ -55,19 +56,30 @@ export async function applyRemoteCategoryEvents(
 async function applyByEventType(
   store: LocalStore,
   event: CategoryEventEntry,
-): Promise<void> {
+): Promise<number> {
   const eventType: EventType = event.eventType;
   switch (eventType) {
     case 'CREATED':
     case 'UPDATED':
-      await store.projectCategoryFromEvent(categoryEventEntryToCategory(event));
-      return;
-    case 'DELETED': {
-      await store.softDeleteCategory(
-        event.categoryId,
-        event.payload.updatedAt,
-      );
-      return;
-    }
+      return store.projectCategoryFromEvent(categoryEventEntryToCategory(event));
+    case 'DELETED':
+      return projectCategoryDeletion(store, event);
   }
+}
+
+/**
+ * Category twin of `projectRemoteDeletion`: an absent row gets a
+ * tombstone so a create sorted after this delete cannot resurrect it.
+ * Tombstones are exempt from the active-only `template_key` unique index.
+ */
+async function projectCategoryDeletion(
+  store: LocalStore,
+  event: CategoryEventEntry,
+): Promise<number> {
+  if (await store.findCategoryById(event.categoryId) !== undefined) {
+    return store.softDeleteCategory(event.categoryId, event.payload.updatedAt);
+  }
+  return store.projectCategoryFromEvent(
+    categoryPayloadToCategory({ ...event.payload, id: event.categoryId, deleted: true }),
+  );
 }

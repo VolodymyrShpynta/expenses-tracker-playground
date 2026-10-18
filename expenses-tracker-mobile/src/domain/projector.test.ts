@@ -6,7 +6,7 @@
  * convention from `.github/instructions/test-conventions.instructions.md`.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { projectPayload, softDelete } from './projector';
+import { projectPayload, projectRemoteDeletion, softDelete } from './projector';
 import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
 import { makePayload } from '../test/fixtures';
 
@@ -330,5 +330,45 @@ describe('projector — softDelete (mark-as-deleted helper)', () => {
     const stored = await store.findProjectionById(id);
     expect(stored?.deleted).toBe(true);
     expect(stored?.updatedAt).toBe(2000);
+  });
+});
+
+describe('projector — projectRemoteDeletion', () => {
+  let store: InMemoryLocalStore;
+
+  beforeEach(() => {
+    store = new InMemoryLocalStore();
+  });
+
+  it('should insert a tombstone from the payload when the expense is absent', async () => {
+    // Given: An empty store
+    // When: A remote delete arrives before its create
+    const rows = await projectRemoteDeletion(store, 'exp-1', makePayload({ id: 'exp-1', updatedAt: 2000, deleted: true }));
+
+    // Then: A tombstone wins LWW against the older create
+    expect(rows).toBe(1);
+    expect(await projectPayload(store, makePayload({ id: 'exp-1', updatedAt: 1000 }))).toBe(0);
+    expect(await store.findProjectionById('exp-1')).toMatchObject({ deleted: true, updatedAt: 2000 });
+  });
+
+  it('should never resurrect even when the payload says deleted=false', async () => {
+    // Given: An empty store and a malformed delete payload
+    // When
+    await projectRemoteDeletion(store, 'exp-1', makePayload({ id: 'exp-1', updatedAt: 2000, deleted: false }));
+
+    // Then
+    expect((await store.findProjectionById('exp-1'))?.deleted).toBe(true);
+  });
+
+  it('should reject an older delete against a newer active expense', async () => {
+    // Given: A live projection at t=2000
+    await projectPayload(store, makePayload({ id: 'exp-1', updatedAt: 2000 }));
+
+    // When
+    const rows = await projectRemoteDeletion(store, 'exp-1', makePayload({ id: 'exp-1', updatedAt: 1000, deleted: true }));
+
+    // Then
+    expect(rows).toBe(0);
+    expect((await store.findProjectionById('exp-1'))?.deleted).toBe(false);
   });
 });

@@ -156,6 +156,85 @@ describe('applyRemoteEvents', () => {
     expect(row?.deleted).toBe(true);
   });
 
+  it('inserts a tombstone when a DELETED sorts before the CREATED it supersedes', async () => {
+    // Given: the deleting device's clock was behind the creator's
+    const deleted = makeEvent({
+      eventId: 'delete',
+      expenseId: 'x1',
+      eventType: 'DELETED',
+      timestamp: 10,
+      payload: { id: 'x1', amount: 1000, currency: 'USD', updatedAt: 21, deleted: true },
+    });
+    const created = makeEvent({ eventId: 'create', expenseId: 'x1', timestamp: 20 });
+
+    // When
+    const result = await applyRemoteEvents(store, [deleted, created], silentLogger);
+
+    // Then
+    expect(result).toEqual({ applied: 1, skipped: 1, errors: 0 });
+    expect(await store.findProjectionById('x1')).toMatchObject({ deleted: true, updatedAt: 21, amount: 1000 });
+  });
+
+  it('keeps existing content when a DELETED targets an existing row', async () => {
+    // Given
+    const created = makeEvent({ eventId: 'create', expenseId: 'x1', timestamp: 100 });
+    await applyRemoteEvents(store, [created], silentLogger);
+    const deleted = makeEvent({
+      eventId: 'delete',
+      expenseId: 'x1',
+      eventType: 'DELETED',
+      timestamp: 200,
+      payload: { id: 'x1', updatedAt: 200, deleted: true },
+    });
+
+    // When
+    await applyRemoteEvents(store, [deleted], silentLogger);
+
+    // Then
+    expect(await store.findProjectionById('x1')).toMatchObject({
+      deleted: true, updatedAt: 200, amount: 1000, currency: 'USD',
+    });
+  });
+
+  it('counts equal and stale events as skipped after their processed IDs expire', async () => {
+    // Given
+    const current = makeEvent({ eventId: 'current', expenseId: 'x1', timestamp: 200 });
+    await applyRemoteEvents(store, [current], silentLogger);
+    await store.pruneCommittedEvents(300);
+    const stale = makeEvent({ eventId: 'stale', expenseId: 'x1', timestamp: 100 });
+
+    // When
+    const result = await applyRemoteEvents(store, [current, stale], silentLogger);
+
+    // Then
+    expect(result).toEqual({ applied: 0, skipped: 2, errors: 0 });
+    expect(await store.isEventProcessed('current')).toBe(true);
+    expect(await store.isEventProcessed('stale')).toBe(true);
+    expect((await store.findProjectionById('x1'))?.updatedAt).toBe(200);
+  });
+
+  it('counts only committed changes after a chunk rollback and per-event fallback', async () => {
+    // Given
+    const existing = makeEvent({ eventId: 'existing', expenseId: 'x1' });
+    await store.projectFromEvent(existing.payload);
+    const project = store.projectFromEvent.bind(store);
+    store.projectFromEvent = async (row) => {
+      if (row.id === 'bad') throw new Error('projection failed');
+      return project(row);
+    };
+    const fresh = makeEvent({ eventId: 'fresh', expenseId: 'x2' });
+    const bad = makeEvent({ eventId: 'bad', expenseId: 'bad' });
+
+    // When
+    const result = await applyRemoteEvents(store, [fresh, existing, bad], silentLogger);
+
+    // Then
+    expect(result).toEqual({ applied: 1, skipped: 1, errors: 1 });
+    expect(await store.isEventProcessed('fresh')).toBe(true);
+    expect(await store.isEventProcessed('existing')).toBe(true);
+    expect(await store.isEventProcessed('bad')).toBe(false);
+  });
+
   it('isolates per-event errors — one bad event does not abort the batch', async () => {
     // Stub `projectFromEvent` to throw on a specific id.
     const original = store.projectFromEvent.bind(store);

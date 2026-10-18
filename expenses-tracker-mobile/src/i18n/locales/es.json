@@ -67,6 +67,7 @@
     "statusSuccess": "Aplicados {{applied}}, subidos {{uploaded}}.",
     "statusUpToDate": "Ya está actualizado.",
     "statusError": "Error de sincronización: {{message}}",
+    "statusApplyErrors": "Sin aplicar: {{failed}}; se reintentará en la próxima sincronización.",
     "signInPrompt": "Inicia sesión para activar la sincronización.",
     "notConfigured": "Elige primero un proveedor en la nube.",
     "googleDisabled": "Google Drive aún no está configurado — define primero GOOGLE_OAUTH_CLIENT_ID."
