@@ -113,6 +113,27 @@ The values below are what Play Console will see. Open
 | `expo.android.package`           | The Play Store application id, **immutable forever** | `"com.vshpynta.spendium"`                                   |
 | `expo.android.adaptiveIcon`      | 1024×1024 PNG foreground + a solid background color  | Already set                                                 |
 | `expo.android.permissions`       | Minimal set (currently just `INTERNET`)              | OK — sync uses the user's own cloud account, no extra perms |
+| `expo.plugins` → `expo-build-properties` | `android.enableMinifyInReleaseBuilds: true` (R8) + `android.enableShrinkResourcesInReleaseBuilds: true` + one `extraProguardRules` keep rule | Already set                         |
+
+> **Why R8 is on.** From February 2027 Google Play requires every bundle
+> to be shrunk/optimized by R8 with at least 25% DEX optimization coverage
+> ([bad behavior thresholds](https://support.google.com/googleplay/android-developer/answer/17492799)).
+> React Native's prebuild template leaves R8 **off** by default, so without
+> the `expo-build-properties` entry in [app.json](app.json) Play Console
+> flags the app with *"Your app exceeds one or more critical thresholds"*.
+> Prebuild writes both flags into the generated `android/gradle.properties`;
+> verify after `npx expo prebuild --clean` with
+> `Select-String android\gradle.properties -Pattern enableMinify`.
+>
+> **Why the keep rule.** `expo-modules-core` names
+> `expo.modules.adapters.react.apploader.RNHeadlessAppLoader` only as a
+> string in `AndroidManifest.xml` meta-data and instantiates it via
+> `Class.forName`, so R8 sees no reference and strips it — logcat then shows
+> `Cannot initialize app loader … ClassNotFoundException` on every launch and
+> headless JS (used by `expo-task-manager`) can't start. The
+> `extraProguardRules` entry keeps that class. If R8 strips another class
+> that a native module only reaches via reflection, append its keep rule to
+> the same string — never hand-edit the generated `android/` folder.
 
 > **Version vs. version code.** `expo.version` is the human-readable name
 > ("1.0.0"). Google Play also requires an integer `versionCode` that must
@@ -1801,7 +1822,10 @@ store release. See the channel table at the top of this step.
 | `eas update` reports success, but no user ever receives the update    | `runtimeVersion.policy` is `"appVersion"` in [app.json](app.json), so an update only reaches installed builds whose `expo.version` matches **exactly**. Bumping `expo.version` before publishing targets a runtime nobody has installed. Fails silently — no error on either side. | Publish the OTA **before** bumping the version, while [app.json](app.json) still carries the version that's live on Play. See [Step 10 → B — OTA update via EAS Update](#b--ota-update-via-eas-update). |
 | Production release published but nobody can install it                | The Production track's *Countries / regions* list is empty. Country targeting is a separate save from the release itself. | **Test and release → Production → Countries / regions** → select all → add *rest of world* → **Save**. Propagation takes a few hours. See [Step 9 → Countries / regions](#countries--regions). |
 | Release sits at **Draft** on the Production track and never publishes; **Create new release** is greyed out | The release was saved but never submitted. Saving only stages it — submission happens centrally. Play also allows just one draft per track, which is why the create button is disabled. | **Production → Releases → Edit release** → **Next** → **Save**, then **Publishing overview → Submit N changes for review**. See [Step 10 → A](#a--store-release). |
-| Bundle warning: `There is no deobfuscation file associated with this App Bundle` | React Native release builds don't enable R8/ProGuard by default, so there is no mapping file to attach. | Ignore it — it's a warning, not an error, and doesn't block publishing. Spendium's crashes originate in JS and are symbolicated by Hermes, not by a Java mapping. If you ever enable minification, AGP embeds the mapping in the AAB automatically and the warning disappears on its own. |
+| Bundle warning: `There is no deobfuscation file associated with this App Bundle` | The bundle was built **without** R8. Spendium enables R8 through `expo-build-properties` in [app.json](app.json), and AGP embeds the `mapping.txt` in the AAB automatically — so this warning means the build used a stale `android/` folder generated before that plugin was configured. | Re-run `npx expo prebuild --platform android --clean` and rebuild. A non-R8 bundle also fails Play's DEX optimization threshold (see [Step 1 → Why R8 is on](#step-1--pre-flight-verify-appjson-and-eas-config)). |
+| Play Console / Android vitals: `Your app exceeds one or more critical thresholds` (memory standards, enforced from Feb 2027) | Usually the **DEX code optimization** threshold — the uploaded bundle wasn't shrunk by R8. The other two thresholds (anon RSS + swap, bitmap memory) are P90 memory figures far above what Spendium uses. | Confirm R8 is enabled (Step 1) and upload a new bundle. Play Console surfaces DEX optimization insights for every newly uploaded bundle; **Android vitals → overview** shows which threshold actually tripped. |
+| Release build crashes on launch with `ClassNotFoundException` / `NoSuchMethodException` in logcat, debug build works | R8 removed or renamed a class that a native library only reaches through reflection / JNI and that ships no consumer keep rules. | Add a `-keep` rule via `android.extraProguardRules` on the `expo-build-properties` entry in [app.json](app.json), re-run prebuild with `--clean`, rebuild. To find the culprit, check whether the class is listed on the left-hand side of `android/app/build/outputs/mapping/release/mapping.txt` — a missing entry means R8 deleted it. |
+| `gradlew bundleRelease` / `assembleRelease` fails with `java.lang.OutOfMemoryError: Metaspace` (often in a `ksp…Kotlin` task), then the daemon keeps spamming the same error | The prebuild template caps the Gradle daemon at `-Xmx2048m -XX:MaxMetaspaceSize=512m`; a parallel release build of all Expo modules plus R8 exceeds it. | `.\gradlew.bat --stop`, then rebuild with a bigger budget on the command line (no file edits, survives `prebuild --clean`): `.\gradlew.bat bundleRelease "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1536m"`. Or set `org.gradle.jvmargs` once in `%USERPROFILE%\.gradle\gradle.properties`. |
 | `Your app is using a non-compliant version of the Play Core library` | A transitive RN dep still imports the legacy Play Core API.                                    | Bump to Expo SDK 55+ (already on it). If the error persists, run `npx expo-doctor` and follow its upgrade hints.                                                                                                                                                       |
 | `App not installed: package conflicts with an existing package`      | A sideloaded `preview` APK on the test phone uses the same package id but a different signing key. | Uninstall the sideloaded copy first: `adb uninstall com.vshpynta.spendium`. Play-installed and dev-signed builds can't coexist on one device.                                                                                                                          |
 | Play Console: "Privacy policy URL is required"                       | The URL field is empty or returns non-200 to Google's crawler.                                 | Make sure the URL is HTTPS and publicly reachable (no Cloudflare bot-blocker, no auth wall, no robots-disallow).                                                                                                                                                       |

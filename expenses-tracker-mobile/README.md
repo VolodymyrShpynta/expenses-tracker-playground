@@ -1164,6 +1164,13 @@ cd android
 
 (On macOS / Linux use `./gradlew assembleRelease`.)
 
+> **R8 minification is on.** [`app.json`](./app.json) enables `enableMinifyInReleaseBuilds` and
+> `enableShrinkResourcesInReleaseBuilds` through `expo-build-properties` because Google Play requires
+> R8-optimized bundles from February 2027 — see
+> [GOOGLE-PLAY-DEPLOYMENT.md → Step 1](./GOOGLE-PLAY-DEPLOYMENT.md#step-1--pre-flight-verify-appjson-and-eas-config).
+> If a release build crashes on a class that works in debug, add a keep rule via that plugin's
+> `android.extraProguardRules`, not by editing `android/`.
+
 **4. APK output:**
 
 ```
