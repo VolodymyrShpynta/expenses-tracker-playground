@@ -9,6 +9,7 @@
  * Sorted alphabetically by code.
  */
 export const SUPPORTED_CURRENCIES = [
+  { code: 'ARS', name: 'Argentine Peso' },
   { code: 'AUD', name: 'Australian Dollar' },
   { code: 'BGN', name: 'Bulgarian Lev' },
   { code: 'BRL', name: 'Brazilian Real' },

@@ -38,7 +38,7 @@ import { PortalSafeTextInput } from './PortalSafeTextInput';
 const CURRENCIES: ReadonlyArray<string> = [
   'USD', 'EUR', 'GBP', 'CHF', 'JPY', 'CNY', 'AUD', 'CAD',
   'CZK', 'PLN', 'UAH', 'SEK', 'NOK', 'DKK', 'HUF', 'RON',
-  'INR', 'TRY', 'ZAR', 'BRL', 'MXN', 'KRW', 'SGD', 'HKD', 'NZD',
+  'INR', 'TRY', 'ZAR', 'ARS', 'BRL', 'MXN', 'KRW', 'SGD', 'HKD', 'NZD',
   'IDR', 'ILS', 'ISK', 'MYR', 'PHP', 'THB',
 ];
 
