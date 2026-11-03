@@ -1,9 +1,9 @@
 /**
  * Mobile data exchange — export the local projections to a portable
- * JSON snapshot and import a previously-exported file back.
+ * JSON snapshot or spreadsheet CSV and import a JSON snapshot back.
  *
- * Wire format matches the web frontend's export exactly so a file
- * round-trips between platforms (see `src/sync/dataExchange.ts`).
+ * JSON matches the web frontend's export for cross-platform transfer.
+ * CSV is a single expenses file, not the web backend's CSV-in-ZIP format.
  *
  * The pure orchestration (build bytes, parse + apply) lives in
  * `src/sync/dataExchange.ts` and is unit-tested. This hook handles only
@@ -32,17 +32,35 @@ import { useAppServices } from '../context/appServicesProvider';
 import {
   applyImportedBytes,
   buildExportFile,
+  type ExportFormat,
   type ImportSummary,
 } from '../sync/dataExchange';
+import { useCategoryLookup } from './useCategoryLookup';
 import { CATEGORIES_QUERY_KEY, EXPENSES_QUERY_KEY } from '../queryClient';
 import { systemTime } from '../utils/time';
 
-const EXPORT_FILENAME = 'spendium-export.json';
-const EXPORT_MIME_TYPE = 'application/json';
-const TEXT_DECODER = new TextDecoder('utf-8');
+const EXPORT_FILES = {
+  json: {
+    filename: 'spendium-export.json',
+    mimeType: 'application/json',
+    uti: 'public.json',
+  },
+  csv: {
+    filename: 'spendium-export.csv',
+    mimeType: 'text/csv',
+    uti: 'public.comma-separated-values-text',
+  },
+} as const;
+type ExportFileType = (typeof EXPORT_FILES)[ExportFormat];
+
+// Preserve the CSV BOM when decoding bytes for the string-based Android writer.
+const TEXT_DECODER = new TextDecoder('utf-8', { ignoreBOM: true });
+
+export type { ExportFormat } from '../sync/dataExchange';
 
 export interface ExportResult {
   readonly uri: string;
+  readonly format: ExportFormat;
   readonly categoryCount: number;
   readonly expenseCount: number;
 }
@@ -51,22 +69,30 @@ export type ImportResult = ImportSummary;
 
 export function useExportData() {
   const store = useLocalStore();
+  const { resolveName } = useCategoryLookup();
 
-  return useMutation<ExportResult | null>({
-    mutationFn: async () => {
-      const payload = await buildExportFile({ store, time: systemTime });
-      const json = TEXT_DECODER.decode(payload.bytes);
+  return useMutation<ExportResult | null, Error, ExportFormat>({
+    mutationFn: async (format) => {
+      const payload = await buildExportFile({
+        store,
+        time: systemTime,
+        format,
+        resolveCategoryName: resolveName,
+      });
+      const content = TEXT_DECODER.decode(payload.bytes);
+      const fileType = EXPORT_FILES[format];
 
       const uri =
         Platform.OS === 'android'
-          ? await writeViaStorageAccessFramework(json)
-          : await writeViaShareSheet(json);
+          ? await writeViaStorageAccessFramework(content, fileType)
+          : await writeViaShareSheet(content, fileType);
 
       // `null` propagates the user's cancel — surfaced as a no-op by the UI.
       if (uri === null) return null;
 
       return {
         uri,
+        format,
         categoryCount: payload.categoryCount,
         expenseCount: payload.expenseCount,
       };
@@ -79,19 +105,21 @@ export function useExportData() {
  * destination folder; the export is written as a new file there. Returns
  * `null` when the user dismisses the picker without granting access.
  */
-async function writeViaStorageAccessFramework(json: string): Promise<string | null> {
+async function writeViaStorageAccessFramework(
+  content: string,
+  fileType: ExportFileType,
+): Promise<string | null> {
   const permission = await StorageAccessFramework.requestDirectoryPermissionsAsync();
   if (!permission.granted) return null;
 
-  // SAF appends the `.json` extension based on the MIME type, so we strip
-  // it from the suggested filename to avoid `expenses-tracker-export.json.json`.
-  const baseName = EXPORT_FILENAME.replace(/\.json$/i, '');
+  // SAF appends the extension based on the MIME type.
+  const baseName = fileType.filename.replace(/\.[^.]+$/, '');
   const fileUri = await StorageAccessFramework.createFileAsync(
     permission.directoryUri,
     baseName,
-    EXPORT_MIME_TYPE,
+    fileType.mimeType,
   );
-  await StorageAccessFramework.writeAsStringAsync(fileUri, json);
+  await StorageAccessFramework.writeAsStringAsync(fileUri, content);
   return fileUri;
 }
 
@@ -101,15 +129,15 @@ async function writeViaStorageAccessFramework(json: string): Promise<string | nu
  * any other share target. Cache-directory writes are overwritten on
  * every export, so stale copies cannot accumulate.
  */
-async function writeViaShareSheet(json: string): Promise<string> {
-  const file = new File(Paths.cache, EXPORT_FILENAME);
-  file.write(json);
+async function writeViaShareSheet(content: string, fileType: ExportFileType): Promise<string> {
+  const file = new File(Paths.cache, fileType.filename);
+  file.write(content);
 
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(file.uri, {
-      mimeType: EXPORT_MIME_TYPE,
+      mimeType: fileType.mimeType,
       dialogTitle: 'Spendium export',
-      UTI: 'public.json',
+      UTI: fileType.uti,
     });
   }
   return file.uri;

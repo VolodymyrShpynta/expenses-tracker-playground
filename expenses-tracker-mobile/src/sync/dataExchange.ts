@@ -1,9 +1,9 @@
 /**
  * Pure helpers for the user-facing export / import flow.
  *
- * Wire format is the **same JSON snapshot** the web frontend produces
+ * The JSON wire format is the **same snapshot** the web frontend produces
  * (see `expenses-tracker-api/src/main/kotlin/.../controller/dto/DataExchangeDtos.kt`),
- * so a file exported from either platform imports cleanly into the other.
+ * so a JSON file exported from either platform imports cleanly into the other.
  * This is intentional: export/import is a portable cross-device data
  * transfer surface, NOT a backup of the event log. Cloud-drive sync
  * between mobile devices keeps using the event-log format via
@@ -30,12 +30,15 @@ import type { Category } from '../domain/types';
 import type { CategoryService } from '../domain/categoryService';
 import type { ExpenseCommandService } from '../domain/commands';
 import type { TimeProvider } from '../utils/time';
+import { serializeExpensesCsv } from './expenseCsv';
 
 const TEXT_ENCODER = new TextEncoder();
 const TEXT_DECODER = new TextDecoder('utf-8');
 
 /** Current export-file schema version. */
 export const EXPORT_FILE_VERSION = 1;
+
+export type ExportFormat = 'json' | 'csv';
 
 // Fallback display values used when a referenced category has no usable
 // label / icon / color. Mirrors `ExportDefaults` on the backend so files
@@ -78,9 +81,9 @@ export interface ExportExpense {
 }
 
 export interface ExportPayload {
-  /** UTF-8 encoded JSON, ready to write to a file. */
+  /** UTF-8 export bytes; CSV includes a BOM for spreadsheet encoding detection. */
   readonly bytes: Uint8Array;
-  /** Parsed snapshot, exposed for tests / future programmatic callers. */
+  /** Source snapshot; only JSON serializes the categories as separate records. */
   readonly file: ExportFile;
   readonly categoryCount: number;
   readonly expenseCount: number;
@@ -89,6 +92,9 @@ export interface ExportPayload {
 export interface ExportDeps {
   readonly store: LocalStore;
   readonly time: TimeProvider;
+  readonly format?: ExportFormat;
+  /** CSV-only display labels; JSON keeps stable cross-platform category labels. */
+  readonly resolveCategoryName?: (category: Category) => string;
 }
 
 export interface RowError {
@@ -112,7 +118,8 @@ export interface ImportDeps {
 }
 
 /**
- * Build a portable snapshot from the local projection tables.
+ * Build a portable JSON snapshot or a spreadsheet-only expenses CSV.
+ * JSON is the default and retains the cross-platform import format.
  *
  * Soft-deleted categories are still consulted when resolving expense
  * labels (so a historic expense keeps its original category name even
@@ -121,7 +128,7 @@ export interface ImportDeps {
  * screen.
  */
 export async function buildExportFile(deps: ExportDeps): Promise<ExportPayload> {
-  const { store, time } = deps;
+  const { store, time, format = 'json', resolveCategoryName = exportLabel } = deps;
   const [allCategories, activeExpenses] = await Promise.all([
     store.findAllCategories(),
     store.findActiveProjections(),
@@ -129,7 +136,10 @@ export async function buildExportFile(deps: ExportDeps): Promise<ExportPayload> 
 
   const labelByCategoryId = new Map<string, string>();
   for (const category of allCategories) {
-    labelByCategoryId.set(category.id, exportLabel(category));
+    labelByCategoryId.set(
+      category.id,
+      format === 'csv' ? resolveCategoryName(category) : exportLabel(category),
+    );
   }
 
   const categories: ExportCategory[] = allCategories
@@ -161,13 +171,13 @@ export async function buildExportFile(deps: ExportDeps): Promise<ExportPayload> 
     expenses,
   };
 
-  // Pretty-printed (2-space) to match the web export — the user explicitly
-  // chose this format for being human-readable and easy to inspect.
-  const json = JSON.stringify(file, null, 2);
+  const content = format === 'csv'
+    ? serializeExpensesCsv(expenses)
+    : JSON.stringify(file, null, 2);
   return {
-    bytes: TEXT_ENCODER.encode(json),
+    bytes: TEXT_ENCODER.encode(content),
     file,
-    categoryCount: categories.length,
+    categoryCount: format === 'csv' ? 0 : categories.length,
     expenseCount: expenses.length,
   };
 }
