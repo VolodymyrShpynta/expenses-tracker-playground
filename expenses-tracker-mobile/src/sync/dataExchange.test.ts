@@ -194,6 +194,121 @@ describe('buildExportFile', () => {
 });
 
 // ---------------------------------------------------------------------------
+// CSV export
+// ---------------------------------------------------------------------------
+
+describe('buildExportFile CSV', () => {
+  it('exports only active expenses with original amounts and currencies without changing stored data', async () => {
+    // Given
+    const env = buildEnv('csv');
+    const category = await env.categories.createCategory({ name: 'Comida', icon: 'i', color: '#000' });
+    await env.expenseCommands.createExpense({
+      description: 'Lunch',
+      amount: 123456,
+      currency: 'ARS',
+      categoryId: category.id,
+      date: '2026-01-01T00:00:00Z',
+    });
+    const deleted = await env.expenseCommands.createExpense({
+      description: 'Deleted',
+      amount: 100,
+      currency: 'USD',
+    });
+    await env.expenseCommands.deleteExpense(deleted.id);
+    const before = env.store.allProjections();
+    const eventsBefore = env.store.allEvents();
+
+    // When
+    const payload = await buildExportFile({ store: env.store, time: fixedTime(0), format: 'csv' });
+
+    // Then
+    expect([...payload.bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
+    expect(TEXT_DECODER.decode(payload.bytes)).toBe(
+      'date,description,amount,currency,category\r\n'
+      + '2026-01-01T00:00:00Z,Lunch,1234.56,ARS,Comida\r\n',
+    );
+    expect(payload.categoryCount).toBe(0);
+    expect(payload.expenseCount).toBe(1);
+    expect(env.store.allProjections()).toEqual(before);
+    expect(env.store.allEvents()).toEqual(eventsBefore);
+  });
+
+  it('uses display labels for archived and templated categories and retains the orphan fallback', async () => {
+    // Given
+    const env = buildEnv('labels');
+    await env.categories.seedDefaultsIfEmpty();
+    const archived = await env.categories.createCategory({ name: 'Archived', icon: 'i', color: '#000' });
+    for (const categoryId of [defaultTemplateId('food'), archived.id, 'missing']) {
+      await env.expenseCommands.createExpense({
+        description: 'Lunch',
+        amount: 100,
+        currency: 'ARS',
+        categoryId,
+        date: '2026-01-01T00:00:00Z',
+      });
+    }
+    await env.categories.deleteCategory(archived.id);
+
+    // When
+    const payload = await buildExportFile({
+      store: env.store,
+      time: fixedTime(0),
+      format: 'csv',
+      resolveCategoryName: (category) => category.name ?? `Translated ${category.templateKey}`,
+    });
+
+    // Then
+    const csv = TEXT_DECODER.decode(payload.bytes);
+    expect(csv).toContain(',ARS,Translated food\r\n');
+    expect(csv).toContain(',ARS,Archived\r\n');
+    expect(csv).toContain(',ARS,Uncategorized\r\n');
+  });
+
+  it('keeps JSON byte-for-byte unchanged and ignores CSV display labels for JSON', async () => {
+    // Given
+    const env = buildEnv('json');
+    await env.categories.seedDefaultsIfEmpty();
+    await env.expenseCommands.createExpense({
+      description: 'Lunch',
+      amount: 100,
+      currency: 'ARS',
+      categoryId: defaultTemplateId('food'),
+    });
+    const deps = { store: env.store, time: fixedTime(0) };
+    const original = await buildExportFile(deps);
+
+    // When
+    const explicitJson = await buildExportFile({
+      ...deps,
+      format: 'json',
+      resolveCategoryName: () => 'CSV label',
+    });
+
+    // Then
+    expect(explicitJson.bytes).toEqual(original.bytes);
+    expect(explicitJson.categoryCount).toBe(DEFAULT_CATEGORY_TEMPLATES.length);
+    expect(decodeFile(explicitJson.bytes).expenses[0]?.category).toBe('food');
+  });
+
+  it('keeps imports JSON-only and does not apply an exported CSV as data', async () => {
+    // Given
+    const env = buildEnv('no-csv-import');
+    const payload = await buildExportFile({ store: env.store, time: fixedTime(0), format: 'csv' });
+
+    // When
+    const result = await applyImportedBytes(payload.bytes, {
+      categoryService: env.categories,
+      expenseCommands: env.expenseCommands,
+    });
+
+    // Then
+    expect(result.fatal).toContain('Malformed JSON');
+    expect(env.store.allEvents()).toEqual([]);
+    expect(env.store.allCategoryEvents()).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // applyImportedBytes
 // ---------------------------------------------------------------------------
 

@@ -25,6 +25,7 @@ import { useCategoryCatalog } from './useCategories';
 import { getMaterialIconName, type MaterialIconName } from '../utils/categoryConfig';
 import { ORPHAN_CATEGORY_COLOR } from '../domain/defaultCategories';
 import { SUPPORTED_LANGUAGES } from '../i18n';
+import type { Category } from '../domain/types';
 
 export interface ResolvedCategory {
   readonly name: string;
@@ -40,6 +41,8 @@ const ORPHAN: ResolvedCategory = {
 
 export interface CategoryLookup {
   resolve(categoryId: string | undefined): ResolvedCategory;
+  /** Resolve freshly read rows without relying on the cached catalog. */
+  resolveName(category: Category): string;
 }
 
 export function useCategoryLookup(): CategoryLookup {
@@ -78,19 +81,21 @@ export function useCategoryLookup(): CategoryLookup {
       return known.includes(storedName) ? localized : storedName;
     };
 
+    const resolveName = (category: Category): string => category.templateKey
+      ? resolveTemplatedName(category.templateKey, category.name)
+      : (category.name ?? '');
+
     const map = new Map<string, ResolvedCategory>();
     for (const c of categories) {
-      const name = c.templateKey
-        ? resolveTemplatedName(c.templateKey, c.name)
-        : (c.name ?? '');
       map.set(c.id, {
-        name,
+        name: resolveName(c),
         color: c.color,
         iconName: getMaterialIconName(c.icon),
       });
     }
     return {
       resolve: (id) => (id ? (map.get(id) ?? ORPHAN) : ORPHAN),
+      resolveName,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categories, i18n.language]);

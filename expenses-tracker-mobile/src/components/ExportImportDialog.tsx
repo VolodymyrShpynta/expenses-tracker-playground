@@ -3,8 +3,8 @@
  *
  * Uses the same JSON snapshot format as the web frontend's
  * `expenses-tracker-frontend/src/components/ExportImportDialog.tsx`, so
- * files round-trip between platforms. CSV/ZIP packing is a web-only
- * feature for now.
+ * JSON files round-trip between platforms. CSV exports only expenses
+ * for spreadsheets; it is not an import format or a ZIP archive.
  *
  * Two stacked sections separated by a divider:
  *   - **Export** — primary "Download file" button. Wires to
@@ -21,11 +21,12 @@
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { Dialog, Divider, Text, useTheme } from 'react-native-paper';
+import { Dialog, Divider, RadioButton, Text, useTheme } from 'react-native-paper';
 
 import { AppDialog } from './AppDialog';
 import { ThemedButton as Button } from './ThemedButton';
-import { useExportData, useImportData } from '../hooks/useDataExchange';
+import { AppRadioItem } from './AppRadioItem';
+import { useExportData, useImportData, type ExportFormat } from '../hooks/useDataExchange';
 import { FONT_SCALES, useFontScale } from '../context/preferencesProvider';
 
 export interface ExportImportDialogProps {
@@ -45,6 +46,7 @@ export function ExportImportDialog({ visible, onDismiss }: ExportImportDialogPro
   const scale = FONT_SCALES[fontScale];
   const exportData = useExportData();
   const importData = useImportData();
+  const [format, setFormat] = useState<ExportFormat>('json');
   const [status, setStatus] = useState<StatusBanner | null>(null);
 
   const busy = exportData.isPending || importData.isPending;
@@ -62,16 +64,18 @@ export function ExportImportDialog({ visible, onDismiss }: ExportImportDialogPro
     // attempt and a quick retry doesn't look like a stale message.
     setStatus(null);
     try {
-      const r = await exportData.mutateAsync();
+      const r = await exportData.mutateAsync(format);
       // `null` means the user cancelled the folder picker (Android SAF) —
       // stay silent.
       if (!r) return;
       setStatus({
         tone: 'success',
-        text: translate('settings.exportSuccess', {
-          categories: r.categoryCount,
-          expenses: r.expenseCount,
-        }),
+        text: r.format === 'csv'
+          ? translate('settings.exportCsvSuccess', { expenses: r.expenseCount })
+          : translate('settings.exportSuccess', {
+            categories: r.categoryCount,
+            expenses: r.expenseCount,
+          }),
       });
     } catch (e) {
       setStatus({ tone: 'error', text: translate('settings.exportError') });
@@ -114,8 +118,35 @@ export function ExportImportDialog({ visible, onDismiss }: ExportImportDialogPro
         <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 24 }}>
           <View style={{ gap: 8 }}>
             <Text variant="titleSmall">{translate('exportImportDialog.exportTitle')}</Text>
+            <Text variant="labelMedium">{translate('exportImportDialog.formatLabel')}</Text>
+            <RadioButton.Group
+              value={format}
+              onValueChange={(value) => {
+                if (value === 'json' || value === 'csv') {
+                  setFormat(value);
+                  setStatus(null);
+                }
+              }}
+            >
+              <View style={{ flexDirection: 'row' }}>
+                <AppRadioItem
+                  value="json"
+                  label={translate('exportImportDialog.formatJson')}
+                  disabled={busy}
+                  style={{ flex: 1 }}
+                />
+                <AppRadioItem
+                  value="csv"
+                  label={translate('exportImportDialog.formatCsv')}
+                  disabled={busy}
+                  style={{ flex: 1 }}
+                />
+              </View>
+            </RadioButton.Group>
             <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-              {translate('exportImportDialog.exportBody')}
+              {translate(format === 'json'
+                ? 'exportImportDialog.formatJsonHint'
+                : 'exportImportDialog.formatCsvHint')}
             </Text>
             <Button
               mode="contained"

@@ -22,6 +22,7 @@ own Google Drive `appDataFolder` or OneDrive `approot`.
 ## 📑 Table of Contents <!-- omit in toc -->
 
 - [🎯 Overview](#-overview)
+  - [Data export and import](#data-export-and-import)
 - [🛠 Tech Stack](#-tech-stack)
 - [🔄 Sync Engine Architecture](#-sync-engine-architecture)
   - [Design Principles](#design-principles)
@@ -114,6 +115,33 @@ The mobile app:
   rather than today's rate, so long-range totals don't drift as FX moves. When an exact-month rate
   isn't available, the UI prefixes the affected total with `~` to flag the approximation — see
   [Historical-Rate Currency Conversion](#-historical-rate-currency-conversion).
+
+### Data export and import
+
+Settings > Export & Import offers two export formats, generated entirely on-device:
+
+- **JSON** (`spendium-export.json`) keeps the existing cross-platform format for categories and
+  expenses. Use this format to transfer data between mobile and web; mobile import remains JSON-only.
+- **CSV** (`spendium-export.csv`) is a single spreadsheet-oriented expenses file, not a ZIP:
+
+  ```csv
+  date,description,amount,currency,category
+  2026-01-15T12:00:00Z,Lunch,1234.56,ARS,Food
+  ```
+
+CSV includes all non-deleted expenses, their original ISO dates and currency codes, decimal amounts
+(`1234.56`, not `123456` cents), and display category names in the current app language. Archived
+categories retain their names. No currency conversion is applied and stored data is never modified.
+The file uses a comma delimiter, dot decimals, CRLF line endings, and UTF-8 with a BOM. Text cells are
+CSV-escaped and formula-like prefixes are neutralized for spreadsheet use; JSON remains the format
+for faithful re-import. Mobile CSV intentionally differs from the web backend's ZIP/cents format.
+
+On Android, both formats use the folder picker; on iOS, they use the share sheet. In Excel locales
+that expect semicolon separators or comma decimals, use **Data > From Text/CSV**, select the comma
+delimiter, and set the amount column's parsing locale to one using dot decimals if needed.
+
+The implementation lives in [dataExchange.ts](src/sync/dataExchange.ts),
+[expenseCsv.ts](src/sync/expenseCsv.ts), and [useDataExchange.ts](src/hooks/useDataExchange.ts).
 
 The path-scoped Copilot rules for this module live in
 [`.github/instructions/expenses-tracker-mobile.instructions.md`](../.github/instructions/expenses-tracker-mobile.instructions.md).
