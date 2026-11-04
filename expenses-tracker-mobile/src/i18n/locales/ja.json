@@ -243,7 +243,7 @@
   },
   "exportImportDialog": {
     "title": "エクスポート & インポート",
-    "formatLabel": "エクスポート形式",
+    "formatLabel": "エクスポート形式。",
     "formatJson": "JSON",
     "formatCsv": "CSV",
     "formatJsonHint": "ロスレス。自分の端末間でデータを移動する場合に推奨。",

@@ -243,7 +243,7 @@
   },
   "exportImportDialog": {
     "title": "Exportar e importar",
-    "formatLabel": "Formato de exportação",
+    "formatLabel": "Formato de exportação.",
     "formatJson": "JSON",
     "formatCsv": "CSV",
     "formatJsonHint": "Sem perdas. Recomendado para mover dados entre seus dispositivos.",

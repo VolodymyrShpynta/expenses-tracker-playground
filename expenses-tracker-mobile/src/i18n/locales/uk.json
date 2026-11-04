@@ -243,7 +243,7 @@
   },
   "exportImportDialog": {
     "title": "Експорт та імпорт",
-    "formatLabel": "Формат експорту",
+    "formatLabel": "Формат експорту.",
     "formatJson": "JSON",
     "formatCsv": "CSV",
     "formatJsonHint": "Без втрат. Рекомендовано для перенесення між вашими пристроями.",

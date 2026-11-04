@@ -243,7 +243,7 @@
   },
   "exportImportDialog": {
     "title": "내보내기 및 가져오기",
-    "formatLabel": "내보내기 형식",
+    "formatLabel": "내보내기 형식.",
     "formatJson": "JSON",
     "formatCsv": "CSV",
     "formatJsonHint": "무손실. 여러 기기 간 데이터 이동에 권장됩니다.",

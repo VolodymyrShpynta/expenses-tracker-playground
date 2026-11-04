@@ -243,7 +243,7 @@
   },
   "exportImportDialog": {
     "title": "Dışa & İçe aktar",
-    "formatLabel": "Dışa aktarma biçimi",
+    "formatLabel": "Dışa aktarma biçimi.",
     "formatJson": "JSON",
     "formatCsv": "CSV",
     "formatJsonHint": "Kayıpsız. Cihazlarınız arasında veri taşımak için önerilir.",

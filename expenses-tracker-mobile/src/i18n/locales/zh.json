@@ -243,7 +243,7 @@
   },
   "exportImportDialog": {
     "title": "导出与导入",
-    "formatLabel": "导出格式",
+    "formatLabel": "导出格式。",
     "formatJson": "JSON",
     "formatCsv": "CSV",
     "formatJsonHint": "无损。推荐用于在设备之间迁移数据。",

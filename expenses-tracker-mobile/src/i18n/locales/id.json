@@ -243,7 +243,7 @@
   },
   "exportImportDialog": {
     "title": "Ekspor & impor",
-    "formatLabel": "Format ekspor",
+    "formatLabel": "Format ekspor.",
     "formatJson": "JSON",
     "formatCsv": "CSV",
     "formatJsonHint": "Tanpa kehilangan data. Direkomendasikan untuk memindahkan data antar perangkat Anda.",

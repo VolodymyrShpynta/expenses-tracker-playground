@@ -243,7 +243,7 @@
   },
   "exportImportDialog": {
     "title": "Export a import",
-    "formatLabel": "Formát exportu",
+    "formatLabel": "Formát exportu.",
     "formatJson": "JSON",
     "formatCsv": "CSV",
     "formatJsonHint": "Bezeztrátový. Doporučeno pro přesun mezi vašimi zařízeními.",

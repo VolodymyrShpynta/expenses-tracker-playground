@@ -243,7 +243,7 @@
   },
   "exportImportDialog": {
     "title": "निर्यात व आयात",
-    "formatLabel": "निर्यात प्रारूप",
+    "formatLabel": "निर्यात प्रारूप।",
     "formatJson": "JSON",
     "formatCsv": "CSV",
     "formatJsonHint": "हानिरहित। अपने उपकरणों के बीच डेटा स्थानांतरित करने के लिए अनुशंसित।",

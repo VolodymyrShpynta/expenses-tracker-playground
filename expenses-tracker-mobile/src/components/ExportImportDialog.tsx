@@ -118,7 +118,9 @@ export function ExportImportDialog({ visible, onDismiss }: ExportImportDialogPro
         <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 24 }}>
           <View style={{ gap: 8 }}>
             <Text variant="titleSmall">{translate('exportImportDialog.exportTitle')}</Text>
-            <Text variant="labelMedium">{translate('exportImportDialog.formatLabel')}</Text>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+              {translate('exportImportDialog.formatLabel')}
+            </Text>
             <RadioButton.Group
               value={format}
               onValueChange={(value) => {
