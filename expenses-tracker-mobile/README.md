@@ -1046,7 +1046,7 @@ This section covers building a release-mode `.apk` and installing it directly on
 
 > **Publishing to the Play Store?** See
 > [GOOGLE-PLAY-DEPLOYMENT.md](./GOOGLE-PLAY-DEPLOYMENT.md) for the end-to-end Play Console
-> workflow (account setup, AAB build, `eas submit`, Data safety form, staged rollout). The
+> workflow (account setup, AAB build, manual upload or optional `eas submit`, Data safety form, staged rollout). The
 > sub-sections below are still relevant — Play deployment reuses the same EAS keystore and
 > [one-time setup](#one-time-setup) — but the artifact format and submission flow differ.
 
@@ -1066,6 +1066,19 @@ you can't install an AAB by tapping it. So the standard "give me a production-qu
 sideload" answer is `preview`. It applies the same release-mode optimizations (R8/ProGuard, Hermes
 bytecode, no debug overlay) as `production`; the only differences are the output format and the
 auto-increment of `versionCode`.
+
+**Build for manual Google Play upload:** from this directory, run:
+
+```powershell
+eas build --platform android --profile production
+```
+
+This only builds a signed `.aab`; it does not submit or publish anything to Google Play.
+Download the bundle from **Artifacts** on the EAS build page, then upload it to a new release
+in Play Console (Internal testing for QA, or Production when ready). You still need your Expo/EAS
+login and existing signing credentials, but **no Google Play service account or EAS Submit setup**.
+For subsequent releases, bump `expo.version` first; EAS increments `versionCode` automatically.
+See [Store release](./GOOGLE-PLAY-DEPLOYMENT.md#a--store-release) for the manual upload and review steps.
 
 ### One-time setup
 
