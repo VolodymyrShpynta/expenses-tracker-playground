@@ -8,7 +8,7 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { applyRemoteEvents } from './remoteEventApplier';
-import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
+import { createTestStore, type TestLocalStore } from '../test/sqliteTestStore';
 import type { EventEntry } from '../domain/types';
 
 const silentLogger = { warn: () => undefined };
@@ -30,10 +30,10 @@ const makeEvent = (overrides: Partial<EventEntry> & {
 });
 
 describe('applyRemoteEvents', () => {
-  let store: InMemoryLocalStore;
+  let store: TestLocalStore;
 
   beforeEach(() => {
-    store = new InMemoryLocalStore();
+    store = createTestStore();
   });
 
   it('applies a CREATED event to a fresh store', async () => {

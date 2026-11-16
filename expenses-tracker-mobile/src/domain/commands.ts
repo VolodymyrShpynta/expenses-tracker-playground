@@ -2,17 +2,20 @@
  * Command-side service for expense write operations (CQRS write side).
  *
  * Direct port of the backend's `ExpenseCommandService`. Each public
- * function:
- *   1. Loads the existing projection (when applicable).
- *   2. Builds a fresh `ExpensePayload` with `updatedAt = time.nowMs()`.
- *   3. Inside a single SQLite transaction:
- *        a. Appends the event to `expense_events`.
- *        b. Projects (or soft-deletes) the row in `expense_projections`.
+ * function runs inside a single SQLite transaction and, on its
+ * `tx`-bound store:
+ *   1. Re-reads the existing projection (update / delete) and builds a
+ *      fresh `ExpensePayload` stamped strictly above it.
+ *   2. Appends the event to `expense_events`.
+ *   3. Projects (or soft-deletes) the row in `expense_projections`.
  *
  * The transactional boundary is enforced by `LocalStore.transaction`. Do
- * not split steps 3a and 3b across separate transactions — that would
- * recreate the consistency hazard the backend's `@Transactional` annotation
- * prevents.
+ * not split these steps across transactions. Splitting 2 from 3
+ * recreates the consistency hazard the backend's `@Transactional`
+ * annotation prevents. Running 1 earlier lets a sync batch queued ahead
+ * of the write re-stamp the row in between, so the strict-`>` check
+ * silently rejects a stamp computed from the stale read (and a partial
+ * update would copy stale fields over the synced ones).
  *
  * `id` and `eventId` are passed in via `IdGenerator` so tests can inject
  * deterministic ids — same DI principle as `TimeProvider`.
@@ -55,7 +58,50 @@ export interface UpdateExpenseCommand {
 export interface ExpenseCommandService {
   createExpense(cmd: CreateExpenseCommand): Promise<ExpenseProjection>;
   updateExpense(id: string, cmd: UpdateExpenseCommand): Promise<ExpenseProjection | undefined>;
+  /** `true` when the projection was soft-deleted, `false` when it is absent. */
   deleteExpense(id: string): Promise<boolean>;
+}
+
+/**
+ * Merge `cmd` over `existing` with command-overrides-existing precedence.
+ * Spread-conditional pattern keeps `exactOptionalPropertyTypes` happy:
+ * omit the key entirely when the resolved value is `undefined`.
+ */
+function updatedPayload(
+  existing: ExpenseProjection,
+  cmd: UpdateExpenseCommand,
+  updatedAt: number,
+): ExpensePayload {
+  const description = cmd.description ?? existing.description;
+  const categoryId = cmd.categoryId ?? existing.categoryId;
+  const date = cmd.date ?? existing.date;
+  return {
+    id: existing.id,
+    amount: cmd.amount ?? existing.amount,
+    currency: cmd.currency ?? existing.currency,
+    updatedAt,
+    deleted: false,
+    ...(description !== undefined ? { description } : {}),
+    ...(categoryId !== undefined ? { categoryId } : {}),
+    ...(date !== undefined ? { date } : {}),
+  };
+}
+
+/**
+ * DELETED events still carry the last-known payload so peers can
+ * resolve resurrection conflicts.
+ */
+function deletedPayload(existing: ExpenseProjection, updatedAt: number): ExpensePayload {
+  return {
+    id: existing.id,
+    amount: existing.amount,
+    currency: existing.currency,
+    updatedAt,
+    deleted: true,
+    ...(existing.description !== undefined ? { description: existing.description } : {}),
+    ...(existing.categoryId !== undefined ? { categoryId: existing.categoryId } : {}),
+    ...(existing.date !== undefined ? { date: existing.date } : {}),
+  };
 }
 
 export function createExpenseCommandService(deps: CommandServiceDeps): ExpenseCommandService {
@@ -108,33 +154,16 @@ export function createExpenseCommandService(deps: CommandServiceDeps): ExpenseCo
     },
 
     async updateExpense(id, cmd) {
-      const existing = await store.findProjectionById(id);
-      if (!existing) return undefined;
-
-      // Cap above the existing projection's updatedAt so the strict-`>` LWW
-      // UPSERT in `projectFromEvent` never silently drops this write. See
-      // `nextUpdatedAt` for the full rationale (synced-from-faster-clock-peer
-      // scenario). We still log the wall-clock value as the event's own
-      // `timestamp` inside `appendEventInTx`.
-      const now = nextUpdatedAt(time, existing.updatedAt);
-      // Resolve optional fields with command-overrides-existing precedence.
-      // Spread-conditional pattern keeps `exactOptionalPropertyTypes` happy:
-      // omit the key entirely when the resolved value is `undefined`.
-      const description = cmd.description ?? existing.description;
-      const categoryId = cmd.categoryId ?? existing.categoryId;
-      const date = cmd.date ?? existing.date;
-      const payload: ExpensePayload = {
-        id,
-        amount: cmd.amount ?? existing.amount,
-        currency: cmd.currency ?? existing.currency,
-        updatedAt: now,
-        deleted: false,
-        ...(description !== undefined ? { description } : {}),
-        ...(categoryId !== undefined ? { categoryId } : {}),
-        ...(date !== undefined ? { date } : {}),
-      };
-
       return store.transaction(async (tx) => {
+        const existing = await tx.findProjectionById(id);
+        if (!existing) return undefined;
+
+        // Cap above the existing projection's updatedAt so the strict-`>` LWW
+        // UPSERT in `projectFromEvent` never silently drops this write. See
+        // `nextUpdatedAt` for the full rationale (synced-from-faster-clock-peer
+        // scenario). We still log the wall-clock value as the event's own
+        // `timestamp` inside `appendEventInTx`.
+        const payload = updatedPayload(existing, cmd, nextUpdatedAt(time, existing.updatedAt));
         await appendEventInTx(tx, 'UPDATED', id, payload);
         await projectPayload(tx, payload);
         return tx.findProjectionById(id);
@@ -142,30 +171,15 @@ export function createExpenseCommandService(deps: CommandServiceDeps): ExpenseCo
     },
 
     async deleteExpense(id) {
-      const existing = await store.findProjectionById(id);
-      if (!existing) return false;
-
-      // See `updateExpense` for the rationale — same LWW skip vector
-      // applies to `markAsDeleted`, so cap above existing.updatedAt.
-      const now = nextUpdatedAt(time, existing.updatedAt);
-      // DELETED events still carry the last-known payload so peers can
-      // resolve resurrection conflicts. Spread-conditional pattern handles
-      // optional fields under `exactOptionalPropertyTypes`.
-      const payload: ExpensePayload = {
-        id,
-        amount: existing.amount,
-        currency: existing.currency,
-        updatedAt: now,
-        deleted: true,
-        ...(existing.description !== undefined ? { description: existing.description } : {}),
-        ...(existing.categoryId !== undefined ? { categoryId: existing.categoryId } : {}),
-        ...(existing.date !== undefined ? { date: existing.date } : {}),
-      };
-
       return store.transaction(async (tx) => {
-        await appendEventInTx(tx, 'DELETED', id, payload);
-        await softDelete(tx, id, now);
-        return true;
+        const existing = await tx.findProjectionById(id);
+        if (!existing) return false;
+
+        // See `updateExpense` for the rationale — same LWW skip vector
+        // applies to `markAsDeleted`, so cap above existing.updatedAt.
+        const now = nextUpdatedAt(time, existing.updatedAt);
+        await appendEventInTx(tx, 'DELETED', id, deletedPayload(existing, now));
+        return (await softDelete(tx, id, now)) > 0;
       });
     },
   };

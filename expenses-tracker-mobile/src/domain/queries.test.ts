@@ -4,15 +4,15 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createExpenseQueryService } from './queries';
 import { projectPayload } from './projector';
-import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
+import { createTestStore, type TestLocalStore } from '../test/sqliteTestStore';
 import { makePayload } from '../test/fixtures';
 
 describe('ExpenseQueryService', () => {
-  let store: InMemoryLocalStore;
+  let store: TestLocalStore;
   let queries: ReturnType<typeof createExpenseQueryService>;
 
   beforeEach(() => {
-    store = new InMemoryLocalStore();
+    store = createTestStore();
     queries = createExpenseQueryService({ store });
   });
 

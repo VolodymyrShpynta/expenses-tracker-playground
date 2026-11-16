@@ -171,8 +171,10 @@ The path-scoped Copilot rules for this module live in
   from the web frontend; to add a new language, copy `src/i18n/locales/en.json`
   to `<lang>.json` and translate in place)
 - **Vitest** — pure-TypeScript unit tests for `src/domain/`, `src/sync/`, `src/api/`, and `src/utils/`
-  (330+ tests across 25 files). React Native components are NOT tested here — that requires
-  `jest-expo`, which is out of scope for the current setup.
+  (330+ tests across 25 files). Storage tests run the production `LocalStore` and schema on Node's
+  built-in SQLite (`node:sqlite`, Node ≥ 22.13) via `src/test/sqliteTestStore.ts`. React Native
+  components are NOT tested here — that requires `jest-expo`, which is out of scope for the current
+  setup.
 
 ---
 
@@ -358,7 +360,7 @@ The mobile module fires sync automatically — components and hooks **never call
 |-------------------|-------------------------------------------------------------|-------------------------------------------|
 | Cold start        | `signedIn && autoSyncEnabled` becomes `true` on mount       | `requestSync('cold-start')`               |
 | Foreground        | `AppState` transitions `background\|inactive → active`      | `requestSync('app-active')`               |
-| After local write | Mutation hooks call `notifyLocalWrite()` on success         | `notifyLocalWrite()` (debounced)          |
+| After local write | Mutation hooks call `notifyLocalWrite()` when a write changed data | `notifyLocalWrite()` (debounced) |
 | App backgrounded  | `AppState` transitions `active → background\|inactive`      | `flush('background-flush')`               |
 | Net reconnect     | NetInfo reports offline → online                            | `requestSync('net-reconnect')`            |
 | Manual button     | "Sync now" in `SyncCloudDialog`                             | `requestSync('manual', { force: true })`  |

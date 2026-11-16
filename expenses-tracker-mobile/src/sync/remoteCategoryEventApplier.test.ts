@@ -5,7 +5,7 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { applyRemoteCategoryEvents } from './remoteCategoryEventApplier';
-import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
+import { createTestStore, type TestLocalStore } from '../test/sqliteTestStore';
 import type { CategoryEventEntry } from '../domain/types';
 
 const silentLogger = { warn: () => undefined };
@@ -31,10 +31,10 @@ const makeEvent = (
 });
 
 describe('applyRemoteCategoryEvents', () => {
-  let store: InMemoryLocalStore;
+  let store: TestLocalStore;
 
   beforeEach(() => {
-    store = new InMemoryLocalStore();
+    store = createTestStore();
   });
 
   it('applies a CREATED event to a fresh store', async () => {
@@ -273,7 +273,15 @@ describe('applyRemoteCategoryEvents', () => {
 
     const ok = makeEvent({ eventId: 'eA', categoryId: 'good' });
     const bad = makeEvent({ eventId: 'eB', categoryId: 'fail' });
-    const ok2 = makeEvent({ eventId: 'eC', categoryId: 'good2' });
+    // Its own name: active categories must have unique names.
+    const ok2 = makeEvent({
+      eventId: 'eC',
+      categoryId: 'good2',
+      payload: {
+        id: 'good2', name: 'Travel', icon: 'travel', color: '#00FF00',
+        sortOrder: 0, updatedAt: 100, deleted: false,
+      },
+    });
 
     let warnings = 0;
     const log = { warn: () => (warnings += 1) };

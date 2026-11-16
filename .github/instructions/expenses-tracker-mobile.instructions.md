@@ -125,7 +125,12 @@ UI → useCreateExpense (TanStack mutation)
 ```
 
 Both writes happen inside a **single SQLite transaction**, exactly mirroring
-the backend's `@Transactional` boundary in `ExpenseCommandService`.
+the backend's `@Transactional` boundary in `ExpenseCommandService`. Any read
+the write is derived from (the existing row whose `updatedAt` the new stamp
+must exceed, the fields a partial update keeps) goes through the same `tx`
+inside that transaction — never before it. Writers queue, so a sync batch
+queued ahead can re-stamp the row in between, and the strict-`>` LWW check
+then silently drops the write.
 
 ### Read path (queries)
 
@@ -182,7 +187,7 @@ The coordinator funnels five trigger sources:
 |------------------|-------------------------------------------------------------|--------------------------------------|
 | Cold start       | `enabled` transitions `false → true` on mount or sign-in    | `requestSync('cold-start')`          |
 | Foreground       | `AppState` transitions `inactive\|background → active`      | `requestSync('app-active')`          |
-| After local write| Mutation hooks call `notifyLocalWrite()` on success         | `notifyLocalWrite()` (debounced)     |
+| After local write| Mutation hooks call `notifyLocalWrite()` when a write changed data | `notifyLocalWrite()` (debounced) |
 | App backgrounded | `AppState` transitions `active → inactive\|background`      | `flush('background-flush')`          |
 | Net reconnect    | `@react-native-community/netinfo` reports offline → online  | `requestSync('net-reconnect')`       |
 | Manual button    | "Sync now" in `SyncCloudDialog`                             | `requestSync('manual', { force })`   |
@@ -300,8 +305,8 @@ These extend (not replace) the cross-cutting rules in
   `signIn`, `signOut`, `isSignedIn`).
 - **DIP** — `SyncEngine` depends on the `CloudDriveAdapter` and `LocalStore`
   interfaces, never on Drive/Graph SDKs or `expo-sqlite` directly.
-  Production wires `expo-sqlite`-backed `LocalStore`; tests inject
-  in-memory fakes.
+  Production wires `expo-sqlite`-backed `LocalStore`; tests run the same
+  store on Node's built-in SQLite and inject in-memory cloud adapters.
 
 ### KISS / YAGNI
 
@@ -339,8 +344,9 @@ These extend (not replace) the cross-cutting rules in
   }): SyncEngine { … }
   ```
 - Never reach for module-level singletons inside business logic.
-- Tests construct each module with in-memory fakes; only `app/_layout.tsx`
-  composes the real wiring.
+- Tests construct each module with test doubles for external systems
+  (cloud drives, HTTP) and a real-SQLite test store; only
+  `app/_layout.tsx` composes the real wiring.
 
 ### Self-documenting names (vocabulary parity with backend)
 
@@ -608,10 +614,23 @@ export const systemTime: TimeProvider = {nowMs: () => Date.now()};
 - **Given / When / Then** structure with section comments.
 - **Backtick descriptive test names** — `should resurrect a soft-deleted
   expense when newer non-deleted update arrives`.
-- **Manual store cleanup** in `beforeEach` — wipe in dependency order:
-  `processed_events` → `expense_events` → `expense_projections`.
-- **In-memory `LocalStore` fake** for unit tests — never hit
-  `expo-sqlite` from a Vitest run.
+- **Fresh database per test** — build stores with `createTestStore()`
+  (`src/test/sqliteTestStore.ts`); `src/test/setup.ts` closes and deletes
+  them after each test, so no manual cleanup.
+- **Real SQLite, not a fake.** The test store is the production
+  `createSqliteLocalStore` + `MIGRATIONS` on Node's built-in `node:sqlite`
+  (Node ≥ 22.13); only the `expo-sqlite` native bridge is swapped for a
+  thin adapter. Do not reintroduce a hand-written in-memory `LocalStore`:
+  it drifts from the SQL (the old one ignored the unique indexes on
+  update). Isolation modes:
+  - `shared` (default) — one in-memory connection; fastest.
+  - `separate` — temp-file database with a dedicated connection per write
+    transaction, as on a device. Use it for writer-ordering / race tests
+    (`src/test/queuedLocalStore.ts` builds on it).
+- **Fault injection** — in `shared` mode, replacing a store method on the
+  test store (`vi.spyOn` or assignment) also applies inside transactions.
+- **Test data must satisfy the real schema** — required columns, the
+  name / template-key check, and the unique indexes on active categories.
 - **Round-trip fixture test**: encode a synthetic events array through
   `SyncFileCodec`, decode it back, and assert the mobile projector
   produces the expected projections. This guards the mobile sync wire
@@ -627,7 +646,7 @@ cd expenses-tracker-mobile
 npm install            # first run only — Expo's tree is large
 npm run typecheck      # `tsc -b`
 npm run lint           # ESLint
-npm test               # Vitest pure-TS unit tests
+npm test               # Vitest pure-TS unit tests (Node ≥ 22.13 for node:sqlite)
 npm start              # Expo dev server (requires native simulator or device)
 
 # EAS builds (Mac required for iOS local; OneDrive cloud builds work on Windows):

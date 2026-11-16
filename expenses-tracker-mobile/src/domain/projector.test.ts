@@ -7,16 +7,14 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { projectPayload, projectRemoteDeletion, softDelete } from './projector';
-import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
+import { createTestStore, type TestLocalStore } from '../test/sqliteTestStore';
 import { makePayload } from '../test/fixtures';
 
 describe('projector — last-write-wins', () => {
-  let store: InMemoryLocalStore;
+  let store: TestLocalStore;
 
   beforeEach(() => {
-    // Wipe in dependency order, mirroring the SQLite test cleanup convention.
-    store = new InMemoryLocalStore();
-    store.reset();
+    store = createTestStore();
   });
 
   it('should insert new expense when not exists', async () => {
@@ -246,10 +244,10 @@ describe('projector — last-write-wins', () => {
 });
 
 describe('projector — softDelete (mark-as-deleted helper)', () => {
-  let store: InMemoryLocalStore;
+  let store: TestLocalStore;
 
   beforeEach(() => {
-    store = new InMemoryLocalStore();
+    store = createTestStore();
   });
 
   it('should mark an active expense as deleted', async () => {
@@ -334,10 +332,10 @@ describe('projector — softDelete (mark-as-deleted helper)', () => {
 });
 
 describe('projector — projectRemoteDeletion', () => {
-  let store: InMemoryLocalStore;
+  let store: TestLocalStore;
 
   beforeEach(() => {
-    store = new InMemoryLocalStore();
+    store = createTestStore();
   });
 
   it('should insert a tombstone from the payload when the expense is absent', async () => {

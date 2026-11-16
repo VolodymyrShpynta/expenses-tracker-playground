@@ -20,7 +20,7 @@ import {
   EXPORT_FILE_VERSION,
   type ExportFile,
 } from './dataExchange';
-import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
+import { createTestStore, type TestLocalStore } from '../test/sqliteTestStore';
 import { fixedTime, sequenceIds, sequenceTime } from '../test/fixtures';
 import { createCategoryService } from '../domain/categoryService';
 import { createExpenseCommandService, type IdGenerator } from '../domain/commands';
@@ -50,14 +50,14 @@ function sequentialIds(prefix: string): IdGenerator {
 }
 
 interface TestEnv {
-  store: InMemoryLocalStore;
+  store: TestLocalStore;
   categories: ReturnType<typeof createCategoryService>;
   expenseCommands: ReturnType<typeof createExpenseCommandService>;
 }
 
 /** Build a fresh store wired to the real category + expense services. */
 function buildEnv(prefix = 'env'): TestEnv {
-  const store = new InMemoryLocalStore();
+  const store = createTestStore();
   const time = monotonicTime();
   const ids = sequentialIds(prefix);
   const categories = createCategoryService({ store, time, ids });
@@ -75,7 +75,7 @@ function decodeFile(bytes: Uint8Array): ExportFile {
 
 describe('buildExportFile', () => {
   it('produces an empty snapshot from an empty store', async () => {
-    const store = new InMemoryLocalStore();
+    const store = createTestStore();
 
     const payload = await buildExportFile({ store, time: fixedTime(1_700_000_000_000) });
 
@@ -184,7 +184,7 @@ describe('buildExportFile', () => {
   });
 
   it('produces pretty-printed JSON (matches the web export format)', async () => {
-    const store = new InMemoryLocalStore();
+    const store = createTestStore();
 
     const payload = await buildExportFile({ store, time: fixedTime(0) });
     const text = TEXT_DECODER.decode(payload.bytes);

@@ -14,7 +14,7 @@
  *   - Unsupported `version` throws `IncompatibleSnapshotError`.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
+import { createTestStore, type TestLocalStore } from '../test/sqliteTestStore';
 import { applySnapshot, IncompatibleSnapshotError } from './snapshotApply';
 import { SNAPSHOT_VERSION } from './snapshotBuilder';
 import type {
@@ -70,10 +70,10 @@ const covered = (...ids: string[]): ReadonlyArray<CoveredEvent> =>
   ids.map((eventId) => ({ eventId, timestamp: 0 }));
 
 describe('applySnapshot', () => {
-  let store: InMemoryLocalStore;
+  let store: TestLocalStore;
 
   beforeEach(() => {
-    store = new InMemoryLocalStore();
+    store = createTestStore();
   });
 
   it('is a no-op for an empty snapshot', async () => {

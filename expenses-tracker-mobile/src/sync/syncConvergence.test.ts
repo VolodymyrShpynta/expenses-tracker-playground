@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSyncEngine } from './syncEngine';
 import { decodeSyncFile, encodeSyncFile } from './codec';
 import { PRUNE_WINDOW_MS, SNAPSHOT_VERSION } from './snapshotBuilder';
-import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
+import { createTestStore, type TestLocalStore } from '../test/sqliteTestStore';
 import { InMemoryCloudDriveAdapter } from '../test/inMemoryCloudDriveAdapter';
 import type {
   Category,
@@ -79,7 +79,7 @@ const decode = (bytes: Uint8Array): EventSyncFile => decodeSyncFile(bytes, true)
 const byId = <T extends { readonly id: string }>(rows: ReadonlyArray<T>): T[] =>
   [...rows].sort((a, b) => a.id.localeCompare(b.id));
 
-async function appendLocal(store: InMemoryLocalStore, entry: EventEntry): Promise<void> {
+async function appendLocal(store: TestLocalStore, entry: EventEntry): Promise<void> {
   await store.appendEvent({
     eventId: entry.eventId,
     timestamp: entry.timestamp,
@@ -91,18 +91,18 @@ async function appendLocal(store: InMemoryLocalStore, entry: EventEntry): Promis
   await store.projectFromEvent(entry.payload);
 }
 
-async function expectSameState(a: InMemoryLocalStore, b: InMemoryLocalStore): Promise<void> {
+async function expectSameState(a: TestLocalStore, b: TestLocalStore): Promise<void> {
   expect(byId(await b.findAllProjections())).toEqual(byId(await a.findAllProjections()));
   expect(byId(await b.findAllCategories())).toEqual(byId(await a.findAllCategories()));
 }
 
 describe('SyncEngine compaction after processed IDs expire', () => {
   let adapter: InMemoryCloudDriveAdapter;
-  let store: InMemoryLocalStore;
+  let store: TestLocalStore;
 
   beforeEach(() => {
     adapter = new InMemoryCloudDriveAdapter();
-    store = new InMemoryLocalStore();
+    store = createTestStore();
   });
 
   afterEach(() => {
@@ -159,7 +159,7 @@ describe('SyncEngine compaction after processed IDs expire', () => {
     expect(revalidated.downloadedRemote).toBe(true);
     expect(revalidated.remote).toEqual({ applied: 0, skipped: 0, errors: 0 });
     expect(revalidated.remoteCategories).toEqual({ applied: 0, skipped: 0, errors: 0 });
-    const cold = new InMemoryLocalStore();
+    const cold = createTestStore();
     await createSyncEngine({ store: cold, adapter }).performFullSync();
     await expectSameState(store, cold);
   });
@@ -193,12 +193,12 @@ describe('SyncEngine compaction after processed IDs expire', () => {
     const compacted = decode(adapter.peekBytes()!);
 
     // When
-    const cold = new InMemoryLocalStore();
+    const cold = createTestStore();
     const coldEngine = createSyncEngine({ store: cold, adapter });
     await coldEngine.performFullSync();
-    const bootstrapped = new InMemoryLocalStore();
+    const bootstrapped = createTestStore();
     await createSyncEngine({ store: bootstrapped, adapter }).performFullSync();
-    const editor = new InMemoryLocalStore();
+    const editor = createTestStore();
     await createSyncEngine({ store: editor, adapter }).performFullSync();
     await appendLocal(editor, expenseEntry('x-resurrect', 'x', now + 1, { eventType: 'UPDATED' }));
     await createSyncEngine({ store: editor, adapter }).performFullSync();
@@ -225,7 +225,7 @@ describe('SyncEngine compaction after processed IDs expire', () => {
       events: [expenseEntry('w-c', 'w', old), expenseEntry('v-c', 'v', old)],
       categoryEvents: [],
     }));
-    const storeB = new InMemoryLocalStore();
+    const storeB = createTestStore();
     const engineA = createSyncEngine({ store, adapter });
     const engineB = createSyncEngine({ store: storeB, adapter });
     await engineA.performFullSync();
@@ -295,12 +295,12 @@ describe('SyncEngine compaction after processed IDs expire', () => {
 describe('SyncEngine snapshot refresh triggers at their boundaries', () => {
   const NOW = 10_000_000_000_000;
   let adapter: InMemoryCloudDriveAdapter;
-  let store: InMemoryLocalStore;
+  let store: TestLocalStore;
 
   beforeEach(() => {
     vi.spyOn(Date, 'now').mockReturnValue(NOW);
     adapter = new InMemoryCloudDriveAdapter();
-    store = new InMemoryLocalStore();
+    store = createTestStore();
   });
 
   afterEach(() => {
@@ -339,7 +339,7 @@ describe('SyncEngine snapshot refresh triggers at their boundaries', () => {
 
     // When
     const atThreshold = await uploadWithRemoteEvents(recent(499));
-    store = new InMemoryLocalStore();
+    store = createTestStore();
     adapter = new InMemoryCloudDriveAdapter();
     const pastThreshold = await uploadWithRemoteEvents(recent(500));
 
@@ -353,11 +353,11 @@ describe('SyncEngine snapshot refresh triggers at their boundaries', () => {
 
 describe('SyncEngine convergence regressions', () => {
   let adapter: InMemoryCloudDriveAdapter;
-  let store: InMemoryLocalStore;
+  let store: TestLocalStore;
 
   beforeEach(() => {
     adapter = new InMemoryCloudDriveAdapter();
-    store = new InMemoryLocalStore();
+    store = createTestStore();
   });
 
   afterEach(() => {
@@ -391,7 +391,7 @@ describe('SyncEngine convergence regressions', () => {
     await engine.performFullSync();
 
     // Then
-    const cold = new InMemoryLocalStore();
+    const cold = createTestStore();
     await createSyncEngine({ store: cold, adapter }).performFullSync();
     expect(await cold.findProjectionById('racer')).toMatchObject({ id: 'racer', updatedAt: now + 1 });
     expect(await store.findUncommittedEvents()).toEqual([]);
@@ -401,7 +401,7 @@ describe('SyncEngine convergence regressions', () => {
     // Given: B deletes A's expense, but B's event timestamp sorts before A's create
     const now = Date.now();
     adapter.setRemoteBytes(encode({ events: [], categoryEvents: [], snapshot: snapshotOf(now - 1_000) }));
-    const [storeA, storeB, storeC] = [new InMemoryLocalStore(), new InMemoryLocalStore(), new InMemoryLocalStore()];
+    const [storeA, storeB, storeC] = [createTestStore(), createTestStore(), createTestStore()];
     const syncA = createSyncEngine({ store: storeA, adapter });
     const syncB = createSyncEngine({ store: storeB, adapter });
     const syncC = createSyncEngine({ store: storeC, adapter });
@@ -419,13 +419,13 @@ describe('SyncEngine convergence regressions', () => {
     // When: C applies the body, then rebuilds the snapshot after a bulk write
     await syncC.performFullSync();
     await syncA.performFullSync();
-    const cold = new InMemoryLocalStore();
+    const cold = createTestStore();
     await createSyncEngine({ store: cold, adapter }).performFullSync();
     for (let i = 0; i < 501; i += 1) {
       await appendLocal(storeC, expenseEntry(`c-${i}`, `c-${i}`, now + 30_000 + i));
     }
     await syncC.performFullSync();
-    const afterRebuild = new InMemoryLocalStore();
+    const afterRebuild = createTestStore();
     await createSyncEngine({ store: afterRebuild, adapter }).performFullSync();
 
     // Then

@@ -8,7 +8,7 @@
  * content, not side effects.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
+import { createTestStore, type TestLocalStore } from '../test/sqliteTestStore';
 import { buildSnapshot, SNAPSHOT_VERSION } from './snapshotBuilder';
 import type {
   Category,
@@ -87,10 +87,10 @@ const categoryEvent = (
 });
 
 describe('buildSnapshot', () => {
-  let store: InMemoryLocalStore;
+  let store: TestLocalStore;
 
   beforeEach(() => {
-    store = new InMemoryLocalStore();
+    store = createTestStore();
   });
 
   it('produces an empty snapshot for an empty store', async () => {
