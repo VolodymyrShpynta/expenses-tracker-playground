@@ -23,7 +23,7 @@ vi.mock('./oauthClient', () => ({
 import { ConcurrencyError } from './cloudDriveAdapter';
 import { createGoogleDriveAdapter } from './googleDriveAdapter';
 import { createSyncEngine } from './syncEngine';
-import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
+import { createTestStore } from '../test/sqliteTestStore';
 
 interface StoredFile {
   content: Buffer;
@@ -233,7 +233,7 @@ describe('createGoogleDriveAdapter', () => {
   it('lets an idle sync after an upload skip the download when Drive bumps version', async () => {
     // Given
     drive.bumpVersionAfterUpload = true;
-    const store = new InMemoryLocalStore();
+    const store = createTestStore();
     const engine = createSyncEngine({ store, adapter: createGoogleDriveAdapter() });
     const payload = { id: 'x1', amount: 100, currency: 'EUR', updatedAt: Date.now(), deleted: false };
     await store.appendEvent({

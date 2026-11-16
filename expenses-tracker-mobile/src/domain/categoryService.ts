@@ -1,16 +1,20 @@
 /**
  * Category service — event-sourced CRUD over the local `categories` table.
  *
- * Each mutating method:
- *   1. Builds a fresh `CategoryPayload` with `updatedAt = time.nowMs()`.
- *   2. Inside a single SQLite transaction:
- *        a. Appends the event to `category_events`.
- *        b. Projects (or soft-deletes) the row in `categories`.
+ * Each mutating method runs inside a single SQLite transaction and, on
+ * its `tx`-bound store:
+ *   1. Re-reads the current row (update / restore / delete / reset) and
+ *      builds a fresh `CategoryPayload` stamped strictly above it.
+ *   2. Appends the event to `category_events`.
+ *   3. Projects (or soft-deletes) the row in `categories`.
  *
  * Mirrors `ExpenseCommandService` — including the strict-`>` LWW rule
  * inside `projectCategoryFromEvent`. The transactional boundary is
- * enforced by `LocalStore.transaction`; do NOT split steps 2a and 2b
- * across separate transactions or sync conflict resolution breaks.
+ * enforced by `LocalStore.transaction`; do NOT split these steps across
+ * transactions. Splitting 2 from 3 breaks event/projection atomicity.
+ * Running 1 earlier lets a sync batch queued ahead of the write
+ * re-stamp the row in between, so the strict-`>` check silently
+ * rejects a stamp computed from the stale read.
  *
  * NOTE: the backend's `CategoryService` mutates the `categories` table
  * directly (no events) — categories there are not part of the sync file.
@@ -23,8 +27,7 @@
 import type { LocalStore } from './localStore';
 import { categoryPayloadToCategory } from './mapping';
 import type { Category, CategoryEvent, CategoryPayload, EventType } from './types';
-import type { ExpenseCommandService, IdGenerator } from './commands';
-import type { ExpenseQueryService } from './queries';
+import { createExpenseCommandService, type IdGenerator } from './commands';
 import type { TimeProvider } from '../utils/time';
 import { nextUpdatedAt } from '../utils/time';
 import { DEFAULT_CATEGORY_TEMPLATES, defaultTemplateId } from './defaultCategories';
@@ -60,7 +63,18 @@ export interface CategoryService {
   findAllCategories(): Promise<ReadonlyArray<Category>>;
 
   createCategory(cmd: CreateCategoryCommand): Promise<Category>;
+
+  /**
+   * `undefined` when the category is absent or deleted — e.g. a sync
+   * deleted it while this update waited for the write lock.
+   */
   updateCategory(id: string, cmd: UpdateCategoryCommand): Promise<Category | undefined>;
+
+  /**
+   * `false` when the category was absent or already deleted (e.g. by a
+   * sync while this delete waited). The row is re-read inside the write
+   * transaction, so `false` never leaves an active category in place.
+   */
   deleteCategory(id: string): Promise<boolean>;
 
   /**
@@ -72,23 +86,19 @@ export interface CategoryService {
 
   /**
    * Reassign every active expense currently pointing at `sourceId` to
-   * `targetId`, then soft-delete the source. The source/target ids must
-   * differ and both must be active.
-   *
-   * `expenseQueries` and `expenseCommands` are passed in so the merge can
-   * be initiated by a UI component without the category service holding
-   * a reference to the expense services (which would create a circular
-   * domain dependency).
+   * `targetId`, then soft-delete the source — all in one transaction, so
+   * a failure moves nothing and an expense synced onto the source before
+   * the merge runs is moved too. The target may be archived: the
+   * restore-conflict flow merges duplicates into the row it restores.
    */
   mergeCategories(
     sourceId: string,
     targetId: string,
-    expenseQueries: ExpenseQueryService,
-    expenseCommands: ExpenseCommandService,
   ): Promise<{ readonly movedExpenses: number }>;
 
   /**
-   * Soft-delete every active category, then re-seed the defaults.
+   * Soft-delete every active category, then re-seed the defaults, all in
+   * one transaction (a failure leaves the categories untouched).
    * Existing expenses keep pointing at the (now archived) old category
    * rows so their display data stays intact via `useCategoryLookup`.
    */
@@ -151,45 +161,76 @@ export function createCategoryService(deps: CategoryServiceDeps): CategoryServic
     };
   }
 
-  /** Atomically append a CREATED/UPDATED event and LWW-project it. */
-  async function recordCreateOrUpdate(
-    eventType: 'CREATED' | 'UPDATED',
-    payload: CategoryPayload,
-  ): Promise<Category> {
-    return store.transaction(async (tx) => {
-      await appendCategoryEventInTx(tx, eventType, payload.id, payload);
-      const category = categoryPayloadToCategory(payload);
-      await tx.projectCategoryFromEvent(category);
-      return category;
-    });
-  }
-
-  /**
-   * Atomically append a DELETED event and soft-delete the row. Reads the
-   * latest `existing` row inside the transaction to embed the last-known
-   * payload in the event (so peers can resolve resurrection conflicts).
-   *
-   * Returns `true` when the soft-delete affected a row, `false` when the
-   * row was already gone or had a newer `updated_at`.
-   */
-  async function recordDelete(existing: Category): Promise<boolean> {
-    // See `updateExpense` for the rationale on bumping above existing.
-    const now = nextUpdatedAt(time, existing.updatedAt);
-    const payload = buildPayload(existing.id, now, {
+  /** Copy `existing`'s fields into a payload with a new stamp and flag. */
+  function payloadFromRow(
+    existing: Category,
+    updatedAt: number,
+    deleted: boolean,
+  ): CategoryPayload {
+    return buildPayload(existing.id, updatedAt, {
       icon: existing.icon,
       color: existing.color,
       sortOrder: existing.sortOrder,
-      deleted: true,
+      deleted,
       ...(existing.name !== undefined ? { name: existing.name } : {}),
       ...(existing.templateKey !== undefined
         ? { templateKey: existing.templateKey }
         : {}),
     });
-    return store.transaction(async (tx) => {
-      await appendCategoryEventInTx(tx, 'DELETED', existing.id, payload);
-      const changes = await tx.softDeleteCategory(existing.id, now);
-      return changes > 0;
-    });
+  }
+
+  /** Append a CREATED/UPDATED event and LWW-project it inside `tx`. */
+  async function appendAndProjectInTx(
+    tx: LocalStore,
+    eventType: 'CREATED' | 'UPDATED',
+    payload: CategoryPayload,
+  ): Promise<Category> {
+    await appendCategoryEventInTx(tx, eventType, payload.id, payload);
+    const category = categoryPayloadToCategory(payload);
+    await tx.projectCategoryFromEvent(category);
+    return category;
+  }
+
+  /** Atomically append a CREATED/UPDATED event and LWW-project it. */
+  async function recordCreateOrUpdate(
+    eventType: 'CREATED' | 'UPDATED',
+    payload: CategoryPayload,
+  ): Promise<Category> {
+    return store.transaction((tx) => appendAndProjectInTx(tx, eventType, payload));
+  }
+
+  /**
+   * Append a DELETED event and soft-delete the row inside `tx`. The event
+   * embeds the row as read inside the transaction (peers need the
+   * last-known payload to resolve resurrection conflicts).
+   *
+   * Returns `true` when the row was soft-deleted, `false` when it was
+   * absent or already deleted.
+   */
+  async function deleteInTx(tx: LocalStore, id: string): Promise<boolean> {
+    const existing = await tx.findCategoryById(id);
+    if (!existing || existing.deleted) return false;
+
+    // See `updateExpense` for the rationale on bumping above existing.
+    const now = nextUpdatedAt(time, existing.updatedAt);
+    await appendCategoryEventInTx(tx, 'DELETED', id, payloadFromRow(existing, now, true));
+    const changes = await tx.softDeleteCategory(id, now);
+    return changes > 0;
+  }
+
+  /**
+   * Re-create a default template row for `resetToDefaults`, stamped above
+   * whatever the row holds — usually the tombstone `deleteInTx` just
+   * wrote, whose stamp can be ahead of the local clock after syncing
+   * from a faster peer.
+   */
+  async function reseedInTx(
+    tx: LocalStore,
+    template: (typeof DEFAULT_CATEGORY_TEMPLATES)[number],
+  ): Promise<void> {
+    const existing = await tx.findCategoryById(defaultTemplateId(template.templateKey));
+    const now = existing ? nextUpdatedAt(time, existing.updatedAt) : time.nowMs();
+    await appendAndProjectInTx(tx, 'CREATED', seedTemplatePayload(template, now));
   }
 
   /**
@@ -206,8 +247,9 @@ export function createCategoryService(deps: CategoryServiceDeps): CategoryServic
    *     strict-`>` LWW comparison and propagates onto a fresh install.
    *     Without this, a new device's "now" stamp would silently reject
    *     older customizations replayed from the cloud sync file.
-   *   - `resetToDefaults` passes a current-time stamp because it must
-   *     beat the soft-delete event it just emitted for the same row id.
+   *   - `resetToDefaults` passes a stamp above the row's current one
+   *     because it must beat the soft-delete event it just emitted for
+   *     the same row id (see `reseedInTx`).
    */
   function seedTemplatePayload(
     template: (typeof DEFAULT_CATEGORY_TEMPLATES)[number],
@@ -237,83 +279,75 @@ export function createCategoryService(deps: CategoryServiceDeps): CategoryServic
     },
 
     async updateCategory(id, cmd) {
-      const existing = await store.findCategoryById(id);
-      if (!existing || existing.deleted) return undefined;
+      return store.transaction(async (tx) => {
+        const existing = await tx.findCategoryById(id);
+        if (!existing || existing.deleted) return undefined;
 
-      const name = cmd.name ?? existing.name;
-      // Cap above the existing row's updatedAt so the strict-`>` LWW
-      // UPSERT inside `projectCategoryFromEvent` never silently drops
-      // this write — see `nextUpdatedAt` for the full rationale.
-      const now = nextUpdatedAt(time, existing.updatedAt);
-      const payload = buildPayload(id, now, {
-        icon: cmd.icon ?? existing.icon,
-        color: cmd.color ?? existing.color,
-        sortOrder: cmd.sortOrder ?? existing.sortOrder,
-        deleted: false,
-        ...(name !== undefined ? { name } : {}),
-        ...(existing.templateKey !== undefined
-          ? { templateKey: existing.templateKey }
-          : {}),
+        const name = cmd.name ?? existing.name;
+        // Cap above the existing row's updatedAt so the strict-`>` LWW
+        // UPSERT inside `projectCategoryFromEvent` never silently drops
+        // this write — see `nextUpdatedAt` for the full rationale.
+        const now = nextUpdatedAt(time, existing.updatedAt);
+        const payload = buildPayload(id, now, {
+          icon: cmd.icon ?? existing.icon,
+          color: cmd.color ?? existing.color,
+          sortOrder: cmd.sortOrder ?? existing.sortOrder,
+          deleted: false,
+          ...(name !== undefined ? { name } : {}),
+          ...(existing.templateKey !== undefined
+            ? { templateKey: existing.templateKey }
+            : {}),
+        });
+        return appendAndProjectInTx(tx, 'UPDATED', payload);
       });
-      return recordCreateOrUpdate('UPDATED', payload);
     },
 
-    async deleteCategory(id) {
-      const existing = await store.findCategoryById(id);
-      if (!existing || existing.deleted) return false;
-      return recordDelete(existing);
-    },
+    deleteCategory: (id) => store.transaction((tx) => deleteInTx(tx, id)),
 
     async restoreCategory(id) {
-      const existing = await store.findCategoryById(id);
-      if (!existing) return undefined;
+      return store.transaction(async (tx) => {
+        const existing = await tx.findCategoryById(id);
+        if (!existing) return undefined;
 
-      // See `updateCategory` for the rationale on bumping above existing.
-      const now = nextUpdatedAt(time, existing.updatedAt);
-      const payload = buildPayload(id, now, {
-        icon: existing.icon,
-        color: existing.color,
-        sortOrder: existing.sortOrder,
-        deleted: false,
-        ...(existing.name !== undefined ? { name: existing.name } : {}),
-        ...(existing.templateKey !== undefined
-          ? { templateKey: existing.templateKey }
-          : {}),
+        // See `updateCategory` for the rationale on bumping above existing.
+        const now = nextUpdatedAt(time, existing.updatedAt);
+        return appendAndProjectInTx(tx, 'UPDATED', payloadFromRow(existing, now, false));
       });
-      return recordCreateOrUpdate('UPDATED', payload);
     },
 
-    async mergeCategories(sourceId, targetId, expenseQueries, expenseCommands) {
+    async mergeCategories(sourceId, targetId) {
       if (sourceId === targetId) return { movedExpenses: 0 };
-      const all = await expenseQueries.findAllExpenses();
-      const toMove = all.filter((e) => e.categoryId === sourceId);
-      for (const e of toMove) {
-        await expenseCommands.updateExpense(e.id, { categoryId: targetId });
-      }
-      const source = await store.findCategoryById(sourceId);
-      if (source && !source.deleted) {
-        await recordDelete(source);
-      }
-      return { movedExpenses: toMove.length };
+      return store.transaction(async (tx) => {
+        // Bound to `tx`: its own transactions run inline on this
+        // connection instead of queueing behind this one (a deadlock).
+        const expenseCommands = createExpenseCommandService({ store: tx, time, ids });
+        const active = await tx.findActiveProjections();
+        const toMove = active.filter((e) => e.categoryId === sourceId);
+        for (const e of toMove) {
+          await expenseCommands.updateExpense(e.id, { categoryId: targetId });
+        }
+        await deleteInTx(tx, sourceId);
+        return { movedExpenses: toMove.length };
+      });
     },
 
     async resetToDefaults() {
-      const existing = await store.findAllCategories();
-      const active = existing.filter((c) => !c.deleted);
-      for (const c of active) {
-        await recordDelete(c);
-      }
-      // Re-seed unconditionally: `seedDefaultsIfEmpty` would skip because
-      // archived rows still exist, so we mirror its body here.
-      //
-      // Use current wall-clock for the CREATED stamp so it wins the
-      // strict-`>` LWW UPSERT over the soft-delete events we just
-      // emitted for the same row ids — unlike the fresh-install seed
-      // path below, here the seed MUST clobber what's there.
-      for (const template of DEFAULT_CATEGORY_TEMPLATES) {
-        await recordCreateOrUpdate('CREATED', seedTemplatePayload(template, time.nowMs()));
-      }
-      return { archived: active.length, seeded: DEFAULT_CATEGORY_TEMPLATES.length };
+      return store.transaction(async (tx) => {
+        const active = (await tx.findAllCategories()).filter((c) => !c.deleted);
+        for (const c of active) {
+          await deleteInTx(tx, c.id);
+        }
+        // Re-seed unconditionally: `seedDefaultsIfEmpty` would skip because
+        // archived rows still exist, so we mirror its body here.
+        //
+        // Unlike the fresh-install seed path below, here the seed MUST
+        // clobber what's there, so `reseedInTx` stamps each CREATED
+        // above the soft-delete events we just emitted for the same ids.
+        for (const template of DEFAULT_CATEGORY_TEMPLATES) {
+          await reseedInTx(tx, template);
+        }
+        return { archived: active.length, seeded: DEFAULT_CATEGORY_TEMPLATES.length };
+      });
     },
 
     async seedDefaultsIfEmpty() {

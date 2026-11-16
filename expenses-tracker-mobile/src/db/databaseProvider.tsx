@@ -4,8 +4,8 @@
  *
  * The provider lives at the top of the React tree (mounted by
  * `app/_layout.tsx`) so every screen sees the same `LocalStore` instance.
- * Tests never mount this provider — they inject `InMemoryLocalStore`
- * directly.
+ * Tests never mount this provider — they build stores with
+ * `createTestStore()` (`src/test/sqliteTestStore.ts`) directly.
  *
  * The bootstrap is async: until the DB is opened and migrations have run,
  * we render a centered `ActivityIndicator`. Failures surface as a banner

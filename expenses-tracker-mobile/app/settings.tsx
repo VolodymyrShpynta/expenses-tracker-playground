@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Dialog,
   Divider,
+  HelperText,
   IconButton,
   List,
   Portal,
@@ -290,6 +291,9 @@ function ManageCategoriesDialog({
   const [editing, setEditing] = useState<Category | 'new' | null>(null);
   const [mergeSource, setMergeSource] = useState<Category | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Category | null>(null);
+  // Shown inside this dialog (not via `onShowStatus`, which renders on
+  // the screen behind it) because the affected category is listed here.
+  const [actionError, setActionError] = useState<string | null>(null);
   // Set when a Restore tap hit the partial unique index (name or
   // template_key) collision — we open a confirmation dialog instead of
   // letting the raw SQLite error bubble up.
@@ -327,17 +331,63 @@ function ManageCategoriesDialog({
     });
   };
 
+  const dismiss = () => {
+    setActionError(null);
+    onDismiss();
+  };
+
+  // Opening another action hides this dialog; drop the last outcome so
+  // it doesn't reappear stale when the dialog comes back.
+  const startAction = (open: () => void) => () => {
+    setActionError(null);
+    open();
+  };
+
+  /**
+   * Run a category write and show `failureKey` in this dialog when it
+   * throws or resolves falsy (the write did not apply) — never report
+   * either as success.
+   */
+  const runReported = async (
+    target: Category,
+    failureKey:
+      | 'categoryDialog.deleteError'
+      | 'categoryDialog.restoreError'
+      | 'categoryDialog.mergeError',
+    write: () => Promise<unknown>,
+  ): Promise<void> => {
+    setActionError(null);
+    try {
+      if (await write()) return;
+    } catch (e) {
+      console.warn('Category write failed', e);
+    }
+    setActionError(translate(failureKey, { name: lookup.resolve(target.id).name }));
+  };
+
+  const handleDelete = (target: Category): Promise<void> =>
+    runReported(target, 'categoryDialog.deleteError', async () => {
+      // `false` only means a sync deleted it first — the outcome the user
+      // asked for — so only a thrown error is a failure here.
+      await deleteCategory.mutateAsync(target.id);
+      return true;
+    });
+
+  const handleMerge = (source: Category, targetId: string): Promise<void> =>
+    runReported(source, 'categoryDialog.mergeError', () =>
+      mergeCategories.mutateAsync({ sourceId: source.id, targetId }),
+    );
+
   const handleRestore = async (target: Category): Promise<void> => {
+    setActionError(null);
     const duplicates = findActiveDuplicates(target);
     if (duplicates.length > 0) {
       setRestoreConflict({ archived: target, activeDuplicates: duplicates });
       return;
     }
-    try {
-      await restoreCategory.mutateAsync(target.id);
-    } catch (e) {
-      console.warn('Restore failed', e);
-    }
+    await runReported(target, 'categoryDialog.restoreError', () =>
+      restoreCategory.mutateAsync(target.id),
+    );
   };
 
   return (
@@ -351,7 +401,7 @@ function ManageCategoriesDialog({
           restoreConflict === null &&
           !resetConfirmOpen
         }
-        onDismiss={onDismiss}
+        onDismiss={dismiss}
         title={translate('categoryDialog.manageTitle')}
       >
         <Dialog.ScrollArea style={{ paddingHorizontal: 0 }}>
@@ -366,7 +416,7 @@ function ManageCategoriesDialog({
                   return (
                     <TouchableRipple
                       key={c.id}
-                      onPress={() => setEditing(c)}
+                      onPress={startAction(() => setEditing(c))}
                       accessibilityLabel={translate('categoryDialog.editAriaLabel', { name: r.name })}
                     >
                       <View
@@ -386,13 +436,13 @@ function ManageCategoriesDialog({
                           icon="call-merge"
                           size={20}
                           accessibilityLabel={translate('categoryDialog.mergeAriaLabel', { name: r.name })}
-                          onPress={() => setMergeSource(c)}
+                          onPress={startAction(() => setMergeSource(c))}
                         />
                         <IconButton
                           icon="delete-outline"
                           size={20}
                           accessibilityLabel={translate('categoryDialog.deleteAriaLabel', { name: r.name })}
-                          onPress={() => setPendingDelete(c)}
+                          onPress={startAction(() => setPendingDelete(c))}
                         />
                       </View>
                     </TouchableRipple>
@@ -438,14 +488,23 @@ function ManageCategoriesDialog({
               ) : null}
             </ScrollView>
           </Dialog.ScrollArea>
+          {actionError ? (
+            <HelperText
+              type="error"
+              accessibilityLiveRegion="polite"
+              style={{ paddingHorizontal: 24 }}
+            >
+              {actionError}
+            </HelperText>
+          ) : null}
           <Dialog.Actions style={{ justifyContent: 'space-between', flexWrap: 'wrap', rowGap: 4 }}>
             <Button
-              onPress={() => setResetConfirmOpen(true)}
+              onPress={startAction(() => setResetConfirmOpen(true))}
               textColor={theme.colors.error}
             >
               {translate('settings.resetCategories')}
             </Button>
-            <Button onPress={() => setEditing('new')}>{translate('common.add')}</Button>
+            <Button onPress={startAction(() => setEditing('new'))}>{translate('common.add')}</Button>
           </Dialog.Actions>
         </AppDialog>
 
@@ -462,13 +521,9 @@ function ManageCategoriesDialog({
           source={mergeSource}
           onDismiss={() => setMergeSource(null)}
           onConfirm={async (targetId) => {
-            const sourceId = mergeSource.id;
+            const source = mergeSource;
             setMergeSource(null);
-            try {
-              await mergeCategories.mutateAsync({ sourceId, targetId });
-            } catch (e) {
-              console.warn('Merge failed', e);
-            }
+            await handleMerge(source, targetId);
           }}
         />
       ) : null}
@@ -490,7 +545,7 @@ function ManageCategoriesDialog({
               setResetConfirmOpen(false);
               try {
                 const r = await resetCategories.mutateAsync();
-                onDismiss();
+                dismiss();
                 onShowStatus(translate('settings.resetSuccess', { archived: r.archived, seeded: r.seeded }));
               } catch (e) {
                 onShowStatus(translate('settings.resetError'));
@@ -528,12 +583,7 @@ function ManageCategoriesDialog({
             onPress={async () => {
               const target = pendingDelete;
               setPendingDelete(null);
-              if (!target) return;
-              try {
-                await deleteCategory.mutateAsync(target.id);
-              } catch (e) {
-                console.warn('Delete failed', e);
-              }
+              if (target) await handleDelete(target);
             }}
           >
             {translate('common.delete')}
@@ -564,7 +614,7 @@ function ManageCategoriesDialog({
               const conflict = restoreConflict;
               setRestoreConflict(null);
               if (!conflict) return;
-              try {
+              await runReported(conflict.archived, 'categoryDialog.restoreError', async () => {
                 // Merge each active duplicate INTO the archived row first
                 // so the partial unique indexes (`idx_categories_name`,
                 // `idx_categories_template`) only see one candidate when
@@ -576,10 +626,8 @@ function ManageCategoriesDialog({
                     targetId: conflict.archived.id,
                   });
                 }
-                await restoreCategory.mutateAsync(conflict.archived.id);
-              } catch (e) {
-                console.warn('Restore & merge failed', e);
-              }
+                return restoreCategory.mutateAsync(conflict.archived.id);
+              });
             }}
           >
             {translate('categoryDialog.restoreAndMergeButton')}
@@ -695,6 +743,7 @@ function CategoryFormDialog({
   const [color, setColor] = useState(category?.color ?? AVAILABLE_COLORS[0]!);
   const [submitting, setSubmitting] = useState(false);
   const [duplicatePromptOpen, setDuplicatePromptOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Only run duplicate detection when creating a brand-new category;
   // editing an existing row is allowed to keep the same name.
@@ -713,6 +762,7 @@ function CategoryFormDialog({
 
   const persist = async () => {
     setSubmitting(true);
+    setError(null);
     try {
       if (category) {
         // Templated rows resolve their label through i18n
@@ -728,7 +778,7 @@ function CategoryFormDialog({
         const isTemplated = category.templateKey != null;
         const originalName = lookup.resolve(category.id).name;
         const shouldSendName = !isTemplated || trimmed !== originalName;
-        await updateCategory.mutateAsync({
+        const updated = await updateCategory.mutateAsync({
           id: category.id,
           cmd: {
             icon: iconKey,
@@ -736,13 +786,34 @@ function CategoryFormDialog({
             ...(shouldSendName ? { name: trimmed } : {}),
           },
         });
+        // `undefined`: a sync deleted the category before the update ran.
+        // Retrying can't help, so say why instead of "try again".
+        if (!updated) {
+          setError(translate('categoryDialog.deletedElsewhere', { name: originalName }));
+          return;
+        }
       } else {
         await createCategory.mutateAsync({ name: name.trim(), icon: iconKey, color });
       }
       onDismiss();
+    } catch (e) {
+      setError(translate('categoryDialog.saveError', { name: name.trim() }));
+      console.warn('Save category failed', e);
     } finally {
       setSubmitting(false);
     }
+  };
+
+  /** Restore `archived`; on failure keep the form open with an error. */
+  const restoreArchived = async (archived: Category): Promise<boolean> => {
+    setError(null);
+    try {
+      if (await restoreCategory.mutateAsync(archived.id)) return true;
+    } catch (e) {
+      console.warn('Restore failed', e);
+    }
+    setError(translate('categoryDialog.restoreError', { name: lookup.resolve(archived.id).name }));
+    return false;
   };
 
   return (
@@ -809,6 +880,15 @@ function CategoryFormDialog({
           </View>
         </ScrollView>
       </Dialog.ScrollArea>
+      {error ? (
+        <HelperText
+          type="error"
+          accessibilityLiveRegion="polite"
+          style={{ paddingHorizontal: 24 }}
+        >
+          {error}
+        </HelperText>
+      ) : null}
       <Dialog.Actions>
         <Button mode="contained" onPress={handleSave} loading={submitting} disabled={submitting}>
           {translate('common.save')}
@@ -847,8 +927,7 @@ function CategoryFormDialog({
               onPress={async () => {
                 setDuplicatePromptOpen(false);
                 const first = dupArchived[0];
-                if (first) await restoreCategory.mutateAsync(first.id);
-                onDismiss();
+                if (!first || (await restoreArchived(first))) onDismiss();
               }}
             >
               {translate('categoryDialog.restoreButton')}

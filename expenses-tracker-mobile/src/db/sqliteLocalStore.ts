@@ -7,10 +7,10 @@
  * verbatim — see `ExpenseProjectionRepositoryTest` for the canonical
  * behavior matrix.
  *
- * NOT covered by Vitest: this module loads `expo-sqlite`, which is a
- * native module. It is exercised at runtime via the Expo dev client and
- * indirectly through the in-memory `InMemoryLocalStore` test double in
- * `src/test/inMemoryLocalStore.ts` (which mirrors the same semantics).
+ * Covered by Vitest through `src/test/sqliteTestStore.ts`, which runs this
+ * module and the production schema on Node's built-in SQLite. Only the
+ * `expo-sqlite` native bridge (and the SQLite build it bundles) is
+ * exercised solely on a device / the Expo dev client.
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type {
@@ -71,7 +71,9 @@ interface CategoryRow {
   readonly deleted: number;
 }
 
-function rowToCategory(row: CategoryRow): Category {
+// The row mappers are exported for the test store's table dumps
+// (`src/test/sqliteTestStore.ts`) so tests read rows exactly as the store does.
+export function rowToCategory(row: CategoryRow): Category {
   return {
     id: row.id,
     icon: row.icon,
@@ -84,7 +86,7 @@ function rowToCategory(row: CategoryRow): Category {
   };
 }
 
-function rowToProjection(row: ProjectionRow): ExpenseProjection {
+export function rowToProjection(row: ProjectionRow): ExpenseProjection {
   // Spread-conditional pattern keeps `exactOptionalPropertyTypes` happy:
   // omit optional fields entirely when the column is NULL.
   return {
@@ -99,7 +101,7 @@ function rowToProjection(row: ProjectionRow): ExpenseProjection {
   };
 }
 
-function rowToEvent(row: EventRow): ExpenseEvent {
+export function rowToEvent(row: EventRow): ExpenseEvent {
   return {
     eventId: row.event_id,
     timestamp: row.timestamp,
@@ -110,7 +112,7 @@ function rowToEvent(row: EventRow): ExpenseEvent {
   };
 }
 
-function rowToCategoryEvent(row: CategoryEventRow): CategoryEvent {
+export function rowToCategoryEvent(row: CategoryEventRow): CategoryEvent {
   return {
     eventId: row.event_id,
     timestamp: row.timestamp,

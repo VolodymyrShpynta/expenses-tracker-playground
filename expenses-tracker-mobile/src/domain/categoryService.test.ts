@@ -6,17 +6,24 @@
  * Scope: command-side behaviour only. The remote-apply path (LWW,
  * idempotency) is covered by `sync/remoteCategoryEventApplier.test.ts`.
  */
-import { describe, expect, it } from 'vitest';
-import { createCategoryService } from './categoryService';
+import { describe, expect, it, vi } from 'vitest';
+import { createCategoryService, type CategoryService } from './categoryService';
+import { createExpenseCommandService } from './commands';
 import {
   DEFAULT_CATEGORY_TEMPLATES,
   defaultTemplateId,
 } from './defaultCategories';
-import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
+import type { LocalStore } from './localStore';
+import type { CategoryPayload, EventType } from './types';
+import { applyRemoteCategoryEvents } from '../sync/remoteCategoryEventApplier';
+import { createTestStore } from '../test/sqliteTestStore';
+import { createQueuedLocalStore } from '../test/queuedLocalStore';
 import { sequenceIds, sequenceTime } from '../test/fixtures';
 
+const silentLogger = { warn: () => undefined };
+
 function buildService(opts: { ids: string[]; times: number[] }) {
-  const store = new InMemoryLocalStore();
+  const store = createTestStore();
   const service = createCategoryService({
     store,
     time: sequenceTime(opts.times),
@@ -96,6 +103,25 @@ describe('CategoryService — createCategory', () => {
 });
 
 describe('CategoryService — updateCategory', () => {
+  it('should roll back the event when a rename collides with another active category', async () => {
+    // Given: two active categories
+    const { store, service } = buildService({
+      ids: ['cat-1', 'evt-1', 'cat-2', 'evt-2', 'evt-3'],
+      times: [1000, 1001, 2000, 2001, 3000, 3001],
+    });
+    await service.createCategory({ name: 'Coffee', icon: 'coffee', color: '#000' });
+    const tea = await service.createCategory({ name: 'Tea', icon: 'tea', color: '#000' });
+    const eventsBefore = store.allCategoryEvents().length;
+
+    // When / Then: the unique index on active names rejects the rename
+    await expect(service.updateCategory(tea.id, { name: 'Coffee' }))
+      .rejects.toThrow(/UNIQUE constraint failed: categories\.name/);
+
+    // And: the UPDATED event rolled back with the projection
+    expect(store.allCategoryEvents()).toHaveLength(eventsBefore);
+    expect((await store.findCategoryById(tea.id))?.name).toBe('Tea');
+  });
+
   it('should return undefined when updating a non-existent category', async () => {
     const { service } = buildService({ ids: [], times: [] });
     const result = await service.updateCategory('does-not-exist', { name: 'New' });
@@ -239,6 +265,161 @@ describe('CategoryService — deleteCategory', () => {
   });
 });
 
+describe('CategoryService — commands queued behind a sync batch', () => {
+  // The command's wall clock. Peer events carry this exact stamp — the
+  // tightest case the strict-`>` LWW check rejects.
+  const CLOCK = 5_000;
+
+  function setup() {
+    const { store, runQueuedInOrder } = createQueuedLocalStore();
+    const clock = { now: 1_000 };
+    const time = { nowMs: () => clock.now };
+    const ids = sequenceIds(Array.from({ length: 50 }, (_, i) => `id-${i}`));
+    const service = createCategoryService({ store, time, ids });
+    return { store, runQueuedInOrder, clock, time, ids, service };
+  }
+
+  /** A sync batch delivering a peer's `eventType` for the row, stamped at `CLOCK`. */
+  async function peerSync(
+    store: LocalStore,
+    categoryId: string,
+    eventType: EventType,
+    changes: Partial<CategoryPayload>,
+  ) {
+    const current = (await store.findCategoryById(categoryId))!;
+    return () => applyRemoteCategoryEvents(store, [{
+      eventId: `peer-${eventType}`,
+      timestamp: CLOCK,
+      eventType,
+      categoryId,
+      payload: { ...current, ...changes, updatedAt: CLOCK },
+    }], silentLogger);
+  }
+
+  async function givenCategory(
+    service: CategoryService,
+    kind: 'predefined' | 'custom',
+  ): Promise<string> {
+    if (kind === 'custom') {
+      const created = await service.createCategory({ name: 'Coffee', icon: 'coffee', color: '#000' });
+      return created.id;
+    }
+    await service.seedDefaultsIfEmpty();
+    return defaultTemplateId('food');
+  }
+
+  it.each([
+    { kind: 'predefined', linkedExpense: false },
+    { kind: 'predefined', linkedExpense: true },
+    { kind: 'custom', linkedExpense: false },
+    { kind: 'custom', linkedExpense: true },
+  ] as const)(
+    'should delete a $kind category (linked expense: $linkedExpense) that a sync batch queued ahead of it re-stamps',
+    async ({ kind, linkedExpense }) => {
+      // Given: a category, optionally used by an expense, and a sync batch
+      // carrying a peer's icon change
+      const { store, runQueuedInOrder, clock, time, ids, service } = setup();
+      const categoryId = await givenCategory(service, kind);
+      if (linkedExpense) {
+        await createExpenseCommandService({ store, time, ids }).createExpense({
+          description: 'Lunch',
+          amount: 1250,
+          currency: 'USD',
+          categoryId,
+          date: '2026-01-01T12:00:00Z',
+        });
+      }
+      const sync = await peerSync(store, categoryId, 'UPDATED', { icon: 'peer-icon' });
+
+      // When: the user confirms the delete while that batch is queued ahead
+      clock.now = CLOCK;
+      const [syncResult, deleted] = await runQueuedInOrder(
+        sync,
+        () => service.deleteCategory(categoryId),
+      );
+
+      // Then: the peer update landed first, and the delete still won
+      expect(syncResult.applied).toBe(1);
+      expect(deleted).toBe(true);
+      const archived = (await store.findCategoryById(categoryId))!;
+      expect(archived).toMatchObject({ deleted: true, icon: 'peer-icon' });
+      expect(archived.updatedAt).toBeGreaterThan(CLOCK);
+
+      // And: the DELETED event carries the row as of the transaction
+      const deletedEvent = store.allCategoryEvents().find((e) => e.eventType === 'DELETED')!;
+      expect(JSON.parse(deletedEvent.payload)).toMatchObject({
+        icon: 'peer-icon',
+        deleted: true,
+        updatedAt: archived.updatedAt,
+      });
+
+      // And: archived, not erased — the row stays in the catalog that
+      // feeds history and Restore, and expenses keep pointing at it
+      expect(await service.findAllCategories()).toContainEqual(archived);
+      const expenses = await store.findActiveProjections();
+      expect(expenses.map((e) => e.categoryId)).toEqual(linkedExpense ? [categoryId] : []);
+    },
+  );
+
+  it('should apply an update on top of a peer change synced while it was queued', async () => {
+    // Given: a category and a sync batch carrying a peer's icon change
+    const { store, runQueuedInOrder, clock, service } = setup();
+    const { id } = await service.createCategory({ name: 'Coffee', icon: 'coffee', color: '#000' });
+    const sync = await peerSync(store, id, 'UPDATED', { icon: 'peer-icon' });
+
+    // When: the user renames it while that batch is queued ahead
+    clock.now = CLOCK;
+    const [syncResult, updated] = await runQueuedInOrder(
+      sync,
+      () => service.updateCategory(id, { name: 'Espresso' }),
+    );
+
+    // Then: both changes survive — the rename merged onto the synced row
+    expect(syncResult.applied).toBe(1);
+    const stored = (await store.findCategoryById(id))!;
+    expect(stored).toMatchObject({ name: 'Espresso', icon: 'peer-icon', deleted: false });
+    expect(stored.updatedAt).toBeGreaterThan(CLOCK);
+    expect(updated).toEqual(stored);
+  });
+
+  it('should not update a category that a sync batch deleted while the update was queued', async () => {
+    // Given: a category and a sync batch carrying a peer's deletion
+    const { store, runQueuedInOrder, clock, service } = setup();
+    const { id } = await service.createCategory({ name: 'Coffee', icon: 'coffee', color: '#000' });
+    const sync = await peerSync(store, id, 'DELETED', { deleted: true });
+
+    // When: the user saves an edit while that batch is queued ahead
+    clock.now = CLOCK;
+    const [, updated] = await runQueuedInOrder(
+      sync,
+      () => service.updateCategory(id, { name: 'Espresso' }),
+    );
+
+    // Then: the update reports that it did not apply, and the row stays deleted
+    expect(updated).toBeUndefined();
+    expect(await store.findCategoryById(id)).toMatchObject({ name: 'Coffee', deleted: true });
+  });
+
+  it('should restore a category that a sync batch re-stamped while the restore was queued', async () => {
+    // Given: an archived category whose deletion a peer syncs too
+    const { store, runQueuedInOrder, clock, service } = setup();
+    const { id } = await service.createCategory({ name: 'Coffee', icon: 'coffee', color: '#000' });
+    await service.deleteCategory(id);
+    const sync = await peerSync(store, id, 'DELETED', { deleted: true });
+
+    // When: the user restores it while that batch is queued ahead
+    clock.now = CLOCK;
+    const [syncResult, restored] = await runQueuedInOrder(sync, () => service.restoreCategory(id));
+
+    // Then: the peer's stamp landed first, and the restore still won
+    expect(syncResult.applied).toBe(1);
+    const stored = (await store.findCategoryById(id))!;
+    expect(stored.deleted).toBe(false);
+    expect(stored.updatedAt).toBeGreaterThan(CLOCK);
+    expect(restored).toEqual(stored);
+  });
+});
+
 describe('CategoryService — restoreCategory', () => {
   it('should append an UPDATED event with deleted=false', async () => {
     const { store, service } = buildService({
@@ -258,6 +439,62 @@ describe('CategoryService — restoreCategory', () => {
     // The row reflects the restore.
     const row = await store.findCategoryById('cat-1');
     expect(row?.deleted).toBe(false);
+  });
+});
+
+describe('CategoryService — resetToDefaults', () => {
+  it('should re-seed a default whose row is stamped ahead of the local clock', async () => {
+    // Given: seeded defaults, then a peer's change to one of them synced
+    // from a device whose clock runs ahead of ours
+    const { store, service } = buildService({
+      ids: Array.from({ length: 200 }, (_, i) => `id-${i}`),
+      times: Array.from({ length: 200 }, (_, i) => 5_000 + i),
+    });
+    await service.seedDefaultsIfEmpty();
+    const foodId = defaultTemplateId('food');
+    const food = (await store.findCategoryById(foodId))!;
+    await applyRemoteCategoryEvents(store, [{
+      eventId: 'peer-update',
+      timestamp: 10_000,
+      eventType: 'UPDATED',
+      categoryId: foodId,
+      payload: { ...food, icon: 'peer-icon', updatedAt: 10_000 },
+    }], silentLogger);
+
+    // When
+    const result = await service.resetToDefaults();
+
+    // Then: every default is active again, with the template's own fields
+    const active = (await service.findAllCategories()).filter((c) => !c.deleted);
+    expect(active).toHaveLength(DEFAULT_CATEGORY_TEMPLATES.length);
+    expect(result.seeded).toBe(DEFAULT_CATEGORY_TEMPLATES.length);
+    const template = DEFAULT_CATEGORY_TEMPLATES.find((t) => t.templateKey === 'food')!;
+    expect(await store.findCategoryById(foodId)).toMatchObject({
+      deleted: false,
+      icon: template.icon,
+    });
+  });
+
+  it('should leave every category untouched when the reset fails', async () => {
+    // Given: seeded defaults plus a custom category
+    const { store, service } = buildService({
+      ids: Array.from({ length: 200 }, (_, i) => `id-${i}`),
+      times: Array.from({ length: 200 }, (_, i) => 5_000 + i),
+    });
+    await service.seedDefaultsIfEmpty();
+    await service.createCategory({ name: 'Coffee', icon: 'coffee', color: '#000' });
+    const before = await service.findAllCategories();
+    const eventsBefore = store.allCategoryEvents().length;
+    // The first projection in a reset is its first re-seed, after every
+    // active category was archived.
+    vi.spyOn(store, 'projectCategoryFromEvent').mockRejectedValueOnce(new Error('disk full'));
+
+    // When
+    await expect(service.resetToDefaults()).rejects.toThrow('disk full');
+
+    // Then: nothing was archived and no event was kept
+    expect(await service.findAllCategories()).toEqual(before);
+    expect(store.allCategoryEvents()).toHaveLength(eventsBefore);
   });
 });
 

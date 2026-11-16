@@ -3,8 +3,8 @@
  *
  * Defined in `src/domain/` (not `src/db/`) so command/query/sync modules
  * depend on this interface, not on `expo-sqlite`. The production
- * implementation lives in `src/db/sqliteLocalStore.ts`; tests inject the
- * `InMemoryLocalStore` from `src/test/`.
+ * implementation lives in `src/db/sqliteLocalStore.ts`; tests run that
+ * same implementation on Node's built-in SQLite (`src/test/sqliteTestStore.ts`).
  *
  * The interface deliberately mirrors the operations exposed by the
  * backend's `ExpenseEventRepository` + `ExpenseProjectionRepository`
@@ -23,7 +23,16 @@
  *
  * Splitting either pair across separate transactions recreates the
  * consistency hazard the backend's `@Transactional` annotation on
- * `ExpenseCommandService` prevents. New write code belongs in
+ * `ExpenseCommandService` prevents.
+ *
+ * Any read a write is derived from — notably the existing row whose
+ * `updatedAt` the new stamp must exceed — belongs in the same
+ * transaction, through the same `tx`. Writers queue (see
+ * `src/db/transactions.ts`), so a sync batch queued ahead can re-stamp
+ * the row between an outside read and the write, and the strict-`>`
+ * LWW check then silently rejects the write.
+ *
+ * New write code belongs in
  * `src/domain/commands.ts` / `src/domain/categoryService.ts`; the
  * sync apply path in `src/sync/` is the only other legitimate caller.
  */

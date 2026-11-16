@@ -8,14 +8,17 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createExpenseCommandService } from './commands';
 import { createExpenseQueryService } from './queries';
-import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
+import type { ExpensePayload } from './types';
+import { applyRemoteEvents } from '../sync/remoteEventApplier';
+import { createTestStore } from '../test/sqliteTestStore';
+import { createQueuedLocalStore } from '../test/queuedLocalStore';
 import {
   sequenceIds,
   sequenceTime,
 } from '../test/fixtures';
 
 function buildService(opts: { ids: string[]; times: number[] }) {
-  const store = new InMemoryLocalStore();
+  const store = createTestStore();
   const commands = createExpenseCommandService({
     store,
     time: sequenceTime(opts.times),
@@ -163,5 +166,75 @@ describe('ExpenseCommandService — deleteExpense', () => {
     // And: A DELETED event was appended
     const events = env.store.allEvents();
     expect(events.map((e) => e.eventType)).toEqual(['CREATED', 'DELETED']);
+  });
+});
+
+describe('ExpenseCommandService — commands queued behind a sync batch', () => {
+  // The command's wall clock. The peer update carries this exact stamp —
+  // the tightest case the strict-`>` LWW check rejects.
+  const CLOCK = 5_000;
+
+  async function setup() {
+    const { store, runQueuedInOrder } = createQueuedLocalStore();
+    const clock = { now: 1_000 };
+    const commands = createExpenseCommandService({
+      store,
+      time: { nowMs: () => clock.now },
+      ids: sequenceIds(Array.from({ length: 10 }, (_, i) => `id-${i}`)),
+    });
+    const { id } = await commands.createExpense({
+      description: 'Lunch',
+      amount: 1250,
+      currency: 'USD',
+      categoryId: 'cat-1',
+      date: '2026-01-01T12:00:00Z',
+    });
+    const current = (await store.findProjectionById(id))!;
+    /** A sync batch delivering a peer's update to the expense, stamped at `CLOCK`. */
+    const peerUpdate = (changes: Partial<ExpensePayload>) => () => applyRemoteEvents(store, [{
+      eventId: 'peer-update',
+      timestamp: CLOCK,
+      eventType: 'UPDATED',
+      expenseId: id,
+      payload: { ...current, ...changes, updatedAt: CLOCK },
+    }], { warn: () => undefined });
+    clock.now = CLOCK;
+    return { store, runQueuedInOrder, commands, id, peerUpdate };
+  }
+
+  it('should apply a partial update on top of a peer change synced while it was queued', async () => {
+    // Given: an expense and a sync batch carrying a peer's description change
+    const { store, runQueuedInOrder, commands, id, peerUpdate } = await setup();
+
+    // When: the user changes the amount while that batch is queued ahead
+    const [syncResult, updated] = await runQueuedInOrder(
+      peerUpdate({ description: 'Team lunch' }),
+      () => commands.updateExpense(id, { amount: 2000 }),
+    );
+
+    // Then: both changes survive — the amount merged onto the synced row
+    expect(syncResult.applied).toBe(1);
+    const stored = (await store.findProjectionById(id))!;
+    expect(stored).toMatchObject({ amount: 2000, description: 'Team lunch', deleted: false });
+    expect(stored.updatedAt).toBeGreaterThan(CLOCK);
+    expect(updated).toEqual(stored);
+  });
+
+  it('should delete an expense that a sync batch re-stamped while the delete was queued', async () => {
+    // Given: an expense and a sync batch carrying a peer's amount change
+    const { store, runQueuedInOrder, commands, id, peerUpdate } = await setup();
+
+    // When: the user deletes it while that batch is queued ahead
+    const [syncResult, deleted] = await runQueuedInOrder(
+      peerUpdate({ amount: 990 }),
+      () => commands.deleteExpense(id),
+    );
+
+    // Then: the peer update landed first, and the delete still won
+    expect(syncResult.applied).toBe(1);
+    expect(deleted).toBe(true);
+    const stored = (await store.findProjectionById(id))!;
+    expect(stored).toMatchObject({ amount: 990, deleted: true });
+    expect(stored.updatedAt).toBeGreaterThan(CLOCK);
   });
 });

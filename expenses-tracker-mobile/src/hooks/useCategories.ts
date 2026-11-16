@@ -83,11 +83,11 @@ export function useRestoreCategory() {
 }
 
 export function useMergeCategories() {
-  const { categories, expenseQueries, expenseCommands } = useAppServices();
+  const { categories } = useAppServices();
   const onSuccess = useWriteSideEffects([CATEGORIES_QUERY_KEY, EXPENSES_QUERY_KEY]);
   return useMutation({
     mutationFn: ({ sourceId, targetId }: { sourceId: string; targetId: string }) =>
-      categories.mergeCategories(sourceId, targetId, expenseQueries, expenseCommands),
+      categories.mergeCategories(sourceId, targetId),
     onSuccess,
   });
 }

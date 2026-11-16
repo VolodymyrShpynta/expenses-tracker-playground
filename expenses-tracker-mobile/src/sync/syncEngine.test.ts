@@ -14,7 +14,7 @@ import { decodeSyncFile, encodeSyncFile } from './codec';
 import { ConcurrencyError } from './cloudDriveAdapter';
 import { PRUNE_WINDOW_MS, SNAPSHOT_VERSION } from './snapshotBuilder';
 import { jsonToPayload } from '../domain/mapping';
-import { InMemoryLocalStore } from '../test/inMemoryLocalStore';
+import { createTestStore, type TestLocalStore } from '../test/sqliteTestStore';
 import { InMemoryCloudDriveAdapter } from '../test/inMemoryCloudDriveAdapter';
 import type {
   CategoryEvent,
@@ -104,12 +104,12 @@ const makeRemoteCategoryEvent = (
 });
 
 describe('SyncEngine.performFullSync', () => {
-  let store: InMemoryLocalStore;
+  let store: TestLocalStore;
   let adapter: InMemoryCloudDriveAdapter;
   let engine: ReturnType<typeof createSyncEngine>;
 
   beforeEach(() => {
-    store = new InMemoryLocalStore();
+    store = createTestStore();
     adapter = new InMemoryCloudDriveAdapter();
     engine = createSyncEngine({
       store,
@@ -386,7 +386,7 @@ describe('SyncEngine.performFullSync', () => {
     expect(adapter.notModifiedCount).toBe(1);
     expect(revalidated.remote.applied).toBe(0);
     expect(adapter.uploadCount).toBe(1);
-    const coldStore = new InMemoryLocalStore();
+    const coldStore = createTestStore();
     await createSyncEngine({ store: coldStore, adapter }).performFullSync();
     expect(await coldStore.findAllProjections()).toEqual(await store.findAllProjections());
   });
@@ -418,7 +418,7 @@ describe('SyncEngine.performFullSync', () => {
     // When
     await engine.performFullSync();
     const outgoing = decodeSyncFile(adapter.peekBytes()!, true);
-    const coldStore = new InMemoryLocalStore();
+    const coldStore = createTestStore();
     await createSyncEngine({ store: coldStore, adapter }).performFullSync();
 
     // Then

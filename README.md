@@ -381,7 +381,7 @@ expenses-tracker-playground/
 │   │   │   └── backgroundSync.ts      # expo-background-fetch task wiring
 │   │   ├── i18n/                  # i18next bootstrap + locale JSON
 │   │   ├── theme/                 # MD3 light/dark theme
-│   │   ├── test/                  # In-memory fakes + fixtures (Vitest)
+│   │   ├── test/                  # Real-SQLite test store, fakes + fixtures (Vitest)
 │   │   ├── utils/                 # TimeProvider, logger
 │   │   ├── queryClient.ts         # TanStack Query client + query keys
 │   │   └── types/                 # Shared TS interfaces

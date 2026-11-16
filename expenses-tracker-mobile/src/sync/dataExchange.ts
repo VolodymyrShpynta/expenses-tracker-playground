@@ -22,8 +22,8 @@
  *
  * The React hook (`useDataExchange`) is a thin shell over these
  * helpers — file I/O and the OS share / picker dialogs live there;
- * domain orchestration lives here, fully unit-testable against an
- * `InMemoryLocalStore` and the real services.
+ * domain orchestration lives here, fully unit-testable against a
+ * real-SQLite test store and the real services.
  */
 import type { LocalStore } from '../domain/localStore';
 import type { Category } from '../domain/types';
